@@ -554,14 +554,14 @@ function App() {
       .from('results')
       .insert([
         {
-          progId: progObj.id,
-          progName: progObj.name,
-          progType: progObj.type,
-          catName: categories.find(c => String(c.id) === String(progObj.catid))?.name || '',
-          studentName: studentObj.name,
-          studentGender: studentObj.gender,
-          teamId: studentObj.teamid,
-          teamName: teams.find(t => String(t.id) === String(studentObj.teamid))?.name || '',
+          progid: progObj.id,
+          progname: progObj.name,
+          progtype: progObj.type,
+          catname: categories.find(c => String(c.id) === String(progObj.catid))?.name || '',
+          studentname: studentObj.name,
+          studentgender: studentObj.gender,
+          teamid: studentObj.teamid,
+          teamname: teams.find(t => String(t.id) === String(studentObj.teamid))?.name || '',
           place: selectedPlace === '0' ? 'സ്ഥാനമില്ല' : `${selectedPlace} -ാം സ്ഥാനം`,
           grade: selectedGrade === 'No' ? 'ഗ്രേഡില്ല' : `${selectedGrade} Grade`,
           points: pts,
@@ -959,12 +959,12 @@ function App() {
                     {resultsList.length === 0 ? <tr><td colSpan="10">ഫലങ്ങൾ ഒന്നും ഇതുവരെ പ്രഖ്യാപിച്ചിട്ടില്ല.</td></tr> :
                       resultsList.map(r => (
                         <tr key={r.id}>
-                          <td>{r.progName}</td>
-                          <td><span style={{ background: r.progType === 'GROUP' ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{r.progType}</span></td>
-                          <td>{r.catName}</td>
-                          <td>{r.studentName}</td>
-                          <td>{r.studentGender === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
-                          <td><b>{r.teamName}</b></td>
+                          <td>{r.progname || r.progName}</td>
+                          <td><span style={{ background: (r.progtype || r.progType) === 'GROUP' ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{r.progtype || r.progType}</span></td>
+                          <td>{r.catname || r.catName}</td>
+                          <td>{r.studentname || r.studentName}</td>
+                          <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
+                          <td><b>{r.teamname || r.teamName}</b></td>
                           <td>{r.place}</td>
                           <td>{r.grade}</td>
                           <td><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
