@@ -930,25 +930,50 @@ function App() {
 
           {/* ---------------- 🎯 TAB 1: SCOREBOARD ---------------- */}
           {activeTab === 'SCOREBOARD' && (
-            <div className="card animate-tab">
-              <h2>📊 ലൈവ് സ്കോർബോർഡ് & പോയിന്റ് നില</h2>
+            <div className="card animate-tab scoreboard-main-card">
+              <div className="scoreboard-header">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>📊 ലൈവ് സ്കോർബോർഡ്</h2>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>തത്സമയ പോയിന്റ് നില (Live Points)</p>
+                  </div>
+                  <div className="live-badge">
+                    <span className="live-dot"></span> LIVE
+                  </div>
+                </div>
+              </div>
               <div style={{ marginTop: '20px' }}>
-                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>ടീമുകൾ ഒന്നും ചേർത്തിട്ടില്ല. മാസ്റ്റർ സെറ്റിങ്സിൽ പോയി ടീമുകൾ ആഡ് ചെയ്യുക.</p> :
-                  <div className="scoreboard-grid">
-                    {[...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id)).map((t, idx) => {
-                      const totalPts = getTeamTotalPoints(t.id);
-                      const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
-                      const badgeIcon = idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅';
-                      return (
-                        <div key={t.id} className={`team-score-card ${rankClass}`}>
-                          <div className="score-info">
-                            <div className="score-team-name">{t.name}</div>
-                            <div className="score-points">{totalPts} <span style={{ fontSize: '16px', fontWeight: '600', color: 'inherit' }}>Pts</span></div>
+                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>ടീമുകൾ ഒന്നും ചേർത്തിട്ടില്ല. മാസ്റ്റർ സെറ്റിങ്സിൽ പോയി ടീമുകൾ ആഡ് ചെയ്യുക.</p> :
+                  <div className="live-leaderboard">
+                    {(() => {
+                      const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
+                      const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
+                      const graphMax = maxPts > 0 ? maxPts : 10;
+
+                      return sortedTeams.map((t, idx) => {
+                        const totalPts = getTeamTotalPoints(t.id);
+                        const barWidth = Math.max(8, (totalPts / graphMax) * 100); 
+                        const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-other';
+                        const badgeIcon = idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅';
+                        
+                        return (
+                          <div key={t.id} className={`leaderboard-item ${rankClass}`}>
+                            <div className="leaderboard-rank-badge">{badgeIcon}</div>
+                            <div className="leaderboard-content">
+                              <div className="team-meta">
+                                <span className="team-name">{t.name}</span>
+                                <span className="team-score-text">{totalPts} <span>Pts</span></span>
+                              </div>
+                              <div className="progress-track">
+                                <div className="progress-fill" style={{ width: `${barWidth}%` }}>
+                                   <div className="progress-glow"></div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div className="score-rank-badge">{badgeIcon}</div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 }
               </div>
