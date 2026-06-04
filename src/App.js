@@ -558,12 +558,12 @@ function App() {
           progname: progObj.name,
           progtype: progObj.type,
           catname: categories.find(c => String(c.id) === String(progObj.catid))?.name || '',
-          studentname: studentObj.name,
+          studentname: `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`,
           studentgender: studentObj.gender,
           teamid: studentObj.teamid,
           teamname: teams.find(t => String(t.id) === String(studentObj.teamid))?.name || '',
-          place: selectedPlace === '0' ? 'സ്ഥാനമില്ല' : `${selectedPlace} -ാം സ്ഥാനം`,
-          grade: selectedGrade === 'No' ? 'ഗ്രേഡില്ല' : `${selectedGrade} Grade`,
+          place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
+          grade: selectedGrade === 'No' ? '-' : selectedGrade,
           points: pts,
           madrasa_id: loggedInMadrasa.regNumber
         }
@@ -926,19 +926,22 @@ function App() {
               <h2>📊 ലൈവ് സ്കോർബോർഡ് & പോയിന്റ് നില</h2>
               <div style={{ marginTop: '20px' }}>
                 {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>ടീമുകൾ ഒന്നും ചേർത്തിട്ടില്ല. മാസ്റ്റർ സെറ്റിങ്സിൽ പോയി ടീമുകൾ ആഡ് ചെയ്യുക.</p> :
-                  [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id)).map((t, idx) => {
-                    const totalPts = getTeamTotalPoints(t.id);
-                    return (
-                      <div key={t.id} className="graph-row" style={{ marginBottom: '15px' }}>
-                        <div className="graph-team-name"><b>{t.name}</b></div>
-                        <div className="graph-bar-wrapper" style={{ background: '#e2e8f0', height: '26px', borderRadius: '12px', flexGrow: 1 }}>
-                          <div className={`graph-bar-fill color-idx-${idx % 3}`} style={{ width: totalPts > 0 ? `${Math.min(totalPts * 1.5 + 20, 100)}%` : '15%', color: 'white', paddingLeft: '10px', borderRadius: '12px', fontSize: '12px', lineHeight: '26px', fontWeight: 'bold' }}>
-                            {totalPts} Pts
+                  <div className="scoreboard-grid">
+                    {[...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id)).map((t, idx) => {
+                      const totalPts = getTeamTotalPoints(t.id);
+                      const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
+                      const badgeIcon = idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅';
+                      return (
+                        <div key={t.id} className={`team-score-card ${rankClass}`}>
+                          <div className="score-info">
+                            <div className="score-team-name">{t.name}</div>
+                            <div className="score-points">{totalPts} <span style={{ fontSize: '16px', fontWeight: '600', color: 'inherit' }}>Pts</span></div>
                           </div>
+                          <div className="score-rank-badge">{badgeIcon}</div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </div>
                 }
               </div>
             </div>
