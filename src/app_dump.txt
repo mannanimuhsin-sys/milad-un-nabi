@@ -1,0 +1,1415 @@
+1: import { supabase } from './supabaseClient';
+2: import React, { useState, useEffect } from 'react';
+3: import './App.css';
+4: 
+5: function App() {
+6:   const [currentScreen, setCurrentScreen] = useState('LOGIN');
+7:   const [activeTab, setActiveTab] = useState('SCOREBOARD');
+8:   const [loginRole, setLoginRole] = useState('');
+9:   const [secretKey, setSecretKey] = useState('');
+10: 
+11:   // \u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d1f\u0d4d\u0d30\u0d47\u0d37\u0d7b \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e (Supabase)
+12:   const [loggedInMadrasa, setLoggedInMadrasa] = useState(null);
+13:   const [regName, setRegName] = useState('');
+14:   const [regNumber, setRegNumber] = useState('');
+15:   const [regPlace, setRegPlace] = useState('');
+16:   const [adminPassword, setAdminPassword] = useState('');
+17:   const [viewPassword, setViewPassword] = useState('');
+18: 
+19:   // \u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+20:   const [loginRegNum, setLoginRegNum] = useState('');
+21:   const [loginPassword, setLoginPassword] = useState('');
+22:   const [isLoggingIn, setIsLoggingIn] = useState(false);
+23: 
+24:   // \u0d38\u0d42\u0d2a\u0d4d\u0d2a\u0d7c \u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d7b \u0d2a\u0d3e\u0d28\u0d32\u0d3f\u0d32\u0d46 \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+25:   const [superMadrasas, setSuperMadrasas] = useState([]);
+26:   const [pendingMadrasa, setPendingMadrasa] = useState(null);
+27:   const [editingMadrasaId, setEditingMadrasaId] = useState(null);
+28:   const [editingMadrasaData, setEditingMadrasaData] = useState({});
+29: 
+30:   // \u0d2e\u0d3e\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d21\u0d3e\u0d31\u0d4d\u0d31\u0d3e \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e (Supabase \u0d13\u0d7a\u0d32\u0d48\u0d7b \u0d21\u0d3e\u0d31\u0d4d\u0d31\u0d3e\u0d2c\u0d47\u0d38\u0d4d)
+31:   const [teams, setTeams] = useState([]);
+32:   const [categories, setCategories] = useState([]);
+33:   const [students, setStudents] = useState([]);
+34:   const [programs, setPrograms] = useState([]);
+35:   const [resultsList, setResultsList] = useState([]);
+36: 
+37:   // \u0d21\u0d48\u0d28\u0d3e\u0d2e\u0d3f\u0d15\u0d4d \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d38\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d02 \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d4d
+38:   const [pointSystem, setPointSystem] = useState({
+39:     p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
+40:     gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+41:   });
+42: 
+43:   // \u0d07\u0d7b\u0d2a\u0d41\u0d1f\u0d4d\u0d1f\u0d4d \u0d2b\u0d4b\u0d02 \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+44:   const [newTeamName, setNewTeamName] = useState('');
+45:   const [newCatName, setNewCatName] = useState('');
+46: 
+47:   // \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d41\u0d21\u0d28\u0d4d\u0d31\u0d4d \u0d2b\u0d4b\u0d02 \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+48:   const [newStudentName, setNewStudentName] = useState('');
+49:   const [studentRegNo, setStudentRegNo] = useState('');
+50:   const [selectedStudentTeam, setSelectedStudentTeam] = useState('');
+51:   const [selectedStudentCat, setSelectedStudentCat] = useState('');
+52:   const [studentGender, setStudentGender] = useState('BOY');
+53: 
+54:   // \u0d2a\u0d4d\u0d30\u0d4b\u0d17\u0d4d\u0d30\u0d3e\u0d02 \u0d2b\u0d4b\u0d02 \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+55:   const [newProgName, setNewProgName] = useState('');
+56:   const [newProgCode, setNewProgCode] = useState('');
+57:   const [selectedProgCat, setSelectedProgCat] = useState('');
+58:   const [progType, setProgType] = useState('SINGLE');
+59: 
+60:   // \u0d2e\u0d3e\u0d7c\u0d15\u0d4d\u0d15\u0d4d \u0d0e\u0d28\u0d4d\u0d31\u0d31\u0d3f \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+61:   const [selectedResultCat, setSelectedResultCat] = useState('');
+62:   const [selectedResultProg, setSelectedResultProg] = useState('');
+63:   const [selectedResultStudent, setSelectedResultStudent] = useState('');
+64:   const [selectedPlace, setSelectedPlace] = useState('1');
+65:   const [selectedGrade, setSelectedGrade] = useState('A');
+66: 
+67:   // \u0d0e\u0d21\u0d3f\u0d31\u0d4d\u0d31\u0d3f\u0d02\u0d17\u0d4d \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d47\u0d31\u0d4d\u0d31\u0d41\u0d15\u0d7e
+68:   const [editingStudentId, setEditingStudentId] = useState(null);
+69:   const [editingStudentData, setEditingStudentData] = useState({});
+70:   const [editingTeamId, setEditingTeamId] = useState(null);
+71:   const [editingTeamName, setEditingTeamName] = useState('');
+72:   const [editingProgId, setEditingProgId] = useState(null);
+73:   const [editingProgData, setEditingProgData] = useState({});
+74:   const [editingCatId, setEditingCatId] = useState(null);
+75:   const [editingCatName, setEditingCatName] = useState('');
+76:   const [editingCatClassRange, setEditingCatClassRange] = useState('');
+77:   const [newCatClassRange, setNewCatClassRange] = useState('');
+78:   const [settingsSubTab, setSettingsSubTab] = useState('TEAMS');
+79: 
+80: 
+81:   // \U0001f504 \u0d38\u0d41\u0d2a\u0d7c\u0d2c\u0d47\u0d38\u0d3f\u0d7d \u0d28\u0d3f\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d24\u0d24\u0d4d\u0d38\u0d2e\u0d2f\u0d02 \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d32\u0d4b\u0d21\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d3e\u0d28\u0d41\u0d33\u0d4d\u0d33 \u0d2b\u0d19\u0d4d\u0d37\u0d7b
+82:   const fetchSupabaseData = async (rNum) => {
+83:     try {
+84:       const [
+85:         { data: teamsData },
+86:         { data: catsData },
+87:         { data: studentsData },
+88:         { data: programsData },
+89:         { data: resultsData }
+90:       ] = await Promise.all([
+91:         supabase.from('teams').select('*').eq('madrasa_id', rNum),
+92:         supabase.from('categories').select('*').eq('madrasa_id', rNum),
+93:         supabase.from('students').select('*').eq('madrasa_id', rNum),
+94:         supabase.from('programs').select('*').eq('madrasa_id', rNum),
+95:         supabase.from('results').select('*').eq('madrasa_id', rNum)
+96:       ]);
+97: 
+98:       if (teamsData) setTeams(teamsData);
+99:       if (catsData) setCategories(catsData);
+100:       if (studentsData) setStudents(studentsData);
+101:       if (programsData) setPrograms(programsData);
+102:       if (resultsData) setResultsList(resultsData);
+103:     } catch (err) {
+104:       console.error("Data fetch error: ", err);
+105:     }
+106:   };
+107: 
+108:   useEffect(() => {
+109:     if (loggedInMadrasa) {
+110:       const rNum = loggedInMadrasa.regNumber;
+111: 
+112:       // \u0d13\u0d7a\u0d32\u0d48\u0d7b \u0d21\u0d3e\u0d31\u0d4d\u0d31\u0d3e\u0d2c\u0d47\u0d38\u0d3f\u0d7d \u0d28\u0d3f\u0d28\u0d4d\u0d28\u0d4d \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d0e\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d28\u0d4d\u0d28\u0d41
+113:       fetchSupabaseData(rNum);
+114: 
+115:       // \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d38\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d02 \u0d07\u0d2a\u0d4d\u0d2a\u0d4b\u0d34\u0d41\u0d02 \u0d32\u0d4b\u0d15\u0d4d\u0d15\u0d7d \u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d4b\u0d31\u0d47\u0d1c\u0d3f\u0d7d \u0d38\u0d42\u0d15\u0d4d\u0d37\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d28\u0d4d\u0d28\u0d41
+116:       setPointSystem(JSON.parse(localStorage.getItem(`points_${rNum}`)) || {
+117:         p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
+118:         gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+119:       });
+120: 
+121:       // \u0d06\u0d26\u0d4d\u0d2f\u0d2e\u0d3e\u0d2f\u0d3f \u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d2e\u0d4d\u0d2a\u0d4b\u0d7e \u0d21\u0d3e\u0d31\u0d4d\u0d31\u0d3e\u0d2c\u0d47\u0d38\u0d3f\u0d7d \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d2e\u0d3f\u0d32\u0d4d\u0d32\u0d46\u0d19\u0d4d\u0d15\u0d3f\u0d7d \u0d21\u0d3f\u0d2b\u0d4b\u0d7e\u0d1f\u0d4d\u0d1f\u0d4d \u0d06\u0d2f\u0d3f \u0d38\u0d46\u0d31\u0d4d\u0d31\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d3e\u0d28\u0d41\u0d33\u0d4d\u0d33 \u0d12\u0d30\u0d41 \u0d1a\u0d46\u0d15\u0d4d\u0d15\u0d7c
+122:       checkAndInsertDefaultCategories(rNum);
+123:     }
+124:   }, [loggedInMadrasa]);
+125: 
+126:   // \u0d21\u0d3f\u0d2b\u0d4b\u0d7e\u0d1f\u0d4d\u0d1f\u0d4d \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f\u0d15\u0d7e \u0d38\u0d41\u0d2a\u0d7c\u0d2c\u0d47\u0d38\u0d3f\u0d32\u0d47\u0d15\u0d4d\u0d15\u0d4d \u0d06\u0d21\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d3e\u0d28\u0d41\u0d33\u0d4d\u0d33 \u0d15\u0d4b\u0d21\u0d4d
+127:   const checkAndInsertDefaultCategories = async (rNum) => {
+128:     const { data } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
+129:     if (data && data.length === 0) {
+130:       const defaultCats = [
+131:         { name: 'Kiddies', madrasa_id: rNum }, { name: 'Sub Junior', madrasa_id: rNum },
+132:         { name: 'Junior', madrasa_id: rNum }, { name: 'Senior', madrasa_id: rNum },
+133:         { name: 'Super Senior', madrasa_id: rNum }, { name: 'General', madrasa_id: rNum }
+134:       ];
+135:       await supabase.from('categories').insert(defaultCats);
+136:       const { data: updatedCats } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
+137:       if (updatedCats) setCategories(updatedCats);
+138:     }
+139:   };
+140: 
+141:   const saveToStorage = (key, data) => {
+142:     if (!loggedInMadrasa) return;
+143:     localStorage.setItem(`${key}_${loggedInMadrasa.regNumber}`, JSON.stringify(data));
+144:   };
+145: 
+146:   const handleLogin = async (e) => {
+147:     e.preventDefault();
+148:     if (!loginRegNum.trim() || !loginPassword.trim()) {
+149:       alert('\u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d2a\u0d42\u0d7c\u0d23\u0d4d\u0d23\u0d2e\u0d3e\u0d2f\u0d3f \u0d28\u0d7d\u0d15\u0d41\u0d15!');
+150:       return;
+151:     }
+152: 
+153:     setIsLoggingIn(true);
+154:     try {
+155:       const { data: madrasa, error } = await supabase
+156:         .from('madrasas')
+157:         .select('*')
+158:         .eq('regNumber', loginRegNum)
+159:         .maybeSingle();
+160: 
+161:       if (error) {
+162:         alert('\u0d24\u0d15\u0d30\u0d3e\u0d7c \u0d38\u0d02\u0d2d\u0d35\u0d3f\u0d1a\u0d4d\u0d1a\u0d41: ' + error.message);
+163:         return;
+164:       }
+165: 
+166:       if (!madrasa) {
+167:         alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d15\u0d23\u0d4d\u0d1f\u0d46\u0d24\u0d4d\u0d24\u0d3e\u0d28\u0d3e\u0d2f\u0d3f\u0d32\u0d4d\u0d32!');
+168:         return;
+169:       }
+170: 
+171:       if (loginPassword === madrasa.adminPassword || loginPassword === madrasa.viewPassword) {
+172:         const [actualPlace, status] = (madrasa.place || '').split('|');
+173:         const currentStatus = status || 'approved'; // Default to approved if no suffix
+174: 
+175:         if (currentStatus === 'pending') {
+176:           setPendingMadrasa(madrasa);
+177:           setCurrentScreen('PENDING_APPROVAL');
+178:           return;
+179:         } else if (currentStatus === 'blocked') {
+180:           alert('\u0d28\u0d3f\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d1f\u0d46 \u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d2c\u0d4d\u0d32\u0d4b\u0d15\u0d4d\u0d15\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d3f\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d28\u0d4d\u0d28\u0d41! \u0d26\u0d2f\u0d35\u0d3e\u0d2f\u0d3f \u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d28\u0d41\u0d2e\u0d3e\u0d2f\u0d3f \u0d2c\u0d28\u0d4d\u0d27\u0d2a\u0d4d\u0d2a\u0d46\u0d1f\u0d41\u0d15.');
+181:           return;
+182:         }
+183: 
+184:         // Approved, proceed to login
+185:         const role = loginPassword === madrasa.adminPassword ? 'ADMIN' : 'VIEW';
+186:         const sanitizedMadrasa = { ...madrasa, place: actualPlace };
+187:         setLoggedInMadrasa(sanitizedMadrasa);
+188:         setLoginRole(role);
+189:         setCurrentScreen('DASHBOARD');
+190:         setActiveTab('SCOREBOARD');
+191: 
+192:         // Clear login form
+193:         setLoginRegNum('');
+194:         setLoginPassword('');
+195:       } else {
+196:         alert('\u0d2a\u0d3e\u0d38\u0d4d\u200c\u0d35\u0d47\u0d7c\u0d21\u0d4d \u0d24\u0d46\u0d31\u0d4d\u0d31\u0d3e\u0d23\u0d4d!');
+197:       }
+198:     } catch (err) {
+199:       alert('\u0d24\u0d15\u0d30\u0d3e\u0d7c \u0d38\u0d02\u0d2d\u0d35\u0d3f\u0d1a\u0d4d\u0d1a\u0d41: ' + err.message);
+200:     } finally {
+201:       setIsLoggingIn(false);
+202:     }
+203:   };
+204: 
+205:   const handleRegisterMadrasa = async (e) => {
+206:     e.preventDefault();
+207:     if (!regName.trim() || !regNumber.trim() || !regPlace.trim() || !adminPassword.trim() || !viewPassword.trim()) {
+208:       alert('\u0d0e\u0d32\u0d4d\u0d32\u0d3e \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d02 \u0d2a\u0d42\u0d30\u0d3f\u0d2a\u0d4d\u0d2a\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15!');
+209:       return;
+210:     }
+211: 
+212:     try {
+213:       // Check if the regNumber is unique in Supabase
+214:       const { data: existing, error: checkError } = await supabase
+215:         .from('madrasas')
+216:         .select('regNumber')
+217:         .eq('regNumber', regNumber);
+218: 
+219:       if (checkError) {
+220:         alert('\u0d24\u0d15\u0d30\u0d3e\u0d7c \u0d38\u0d02\u0d2d\u0d35\u0d3f\u0d1a\u0d4d\u0d1a\u0d41: ' + checkError.message);
+221:         return;
+222:       }
+223: 
+224:       if (existing && existing.length > 0) {
+225:         alert('\u0d08 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c \u0d28\u0d3f\u0d32\u0d35\u0d3f\u0d32\u0d41\u0d23\u0d4d\u0d1f\u0d4d! \u0d2e\u0d31\u0d4d\u0d31\u0d4d \u0d28\u0d2e\u0d4d\u0d2a\u0d7c \u0d09\u0d2a\u0d2f\u0d4b\u0d17\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15.');
+226:         return;
+227:       }
+228: 
+229:       // Insert Madrasa with pending suffix in place
+230:       const { error } = await supabase
+231:         .from('madrasas')
+232:         .insert([
+233:           {
+234:             name: regName,
+235:             regNumber: regNumber,
+236:             place: `${regPlace}|pending`,
+237:             adminPassword: adminPassword,
+238:             viewPassword: viewPassword
+239:           }
+240:         ]);
+241: 
+242:       if (error) {
+243:         alert('\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d1f\u0d4d\u0d30\u0d47\u0d37\u0d7b \u0d2a\u0d30\u0d3e\u0d1c\u0d2f\u0d2a\u0d4d\u0d2a\u0d46\u0d1f\u0d4d\u0d1f\u0d41: ' + error.message);
+244:       } else {
+245:         alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d1f\u0d4d\u0d30\u0d47\u0d37\u0d7b \u0d38\u0d2e\u0d7c\u0d2a\u0d4d\u0d2a\u0d3f\u0d1a\u0d4d\u0d1a\u0d41! \u0d38\u0d42\u0d2a\u0d4d\u0d2a\u0d7c \u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d7b \u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d32\u0d3f\u0d28\u0d3e\u0d2f\u0d3f \u0d15\u0d3e\u0d24\u0d4d\u0d24\u0d3f\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15.');
+246:         const tempMadrasa = { name: regName, regNumber, place: `${regPlace}|pending` };
+247:         setPendingMadrasa(tempMadrasa);
+248:         setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
+249:         setCurrentScreen('PENDING_APPROVAL');
+250:       }
+251:     } catch (err) {
+252:       alert('\u0d24\u0d15\u0d30\u0d3e\u0d7c \u0d38\u0d02\u0d2d\u0d35\u0d3f\u0d1a\u0d4d\u0d1a\u0d41: ' + err.message);
+253:     }
+254:   };
+255: 
+256:   const fetchMadrasas = async () => {
+257:     try {
+258:       const { data, error } = await supabase
+259:         .from('madrasas')
+260:         .select('*')
+261:         .order('id', { ascending: false });
+262: 
+263:       if (error) {
+264:         alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d15\u0d7e \u0d32\u0d4b\u0d21\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28\u0d24\u0d3f\u0d7d \u0d2a\u0d30\u0d3e\u0d1c\u0d2f\u0d02: ' + error.message);
+265:       } else if (data) {
+266:         setSuperMadrasas(data);
+267:       }
+268:     } catch (err) {
+269:       console.error(err);
+270:     }
+271:   };
+272: 
+273:   const handleApproveMadrasa = async (madrasa) => {
+274:     const [actualPlace] = (madrasa.place || '').split('|');
+275:     const updatedPlace = `${actualPlace}|approved`;
+276:     const { error } = await supabase
+277:       .from('madrasas')
+278:       .update({ place: updatedPlace })
+279:       .eq('id', madrasa.id);
+280: 
+281:     if (error) {
+282:       alert('\u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28\u0d24\u0d3f\u0d7d \u0d24\u0d15\u0d30\u0d3e\u0d7c: ' + error.message);
+283:     } else {
+284:       alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d35\u0d3f\u0d1c\u0d15\u0d30\u0d2e\u0d3e\u0d2f\u0d3f \u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d41!');
+285:       fetchMadrasas();
+286:     }
+287:   };
+288: 
+289:   const handleBlockMadrasa = async (madrasa) => {
+290:     const [actualPlace] = (madrasa.place || '').split('|');
+291:     const updatedPlace = `${actualPlace}|blocked`;
+292:     const { error } = await supabase
+293:       .from('madrasas')
+294:       .update({ place: updatedPlace })
+295:       .eq('id', madrasa.id);
+296: 
+297:     if (error) {
+298:       alert('\u0d2c\u0d4d\u0d32\u0d4b\u0d15\u0d4d\u0d15\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28\u0d24\u0d3f\u0d7d \u0d24\u0d15\u0d30\u0d3e\u0d7c: ' + error.message);
+299:     } else {
+300:       alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d2c\u0d4d\u0d32\u0d4b\u0d15\u0d4d\u0d15\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d41!');
+301:       fetchMadrasas();
+302:     }
+303:   };
+304: 
+305:   const handleDeleteMadrasa = async (id) => {
+306:     if (!window.confirm('\u0d08 \u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d23\u0d4b? \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d24 \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d0e\u0d32\u0d4d\u0d32\u0d3e\u0d02 \u0d07\u0d32\u0d4d\u0d32\u0d3e\u0d24\u0d3e\u0d15\u0d41\u0d02.')) return;
+307:     const { error } = await supabase
+308:       .from('madrasas')
+309:       .delete()
+310:       .eq('id', id);
+311: 
+312:     if (error) {
+313:       alert('\u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d41\u0d28\u0d4d\u0d28\u0d24\u0d3f\u0d7d \u0d24\u0d15\u0d30\u0d3e\u0d7c: ' + error.message);
+314:     } else {
+315:       alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d35\u0d3f\u0d1c\u0d15\u0d30\u0d2e\u0d3e\u0d2f\u0d3f \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d3f!');
+316:       fetchMadrasas();
+317:     }
+318:   };
+319: 
+320:   const startEditMadrasa = (madrasa) => {
+321:     const [actualPlace] = (madrasa.place || '').split('|');
+322:     setEditingMadrasaId(madrasa.id);
+323:     setEditingMadrasaData({
+324:       ...madrasa,
+325:       tempPlace: actualPlace
+326:     });
+327:   };
+328: 
+329:   const handleSaveMadrasaEdit = async () => {
+330:     if (!editingMadrasaData.name.trim() || !editingMadrasaData.regNumber.trim() || !editingMadrasaData.tempPlace.trim() || !editingMadrasaData.adminPassword.trim() || !editingMadrasaData.viewPassword.trim()) {
+331:       alert('\u0d0e\u0d32\u0d4d\u0d32\u0d3e \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d02 \u0d2a\u0d42\u0d30\u0d3f\u0d2a\u0d4d\u0d2a\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15!');
+332:       return;
+333:     }
+334: 
+335:     // Check if the regNumber is unique among other madrasas
+336:     const duplicate = superMadrasas.find(
+337:       m => m.regNumber === editingMadrasaData.regNumber && m.id !== editingMadrasaId
+338:     );
+339:     if (duplicate) {
+340:       alert('\u0d08 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c \u0d28\u0d3f\u0d32\u0d35\u0d3f\u0d32\u0d41\u0d23\u0d4d\u0d1f\u0d4d!');
+341:       return;
+342:     }
+343: 
+344:     const [, status] = (editingMadrasaData.place || '').split('|');
+345:     const currentStatus = status || 'approved';
+346:     const updatedPlace = `${editingMadrasaData.tempPlace}|${currentStatus}`;
+347: 
+348:     const { error } = await supabase
+349:       .from('madrasas')
+350:       .update({
+351:         name: editingMadrasaData.name,
+352:         regNumber: editingMadrasaData.regNumber,
+353:         place: updatedPlace,
+354:         adminPassword: editingMadrasaData.adminPassword,
+355:         viewPassword: editingMadrasaData.viewPassword
+356:       })
+357:       .eq('id', editingMadrasaId);
+358: 
+359:     if (error) {
+360:       alert('\u0d05\u0d2a\u0d4d\u0d21\u0d47\u0d31\u0d4d\u0d31\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28\u0d24\u0d3f\u0d7d \u0d24\u0d15\u0d30\u0d3e\u0d7c: ' + error.message);
+361:     } else {
+362:       alert('\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d35\u0d3f\u0d1c\u0d15\u0d30\u0d2e\u0d3e\u0d2f\u0d3f \u0d05\u0d2a\u0d4d\u0d21\u0d47\u0d31\u0d4d\u0d31\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d41!');
+363:       setEditingMadrasaId(null);
+364:       fetchMadrasas();
+365:     }
+366:   };
+367: 
+368:   // \U0001f6a9 1. TEAM ACTIONS (SUPABASE)
+369:   const handleAddTeam = async (e) => {
+370:     e.preventDefault();
+371:     if (!newTeamName.trim() || !loggedInMadrasa) return;
+372:     // Optimistic update
+373:     const tempId = 'temp_' + Date.now();
+374:     setTeams(prev => [...prev, { id: tempId, name: newTeamName, madrasa_id: loggedInMadrasa.regNumber }]);
+375:     const savedName = newTeamName;
+376:     setNewTeamName('');
+377:     const { error } = await supabase
+378:       .from('teams')
+379:       .insert([{ name: savedName, madrasa_id: loggedInMadrasa.regNumber }]);
+380:     if (error) {
+381:       alert('Error: ' + error.message);
+382:       setTeams(prev => prev.filter(t => t.id !== tempId));
+383:     } else {
+384:       fetchSupabaseData(loggedInMadrasa.regNumber);
+385:     }
+386:   };
+387: 
+388:   const handleDeleteTeam = async (id) => {
+389:     if (!window.confirm('\u0d08 \u0d1f\u0d40\u0d02 \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d23\u0d4b?')) return;
+390:     setTeams(prev => prev.filter(t => t.id !== id));
+391:     const { error } = await supabase.from('teams').delete().eq('id', id);
+392:     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+393:   };
+394: 
+395:   const handleSaveTeamEdit = async () => {
+396:     if (!editingTeamName.trim()) return;
+397:     setTeams(prev => prev.map(t => t.id === editingTeamId ? { ...t, name: editingTeamName } : t));
+398:     setEditingTeamId(null);
+399:     const { error } = await supabase.from('teams').update({ name: editingTeamName }).eq('id', editingTeamId);
+400:     if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+401:   };
+402: 
+403:   // \U0001f4c2 2. CATEGORY ACTIONS
+404:   const handleAddCategory = async (e) => {
+405:     e.preventDefault();
+406:     if (!newCatName.trim() || !loggedInMadrasa) return;
+407:     const tempId = 'temp_' + Date.now();
+408:     setCategories(prev => [...prev, { id: tempId, name: newCatName, classrange: newCatClassRange, madrasa_id: loggedInMadrasa.regNumber }]);
+409:     const savedName = newCatName;
+410:     const savedRange = newCatClassRange;
+411:     setNewCatName('');
+412:     setNewCatClassRange('');
+413:     const { error } = await supabase
+414:       .from('categories')
+415:       .insert([{ name: savedName, classrange: savedRange, madrasa_id: loggedInMadrasa.regNumber }]);
+416:     if (error) {
+417:       alert('Error: ' + error.message);
+418:       setCategories(prev => prev.filter(c => c.id !== tempId));
+419:     } else {
+420:       fetchSupabaseData(loggedInMadrasa.regNumber);
+421:     }
+422:   };
+423: 
+424:   const handleDeleteCategory = async (id) => {
+425:     if (!window.confirm('\u0d08 \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d23\u0d4b?')) return;
+426:     setCategories(prev => prev.filter(c => c.id !== id));
+427:     const { error } = await supabase.from('categories').delete().eq('id', id);
+428:     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+429:   };
+430: 
+431:   const handleSaveCatEdit = async () => {
+432:     if (!editingCatName.trim()) return;
+433:     setCategories(prev => prev.map(c => c.id === editingCatId ? { ...c, name: editingCatName, classrange: editingCatClassRange } : c));
+434:     setEditingCatId(null);
+435:     const { error } = await supabase.from('categories').update({ name: editingCatName, classrange: editingCatClassRange }).eq('id', editingCatId);
+436:     if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+437:   };
+438: 
+439:   // \U0001f9d1\u200d\U0001f393 3. STUDENT ACTIONS (DB uses lowercase: regno, teamid, catid)
+440:   const handleAddStudent = async (e) => {
+441:     e.preventDefault();
+442:     if (!newStudentName.trim() || !studentRegNo.trim() || !selectedStudentTeam || !selectedStudentCat || !loggedInMadrasa) {
+443:       alert('\u0d0e\u0d32\u0d4d\u0d32\u0d3e \u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d02 \u0d2a\u0d42\u0d30\u0d3f\u0d2a\u0d4d\u0d2a\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15!'); return;
+444:     }
+445:     const tempId = 'temp_' + Date.now();
+446:     const tempStudent = { id: tempId, name: newStudentName, regno: studentRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
+447:     setStudents(prev => [...prev, tempStudent]);
+448:     setNewStudentName(''); setStudentRegNo('');
+449:     const { error } = await supabase.from('students').insert([{
+450:       name: tempStudent.name, regno: tempStudent.regno, teamid: tempStudent.teamid,
+451:       catid: tempStudent.catid, gender: tempStudent.gender, madrasa_id: tempStudent.madrasa_id
+452:     }]);
+453:     if (error) {
+454:       alert('Error: ' + error.message);
+455:       setStudents(prev => prev.filter(s => s.id !== tempId));
+456:     } else {
+457:       fetchSupabaseData(loggedInMadrasa.regNumber);
+458:     }
+459:   };
+460: 
+461:   const startEditStudent = (student) => {
+462:     setEditingStudentId(student.id);
+463:     setEditingStudentData({ ...student });
+464:   };
+465: 
+466:   const handleSaveStudentEdit = async () => {
+467:     setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData } : s));
+468:     setEditingStudentId(null);
+469:     const { error } = await supabase.from('students').update({
+470:       name: editingStudentData.name,
+471:       regno: editingStudentData.regno,
+472:       gender: editingStudentData.gender,
+473:       teamid: editingStudentData.teamid,
+474:       catid: editingStudentData.catid
+475:     }).eq('id', editingStudentId);
+476:     if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+477:   };
+478: 
+479:   const handleDeleteStudent = async (id) => {
+480:     if (!window.confirm('\u0d08 \u0d15\u0d41\u0d1f\u0d4d\u0d1f\u0d3f\u0d2f\u0d46 \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d23\u0d4b?')) return;
+481:     setStudents(prev => prev.filter(s => s.id !== id));
+482:     const { error } = await supabase.from('students').delete().eq('id', id);
+483:     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+484:   };
+485: 
+486:   // \U0001f3c6 4. PROGRAM ACTIONS (DB uses lowercase: catid)
+487:   const handleAddProgram = async (e) => {
+488:     e.preventDefault();
+489:     if (!newProgName.trim() || !newProgCode.trim() || !selectedProgCat || !loggedInMadrasa) return;
+490:     const tempId = 'temp_' + Date.now();
+491:     const tempProg = { id: tempId, name: newProgName, code: newProgCode, catid: selectedProgCat, type: progType, madrasa_id: loggedInMadrasa.regNumber };
+492:     setPrograms(prev => [...prev, tempProg]);
+493:     const savedName = newProgName; const savedCode = newProgCode;
+494:     setNewProgName(''); setNewProgCode('');
+495:     const { error } = await supabase.from('programs').insert([{
+496:       name: savedName, code: savedCode, catid: selectedProgCat, type: progType, madrasa_id: loggedInMadrasa.regNumber
+497:     }]);
+498:     if (error) {
+499:       alert('Error: ' + error.message);
+500:       setPrograms(prev => prev.filter(p => p.id !== tempId));
+501:     } else {
+502:       fetchSupabaseData(loggedInMadrasa.regNumber);
+503:     }
+504:   };
+505: 
+506:   const handleDeleteProgram = async (id) => {
+507:     if (!window.confirm('\u0d08 \u0d2a\u0d4d\u0d30\u0d4b\u0d17\u0d4d\u0d30\u0d3e\u0d02 \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d23\u0d4b?')) return;
+508:     setPrograms(prev => prev.filter(p => p.id !== id));
+509:     const { error } = await supabase.from('programs').delete().eq('id', id);
+510:     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+511:   };
+512: 
+513:   const handleSaveProgEdit = async () => {
+514:     setPrograms(prev => prev.map(p => p.id === editingProgId ? { ...p, ...editingProgData } : p));
+515:     setEditingProgId(null);
+516:     const { error } = await supabase.from('programs').update({
+517:       name: editingProgData.name, code: editingProgData.code,
+518:       catid: editingProgData.catid, type: editingProgData.type
+519:     }).eq('id', editingProgId);
+520:     if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+521:   };
+522: 
+523:   // \u2699\ufe0f 5. CUSTOM MARK SYSTEM SAVE
+524:   const handleSavePoints = (e) => {
+525:     e.preventDefault();
+526:     saveToStorage('points', pointSystem);
+527:     alert('\u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d18\u0d1f\u0d28 \u0d35\u0d3f\u0d1c\u0d2f\u0d15\u0d30\u0d2e\u0d3e\u0d2f\u0d3f \u0d05\u0d2a\u0d4d\u0d21\u0d47\u0d31\u0d4d\u0d31\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d41!');
+528:   };
+529: 
+530:   // \U0001f4dd 6. MARK ENTRY ACTIONS (SUPABASE)
+531:   const handleAddResult = async (e) => {
+532:     e.preventDefault();
+533:     if (!selectedResultProg || !selectedResultStudent || !loggedInMadrasa) {
+534:       alert('\u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d35\u0d41\u0d02 \u0d15\u0d41\u0d1f\u0d4d\u0d1f\u0d3f\u0d2f\u0d46\u0d2f\u0d41\u0d02 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15!'); return;
+535:     }
+536: 
+537:     const studentObj = students.find(s => String(s.id) === String(selectedResultStudent));
+538:     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
+539:     if (!studentObj || !progObj) { alert('\u0d35\u0d3f\u0d35\u0d30\u0d19\u0d4d\u0d19\u0d7e \u0d15\u0d43\u0d24\u0d4d\u0d2f\u0d2e\u0d32\u0d4d\u0d32!'); return; }
+540: 
+541:     const isGroup = progObj.type === 'GROUP';
+542: 
+543:     // \u0d21\u0d48\u0d28\u0d3e\u0d2e\u0d3f\u0d15\u0d4d \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d15\u0d23\u0d15\u0d4d\u0d15\u0d41\u0d15\u0d42\u0d1f\u0d4d\u0d1f\u0d7d
+544:     let pts = 0;
+545:     if (selectedPlace === '1') pts = isGroup ? Number(pointSystem.gp1) : Number(pointSystem.p1);
+546:     else if (selectedPlace === '2') pts = isGroup ? Number(pointSystem.gp2) : Number(pointSystem.p2);
+547:     else if (selectedPlace === '3') pts = isGroup ? Number(pointSystem.gp3) : Number(pointSystem.p3);
+548: 
+549:     if (selectedGrade === 'A') pts += isGroup ? Number(pointSystem.gpA) : Number(pointSystem.gA);
+550:     else if (selectedGrade === 'B') pts += isGroup ? Number(pointSystem.gpB) : Number(pointSystem.gB);
+551:     else if (selectedGrade === 'C') pts += isGroup ? Number(pointSystem.gpC) : Number(pointSystem.gC);
+552: 
+553:     const { error } = await supabase
+554:       .from('results')
+555:       .insert([
+556:         {
+557:           progid: progObj.id,
+558:           progname: progObj.name,
+559:           progtype: progObj.type,
+560:           catname: categories.find(c => String(c.id) === String(progObj.catid))?.name || '',
+561:           studentname: `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`,
+562:           studentgender: studentObj.gender,
+563:           teamid: studentObj.teamid,
+564:           teamname: teams.find(t => String(t.id) === String(studentObj.teamid))?.name || '',
+565:           place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
+566:           grade: selectedGrade === 'No' ? '-' : selectedGrade,
+567:           points: pts,
+568:           madrasa_id: loggedInMadrasa.regNumber
+569:         }
+570:       ]);
+571: 
+572:     if (error) {
+573:       alert('Error: ' + error.message);
+574:     } else {
+575:       alert('\u0d31\u0d3f\u0d38\u0d7e\u0d1f\u0d4d\u0d1f\u0d4d \u0d35\u0d3f\u0d1c\u0d2f\u0d15\u0d30\u0d2e\u0d3e\u0d2f\u0d3f \u0d2a\u0d4d\u0d30\u0d16\u0d4d\u0d2f\u0d3e\u0d2a\u0d3f\u0d1a\u0d4d\u0d1a\u0d41!');
+576:       fetchSupabaseData(loggedInMadrasa.regNumber);
+577:     }
+578:   };
+579: 
+580:   const handleDeleteResult = async (id) => {
+581:     if (!window.confirm('\u0d08 \u0d31\u0d3f\u0d38\u0d7e\u0d1f\u0d4d\u0d1f\u0d4d \u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d23\u0d4b?')) return;
+582:     const { error } = await supabase.from('results').delete().eq('id', id);
+583:     if (error) alert(error.message);
+584:     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+585:   };
+586: 
+587:   const getTeamTotalPoints = (teamId) => {
+588:     return resultsList.filter(r => String(r.teamId) === String(teamId) || String(r.teamid) === String(teamId)).reduce((sum, r) => sum + r.points, 0);
+589:   };
+590: 
+591:   return (
+592:     <div className="main-container">
+593: 
+594:       {/* \U0001f510 LOGIN SCREEN */}
+595:       {currentScreen === 'LOGIN' && (
+596:         <div className="executive-login-container">
+597:           <div className="executive-login-card">
+598:             <div className="login-brand-section">
+599:               <span className="mosque-icon-wrapper"><h3>\U0001f54c</h3></span>
+600:               <h2>MILAD FEST</h2>
+601:               <p className="subtitle">\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d38\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d02</p>
+602:             </div>
+603:             <form onSubmit={handleLogin}>
+604:               <div className="executive-form-group">
+605:                 <label>\u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c</label>
+606:                 <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Reg Number" value={loginRegNum} onChange={(e) => setLoginRegNum(e.target.value)} required />
+607:               </div>
+608:               <div className="executive-form-group">
+609:                 <label>\u0d2a\u0d3e\u0d38\u0d4d\u200c\u0d35\u0d47\u0d7c\u0d21\u0d4d</label>
+610:                 <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+611:               </div>
+612:               <button type="submit" className="btn-executive-gold" disabled={isLoggingIn}>
+613:                 {isLoggingIn ? '\u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28\u0d41...' : '\u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d15'}
+614:               </button>
+615:             </form>
+616: 
+617:             <div style={{ textAlign: 'center', marginTop: '15px' }}>
+618:               <span onClick={() => {
+619:                 setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
+620:                 setCurrentScreen('REGISTER_FORM');
+621:               }} style={{ color: '#94a3b8', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }} className="admin-premium-link">
+622:                 \U0001f4dd \u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d1f\u0d4d\u0d30\u0d47\u0d37\u0d7b
+623:               </span>
+624:             </div>
+625: 
+626:             <div className="admin-only-footer">
+627:               <span onClick={() => { setCurrentScreen('REGISTER_LOCK'); }} className="admin-premium-link">\u2699\ufe0f Admin Control Panel</span>
+628:             </div>
+629:           </div>
+630:         </div>
+631:       )}
+632: 
+633:       {/* \U0001f510 SECURITY LOCK */}
+634:       {currentScreen === 'REGISTER_LOCK' && (
+635:         <div className="executive-login-container">
+636:           <div className="executive-login-card">
+637:             <div className="login-brand-section"><h2>\U0001f510 \u0d38\u0d46\u0d15\u0d4d\u0d2f\u0d42\u0d30\u0d3f\u0d31\u0d4d\u0d31\u0d3f \u0d32\u0d4b\u0d15\u0d4d\u0d15\u0d4d</h2></div>
+638:             <div className="executive-form-group">
+639:               <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Secret Key" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} />
+640:             </div>
+641:             <div className="flex-button-group">
+642:               <button onClick={() => {
+643:                 if (secretKey === '0633123') {
+644:                   setCurrentScreen('SUPER_ADMIN_PANEL');
+645:                   setSecretKey('');
+646:                   fetchMadrasas();
+647:                 } else {
+648:                   alert('\u0d24\u0d46\u0d31\u0d4d\u0d31\u0d3e\u0d2f \u0d15\u0d40!');
+649:                 }
+650:               }} className="btn-executive-gold">\u0d24\u0d41\u0d1f\u0d30\u0d41\u0d15</button>
+651:               <button onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">\u0d2c\u0d3e\u0d15\u0d4d\u0d15\u0d4d</button>
+652:             </div>
+653:           </div>
+654:         </div>
+655:       )}
+656: 
+657:       {/* \U0001f4dd REGISTRATION FORM */}
+658:       {currentScreen === 'REGISTER_FORM' && (
+659:         <div className="executive-login-container">
+660:           <div className="executive-login-card">
+661:             <h2>\U0001f4dd \u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d1f\u0d4d\u0d30\u0d47\u0d37\u0d7b</h2>
+662:             <form onSubmit={handleRegisterMadrasa} style={{ marginTop: '15px' }}>
+663:               <div className="executive-form-group">
+664:                 <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Madrasa Name" value={regName} onChange={(e) => setRegName(e.target.value)} required />
+665:               </div>
+666:               <div className="executive-form-group">
+667:                 <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Register Number" value={regNumber} onChange={(e) => setRegNumber(e.target.value)} required />
+668:               </div>
+669:               <div className="executive-form-group">
+670:                 <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Location" value={regPlace} onChange={(e) => setRegPlace(e.target.value)} required />
+671:               </div>
+672:               <div className="executive-form-group">
+673:                 <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Admin Password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required />
+674:               </div>
+675:               <div className="executive-form-group">
+676:                 <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="View Password" value={viewPassword} onChange={(e) => setViewPassword(e.target.value)} required />
+677:               </div>
+678:               <div className="flex-button-group">
+679:                 <button type="submit" className="btn-executive-gold">\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d15</button>
+680:                 <button type="button" onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">\u0d15\u0d4d\u0d3e\u0d7b\u0d38\u0d7d</button>
+681:               </div>
+682:             </form>
+683:           </div>
+684:         </div>
+685:       )}
+686: 
+687:       {/* \u23f3 PENDING APPROVAL SCREEN */}
+688:       {currentScreen === 'PENDING_APPROVAL' && pendingMadrasa && (
+689:         <div className="executive-login-container">
+690:           <div className="executive-login-card" style={{ textAlign: 'center' }}>
+691:             <div className="login-brand-section">
+692:               <span style={{ fontSize: '50px' }}>\u23f3</span>
+693:               <h2 style={{ marginTop: '15px', color: 'white' }}>\u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d32\u0d3f\u0d28\u0d3e\u0d2f\u0d3f \u0d15\u0d3e\u0d24\u0d4d\u0d24\u0d3f\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d28\u0d4d\u0d28\u0d41</h2>
+694:               <p className="subtitle" style={{ color: '#94a3b8', fontSize: '14px', marginTop: '10px' }}>
+695:                 \u0d28\u0d3f\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d1f\u0d46 \u0d2e\u0d26\u0d4d\u0d30\u0d38 (<b>{pendingMadrasa.name}</b>) \u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d32\u0d3f\u0d28\u0d3e\u0d2f\u0d3f \u0d15\u0d3e\u0d24\u0d4d\u0d24\u0d3f\u0d30\u0d3f\u0d15\u0d4d\u0d15\u0d41\u0d15\u0d2f\u0d3e\u0d23\u0d4d \u0d05\u0d32\u0d4d\u0d32\u0d46\u0d19\u0d4d\u0d15\u0d3f\u0d7d \u0d2a\u0d46\u0d7b\u0d21\u0d3f\u0d19\u0d4d \u0d06\u0d23\u0d4d.
+696:               </p>
+697:             </div>
+698: 
+699:             <div style={{ margin: '25px 0', background: 'rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+700:               <p style={{ color: '#e2e8f0', fontSize: '14px', marginBottom: '15px' }}>
+701:                 \u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d28\u0d4d\u0d28\u0d24\u0d3f\u0d28\u0d3e\u0d2f\u0d3f \u0d24\u0d3e\u0d34\u0d46\u0d2f\u0d41\u0d33\u0d4d\u0d33 \u0d35\u0d3e\u0d1f\u0d4d\u0d38\u0d4d\u0d06\u0d2a\u0d4d\u0d2a\u0d4d \u0d2c\u0d1f\u0d4d\u0d1f\u0d7a \u0d15\u0d4d\u0d32\u0d3f\u0d15\u0d4d\u0d15\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d4d \u0d2e\u0d46\u0d38\u0d4d\u0d38\u0d47\u0d1c\u0d4d \u0d05\u0d2f\u0d15\u0d4d\u0d15\u0d41\u0d15.
+702:               </p>
+703: 
+704:               <a
+705:                 href={`https://wa.me/917559950633?text=${encodeURIComponent(`\u0d39\u0d32\u0d4b \u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d7b,\n\u0d1e\u0d19\u0d4d\u0d19\u0d33\u0d41\u0d1f\u0d46 \u0d2e\u0d26\u0d4d\u0d30\u0d38 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d1f\u0d4d\u0d30\u0d47\u0d37\u0d7b \u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d23\u0d02.\n\n\u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d2f\u0d41\u0d1f\u0d46 \u0d2a\u0d47\u0d30\u0d4d: ${pendingMadrasa.name}\n\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c: ${pendingMadrasa.regNumber}\n\u0d38\u0d4d\u0d25\u0d32\u0d02: ${(pendingMadrasa.place || '').split('|')[0]}`)}`}
+706:                 target="_blank"
+707:                 rel="noopener noreferrer"
+708:                 className="whatsapp-btn"
+709:                 style={{
+710:                   display: 'flex',
+711:                   alignItems: 'center',
+712:                   justifyContent: 'center',
+713:                   gap: '10px',
+714:                   background: '#25D366',
+715:                   color: 'white',
+716:                   padding: '12px 20px',
+717:                   borderRadius: '10px',
+718:                   textDecoration: 'none',
+719:                   fontWeight: 'bold',
+720:                   marginTop: '10px',
+721:                   fontSize: '15px',
+722:                   transition: 'background 0.3s'
+723:                 }}
+724:               >
+725:                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+726:                   <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.37 5.054L2 22l5.13-1.346a9.921 9.921 0 004.882 1.28h.005c5.507 0 9.99-4.478 9.99-9.985 0-2.667-1.037-5.176-2.923-7.062A9.919 9.919 0 0012.012 2zm5.727 14.128c-.315.442-1.077.85-1.485.91-.376.056-.84.09-2.28-.49-1.846-.743-3.023-2.62-3.115-2.742-.092-.122-.767-.999-.767-1.998 0-.999.524-1.49.71-1.696.186-.206.406-.258.54-.258.136 0 .272.001.39.006.124.005.289-.046.452.348.169.406.576 1.393.626 1.493.05.1.084.218.016.353-.067.135-.102.218-.203.336-.1.118-.21.265-.3.353-.1.1-.205.208-.088.406.117.199.52.85 1.115 1.378.767.68 1.412.89 1.614.99.203.1.32.084.44-.053.117-.137.507-.588.642-.789.137-.2.271-.169.457-.1.187.068 1.182.556 1.385.657.203.1.339.152.39.237.05.084.05 1.238-.266 1.68z" />
+727:                 </svg>
+728:                 WhatsApp \u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d7d
+729:               </a>
+730:             </div>
+731: 
+732:             <button onClick={() => { setCurrentScreen('LOGIN'); setPendingMadrasa(null); }} className="btn-executive-secondary">\u0d2c\u0d3e\u0d15\u0d4d\u0d15\u0d4d</button>
+733:           </div>
+734:         </div>
+735:       )}
+736: 
+737:       {/* \u2699\ufe0f SUPER ADMIN PANEL */}
+738:       {currentScreen === 'SUPER_ADMIN_PANEL' && (
+739:         <div className="dashboard-container" style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px' }}>
+740:           <header className="dash-header" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)' }}>
+741:             <div>
+742:               <h1 style={{ color: 'white' }}>\u2699\ufe0f \u0d38\u0d42\u0d2a\u0d4d\u0d2a\u0d7c \u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d7b \u0d15\u0d7a\u0d1f\u0d4d\u0d30\u0d4b\u0d7e \u0d2a\u0d3e\u0d28\u0d7d</h1>
+743:               <p>\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d24 \u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d15\u0d33\u0d41\u0d1f\u0d46 \u0d2e\u0d3e\u0d28\u0d47\u0d1c\u0d4d\u200c\u0d2e\u0d46\u0d28\u0d4d\u0d31\u0d4d \u0d38\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d02</p>
+744:             </div>
+745:             <button onClick={() => setCurrentScreen('LOGIN')} className="btn-logout-top">\u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d38\u0d4d\u0d15\u0d4d\u0d30\u0d40\u0d7b</button>
+746:           </header>
+747: 
+748:           {/* Stats section */}
+749:           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+750:             <div className="card" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', margin: 0, padding: '15px' }}>
+751:               <h4 style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>\u0d06\u0d15\u0d46 \u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d15\u0d7e</h4>
+752:               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#1d4ed8' }}>{superMadrasas.length}</p>
+753:             </div>
+754:             <div className="card" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', margin: 0, padding: '15px' }}>
+755:               <h4 style={{ color: '#065f46', fontSize: '14px', margin: 0 }}>\u0d05\u0d2a\u0d4d\u0d2a\u0d4d\u0d30\u0d42\u0d35\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d35</h4>
+756:               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#047857' }}>
+757:                 {superMadrasas.filter(m => !(m.place || '').includes('|pending') && !(m.place || '').includes('|blocked')).length}
+758:               </p>
+759:             </div>
+760:             <div className="card" style={{ background: '#fffbeb', border: '1px solid #fde68a', margin: 0, padding: '15px' }}>
+761:               <h4 style={{ color: '#92400e', fontSize: '14px', margin: 0 }}>\u0d2a\u0d46\u0d7b\u0d21\u0d3f\u0d19\u0d4d \u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d15\u0d7e</h4>
+762:               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#d97706' }}>
+763:                 {superMadrasas.filter(m => (m.place || '').includes('|pending')).length}
+764:               </p>
+765:             </div>
+766:             <div className="card" style={{ background: '#fef2f2', border: '1px solid #fecaca', margin: 0, padding: '15px' }}>
+767:               <h4 style={{ color: '#991b1b', fontSize: '14px', margin: 0 }}>\u0d2c\u0d4d\u0d32\u0d4b\u0d15\u0d4d\u0d15\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d35</h4>
+768:               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#dc2626' }}>
+769:                 {superMadrasas.filter(m => (m.place || '').includes('|blocked')).length}
+770:               </p>
+771:             </div>
+772:           </div>
+773: 
+774:           {/* Madrasa List */}
+775:           <div className="card">
+776:             <h2>\U0001f4dc \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d24 \u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d15\u0d7e</h2>
+777:             <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
+778:               <table>
+779:                 <thead>
+780:                   <tr>
+781:                     <th>\u0d2a\u0d47\u0d30\u0d4d</th>
+782:                     <th>\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c</th>
+783:                     <th>\u0d38\u0d4d\u0d25\u0d32\u0d02</th>
+784:                     <th>\u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d7b \u0d2a\u0d3e\u0d38\u0d4d\u200c\u0d35\u0d47\u0d7c\u0d21\u0d4d</th>
+785:                     <th>\u0d35\u0d4d\u0d2f\u0d42\u0d35\u0d47\u0d34\u0d4d\u0d38\u0d4d \u0d2a\u0d3e\u0d38\u0d4d\u200c\u0d35\u0d47\u0d7c\u0d21\u0d4d</th>
+786:                     <th>\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d3e\u0d31\u0d4d\u0d31\u0d38\u0d4d</th>
+787:                     <th>\u0d28\u0d3f\u0d2f\u0d28\u0d4d\u0d24\u0d4d\u0d30\u0d23\u0d02</th>
+788:                   </tr>
+789:                 </thead>
+790:                 <tbody>
+791:                   {superMadrasas.length === 0 ? (
+792:                     <tr>
+793:                       <td colSpan="7" style={{ color: '#64748b', fontStyle: 'italic' }}>\u0d2e\u0d26\u0d4d\u0d30\u0d38\u0d15\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</td>
+794:                     </tr>
+795:                   ) : (
+796:                     superMadrasas.map(m => {
+797:                       const [place, status] = (m.place || '').split('|');
+798:                       const currentStatus = status || 'approved';
+799:                       const isEditing = editingMadrasaId === m.id;
+800: 
+801:                       return (
+802:                         <tr key={m.id} style={{ background: currentStatus === 'pending' ? '#fffbeb' : currentStatus === 'blocked' ? '#fef2f2' : 'none' }}>
+803:                           <td>
+804:                             {isEditing ? (
+805:                               <input
+806:                                 type="text"
+807:                                 className="settings-input"
+808:                                 style={{ padding: '5px', fontSize: '13px' }}
+809:                                 value={editingMadrasaData.name || ''}
+810:                                 onChange={e => setEditingMadrasaData({ ...editingMadrasaData, name: e.target.value })}
+811:                               />
+812:                             ) : (
+813:                               <b>{m.name}</b>
+814:                             )}
+815:                           </td>
+816:                           <td>
+817:                             {isEditing ? (
+818:                               <input
+819:                                 type="text"
+820:                                 className="settings-input"
+821:                                 style={{ padding: '5px', fontSize: '13px' }}
+822:                                 value={editingMadrasaData.regNumber || ''}
+823:                                 onChange={e => setEditingMadrasaData({ ...editingMadrasaData, regNumber: e.target.value })}
+824:                               />
+825:                             ) : (
+826:                               m.regNumber
+827:                             )}
+828:                           </td>
+829:                           <td>
+830:                             {isEditing ? (
+831:                               <input
+832:                                 type="text"
+833:                                 className="settings-input"
+834:                                 style={{ padding: '5px', fontSize: '13px' }}
+835:                                 value={editingMadrasaData.tempPlace || ''}
+836:                                 onChange={e => setEditingMadrasaData({ ...editingMadrasaData, tempPlace: e.target.value })}
+837:                               />
+838:                             ) : (
+839:                               place
+840:                             )}
+841:                           </td>
+842:                           <td>
+843:                             {isEditing ? (
+844:                               <input
+845:                                 type="text"
+846:                                 className="settings-input"
+847:                                 style={{ padding: '5px', fontSize: '13px' }}
+848:                                 value={editingMadrasaData.adminPassword || ''}
+849:                                 onChange={e => setEditingMadrasaData({ ...editingMadrasaData, adminPassword: e.target.value })}
+850:                               />
+851:                             ) : (
+852:                               <span style={{ fontFamily: 'monospace' }}>{m.adminPassword}</span>
+853:                             )}
+854:                           </td>
+855:                           <td>
+856:                             {isEditing ? (
+857:                               <input
+858:                                 type="text"
+859:                                 className="settings-input"
+860:                                 style={{ padding: '5px', fontSize: '13px' }}
+861:                                 value={editingMadrasaData.viewPassword || ''}
+862:                                 onChange={e => setEditingMadrasaData({ ...editingMadrasaData, viewPassword: e.target.value })}
+863:                               />
+864:                             ) : (
+865:                               <span style={{ fontFamily: 'monospace' }}>{m.viewPassword}</span>
+866:                             )}
+867:                           </td>
+868:                           <td>
+869:                             <span style={{
+870:                               background: currentStatus === 'approved' ? '#10b981' : currentStatus === 'pending' ? '#f59e0b' : '#ef4444',
+871:                               color: 'white',
+872:                               padding: '3px 8px',
+873:                               borderRadius: '12px',
+874:                               fontSize: '11px',
+875:                               fontWeight: 'bold',
+876:                               textTransform: 'uppercase'
+877:                             }}>
+878:                               {currentStatus === 'approved' ? 'APPROVED' : currentStatus === 'pending' ? 'PENDING' : 'BLOCKED'}
+879:                             </span>
+880:                           </td>
+881:                           <td>
+882:                             {isEditing ? (
+883:                               <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+884:                                 <button onClick={handleSaveMadrasaEdit} style={{ background: '#10b981', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Save</button>
+885:                                 <button onClick={() => setEditingMadrasaId(null)} style={{ background: '#64748b', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+886:                               </div>
+887:                             ) : (
+888:                               <div style={{ display: 'flex', gap: '5px', justifyContent: 'center', flexWrap: 'wrap' }}>
+889:                                 {currentStatus !== 'approved' && (
+890:                                   <button onClick={() => handleApproveMadrasa(m)} style={{ background: '#10b981', color: 'white', border: 'none', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Approve</button>
+891:                                 )}
+892:                                 {currentStatus !== 'blocked' && (
+893:                                   <button onClick={() => handleBlockMadrasa(m)} style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Block</button>
+894:                                 )}
+895:                                 <button onClick={() => startEditMadrasa(m)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Edit</button>
+896:                                 <button onClick={() => handleDeleteMadrasa(m.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+897:                               </div>
+898:                             )}
+899:                           </td>
+900:                         </tr>
+901:                       );
+902:                     })
+903:                   )}
+904:                 </tbody>
+905:               </table>
+906:             </div>
+907:           </div>
+908:         </div>
+909:       )}
+910: 
+911:       {/* \U0001f54c MAIN DASHBOARD WITH BOTTOM NAV */}
+912:       {currentScreen === 'DASHBOARD' && (
+913:         <div className="dashboard-container">
+914: 
+915:           <header className="dash-header">
+916:             <div>
+917:               <h1>{loggedInMadrasa?.name}</h1>
+918:               <p>Reg No: {loggedInMadrasa?.regNumber} | {loggedInMadrasa?.place} ({loginRole} MODE)</p>
+919:             </div>
+920:             <button onClick={() => { setCurrentScreen('LOGIN'); setLoggedInMadrasa(null); }} className="btn-logout-top">\u0d32\u0d4b\u0d17\u0d4d \u0d14\u0d1f\u0d4d\u0d1f\u0d4d</button>
+921:           </header>
+922: 
+923:           {/* ---------------- \U0001f3af TAB 1: SCOREBOARD ---------------- */}
+924:           {activeTab === 'SCOREBOARD' && (
+925:             <div className="card animate-tab">
+926:               <h2>\U0001f4ca \u0d32\u0d48\u0d35\u0d4d \u0d38\u0d4d\u0d15\u0d4b\u0d7c\u0d2c\u0d4b\u0d7c\u0d21\u0d4d & \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d28\u0d3f\u0d32</h2>
+927:               <div style={{ marginTop: '20px' }}>
+928:                 {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>\u0d1f\u0d40\u0d2e\u0d41\u0d15\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d1a\u0d47\u0d7c\u0d24\u0d4d\u0d24\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32. \u0d2e\u0d3e\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d38\u0d46\u0d31\u0d4d\u0d31\u0d3f\u0d19\u0d4d\u0d38\u0d3f\u0d7d \u0d2a\u0d4b\u0d2f\u0d3f \u0d1f\u0d40\u0d2e\u0d41\u0d15\u0d7e \u0d06\u0d21\u0d4d \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d15.</p> :
+929:                   <div className="scoreboard-grid">
+930:                     {[...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id)).map((t, idx) => {
+931:                       const totalPts = getTeamTotalPoints(t.id);
+932:                       const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
+933:                       const badgeIcon = idx === 0 ? '\U0001f3c6' : idx === 1 ? '\U0001f948' : idx === 2 ? '\U0001f949' : '\U0001f3c5';
+934:                       return (
+935:                         <div key={t.id} className={`team-score-card ${rankClass}`}>
+936:                           <div className="score-info">
+937:                             <div className="score-team-name">{t.name}</div>
+938:                             <div className="score-points">{totalPts} <span style={{ fontSize: '16px', fontWeight: '600', color: 'inherit' }}>Pts</span></div>
+939:                           </div>
+940:                           <div className="score-rank-badge">{badgeIcon}</div>
+941:                         </div>
+942:                       );
+943:                     })}
+944:                   </div>
+945:                 }
+946:               </div>
+947:             </div>
+948:           )}
+949: 
+950:           {/* ---------------- \U0001f3af TAB 2: RECENT RESULTS ---------------- */}
+951:           {activeTab === 'RECENT' && (
+952:             <div className="card animate-tab">
+953:               <h2>\U0001f4dc \u0d2a\u0d4d\u0d30\u0d16\u0d4d\u0d2f\u0d3e\u0d2a\u0d3f\u0d1a\u0d4d\u0d1a \u0d2b\u0d32\u0d19\u0d4d\u0d19\u0d7e (Results History)</h2>
+954:               <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
+955:                 <table>
+956:                   <thead>
+957:                     <tr>
+958:                       <th>\u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d02</th><th>\u0d07\u0d28\u0d02</th><th>\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f</th><th>\u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f</th><th>\u0d32\u0d3f\u0d02\u0d17\u0d2d\u0d47\u0d26\u0d02</th><th>\u0d1f\u0d40\u0d02</th><th>\u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</th><th>\u0d17\u0d4d\u0d30\u0d47\u0d21\u0d4d</th><th>\u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d</th>{loginRole === 'ADMIN' && <th>\u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d41\u0d15</th>}
+959:                     </tr>
+960:                   </thead>
+961:                   <tbody>
+962:                     {resultsList.length === 0 ? <tr><td colSpan="10">\u0d2b\u0d32\u0d19\u0d4d\u0d19\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d07\u0d24\u0d41\u0d35\u0d30\u0d46 \u0d2a\u0d4d\u0d30\u0d16\u0d4d\u0d2f\u0d3e\u0d2a\u0d3f\u0d1a\u0d4d\u0d1a\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</td></tr> :
+963:                       resultsList.map(r => (
+964:                         <tr key={r.id}>
+965:                           <td>{r.progname || r.progName}</td>
+966:                           <td><span style={{ background: (r.progtype || r.progType) === 'GROUP' ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{r.progtype || r.progType}</span></td>
+967:                           <td>{r.catname || r.catName}</td>
+968:                           <td>{r.studentname || r.studentName}</td>
+969:                           <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy \U0001f466' : 'Girl \U0001f467'}</td>
+970:                           <td><b>{r.teamname || r.teamName}</b></td>
+971:                           <td>{r.place}</td>
+972:                           <td>{r.grade}</td>
+973:                           <td><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
+974:                           {loginRole === 'ADMIN' && <td><button onClick={() => handleDeleteResult(r.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button></td>}
+975:                         </tr>
+976:                       ))
+977:                     }
+978:                   </tbody>
+979:                 </table>
+980:               </div>
+981:             </div>
+982:           )}
+983: 
+984:           {/* ---------------- \U0001f3af TAB 3: MASTER SETTINGS ---------------- */}
+985:           {activeTab === 'SETTINGS' && (
+986:             <div className="card animate-tab">
+987:               <h2>\u2699\ufe0f \u0d2e\u0d3e\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d38\u0d46\u0d31\u0d4d\u0d31\u0d3f\u0d19\u0d4d\u0d38\u0d4d (Admin Control Panel)</h2>
+988: 
+989:               {loginRole !== 'ADMIN' ? (
+990:                 <p style={{ color: 'red', marginTop: '15px', fontWeight: 'bold' }}>\u26a0\ufe0f \u0d28\u0d3f\u0d19\u0d4d\u0d19\u0d7e\u0d15\u0d4d\u0d15\u0d4d \u0d08 \u0d38\u0d46\u0d15\u0d4d\u0d37\u0d7b \u0d2e\u0d3e\u0d31\u0d4d\u0d31\u0d3e\u0d7b \u0d05\u0d28\u0d41\u0d35\u0d3e\u0d26\u0d2e\u0d3f\u0d32\u0d4d\u0d32! \u0d05\u0d21\u0d4d\u0d2e\u0d3f\u0d7b \u0d05\u0d15\u0d4d\u0d15\u0d57\u0d23\u0d4d\u0d1f\u0d3f\u0d7d \u0d32\u0d4b\u0d17\u0d3f\u0d7b \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d15.</p>
+991:               ) : (
+992:                 <div>
+993:                   {/* Settings sub tab navigation */}
+994:                   <div className="sub-tab-nav">
+995:                     <button className={`sub-nav-item ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>\U0001f6a9 \u0d1f\u0d40\u0d2e\u0d41\u0d15\u0d7e</button>
+996:                     <button className={`sub-nav-item ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>\U0001f4c2 \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f\u0d15\u0d7e</button>
+997:                     <button className={`sub-nav-item ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>\U0001f9d1\u200d\U0001f393 \u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f\u0d15\u0d7e</button>
+998:                     <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>\U0001f3c6 \u0d2a\u0d4d\u0d30\u0d4b\u0d17\u0d4d\u0d30\u0d3e\u0d2e\u0d41\u0d15\u0d7e</button>
+999:                     <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>\U0001f4dd \u0d2e\u0d3e\u0d7c\u0d15\u0d4d\u0d15\u0d4d \u0d0e\u0d7b\u0d1f\u0d4d\u0d30\u0d3f</button>
+1000:                     <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>\u2699\ufe0f \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d18\u0d1f\u0d28</button>
+1001:                   </div>
+1002: 
+1003:                   <div className="settings-content">
+1004:                     {/* TEAMS SUB-TAB */}
+1005:                     {settingsSubTab === 'TEAMS' && (
+1006:                       <div className="settings-card-container">
+1007:                         <div className="settings-form-box">
+1008:                           <h3>\U0001f6a9 \u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d1f\u0d40\u0d02 \u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15</h3>
+1009:                           <form onSubmit={handleAddTeam} className="settings-form">
+1010:                             <input type="text" className="settings-input" placeholder="Team Name (\u0d09\u0d26\u0d3e: Team A)" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} required />
+1011:                             <button type="submit" className="btn-add-action">\u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15 (Add Team)</button>
+1012:                           </form>
+1013:                         </div>
+1014:                         <div className="settings-list-box">
+1015:                           <h3>\U0001f4dc \u0d28\u0d3f\u0d32\u0d35\u0d3f\u0d32\u0d41\u0d33\u0d4d\u0d33 \u0d1f\u0d40\u0d2e\u0d41\u0d15\u0d7e</h3>
+1016:                           {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>\u0d1f\u0d40\u0d2e\u0d41\u0d15\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d1a\u0d47\u0d7c\u0d24\u0d4d\u0d24\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</p> : (
+1017:                             teams.map(t => (
+1018:                               <div key={t.id} className="settings-item-row">
+1019:                                 {editingTeamId === t.id ? (
+1020:                                   <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+1021:                                     <input type="text" className="settings-input" value={editingTeamName} onChange={e => setEditingTeamName(e.target.value)} />
+1022:                                     <button onClick={handleSaveTeamEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
+1023:                                     <button onClick={() => setEditingTeamId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+1024:                                   </div>
+1025:                                 ) : (
+1026:                                   <>
+1027:                                     <span>{t.name}</span>
+1028:                                     <div>
+1029:                                       <button onClick={() => { setEditingTeamId(t.id); setEditingTeamName(t.name); }} className="settings-action-btn" title="Edit">\u270f\ufe0f</button>
+1030:                                       <button onClick={() => handleDeleteTeam(t.id)} className="settings-action-btn" title="Delete">\u274c</button>
+1031:                                     </div>
+1032:                                   </>
+1033:                                 )}
+1034:                               </div>
+1035:                             ))
+1036:                           )}
+1037:                         </div>
+1038:                       </div>
+1039:                     )}
+1040: 
+1041:                     {/* CATEGORIES SUB-TAB */}
+1042:                     {settingsSubTab === 'CATEGORIES' && (
+1043:                       <div className="settings-card-container">
+1044:                         <div className="settings-form-box">
+1045:                           <h3>\U0001f4c2 \u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15</h3>
+1046:                           <form onSubmit={handleAddCategory} className="settings-form">
+1047:                             <input type="text" className="settings-input" placeholder="Category Name (\u0d09\u0d26\u0d3e: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
+1048:                             <input type="text" className="settings-input" placeholder="\u0d0f\u0d24\u0d4a\u0d15\u0d4d\u0d15\u0d46 \u0d15\u0d4d\u0d32\u0d3e\u0d38\u0d4d? (\u0d09\u0d26\u0d3e: 1 \u0d2e\u0d41\u0d24\u0d7d 4 \u0d35\u0d30\u0d46)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
+1049:                             <button type="submit" className="btn-add-action">\u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15 (Add Category)</button>
+1050:                           </form>
+1051:                         </div>
+1052:                         <div className="settings-list-box">
+1053:                           <h3>\U0001f4dc \u0d28\u0d3f\u0d32\u0d35\u0d3f\u0d32\u0d41\u0d33\u0d4d\u0d33 \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f\u0d15\u0d7e</h3>
+1054:                           {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f\u0d15\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d1a\u0d47\u0d7c\u0d24\u0d4d\u0d24\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</p> : (
+1055:                             categories.map(c => (
+1056:                               <div key={c.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+1057:                                 {editingCatId === c.id ? (
+1058:                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+1059:                                     <input type="text" className="settings-input" value={editingCatName} onChange={e => setEditingCatName(e.target.value)} placeholder="Category Name" />
+1060:                                     <input type="text" className="settings-input" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="\u0d0f\u0d24\u0d4a\u0d15\u0d4d\u0d15\u0d46 \u0d15\u0d4d\u0d32\u0d3e\u0d38\u0d4d? (\u0d09\u0d26\u0d3e: 1 \u0d2e\u0d41\u0d24\u0d7d 4 \u0d35\u0d30\u0d46)" />
+1061:                                     <div style={{ display: 'flex', gap: '8px' }}>
+1062:                                       <button onClick={handleSaveCatEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
+1063:                                       <button onClick={() => setEditingCatId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+1064:                                     </div>
+1065:                                   </div>
+1066:                                 ) : (
+1067:                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+1068:                                     <div>
+1069:                                       <span style={{ fontWeight: '600' }}>{c.name}</span>
+1070:                                       {c.classrange && (
+1071:                                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>\U0001f4da \u0d15\u0d4d\u0d32\u0d3e\u0d38\u0d4d: {c.classrange}</div>
+1072:                                       )}
+1073:                                     </div>
+1074:                                     <div>
+1075:                                       <button onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name); setEditingCatClassRange(c.classrange || ''); }} className="settings-action-btn" title="Edit">\u270f\ufe0f</button>
+1076:                                       <button onClick={() => handleDeleteCategory(c.id)} className="settings-action-btn" title="Delete">\u274c</button>
+1077:                                     </div>
+1078:                                   </div>
+1079:                                 )}
+1080:                               </div>
+1081:                             ))
+1082:                           )}
+1083:                         </div>
+1084:                       </div>
+1085:                     )}
+1086: 
+1087:                     {/* STUDENTS SUB-TAB */}
+1088:                     {settingsSubTab === 'STUDENTS' && (
+1089:                       <div className="settings-card-container">
+1090:                         <div className="settings-form-box">
+1091:                           <h3>\U0001f9d1\u200d\U0001f393 \u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f\u0d2f\u0d46 \u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15</h3>
+1092:                           <form onSubmit={handleAddStudent} className="settings-form">
+1093:                             <input type="text" className="settings-input" placeholder="\u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f\u0d2f\u0d41\u0d1f\u0d46 \u0d2a\u0d47\u0d30\u0d4d" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} required />
+1094:                             <input type="text" className="settings-input" placeholder="\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c / \u0d1a\u0d46\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d4d \u0d28\u0d2e\u0d4d\u0d2a\u0d7c" value={studentRegNo} onChange={(e) => setStudentRegNo(e.target.value)} required />
+1095: 
+1096:                             <select className="settings-input" value={selectedStudentTeam} onChange={(e) => setSelectedStudentTeam(e.target.value)} required>
+1097:                               <option value="">\u0d1f\u0d40\u0d02 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</option>
+1098:                               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+1099:                             </select>
+1100: 
+1101:                             <select className="settings-input" value={selectedStudentCat} onChange={(e) => setSelectedStudentCat(e.target.value)} required>
+1102:                               <option value="">\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</option>
+1103:                               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+1104:                             </select>
+1105: 
+1106:                             <select className="settings-input" value={studentGender} onChange={(e) => setStudentGender(e.target.value)}>
+1107:                               <option value="BOY">BOY (\u0d06\u0d7a\u0d15\u0d41\u0d1f\u0d4d\u0d1f\u0d3f)</option>
+1108:                               <option value="GIRL">GIRL (\u0d2a\u0d46\u0d7a\u0d15\u0d41\u0d1f\u0d4d\u0d1f\u0d3f)</option>
+1109:                             </select>
+1110: 
+1111:                             <button type="submit" className="btn-add-action">\u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15 (Add Student)</button>
+1112:                           </form>
+1113:                         </div>
+1114:                         <div className="settings-list-box">
+1115:                           <h3>\U0001f4dc \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d24 \u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f\u0d15\u0d7e ({students.length})</h3>
+1116:                           {students.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>\u0d15\u0d41\u0d1f\u0d4d\u0d1f\u0d3f\u0d15\u0d7e \u0d06\u0d30\u0d41\u0d02 \u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d1a\u0d46\u0d2f\u0d4d\u0d24\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</p> : (
+1117:                             students.map(s => {
+1118:                               const sRegNo = s.regno || s.regNo || '';
+1119:                               const sTeamId = s.teamid || s.teamId || '';
+1120:                               const sCatId = s.catid || s.catId || '';
+1121:                               const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+1122:                               const catObj = categories.find(c => String(c.id) === String(sCatId));
+1123: 
+1124:                               return (
+1125:                                 <div key={s.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+1126:                                   {editingStudentId === s.id ? (
+1127:                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+1128:                                       <input type="text" className="settings-input" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="\u0d2a\u0d47\u0d30\u0d4d" />
+1129:                                       <input type="text" className="settings-input" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c" />
+1130: 
+1131:                                       <select className="settings-input" value={editingStudentData.teamid || editingStudentData.teamId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, teamid: e.target.value, teamId: e.target.value })}>
+1132:                                         <option value="">\u0d1f\u0d40\u0d02 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</option>
+1133:                                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+1134:                                       </select>
+1135: 
+1136:                                       <select className="settings-input" value={editingStudentData.catid || editingStudentData.catId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, catid: e.target.value, catId: e.target.value })}>
+1137:                                         <option value="">\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</option>
+1138:                                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+1139:                                       </select>
+1140: 
+1141:                                       <select className="settings-input" value={editingStudentData.gender || ''} onChange={e => setEditingStudentData({ ...editingStudentData, gender: e.target.value })}>
+1142:                                         <option value="BOY">BOY</option>
+1143:                                         <option value="GIRL">GIRL</option>
+1144:                                       </select>
+1145: 
+1146:                                       <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+1147:                                         <button onClick={handleSaveStudentEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
+1148:                                         <button onClick={() => setEditingStudentId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+1149:                                       </div>
+1150:                                     </div>
+1151:                                   ) : (
+1152:                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+1153:                                       <div>
+1154:                                         <strong>{sRegNo}</strong> - {s.name} ({s.gender === 'BOY' ? '\U0001f466' : '\U0001f467'})
+1155:                                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+1156:                                           \u0d1f\u0d40\u0d02: {teamObj ? teamObj.name : 'Unknown'} | \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f: {catObj ? catObj.name : 'Unknown'}
+1157:                                         </div>
+1158:                                       </div>
+1159:                                       <div>
+1160:                                         <button onClick={() => startEditStudent(s)} className="settings-action-btn" title="Edit">\u270f\ufe0f</button>
+1161:                                         <button onClick={() => handleDeleteStudent(s.id)} className="settings-action-btn" title="Delete">\u274c</button>
+1162:                                       </div>
+1163:                                     </div>
+1164:                                   )}
+1165:                                 </div>
+1166:                               );
+1167:                             })
+1168:                           )}
+1169:                         </div>
+1170:                       </div>
+1171:                     )}
+1172: 
+1173:                     {/* PROGRAMS SUB-TAB */}
+1174:                     {settingsSubTab === 'PROGRAMS' && (
+1175:                       <div className="settings-card-container">
+1176:                         <div className="settings-form-box">
+1177:                           <h3>\U0001f3c6 \u0d2a\u0d41\u0d24\u0d3f\u0d2f \u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d02 (Program) \u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15</h3>
+1178:                           <form onSubmit={handleAddProgram} className="settings-form">
+1179:                             <input type="text" className="settings-input" placeholder="\u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d24\u0d4d\u0d24\u0d3f\u0d28\u0d4d\u0d31\u0d46 \u0d2a\u0d47\u0d30\u0d4d (\u0d09\u0d26\u0d3e: \u0d2a\u0d4d\u0d30\u0d38\u0d02\u0d17\u0d02)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
+1180:                             <input type="text" className="settings-input" placeholder="\u0d2e\u0d24\u0d4d\u0d38\u0d30 \u0d15\u0d4b\u0d21\u0d4d (\u0d09\u0d26\u0d3e: P101)" value={newProgCode} onChange={(e) => setNewProgCode(e.target.value)} required />
+1181: 
+1182:                             <select className="settings-input" value={selectedProgCat} onChange={(e) => setSelectedProgCat(e.target.value)} required>
+1183:                               <option value="">\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</option>
+1184:                               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+1185:                             </select>
+1186: 
+1187:                             <select className="settings-input" value={progType} onChange={(e) => setProgType(e.target.value)}>
+1188:                               <option value="SINGLE">SINGLE (\u0d35\u0d4d\u0d2f\u0d15\u0d4d\u0d24\u0d3f\u0d17\u0d24\u0d02)</option>
+1189:                               <option value="GROUP">GROUP (\u0d17\u0d4d\u0d30\u0d42\u0d2a\u0d4d\u0d2a\u0d4d \u0d07\u0d28\u0d02)</option>
+1190:                             </select>
+1191: 
+1192:                             <button type="submit" className="btn-add-action">\u0d1a\u0d47\u0d7c\u0d15\u0d4d\u0d15\u0d41\u0d15 (Add Program)</button>
+1193:                           </form>
+1194:                         </div>
+1195:                         <div className="settings-list-box">
+1196:                           <h3>\U0001f4dc \u0d2a\u0d4d\u0d30\u0d4b\u0d17\u0d4d\u0d30\u0d3e\u0d2e\u0d41\u0d15\u0d7e ({programs.length})</h3>
+1197:                           {programs.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>\u0d2a\u0d4d\u0d30\u0d4b\u0d17\u0d4d\u0d30\u0d3e\u0d2e\u0d41\u0d15\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d1a\u0d47\u0d7c\u0d24\u0d4d\u0d24\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</p> : (
+1198:                             programs.map(p => {
+1199:                               const pCatId = p.catid || p.catId || '';
+1200:                               const catObj = categories.find(c => String(c.id) === String(pCatId));
+1201:                               return (
+1202:                                 <div key={p.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+1203:                                   {editingProgId === p.id ? (
+1204:                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+1205:                                       <input type="text" className="settings-input" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="\u0d2a\u0d47\u0d30\u0d4d" />
+1206:                                       <input type="text" className="settings-input" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="\u0d15\u0d4b\u0d21\u0d4d" />
+1207: 
+1208:                                       <select className="settings-input" value={editingProgData.catid || editingProgData.catId || ''} onChange={e => setEditingProgData({ ...editingProgData, catid: e.target.value, catId: e.target.value })}>
+1209:                                         <option value="">\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</option>
+1210:                                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+1211:                                       </select>
+1212: 
+1213:                                       <select className="settings-input" value={editingProgData.type || ''} onChange={e => setEditingProgData({ ...editingProgData, type: e.target.value })}>
+1214:                                         <option value="SINGLE">SINGLE</option>
+1215:                                         <option value="GROUP">GROUP</option>
+1216:                                       </select>
+1217: 
+1218:                                       <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+1219:                                         <button onClick={handleSaveProgEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
+1220:                                         <button onClick={() => setEditingProgId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+1221:                                       </div>
+1222:                                     </div>
+1223:                                   ) : (
+1224:                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+1225:                                       <div>
+1226:                                         <strong>{p.code}</strong> - {p.name}
+1227:                                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+1228:                                           \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f: {catObj ? catObj.name : 'Unknown'} | \u0d07\u0d28\u0d02: {p.type === 'GROUP' ? 'Group \U0001f465' : 'Single \U0001f464'}
+1229:                                         </div>
+1230:                                       </div>
+1231:                                       <div>
+1232:                                         <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="settings-action-btn" title="Edit">\u270f\ufe0f</button>
+1233:                                         <button onClick={() => handleDeleteProgram(p.id)} className="settings-action-btn" title="Delete">\u274c</button>
+1234:                                       </div>
+1235:                                     </div>
+1236:                                   )}
+1237:                                 </div>
+1238:                               );
+1239:                             })
+1240:                           )}
+1241:                         </div>
+1242:                       </div>
+1243:                     )}
+1244: 
+1245:                     {/* MARK_ENTRY SUB-TAB */}
+1246:                     {settingsSubTab === 'MARK_ENTRY' && (
+1247:                       <div className="settings-card-container">
+1248:                         <div className="settings-form-box">
+1249:                           <h3>\U0001f4dd \u0d2e\u0d3e\u0d7c\u0d15\u0d4d\u0d15\u0d4d \u0d0e\u0d7b\u0d1f\u0d4d\u0d30\u0d3f (Mark Entry System)</h3>
+1250:                           <form onSubmit={handleAddResult} className="settings-form">
+1251: 
+1252:                             {/* Step 1: Category */}
+1253:                             <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+1254:                               <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>\u2460 \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</label>
+1255:                               <select className="settings-input" value={selectedResultCat} onChange={(e) => {
+1256:                                 setSelectedResultCat(e.target.value);
+1257:                                 setSelectedResultProg('');
+1258:                                 setSelectedResultStudent('');
+1259:                               }} required>
+1260:                                 <option value="">-- \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15 --</option>
+1261:                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}{c.classrange ? ` (${c.classrange})` : ''}</option>)}
+1262:                               </select>
+1263:                             </div>
+1264: 
+1265:                             {/* Step 2: Program (filtered by category) */}
+1266:                             <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+1267:                               <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>\u2461 \u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d02 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</label>
+1268:                               <select className="settings-input" value={selectedResultProg} onChange={(e) => {
+1269:                                 setSelectedResultProg(e.target.value);
+1270:                                 setSelectedResultStudent('');
+1271:                               }} required disabled={!selectedResultCat}>
+1272:                                 <option value="">{selectedResultCat ? '-- \u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d02 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15 --' : '\u0d06\u0d26\u0d4d\u0d2f\u0d02 \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15'}</option>
+1273:                                 {programs
+1274:                                   .filter(p => String(p.catid || p.catId || '') === String(selectedResultCat))
+1275:                                   .map(p => <option key={p.id} value={p.id}>{p.code} - {p.name} ({p.type === 'GROUP' ? 'Group \U0001f465' : 'Single \U0001f464'})</option>)
+1276:                                 }
+1277:                               </select>
+1278:                             </div>
+1279: 
+1280:                             {/* Step 3: Student (filtered by category) */}
+1281:                             <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+1282:                               <label style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', display: 'block', marginBottom: '6px' }}>\u2462 \u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f\u0d2f\u0d46 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15</label>
+1283:                               <select className="settings-input" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
+1284:                                 <option value="">{selectedResultCat ? '-- \u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f\u0d2f\u0d46 \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15 --' : '\u0d06\u0d26\u0d4d\u0d2f\u0d02 \u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f \u0d24\u0d3f\u0d30\u0d1e\u0d4d\u0d1e\u0d46\u0d1f\u0d41\u0d15\u0d4d\u0d15\u0d41\u0d15'}</option>
+1285:                                 {students
+1286:                                   .filter(s => String(s.catid || s.catId || '') === String(selectedResultCat))
+1287:                                   .map(s => {
+1288:                                     const sRegNo = s.regno || s.regNo || '';
+1289:                                     const sTeamId = s.teamid || s.teamId || '';
+1290:                                     const teamName = teams.find(t => String(t.id) === String(sTeamId))?.name || '';
+1291:                                     return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? 'Boy \U0001f466' : 'Girl \U0001f467'}) [{teamName}]</option>;
+1292:                                   })
+1293:                                 }
+1294:                               </select>
+1295:                             </div>
+1296: 
+1297:                             {/* Step 4: Place & Grade */}
+1298:                             <div style={{ display: 'flex', gap: '8px' }}>
+1299:                               <select className="settings-input" value={selectedPlace} onChange={(e) => setSelectedPlace(e.target.value)}>
+1300:                                 <option value="1">\u0d12\u0d28\u0d4d\u0d28\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02 (First)</option>
+1301:                                 <option value="2">\u0d30\u0d23\u0d4d\u0d1f\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02 (Second)</option>
+1302:                                 <option value="3">\u0d2e\u0d42\u0d28\u0d4d\u0d28\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02 (Third)</option>
+1303:                                 <option value="0">\u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d2e\u0d3f\u0d32\u0d4d\u0d32 (No Place)</option>
+1304:                               </select>
+1305:                               <select className="settings-input" value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
+1306:                                 <option value="A">A Grade</option>
+1307:                                 <option value="B">B Grade</option>
+1308:                                 <option value="C">C Grade</option>
+1309:                                 <option value="No">No Grade</option>
+1310:                               </select>
+1311:                             </div>
+1312:                             <button type="submit" className="btn-add-action" style={{ background: '#e21c34' }}>\U0001f4be Save Result</button>                          </form>
+1313:                         </div>
+1314:                       </div>
+1315:                     )}
+1316: 
+1317:                     {/* POINTS SETUP SUB-TAB */}
+1318:                     {settingsSubTab === 'POINTS' && (
+1319:                       <div className="settings-card-container">
+1320:                         <div className="settings-form-box">
+1321:                           <h3>\u2699\ufe0f \u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d18\u0d1f\u0d28 \u0d30\u0d42\u0d2a\u0d15\u0d7d\u0d2a\u0d4d\u0d2a\u0d28 \u0d1a\u0d46\u0d2f\u0d4d\u0d2f\u0d41\u0d15</h3>
+1322:                           <form onSubmit={handleSavePoints} className="settings-form">
+1323:                             <h5 style={{ margin: '5px 0', color: '#0f766e' }}>\u0d35\u0d4d\u0d2f\u0d15\u0d4d\u0d24\u0d3f\u0d17\u0d24 \u0d07\u0d28\u0d19\u0d4d\u0d19\u0d7e (Single Events Points):</h5>
+1324:                             <div className="points-grid-setup">
+1325:                               <div className="points-setup-card">
+1326:                                 <label>\u0d12\u0d28\u0d4d\u0d28\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</label>
+1327:                                 <input type="number" className="settings-input" value={pointSystem.p1} onChange={e => setPointSystem({ ...pointSystem, p1: e.target.value })} required />
+1328:                               </div>
+1329:                               <div className="points-setup-card">
+1330:                                 <label>\u0d30\u0d23\u0d4d\u0d1f\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</label>
+1331:                                 <input type="number" className="settings-input" value={pointSystem.p2} onChange={e => setPointSystem({ ...pointSystem, p2: e.target.value })} required />
+1332:                               </div>
+1333:                               <div className="points-setup-card">
+1334:                                 <label>\u0d2e\u0d42\u0d28\u0d4d\u0d28\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</label>
+1335:                                 <input type="number" className="settings-input" value={pointSystem.p3} onChange={e => setPointSystem({ ...pointSystem, p3: e.target.value })} required />
+1336:                               </div>
+1337:                             </div>
+1338:                             <div className="points-grid-setup">
+1339:                               <div className="points-setup-card">
+1340:                                 <label>A Grade</label>
+1341:                                 <input type="number" className="settings-input" value={pointSystem.gA} onChange={e => setPointSystem({ ...pointSystem, gA: e.target.value })} required />
+1342:                               </div>
+1343:                               <div className="points-setup-card">
+1344:                                 <label>B Grade</label>
+1345:                                 <input type="number" className="settings-input" value={pointSystem.gB} onChange={e => setPointSystem({ ...pointSystem, gB: e.target.value })} required />
+1346:                               </div>
+1347:                               <div className="points-setup-card">
+1348:                                 <label>C Grade</label>
+1349:                                 <input type="number" className="settings-input" value={pointSystem.gC} onChange={e => setPointSystem({ ...pointSystem, gC: e.target.value })} required />
+1350:                               </div>
+1351:                             </div>
+1352: 
+1353:                             <h5 style={{ margin: '5px 0', color: '#ef4444' }}>\u0d17\u0d4d\u0d30\u0d42\u0d2a\u0d4d\u0d2a\u0d4d \u0d07\u0d28\u0d19\u0d4d\u0d19\u0d7e (Group Events Points):</h5>
+1354:                             <div className="points-grid-setup">
+1355:                               <div className="points-setup-card">
+1356:                                 <label>\u0d12\u0d28\u0d4d\u0d28\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</label>
+1357:                                 <input type="number" className="settings-input" value={pointSystem.gp1} onChange={e => setPointSystem({ ...pointSystem, gp1: e.target.value })} required />
+1358:                               </div>
+1359:                               <div className="points-setup-card">
+1360:                                 <label>\u0d30\u0d23\u0d4d\u0d1f\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</label>
+1361:                                 <input type="number" className="settings-input" value={pointSystem.gp2} onChange={e => setPointSystem({ ...pointSystem, gp2: e.target.value })} required />
+1362:                               </div>
+1363:                               <div className="points-setup-card">
+1364:                                 <label>\u0d2e\u0d42\u0d28\u0d4d\u0d28\u0d3e\u0d02 \u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</label>
+1365:                                 <input type="number" className="settings-input" value={pointSystem.gp3} onChange={e => setPointSystem({ ...pointSystem, gp3: e.target.value })} required />
+1366:                               </div>
+1367:                             </div>
+1368:                             <div className="points-grid-setup">
+1369:                               <div className="points-setup-card">
+1370:                                 <label>A Grade</label>
+1371:                                 <input type="number" className="settings-input" value={pointSystem.gpA} onChange={e => setPointSystem({ ...pointSystem, gpA: e.target.value })} required />
+1372:                               </div>
+1373:                               <div className="points-setup-card">
+1374:                                 <label>B Grade</label>
+1375:                                 <input type="number" className="settings-input" value={pointSystem.gpB} onChange={e => setPointSystem({ ...pointSystem, gpB: e.target.value })} required />
+1376:                               </div>
+1377:                               <div className="points-setup-card">
+1378:                                 <label>C Grade</label>
+1379:                                 <input type="number" className="settings-input" value={pointSystem.gpC} onChange={e => setPointSystem({ ...pointSystem, gpC: e.target.value })} required />
+1380:                               </div>
+1381:                             </div>
+1382: 
+1383:                             <button type="submit" className="btn-add-action" style={{ background: '#0f766e' }}>\u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d \u0d18\u0d1f\u0d28 \u0d2e\u0d3e\u0d31\u0d4d\u0d31\u0d41\u0d15 (Save Points)</button>
+1384:                           </form>
+1385:                         </div>
+1386:                       </div>
+1387:                     )}
+1388:                   </div>
+1389:                 </div>
+1390:               )}
+1391: 
+1392:             </div>
+1393:           )}
+1394:         </div>
+1395:       )}
+1396: 
+1397:       {/* \U0001f4f1 NAVIGATION BOTTOM BAR */}
+1398:       {currentScreen === 'DASHBOARD' && (
+1399:         <nav className="bottom-nav-bar">
+1400:           <button className={`nav-tab-item ${activeTab === 'SCOREBOARD' ? 'active' : ''}`} onClick={() => setActiveTab('SCOREBOARD')}>
+1401:             <span className="nav-icon">\U0001f4ca</span><span>\u0d38\u0d4d\u0d15\u0d4b\u0d7c\u0d2c\u0d4b\u0d7c\u0d21\u0d4d</span>
+1402:           </button>
+1403:           <button className={`nav-tab-item ${activeTab === 'RECENT' ? 'active' : ''}`} onClick={() => setActiveTab('RECENT')}>
+1404:             <span className="nav-icon">\U0001f4dc</span><span>\u0d2b\u0d32\u0d19\u0d4d\u0d19\u0d7e</span>
+1405:           </button>
+1406:           <button className={`nav-tab-item ${activeTab === 'SETTINGS' ? 'active' : ''}`} onClick={() => setActiveTab('SETTINGS')}>
+1407:             <span className="nav-icon">\u2699\ufe0f</span><span>\u0d2e\u0d3e\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d38\u0d46\u0d31\u0d4d\u0d31\u0d3f\u0d19\u0d4d\u0d38\u0d4d</span>
+1408:           </button>
+1409:         </nav>
+1410:       )}
+1411:     </div>
+1412:   )
+1413: }
+1414: 
+1415: export default App;

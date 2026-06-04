@@ -357,13 +357,15 @@ body {
     font-weight: 900;
     background: linear-gradient(135deg, #0f766e, #115e59);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: transparent;
     line-height: 1;
 }
 
-.rank-1 .score-points { background: linear-gradient(135deg, #b45309, #78350f); -webkit-background-clip: text; }
-.rank-2 .score-points { background: linear-gradient(135deg, #334155, #0f172a); -webkit-background-clip: text; }
-.rank-3 .score-points { background: linear-gradient(135deg, #c2410c, #7c2d12); -webkit-background-clip: text; }
+.rank-1 .score-points { background: linear-gradient(135deg, #b45309, #78350f); -webkit-background-clip: text; background-clip: text; }
+.rank-2 .score-points { background: linear-gradient(135deg, #334155, #0f172a); -webkit-background-clip: text; background-clip: text; }
+.rank-3 .score-points { background: linear-gradient(135deg, #c2410c, #7c2d12); -webkit-background-clip: text; background-clip: text; }
 
 .score-rank-badge {
     position: absolute;
@@ -373,6 +375,8 @@ body {
     font-size: 70px;
     opacity: 0.15;
     z-index: 1;
+}
+
 }
 
 /* 📱 ടേബിളുകൾ മൊബൈലിൽ വശങ്ങളിലേക്ക് സ്ക്രോൾ ചെയ്യാനുള്ള സെറ്റപ്പ് */

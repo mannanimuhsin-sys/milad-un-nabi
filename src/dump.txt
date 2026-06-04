@@ -1,0 +1,30 @@
+963:               {/* \u2500\u2500 Results History Table \u2500\u2500 */}
+964:               <div className="card">
+965:                 <h2>\U0001f4dc \u0d2a\u0d4d\u0d30\u0d16\u0d4d\u0d2f\u0d3e\u0d2a\u0d3f\u0d1a\u0d4d\u0d1a \u0d2b\u0d32\u0d19\u0d4d\u0d19\u0d7e (Results History)</h2>
+966:                 <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
+967:                   <table>
+968:                     <thead>
+969:                       <tr>
+970:                         <th>\u0d2e\u0d24\u0d4d\u0d38\u0d30\u0d02</th><th>\u0d07\u0d28\u0d02</th><th>\u0d15\u0d3e\u0d31\u0d4d\u0d31\u0d17\u0d31\u0d3f</th><th>\u0d30\u0d1c\u0d3f\u0d38\u0d4d\u0d31\u0d4d\u0d31\u0d7c \u0d28\u0d2e\u0d4d\u0d2a\u0d7c</th><th>\u0d35\u0d3f\u0d26\u0d4d\u0d2f\u0d3e\u0d7c\u0d24\u0d4d\u0d25\u0d3f</th><th>\u0d32\u0d3f\u0d02\u0d17\u0d2d\u0d47\u0d26\u0d02</th><th>\u0d1f\u0d40\u0d02</th><th>\u0d38\u0d4d\u0d25\u0d3e\u0d28\u0d02</th><th>\u0d17\u0d4d\u0d30\u0d47\u0d21\u0d4d</th><th>\u0d2a\u0d4b\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d4d</th>{loginRole === 'ADMIN' && <th>\u0d12\u0d34\u0d3f\u0d35\u0d3e\u0d15\u0d4d\u0d15\u0d41\u0d15</th>}
+971:                       </tr>
+972:                     </thead>
+973:                     <tbody>
+974:                       {resultsList.length === 0 ? <tr><td colSpan="11">\u0d2b\u0d32\u0d19\u0d4d\u0d19\u0d7e \u0d12\u0d28\u0d4d\u0d28\u0d41\u0d02 \u0d07\u0d24\u0d41\u0d35\u0d30\u0d46 \u0d2a\u0d4d\u0d30\u0d16\u0d4d\u0d2f\u0d3e\u0d2a\u0d3f\u0d1a\u0d4d\u0d1a\u0d3f\u0d1f\u0d4d\u0d1f\u0d3f\u0d32\u0d4d\u0d32.</td></tr> :
+975:                         resultsList.map(r => {
+976:                           const sName = r.studentname || r.studentName || '';
+977:                           const dashIdx = sName.indexOf(' - ');
+978:                           const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+979:                           const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+980:                           const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
+981:                           const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+982:                           return (
+983:                             <tr key={r.id}>
+984:                               <td>{r.progname || r.progName}</td>
+985:                               <td><span style={{ background: (r.progtype || r.progType) === 'GROUP' ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{r.progtype || r.progType}</span></td>
+986:                               <td>{r.catname || r.catName}</td>
+987:                               <td><b style={{ color: '#1e40af' }}>{regPart}</b></td>
+988:                               <td>{namePart}</td>
+989:                               <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy \U0001f466' : 'Girl \U0001f467'}</td>
+990:                               <td><b>{r.teamname || r.teamName}</b></td>
+991:                               <td><span style={{ background: placeLabel === 'First' ? '#fbbf24' : placeLabel === 'Second' ? '#94a3b8' : placeLabel === 'Third' ? '#f97316' : '#e2e8f0', color: placeLabel === 'First' ? '#78350f' : placeLabel === 'Second' ? '#1e293b' : placeLabel === 'Third' ? '#7c2d12' : '#475569', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', fontSize: '12px' }}>{placeLabel}</span></td>
+992:                               <td><span style={{ fontWeight: '700', color: gradeLabel === 'A' ? '#059669' : gradeLabel === 'B' ? '#2563eb' : gradeLabel === 'C' ? '#7c3aed' : '#94a3b8' }}>{gradeLabel}</span></td>
