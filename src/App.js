@@ -952,7 +952,7 @@ function App() {
                 <table>
                   <thead>
                     <tr>
-                      <th>മത്സരം</th><th>ഇനം</th><th>കാറ്റഗറി</th><th>കുട്ടി</th><th>ലിംഗഭേദം</th><th>ടീം</th><th>സ്ഥാനം</th><th>ഗ്രേഡ്</th><th>പോയിന്റ്</th>{loginRole === 'ADMIN' && <th>ഒഴിവാക്കുക</th>}
+                      <th>മത്സരം</th><th>ഇനം</th><th>കാറ്റഗറി</th><th>വിദ്യാർത്ഥി</th><th>ലിംഗഭേദം</th><th>ടീം</th><th>സ്ഥാനം</th><th>ഗ്രേഡ്</th><th>പോയിന്റ്</th>{loginRole === 'ADMIN' && <th>ഒഴിവാക്കുക</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1306,8 +1306,7 @@ function App() {
                                 <option value="No">No Grade</option>
                               </select>
                             </div>
-                            <button type="submit" className="btn-add-action" style={{ background: '#e21c34' }}>💾 Save Result</button>
-                          </form>
+                            <button type="submit" className="btn-add-action" style={{ background: '#e21c34' }}>💾 Save Result</button>                          </form>
                         </div>
                       </div>
                     )}
