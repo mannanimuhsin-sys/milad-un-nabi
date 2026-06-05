@@ -1,0 +1,10 @@
+569: catname: categories.find(c => String(c.id) === String(progObj.catid))?.name || '',
+573: teamname: teams.find(t => String(t.id) === String(studentObj.teamid))?.name || '',
+926: <h1>{loggedInMadrasa?.name}</h1>
+927: <p>Reg No: {loggedInMadrasa?.regNumber} | {loggedInMadrasa?.place} ({loginRole} MODE)</p>
+1086: <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj?.name || ''}</span>
+1135: <p style='margin-top:10px;opacity:0.85'>ടീം: ${teamObj?.name || '-'} | കാറ്റഗറി: ${catObj?.name || '-'} | ${matchedStudent.gender === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</p>
+1153: <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>ടീം: {teamObj?.name || '-'}</span>
+1154: <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>{catObj?.name || '-'}</span>
+1617: const teamName = teams.find(t => String(t.id) === String(sTeamId))?.name || '';
+1618: const catName = categories.find(c => String(c.id) === String(s.catid || s.catId))?.name || '';
