@@ -87,6 +87,11 @@ function App() {
   // Student search by reg number
   const [searchRegNo, setSearchRegNo] = useState('');
 
+  // Champion section states
+  const [champCat, setChampCat] = useState('');
+  const [champGender, setChampGender] = useState('BOYS');
+  const [champSelectedProg, setChampSelectedProg] = useState('');
+
 
   // 🔄 സുപർബേസിൽ നിന്നും തത്സമയം വിവരങ്ങൾ ലോഡ് ചെയ്യാനുള്ള ഫങ്ഷൻ
   const fetchSupabaseData = async (rNum) => {
@@ -1226,6 +1231,166 @@ function App() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              {/* ── Section 4: Champion Section ── */}
+              <div className="card" style={{ marginTop: '20px' }}>
+                <h2 style={{ color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>🏅 ചാമ്പ്യൻ (Champions)</h2>
+
+                {/* Category Selector */}
+                <div style={{ marginTop: '15px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>കാറ്റഗറി തിരഞ്ഞെടുക്കുക</label>
+                  <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampSelectedProg(''); }}>
+                    <option value="">-- കാറ്റഗറി തിരഞ്ഞെടുക്കുക --</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Gender Tabs */}
+                {champCat && (
+                  <div style={{ marginTop: '15px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>വിഭാഗം</label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {['BOYS', 'GIRLS', 'COMMON'].map(g => (
+                        <button key={g} type="button"
+                          onClick={() => { setChampGender(g); setChampSelectedProg(''); }}
+                          style={{
+                            padding: '8px 18px', borderRadius: '10px', border: '2px solid',
+                            fontWeight: '700', cursor: 'pointer', fontSize: '13px',
+                            background: champGender === g
+                              ? (g === 'BOYS' ? '#3b82f6' : g === 'GIRLS' ? '#ec4899' : '#10b981')
+                              : '#f8fafc',
+                            color: champGender === g ? 'white' : '#475569',
+                            borderColor: champGender === g ? 'transparent' : '#e2e8f0',
+                            transition: 'all 0.2s'
+                          }}>
+                          {g === 'BOYS' ? '👦 Boys' : g === 'GIRLS' ? '👧 Girls' : '👥 General'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Programs List for selected category + gender */}
+                {champCat && (() => {
+                  const filteredProgs = programs.filter(p => {
+                    const catMatch = String(p.catid || p.catId || '') === String(champCat);
+                    if (!catMatch) return false;
+                    const pType = String(p.type || '').toUpperCase();
+                    if (champGender === 'COMMON') {
+                      return pType.includes('COMMON');
+                    } else if (champGender === 'BOYS') {
+                      return pType.includes('BOY') && !pType.includes('GIRL') && !pType.includes('COMMON');
+                    } else {
+                      return pType.includes('GIRL') && !pType.includes('BOY') && !pType.includes('COMMON');
+                    }
+                  });
+
+                  if (filteredProgs.length === 0) return (
+                    <p style={{ marginTop: '15px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>ഈ വിഭാഗത്തിൽ പ്രോഗ്രാമുകൾ ഒന്നും ഇല്ല.</p>
+                  );
+
+                  return (
+                    <div style={{ marginTop: '15px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '8px' }}>പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {filteredProgs.map(p => (
+                          <button key={p.id} type="button"
+                            onClick={() => setChampSelectedProg(String(p.id))}
+                            style={{
+                              padding: '8px 14px', borderRadius: '10px', border: '2px solid',
+                              fontWeight: '700', cursor: 'pointer', fontSize: '12px',
+                              background: champSelectedProg === String(p.id) ? '#1e1b4b' : '#f8fafc',
+                              color: champSelectedProg === String(p.id) ? 'white' : '#334155',
+                              borderColor: champSelectedProg === String(p.id) ? '#3730a3' : '#e2e8f0',
+                              transition: 'all 0.2s'
+                            }}>
+                            {p.code} - {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Champion Winners Display */}
+                {champSelectedProg && (() => {
+                  const progObj = programs.find(p => String(p.id) === String(champSelectedProg));
+                  const progResults = resultsList.filter(r => String(r.progid) === String(champSelectedProg));
+
+                  // Group by student, sum points
+                  const studentPointsMap = {};
+                  progResults.forEach(r => {
+                    const sName = r.studentname || r.studentName || '';
+                    if (!studentPointsMap[sName]) {
+                      studentPointsMap[sName] = {
+                        studentname: sName,
+                        teamname: r.teamname || r.teamName || '-',
+                        studentgender: r.studentgender || r.studentGender || '',
+                        points: 0,
+                        place: r.place,
+                        grade: r.grade
+                      };
+                    }
+                    studentPointsMap[sName].points += r.points;
+                  });
+
+                  // Sort by place ranking: First > Second > Third > rest
+                  const placeOrder = { 'First': 1, 'Second': 2, 'Third': 3 };
+                  const allStudents = Object.values(studentPointsMap).sort((a, b) => {
+                    const pa = placeOrder[a.place] || 99;
+                    const pb = placeOrder[b.place] || 99;
+                    if (pa !== pb) return pa - pb;
+                    return b.points - a.points;
+                  });
+
+                  // Get first, second, third groups (ties included)
+                  const firstGroup = allStudents.filter(s => s.place === 'First');
+                  const secondGroup = allStudents.filter(s => s.place === 'Second');
+                  const thirdGroup = allStudents.filter(s => s.place === 'Third');
+
+                  const renderChampCard = (student, gradient, medal, borderColor, placeLabel) => {
+                    const sName = student.studentname || '';
+                    const dashIdx = sName.indexOf(' - ');
+                    const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                    const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                    return (
+                      <div key={student.studentname} style={{
+                        background: gradient, borderRadius: '20px', padding: '22px 20px',
+                        color: 'white', position: 'relative', overflow: 'hidden',
+                        boxShadow: '0 10px 35px rgba(0,0,0,0.25)',
+                        border: `3px solid ${borderColor}`,
+                        animation: 'fadeInTab 0.5s ease'
+                      }}>
+                        <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '80px', opacity: 0.12 }}>{medal}</div>
+                        <div style={{ fontSize: '36px', marginBottom: '8px' }}>{medal}</div>
+                        <div style={{ fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.8, marginBottom: '6px' }}>{placeLabel}</div>
+                        <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '3px 10px', display: 'inline-block', fontSize: '11px', fontWeight: '700', marginBottom: '8px' }}>#{regPart}</div>
+                        <div style={{ fontSize: '19px', fontWeight: '900', marginBottom: '6px', lineHeight: 1.3 }}>{namePart}</div>
+                        <div style={{ fontSize: '12px', opacity: 0.85 }}>ടീം: <b>{student.teamname}</b></div>
+                        <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>{student.studentgender === 'BOY' ? '👦 Boy' : '👧 Girl'}</div>
+                        <div style={{ marginTop: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '4px 10px', display: 'inline-block', fontWeight: '800', fontSize: '14px' }}>⭐ {student.points} Pts</div>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div style={{ marginTop: '22px' }}>
+                      <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                        <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 22px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
+                      </div>
+                      {allStudents.length === 0 ? (
+                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>ഈ പ്രോഗ്രാമിൽ ഫലങ്ങൾ ഇല്ല.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+                          {firstGroup.map(s => renderChampCard(s, 'linear-gradient(135deg, #f59e0b, #b45309)', '🥇', '#fbbf24', 'First Place'))}
+                          {secondGroup.map(s => renderChampCard(s, 'linear-gradient(135deg, #94a3b8, #475569)', '🥈', '#cbd5e1', 'Second Place'))}
+                          {thirdGroup.map(s => renderChampCard(s, 'linear-gradient(135deg, #f97316, #b45309)', '🥉', '#fb923c', 'Third Place'))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
             </div>
