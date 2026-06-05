@@ -161,7 +161,7 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!loginRegNum.trim() || !loginPassword.trim()) {
-      alert('വിവരങ്ങൾ പൂർണ്ണമായി നൽകുക!');
+      alert('Please fill in all details!');
       return;
     }
 
@@ -174,12 +174,12 @@ function App() {
         .maybeSingle();
 
       if (error) {
-        alert('തകരാർ സംഭവിച്ചു: ' + error.message);
+        alert('Error occurred: ' + error.message);
         return;
       }
 
       if (!madrasa) {
-        alert('മദ്രസ കണ്ടെത്താനായില്ല!');
+        alert('Madrasa not found!');
         return;
       }
 
@@ -192,7 +192,7 @@ function App() {
           setCurrentScreen('PENDING_APPROVAL');
           return;
         } else if (currentStatus === 'blocked') {
-          alert('നിങ്ങളുടെ മദ്രസ ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു! ദയവായി അഡ്മിനുമായി ബന്ധപ്പെടുക.');
+          alert('Your madrasa is blocked! Please contact the admin.');
           return;
         }
 
@@ -208,10 +208,10 @@ function App() {
         setLoginRegNum('');
         setLoginPassword('');
       } else {
-        alert('പാസ്‌വേർഡ് തെറ്റാണ്!');
+        alert('Incorrect password!');
       }
     } catch (err) {
-      alert('തകരാർ സംഭവിച്ചു: ' + err.message);
+      alert('Error occurred: ' + err.message);
     } finally {
       setIsLoggingIn(false);
     }
@@ -220,7 +220,7 @@ function App() {
   const handleRegisterMadrasa = async (e) => {
     e.preventDefault();
     if (!regName.trim() || !regNumber.trim() || !regPlace.trim() || !adminPassword.trim() || !viewPassword.trim()) {
-      alert('എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!');
+      alert('Please fill in all details!');
       return;
     }
 
@@ -232,12 +232,12 @@ function App() {
         .eq('regNumber', regNumber);
 
       if (checkError) {
-        alert('തകരാർ സംഭവിച്ചു: ' + checkError.message);
+        alert('Error occurred: ' + checkError.message);
         return;
       }
 
       if (existing && existing.length > 0) {
-        alert('ഈ രജിസ്റ്റർ നമ്പർ നിലവിലുണ്ട്! മറ്റ് നമ്പർ ഉപയോഗിക്കുക.');
+        alert('This register number already exists! Please use a different number.');
         return;
       }
 
@@ -255,16 +255,16 @@ function App() {
         ]);
 
       if (error) {
-        alert('രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു: ' + error.message);
+        alert('Registration failed: ' + error.message);
       } else {
-        alert('മദ്രസ രജിസ്ട്രേഷൻ സമർപ്പിച്ചു! സൂപ്പർ അഡ്മിൻ അപ്പ്രൂവലിനായി കാത്തിരിക്കുക.');
+        alert('Madrasa registration submitted! Waiting for Super Admin approval.');
         const tempMadrasa = { name: regName, regNumber, place: `${regPlace}|pending` };
         setPendingMadrasa(tempMadrasa);
         setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
         setCurrentScreen('PENDING_APPROVAL');
       }
     } catch (err) {
-      alert('തകരാർ സംഭവിച്ചു: ' + err.message);
+      alert('Error occurred: ' + err.message);
     }
   };
 
@@ -276,7 +276,7 @@ function App() {
         .order('id', { ascending: false });
 
       if (error) {
-        alert('മദ്രസകൾ ലോഡ് ചെയ്യുന്നതിൽ പരാജയം: ' + error.message);
+        alert('Failed to load madrasas: ' + error.message);
       } else if (data) {
         setSuperMadrasas(data);
       }
@@ -294,9 +294,9 @@ function App() {
       .eq('id', madrasa.id);
 
     if (error) {
-      alert('അപ്പ്രൂവ് ചെയ്യുന്നതിൽ തകരാർ: ' + error.message);
+      alert('Error approving madrasa: ' + error.message);
     } else {
-      alert('മദ്രസ വിജകരമായി അപ്പ്രൂവ് ചെയ്തു!');
+      alert('Madrasa approved successfully!');
       fetchMadrasas();
     }
   };
@@ -310,24 +310,24 @@ function App() {
       .eq('id', madrasa.id);
 
     if (error) {
-      alert('ബ്ലോക്ക് ചെയ്യുന്നതിൽ തകരാർ: ' + error.message);
+      alert('Error blocking madrasa: ' + error.message);
     } else {
-      alert('മദ്രസ ബ്ലോക്ക് ചെയ്തു!');
+      alert('Madrasa blocked!');
       fetchMadrasas();
     }
   };
 
   const handleDeleteMadrasa = async (id) => {
-    if (!window.confirm('ഈ മദ്രസ ഒഴിവാക്കണോ? രജിസ്റ്റർ ചെയ്ത വിവരങ്ങൾ എല്ലാം ഇല്ലാതാകും.')) return;
+    if (!window.confirm('Remove this madrasa? All registered data will be deleted.')) return;
     const { error } = await supabase
       .from('madrasas')
       .delete()
       .eq('id', id);
 
     if (error) {
-      alert('ഒഴിവാക്കുന്നതിൽ തകരാർ: ' + error.message);
+      alert('Error deleting madrasa: ' + error.message);
     } else {
-      alert('മദ്രസ വിജകരമായി ഒഴിവാക്കി!');
+      alert('Madrasa deleted successfully!');
       fetchMadrasas();
     }
   };
@@ -343,7 +343,7 @@ function App() {
 
   const handleSaveMadrasaEdit = async () => {
     if (!editingMadrasaData.name.trim() || !editingMadrasaData.regNumber.trim() || !editingMadrasaData.tempPlace.trim() || !editingMadrasaData.adminPassword.trim() || !editingMadrasaData.viewPassword.trim()) {
-      alert('എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!');
+      alert('Please fill in all details!');
       return;
     }
 
@@ -352,7 +352,7 @@ function App() {
       m => m.regNumber === editingMadrasaData.regNumber && m.id !== editingMadrasaId
     );
     if (duplicate) {
-      alert('ഈ രജിസ്റ്റർ നമ്പർ നിലവിലുണ്ട്!');
+      alert('This register number already exists!');
       return;
     }
 
@@ -372,9 +372,9 @@ function App() {
       .eq('id', editingMadrasaId);
 
     if (error) {
-      alert('അപ്ഡേറ്റ് ചെയ്യുന്നതിൽ തകരാർ: ' + error.message);
+      alert('Error updating madrasa: ' + error.message);
     } else {
-      alert('മദ്രസ വിവരങ്ങൾ വിജകരമായി അപ്ഡേറ്റ് ചെയ്തു!');
+      alert('Madrasa details updated successfully!');
       setEditingMadrasaId(null);
       fetchMadrasas();
     }
@@ -401,7 +401,7 @@ function App() {
   };
 
   const handleDeleteTeam = async (id) => {
-    if (!window.confirm('ഈ ടീം ഒഴിവാക്കണോ?')) return;
+    if (!window.confirm('Remove this team?')) return;
     setTeams(prev => prev.filter(t => t.id !== id));
     const { error } = await supabase.from('teams').delete().eq('id', id);
     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
@@ -437,7 +437,7 @@ function App() {
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!window.confirm('ഈ കാറ്റഗറി ഒഴിവാക്കണോ?')) return;
+    if (!window.confirm('Remove this category?')) return;
     setCategories(prev => prev.filter(c => c.id !== id));
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
@@ -455,7 +455,7 @@ function App() {
   const handleAddStudent = async (e) => {
     e.preventDefault();
     if (!newStudentName.trim() || !studentRegNo.trim() || !selectedStudentTeam || !selectedStudentCat || !loggedInMadrasa) {
-      alert('എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!'); return;
+      alert('Please fill in all details!'); return;
     }
     const tempId = 'temp_' + Date.now();
     const tempStudent = { id: tempId, name: newStudentName, regno: studentRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
@@ -492,7 +492,7 @@ function App() {
   };
 
   const handleDeleteStudent = async (id) => {
-    if (!window.confirm('ഈ കുട്ടിയെ ഒഴിവാക്കണോ?')) return;
+    if (!window.confirm('Remove this student?')) return;
     setStudents(prev => prev.filter(s => s.id !== id));
     const { error } = await supabase.from('students').delete().eq('id', id);
     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
@@ -519,7 +519,7 @@ function App() {
   };
 
   const handleDeleteProgram = async (id) => {
-    if (!window.confirm('ഈ പ്രോഗ്രാം ഒഴിവാക്കണോ?')) return;
+    if (!window.confirm('Remove this program?')) return;
     setPrograms(prev => prev.filter(p => p.id !== id));
     const { error } = await supabase.from('programs').delete().eq('id', id);
     if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
@@ -539,23 +539,23 @@ function App() {
   const handleSavePoints = (e) => {
     e.preventDefault();
     saveToStorage('points', pointSystem);
-    alert('പുതിയ പോയിന്റ് ഘടന വിജയകരമായി അപ്ഡേറ്റ് ചെയ്തു!');
+    alert('Points structure updated successfully!');
   };
 
   // 📝 6. MARK ENTRY ACTIONS (SUPABASE)
   const handleAddResult = async (e) => {
     e.preventDefault();
     if (!selectedResultProg || !selectedResultStudent || !loggedInMadrasa) {
-      alert('മത്സരവും കുട്ടിയെയും തിരഞ്ഞെടുക്കുക!'); return;
+      alert('Please select a program and student!'); return;
     }
 
     const studentObj = students.find(s => String(s.id) === String(selectedResultStudent));
     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
-    if (!studentObj || !progObj) { alert('വിവരങ്ങൾ കൃത്യമല്ല!'); return; }
+    if (!studentObj || !progObj) { alert('Data is invalid!'); return; }
 
     const isGroup = progObj.type === 'GROUP';
 
-    // ഡൈനാമിക് പോയിന്റ് കണക്കുകൂട്ടൽ
+    // Dynamic point calculation
     let pts = 0;
     if (selectedPlace === '1') pts = isGroup ? Number(pointSystem.gp1) : Number(pointSystem.p1);
     else if (selectedPlace === '2') pts = isGroup ? Number(pointSystem.gp2) : Number(pointSystem.p2);
@@ -587,13 +587,13 @@ function App() {
     if (error) {
       alert('Error: ' + error.message);
     } else {
-      alert('റിസൾട്ട് വിജയകരമായി പ്രഖ്യാപിച്ചു!');
+      alert('Result declared successfully!');
       fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
 
   const handleDeleteResult = async (id) => {
-    if (!window.confirm('ഈ റിസൾട്ട് ഒഴിവാക്കണോ?')) return;
+    if (!window.confirm('Remove this result?')) return;
     const { error } = await supabase.from('results').delete().eq('id', id);
     if (error) alert(error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
@@ -613,19 +613,19 @@ function App() {
             <div className="login-brand-section">
               <span className="mosque-icon-wrapper"><h3>🕌</h3></span>
               <h2>MILAD FEST</h2>
-              <p className="subtitle">മദ്രസ ലോഗിൻ സിസ്റ്റം</p>
+              <p className="subtitle">Madrasa Login System</p>
             </div>
             <form onSubmit={handleLogin}>
               <div className="executive-form-group">
-                <label>മദ്രസ രജിസ്റ്റർ നമ്പർ</label>
-                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Reg Number" value={loginRegNum} onChange={(e) => setLoginRegNum(e.target.value)} required />
+                <label>Madrasa Register Number</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Register Number" value={loginRegNum} onChange={(e) => setLoginRegNum(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <label>പാസ്‌വേർഡ്</label>
-                <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+                <label>Password</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
               </div>
               <button type="submit" className="btn-executive-gold" disabled={isLoggingIn}>
-                {isLoggingIn ? 'ലോഗിൻ ചെയ്യുന്നു...' : 'ലോഗിൻ ചെയ്യുക'}
+                {isLoggingIn ? 'Logging in...' : 'Login'}
               </button>
             </form>
 
@@ -634,7 +634,7 @@ function App() {
                 setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
                 setCurrentScreen('REGISTER_FORM');
               }} style={{ color: '#94a3b8', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }} className="admin-premium-link">
-                📝 പുതിയ മദ്രസ രജിസ്ട്രേഷൻ
+                📝 New Madrasa Registration
               </span>
             </div>
 
@@ -649,9 +649,9 @@ function App() {
       {currentScreen === 'REGISTER_LOCK' && (
         <div className="executive-login-container">
           <div className="executive-login-card">
-            <div className="login-brand-section"><h2>🔐 സെക്യൂരിറ്റി ലോക്ക്</h2></div>
+            <div className="login-brand-section"><h2>🔐 Security Lock</h2></div>
             <div className="executive-form-group">
-              <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Secret Key" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} />
+              <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Secret Key" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} />
             </div>
             <div className="flex-button-group">
               <button onClick={() => {
@@ -660,10 +660,10 @@ function App() {
                   setSecretKey('');
                   fetchMadrasas();
                 } else {
-                  alert('തെറ്റായ കീ!');
+                  alert('Invalid Key!');
                 }
-              }} className="btn-executive-gold">തുടരുക</button>
-              <button onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">ബാക്ക്</button>
+              }} className="btn-executive-gold">Continue</button>
+              <button onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">Back</button>
             </div>
           </div>
         </div>
@@ -673,26 +673,31 @@ function App() {
       {currentScreen === 'REGISTER_FORM' && (
         <div className="executive-login-container">
           <div className="executive-login-card">
-            <h2>📝 പുതിയ മദ്രസ രജിസ്ട്രേഷൻ</h2>
+            <h2>📝 New Madrasa Registration</h2>
             <form onSubmit={handleRegisterMadrasa} style={{ marginTop: '15px' }}>
               <div className="executive-form-group">
-                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Madrasa Name" value={regName} onChange={(e) => setRegName(e.target.value)} required />
+                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Madrasa Name</label>
+                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Madrasa Name" value={regName} onChange={(e) => setRegName(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Register Number" value={regNumber} onChange={(e) => setRegNumber(e.target.value)} required />
+                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Register Number</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Register Number" value={regNumber} onChange={(e) => setRegNumber(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Location" value={regPlace} onChange={(e) => setRegPlace(e.target.value)} required />
+                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Location / Place</label>
+                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Location" value={regPlace} onChange={(e) => setRegPlace(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Admin Password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required />
+                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Admin Password</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Set Admin Password (numbers)" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <input type="password" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="View Password" value={viewPassword} onChange={(e) => setViewPassword(e.target.value)} required />
+                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>View Password</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Set View Password (numbers)" value={viewPassword} onChange={(e) => setViewPassword(e.target.value)} required />
               </div>
               <div className="flex-button-group">
-                <button type="submit" className="btn-executive-gold">രജിസ്റ്റർ ചെയ്യുക</button>
-                <button type="button" onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">ക്ാൻസൽ</button>
+                <button type="submit" className="btn-executive-gold">Register</button>
+                <button type="button" onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">Cancel</button>
               </div>
             </form>
           </div>
@@ -705,15 +710,15 @@ function App() {
           <div className="executive-login-card" style={{ textAlign: 'center' }}>
             <div className="login-brand-section">
               <span style={{ fontSize: '50px' }}>⏳</span>
-              <h2 style={{ marginTop: '15px', color: 'white' }}>അപ്പ്രൂവലിനായി കാത്തിരിക്കുന്നു</h2>
+              <h2 style={{ marginTop: '15px', color: 'white' }}>Waiting for Approval</h2>
               <p className="subtitle" style={{ color: '#94a3b8', fontSize: '14px', marginTop: '10px' }}>
-                നിങ്ങളുടെ മദ്രസ (<b>{pendingMadrasa.name}</b>) അപ്പ്രൂവലിനായി കാത്തിരിക്കുകയാണ് അല്ലെങ്കിൽ പെൻഡിങ് ആണ്.
+                Your madrasa (<b>{pendingMadrasa.name}</b>) is pending approval.
               </p>
             </div>
 
             <div style={{ margin: '25px 0', background: 'rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
               <p style={{ color: '#e2e8f0', fontSize: '14px', marginBottom: '15px' }}>
-                അപ്പ്രൂവ് ചെയ്യുന്നതിനായി താഴെയുള്ള വാട്സ്ആപ്പ് ബട്ടൺ ക്ലിക്ക് ചെയ്ത് മെസ്സേജ് അയക്കുക.
+                Click the WhatsApp button below to send an approval request message.
               </p>
 
               <a
@@ -740,11 +745,11 @@ function App() {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
                   <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.37 5.054L2 22l5.13-1.346a9.921 9.921 0 004.882 1.28h.005c5.507 0 9.99-4.478 9.99-9.985 0-2.667-1.037-5.176-2.923-7.062A9.919 9.919 0 0012.012 2zm5.727 14.128c-.315.442-1.077.85-1.485.91-.376.056-.84.09-2.28-.49-1.846-.743-3.023-2.62-3.115-2.742-.092-.122-.767-.999-.767-1.998 0-.999.524-1.49.71-1.696.186-.206.406-.258.54-.258.136 0 .272.001.39.006.124.005.289-.046.452.348.169.406.576 1.393.626 1.493.05.1.084.218.016.353-.067.135-.102.218-.203.336-.1.118-.21.265-.3.353-.1.1-.205.208-.088.406.117.199.52.85 1.115 1.378.767.68 1.412.89 1.614.99.203.1.32.084.44-.053.117-.137.507-.588.642-.789.137-.2.271-.169.457-.1.187.068 1.182.556 1.385.657.203.1.339.152.39.237.05.084.05 1.238-.266 1.68z" />
                 </svg>
-                WhatsApp അപ്പ്രൂവൽ
+                WhatsApp Approval
               </a>
             </div>
 
-            <button onClick={() => { setCurrentScreen('LOGIN'); setPendingMadrasa(null); }} className="btn-executive-secondary">ബാക്ക്</button>
+            <button onClick={() => { setCurrentScreen('LOGIN'); setPendingMadrasa(null); }} className="btn-executive-secondary">Back</button>
           </div>
         </div>
       )}
@@ -754,10 +759,10 @@ function App() {
         <div className="dashboard-container" style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px' }}>
           <header className="dash-header" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)' }}>
             <div>
-              <h1 style={{ color: 'white' }}>⚙️ സൂപ്പർ അഡ്മിൻ കൺട്രോൾ പാനൽ</h1>
-              <p>രജിസ്റ്റർ ചെയ്ത മദ്രസകളുടെ മാനേജ്‌മെന്റ് സിസ്റ്റം</p>
+              <h1 style={{ color: 'white' }}>⚙️ Super Admin Control Panel</h1>
+              <p>Registered Madrasa Management System</p>
             </div>
-            <button onClick={() => setCurrentScreen('LOGIN')} className="btn-logout-top">ലോഗിൻ സ്ക്രീൻ</button>
+            <button onClick={() => setCurrentScreen('LOGIN')} className="btn-logout-top">Login Screen</button>
           </header>
 
           {/* Stats section */}
@@ -932,7 +937,7 @@ function App() {
               <h1>{loggedInMadrasa ? loggedInMadrasa.name : ''}</h1>
               <p>Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''} ({loginRole} MODE)</p>
             </div>
-            <button onClick={() => { setCurrentScreen('LOGIN'); setLoggedInMadrasa(null); }} className="btn-logout-top">ലോഗ് ഔട്ട്</button>
+            <button onClick={() => { setCurrentScreen('LOGIN'); setLoggedInMadrasa(null); }} className="btn-logout-top">Logout</button>
           </header>
 
           {/* ---------------- 🎯 TAB 1: SCOREBOARD ---------------- */}
@@ -941,8 +946,8 @@ function App() {
               <div className="scoreboard-header">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>📊 ലൈവ് സ്കോർബോർഡ്</h2>
-                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>തത്സമയ പോയിന്റ് നില (Live Points)</p>
+                    <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>📊 Live Scoreboard</h2>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Real-time Points Standing</p>
                   </div>
                   <div className="live-badge">
                     <span className="live-dot"></span> LIVE
@@ -950,18 +955,28 @@ function App() {
                 </div>
               </div>
               <div style={{ marginTop: '20px' }}>
-                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>ടീമുകൾ ഒന്നും ചേർത്തിട്ടില്ല. മാസ്റ്റർ സെറ്റിങ്സിൽ പോയി ടീമുകൾ ആഡ് ചെയ്യുക.</p> :
+                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No teams added yet. Go to Master Settings to add teams.</p> :
                   <div className="live-leaderboard">
                     {(() => {
                       const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
                       const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
                       const graphMax = maxPts > 0 ? maxPts : 10;
 
+                      // Build rank with tie-handling: equal points → same rank
+                      let currentRank = 1;
+                      const teamRanks = sortedTeams.map((t, idx) => {
+                        if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
+                          currentRank = idx + 1;
+                        }
+                        return currentRank;
+                      });
+
                       return sortedTeams.map((t, idx) => {
                         const totalPts = getTeamTotalPoints(t.id);
-                        const barWidth = Math.max(8, (totalPts / graphMax) * 100); 
-                        const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-other';
-                        const badgeIcon = idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅';
+                        const barWidth = Math.max(8, (totalPts / graphMax) * 100);
+                        const rank = teamRanks[idx];
+                        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+                        const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
                         
                         return (
                           <div key={t.id} className={`leaderboard-item ${rankClass}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -1893,7 +1908,7 @@ function App() {
                               </div>
                             </div>
 
-                            <button type="submit" className="btn-add-action" style={{ background: '#0f766e' }}>പോയിന്റ് ഘടന മാറ്റുക (Save Points)</button>
+                            <button type="submit" className="btn-add-action" style={{ background: '#0f766e' }}>Save Points Structure</button>
                           </form>
                         </div>
                       </div>
@@ -1911,13 +1926,13 @@ function App() {
       {currentScreen === 'DASHBOARD' && (
         <nav className="bottom-nav-bar">
           <button className={`nav-tab-item ${activeTab === 'SCOREBOARD' ? 'active' : ''}`} onClick={() => setActiveTab('SCOREBOARD')}>
-            <span className="nav-icon">📊</span><span>സ്കോർബോർഡ്</span>
+            <span className="nav-icon">📊</span><span>Scoreboard</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'RECENT' ? 'active' : ''}`} onClick={() => setActiveTab('RECENT')}>
-            <span className="nav-icon">📜</span><span>ഫലങ്ങൾ</span>
+            <span className="nav-icon">📜</span><span>Results</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'SETTINGS' ? 'active' : ''}`} onClick={() => setActiveTab('SETTINGS')}>
-            <span className="nav-icon">⚙️</span><span>മാസ്റ്റർ സെറ്റിങ്സ്</span>
+            <span className="nav-icon">⚙️</span><span>Master Settings</span>
           </button>
         </nav>
       )}
