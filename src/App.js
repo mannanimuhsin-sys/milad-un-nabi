@@ -78,6 +78,7 @@ function App() {
   const [editingCatClassRange, setEditingCatClassRange] = useState('');
   const [newCatClassRange, setNewCatClassRange] = useState('');
   const [settingsSubTab, setSettingsSubTab] = useState('TEAMS');
+  const [resultsSubTab, setResultsSubTab] = useState('PROGRAM_WINNERS');
 
   // Filter states for Results tab
   const [filterCat, setFilterCat] = useState('');
@@ -1012,11 +1013,22 @@ function App() {
 
           {/* ---------------- 🎯 TAB 2: RECENT RESULTS + PROGRAM WINNERS + STUDENT SEARCH ---------------- */}
           {activeTab === 'RECENT' && (
-            <div className="animate-tab">
+            <div className="card animate-tab">
+              <h2 style={{ marginBottom: '15px' }}>🏆 ഫലങ്ങൾ (Results)</h2>
+
+              {/* Results sub tab navigation */}
+              <div className="sub-tab-nav" style={{ flexWrap: 'wrap' }}>
+                <button className={`sub-nav-item ${resultsSubTab === 'PROGRAM_WINNERS' ? 'active' : ''}`} onClick={() => setResultsSubTab('PROGRAM_WINNERS')}>🏆 പ്രോഗ്രാം വിജയികൾ</button>
+                <button className={`sub-nav-item ${resultsSubTab === 'STUDENT_REPORT' ? 'active' : ''}`} onClick={() => setResultsSubTab('STUDENT_REPORT')}>🔍 വിദ്യാർത്ഥി റിപ്പോർട്ട്</button>
+                <button className={`sub-nav-item ${resultsSubTab === 'RESULTS_HISTORY' ? 'active' : ''}`} onClick={() => setResultsSubTab('RESULTS_HISTORY')}>📜 പ്രഖ്യാപിച്ച ഫലങ്ങൾ</button>
+                <button className={`sub-nav-item ${resultsSubTab === 'CHAMPIONS' ? 'active' : ''}`} onClick={() => setResultsSubTab('CHAMPIONS')}>🏅 ചാമ്പ്യൻ</button>
+              </div>
+
+              <div className="settings-content" style={{ marginTop: '15px' }}>
 
               {/* ── Section 1: Program Winners Viewer ── */}
-              <div className="card" style={{ marginBottom: '20px' }}>
-                <h2>🏆 പ്രോഗ്രാം വിജയികൾ (Program Winners)</h2>
+              {resultsSubTab === 'PROGRAM_WINNERS' && (
+              <div style={{ marginBottom: '20px' }}>
 
                 {/* Filter Row */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '15px' }}>
@@ -1103,10 +1115,11 @@ function App() {
                   );
                 })()}
               </div>
+              )}
 
               {/* ── Section 2: Student Search by Register Number ── */}
-              <div className="card" style={{ marginBottom: '20px' }}>
-                <h2>🔍 വിദ്യാർത്ഥി റിപ്പോർട്ട് (Student Report)</h2>
+              {resultsSubTab === 'STUDENT_REPORT' && (
+              <div style={{ marginBottom: '20px' }}>
                 <div style={{ marginTop: '10px' }}>
                   <input type="text" className="settings-input" placeholder="രജിസ്റ്റർ നമ്പർ അടിക്കുക..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
                 </div>
@@ -1190,10 +1203,11 @@ function App() {
                   );
                 })()}
               </div>
+              )}
 
               {/* ── Section 3: Results History Table ── */}
-              <div className="card">
-                <h2>📜 പ്രഖ്യാപിച്ച ഫലങ്ങൾ (Results History)</h2>
+              {resultsSubTab === 'RESULTS_HISTORY' && (
+              <div>
                 <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
                   <table>
                     <thead>
@@ -1231,10 +1245,11 @@ function App() {
                   </table>
                 </div>
               </div>
+              )}
 
               {/* ── Section 4: Champion Section ── */}
-              <div className="card" style={{ marginTop: '20px' }}>
-                <h2 style={{ color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>🏅 ചാമ്പ്യൻ (Champions)</h2>
+              {resultsSubTab === 'CHAMPIONS' && (
+              <div style={{ marginTop: '10px' }}>
 
                 {/* Category Selector */}
                 <div style={{ marginTop: '15px' }}>
@@ -1364,7 +1379,9 @@ function App() {
                   );
                 })()}
               </div>
+              )}
 
+              </div>
             </div>
           )}
 
