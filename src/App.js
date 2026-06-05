@@ -1014,17 +1014,47 @@ function App() {
           {/* ---------------- 🎯 TAB 2: RECENT RESULTS + PROGRAM WINNERS + STUDENT SEARCH ---------------- */}
           {activeTab === 'RECENT' && (
             <div className="card animate-tab">
-              <h2 style={{ marginBottom: '15px' }}>🏆 ഫലങ്ങൾ (Results)</h2>
+              <h2 style={{ marginBottom: '18px' }}>🏆 ഫലങ്ങൾ (Results)</h2>
 
-              {/* Results sub tab navigation */}
-              <div className="sub-tab-nav" style={{ flexWrap: 'wrap' }}>
-                <button className={`sub-nav-item ${resultsSubTab === 'PROGRAM_WINNERS' ? 'active' : ''}`} onClick={() => setResultsSubTab('PROGRAM_WINNERS')}>🏆 പ്രോഗ്രാം വിജയികൾ</button>
-                <button className={`sub-nav-item ${resultsSubTab === 'STUDENT_REPORT' ? 'active' : ''}`} onClick={() => setResultsSubTab('STUDENT_REPORT')}>🔍 വിദ്യാർത്ഥി റിപ്പോർട്ട്</button>
-                <button className={`sub-nav-item ${resultsSubTab === 'RESULTS_HISTORY' ? 'active' : ''}`} onClick={() => setResultsSubTab('RESULTS_HISTORY')}>📜 പ്രഖ്യാപിച്ച ഫലങ്ങൾ</button>
-                <button className={`sub-nav-item ${resultsSubTab === 'CHAMPIONS' ? 'active' : ''}`} onClick={() => setResultsSubTab('CHAMPIONS')}>🏅 ചാമ്പ്യൻ</button>
+              {/* Results Card Grid Navigation */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                {[
+                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'പ്രോഗ്രാം വിജയികൾ', sub: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
+                  { key: 'STUDENT_REPORT',  icon: '🔍', label: 'വിദ്യാർത്ഥി റിപ്പോർട്ട്', sub: 'Student Report', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
+                  { key: 'RESULTS_HISTORY', icon: '📜', label: 'പ്രഖ്യാപിച്ച ഫലങ്ങൾ', sub: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
+                  { key: 'CHAMPIONS',       icon: '🏅', label: 'ചാമ്പ്യൻ', sub: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
+                ].map(tab => {
+                  const isActive = resultsSubTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setResultsSubTab(tab.key)}
+                      style={{
+                        border: `2px solid ${isActive ? tab.actBorder : '#e2e8f0'}`,
+                        borderRadius: '14px',
+                        padding: '14px 10px',
+                        cursor: 'pointer',
+                        background: isActive ? tab.actBg : '#f8fafc',
+                        textAlign: 'center',
+                        transition: 'all 0.22s ease',
+                        boxShadow: isActive ? `0 4px 18px rgba(0,0,0,0.10)` : '0 1px 4px rgba(0,0,0,0.04)',
+                        transform: isActive ? 'translateY(-2px)' : 'none',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {isActive && (
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: tab.grad, borderRadius: '14px 14px 0 0' }} />
+                      )}
+                      <div style={{ fontSize: '28px', marginBottom: '4px', filter: isActive ? 'none' : 'grayscale(0.3)' }}>{tab.icon}</div>
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: isActive ? '#1e293b' : '#475569', lineHeight: 1.3, marginBottom: '2px' }}>{tab.label}</div>
+                      <div style={{ fontSize: '10px', color: isActive ? '#64748b' : '#94a3b8', fontWeight: '500' }}>{tab.sub}</div>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="settings-content" style={{ marginTop: '15px' }}>
+              <div className="settings-content" style={{ marginTop: '0' }}>
 
               {/* ── Section 1: Program Winners Viewer ── */}
               {resultsSubTab === 'PROGRAM_WINNERS' && (
@@ -1254,7 +1284,7 @@ function App() {
                 {/* Category Selector */}
                 <div style={{ marginTop: '15px' }}>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>കാറ്റഗറി തിരഞ്ഞെടുക്കുക</label>
-                  <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampSelectedProg(''); }}>
+                  <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampGender('BOYS'); }}>
                     <option value="">-- കാറ്റഗറി തിരഞ്ഞെടുക്കുക --</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
