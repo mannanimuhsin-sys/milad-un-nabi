@@ -34,7 +34,7 @@ function App() {
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
 
-  // ഡൈനാമിക് പോയിന്റ് സിസ്റ്റം സ്റ്റേറ്റ്
+  // ഡൈനാമിക് Points സിസ്റ്റം സ്റ്റേറ്റ്
   const [pointSystem, setPointSystem] = useState({
     p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
     gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
@@ -51,7 +51,7 @@ function App() {
   const [selectedStudentCat, setSelectedStudentCat] = useState('');
   const [studentGender, setStudentGender] = useState('BOY');
 
-  // പ്രോഗ്രാം ഫോം സ്റ്റേറ്റുകൾ
+  // Program ഫോം സ്റ്റേറ്റുകൾ
   const [newProgName, setNewProgName] = useState('');
   const [newProgCode, setNewProgCode] = useState('');
   const [selectedProgCat, setSelectedProgCat] = useState('');
@@ -127,18 +127,18 @@ function App() {
       // ഓൺലൈൻ ഡാറ്റാബേസിൽ നിന്ന് വിവരങ്ങൾ എടുക്കുന്നു
       fetchSupabaseData(rNum);
 
-      // പോയിന്റ് സിസ്റ്റം ഇപ്പോഴും ലോക്കൽ സ്റ്റോറേജിൽ സൂക്ഷിക്കുന്നു
+      // Points സിസ്റ്റം ഇപ്പോഴും ലോക്കൽ സ്റ്റോറേജിൽ സൂക്ഷിക്കുന്നു
       setPointSystem(JSON.parse(localStorage.getItem(`points_${rNum}`)) || {
         p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
         gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
       });
 
-      // ആദ്യമായി ലോഗിൻ ചെയ്യുമ്പോൾ ഡാറ്റാബേസിൽ കാറ്റഗറി ഒന്നുമില്ലെങ്കിൽ ഡിഫോൾട്ട് ആയി സെറ്റ് ചെയ്യാനുള്ള ഒരു ചെക്കർ
+      // ആദ്യമായി ലോഗിൻ ചെയ്യുമ്പോൾ ഡാറ്റാബേസിൽ Category ഒന്നുമില്ലെങ്കിൽ ഡിഫോൾട്ട് ആയി സെറ്റ് ചെയ്യാനുള്ള ഒരു ചെക്കർ
       checkAndInsertDefaultCategories(rNum);
     }
   }, [loggedInMadrasa]);
 
-  // ഡിഫോൾട്ട് കാറ്റഗറികൾ സുപർബേസിലേക്ക് ആഡ് ചെയ്യാനുള്ള കോഡ്
+  // ഡിഫോൾട്ട് Categoryകൾ സുപർബേസിലേക്ക് ആഡ് ചെയ്യാനുള്ള Code
   const checkAndInsertDefaultCategories = async (rNum) => {
     const { data } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
     if (data && data.length === 0) {
@@ -722,7 +722,7 @@ function App() {
               </p>
 
               <a
-                href={`https://wa.me/917559950633?text=${encodeURIComponent(`ഹലോ അഡ്മിൻ,\nഞങ്ങളുടെ മദ്രസ രജിസ്ട്രേഷൻ അപ്പ്രൂവ് ചെയ്യണം.\n\nമദ്രസയുടെ പേര്: ${pendingMadrasa.name}\nരജിസ്റ്റർ നമ്പർ: ${pendingMadrasa.regNumber}\nസ്ഥലം: ${(pendingMadrasa.place || '').split('|')[0]}`)}`}
+                href={`https://wa.me/917559950633?text=${encodeURIComponent(`ഹലോ അഡ്മിൻ,\nഞങ്ങളുടെ മദ്രസ രജിസ്ട്രേഷൻ അപ്പ്രൂവ് ചെയ്യണം.\n\nമദ്രസയുടെ Name: ${pendingMadrasa.name}\nRegister Number: ${pendingMadrasa.regNumber}\nസ്ഥലം: ${(pendingMadrasa.place || '').split('|')[0]}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="whatsapp-btn"
@@ -798,8 +798,8 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>പേര്</th>
-                    <th>രജിസ്റ്റർ നമ്പർ</th>
+                    <th>Name</th>
+                    <th>Register Number</th>
                     <th>സ്ഥലം</th>
                     <th>അഡ്മിൻ പാസ്‌വേർഡ്</th>
                     <th>വ്യൂവേഴ്സ് പാസ്‌വേർഡ്</th>
@@ -1029,15 +1029,15 @@ function App() {
           {/* ---------------- 🎯 TAB 2: RECENT RESULTS + PROGRAM WINNERS + STUDENT SEARCH ---------------- */}
           {activeTab === 'RECENT' && (
             <div className="card animate-tab">
-              <h2 style={{ marginBottom: '18px' }}>🏆 ഫലങ്ങൾ (Results)</h2>
+              <h2 style={{ marginBottom: '18px' }}>🏆 Results</h2>
 
               {/* Results Card Grid Navigation */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
                 {[
-                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'പ്രോഗ്രാം വിജയികൾ', sub: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
-                  { key: 'STUDENT_REPORT',  icon: '🔍', label: 'വിദ്യാർത്ഥി റിപ്പോർട്ട്', sub: 'Student Report', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
-                  { key: 'RESULTS_HISTORY', icon: '📜', label: 'പ്രഖ്യാപിച്ച ഫലങ്ങൾ', sub: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
-                  { key: 'CHAMPIONS',       icon: '🏅', label: 'ചാമ്പ്യൻ', sub: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
+                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program വിജയികൾ', sub: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
+                  { key: 'STUDENT_REPORT',  icon: '🔍', label: 'Student Report', sub: 'Student Report', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
+                  { key: 'RESULTS_HISTORY', icon: '📜', label: 'Results History', sub: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
+                  { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', sub: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
                 ].map(tab => {
                   const isActive = resultsSubTab === tab.key;
                   return (
@@ -1079,25 +1079,25 @@ function App() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '15px' }}>
                   {/* Category Filter */}
                   <div style={{ flex: '1 1 200px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '4px' }}>കാറ്റഗറി</label>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '4px' }}>Category</label>
                     <select className="settings-input" value={filterCat} onChange={(e) => { setFilterCat(e.target.value); setFilterProg(''); }}>
-                      <option value="">-- തിരഞ്ഞെടുക്കുക --</option>
+                      <option value="">-- Select --</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
 
                   {/* Program Filter */}
                   <div style={{ flex: '1 1 200px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>പ്രോഗ്രാം</label>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>Program</label>
                     <select className="settings-input" value={filterProg} onChange={(e) => setFilterProg(e.target.value)} disabled={!filterCat}>
-                      <option value="">-- തിരഞ്ഞെടുക്കുക --</option>
+                      <option value="">-- Select --</option>
                       {programs.filter(p => String(p.catid || p.catId || '') === String(filterCat)).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
                     </select>
                   </div>
 
                   {/* Gender Filter */}
                   <div style={{ flex: '1 1 150px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '4px' }}>ലിംഗഭേദം</label>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '4px' }}>Gender</label>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {['ALL', 'BOY', 'GIRL'].map(g => (
                         <button key={g} type="button" onClick={() => setFilterGender(g)}
@@ -1136,7 +1136,7 @@ function App() {
                         <div style={{ fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.8, marginBottom: '6px' }}>{result.place}</div>
                         <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '4px 10px', display: 'inline-block', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>#{regPart}</div>
                         <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.3 }}>{namePart}</div>
-                        <div style={{ fontSize: '12px', opacity: 0.85 }}>ടീം: <b>{result.teamname || result.teamName || '-'}</b></div>
+                        <div style={{ fontSize: '12px', opacity: 0.85 }}>Team: <b>{result.teamname || result.teamName || '-'}</b></div>
                         <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>{(result.studentgender || result.studentGender) === 'BOY' ? '👦 Boy' : '👧 Girl'}</div>
                       </div>
                     );
@@ -1148,7 +1148,7 @@ function App() {
                         <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
                       </div>
                       {progResults.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>ഈ പ്രോഗ്രാമിൽ ഫലങ്ങൾ ഇല്ല.</p>
+                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results for this program.</p>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
                           {firstResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #f59e0b, #d97706)', '🥇', '#fbbf24'))}
@@ -1166,12 +1166,12 @@ function App() {
               {resultsSubTab === 'STUDENT_REPORT' && (
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ marginTop: '10px' }}>
-                  <input type="text" className="settings-input" placeholder="രജിസ്റ്റർ നമ്പർ അടിക്കുക..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
+                  <input type="text" className="settings-input" placeholder="Register Number അടിക്കുക..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
                 </div>
 
                 {searchRegNo.trim() && (() => {
                   const matchedStudent = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === searchRegNo.trim().toLowerCase());
-                  if (!matchedStudent) return <p style={{ color: '#ef4444', marginTop: '15px', fontWeight: '600' }}>ഈ രജിസ്റ്റർ നമ്പരിൽ വിദ്യാർത്ഥിയെ കണ്ടെത്താനായില്ല.</p>;
+                  if (!matchedStudent) return <p style={{ color: '#ef4444', marginTop: '15px', fontWeight: '600' }}>No student found with this register number.</p>;
 
                   const sRegNo = matchedStudent.regno || matchedStudent.regNo || '';
                   const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
@@ -1195,10 +1195,10 @@ function App() {
                     <div class='header'>
                     <h1>🏆 ${matchedStudent.name}</h1>
                     <div class='badge'>Reg No: ${sRegNo}</div>
-                    <p style='margin-top:10px;opacity:0.85'>ടീം: ${teamObj ? teamObj.name : '' || '-'} | കാറ്റഗറി: ${catObj ? catObj.name : '' || '-'} | ${matchedStudent.gender === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</p>
+                    <p style='margin-top:10px;opacity:0.85'>Team: ${teamObj ? teamObj.name : '' || '-'} | Category: ${catObj ? catObj.name : '' || '-'} | ${matchedStudent.gender === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</p>
                     </div>
-                    <table><thead><tr><th>മത്സരം</th><th>കാറ്റഗറി</th><th>സ്ഥാനം</th><th>ഗ്രേഡ്</th><th>പോയിന്റ്</th></tr></thead><tbody>${rows}</tbody></table>
-                    <p style='margin-top:20px;color:#64748b;font-size:13px'>ആകെ പോയിന്റ്: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
+                    <table><thead><tr><th>Program</th><th>Category</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
+                    <p style='margin-top:20px;color:#64748b;font-size:13px'>ആകെ Points: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
                     </body></html>`);
                     printWindow.document.close();
                     printWindow.print();
@@ -1209,11 +1209,11 @@ function App() {
                       {/* Student Info Card */}
                       <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', borderRadius: '20px', padding: '24px', color: 'white', position: 'relative', overflow: 'hidden' }}>
                         <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '100px', opacity: 0.08 }}>🏆</div>
-                        <div style={{ fontSize: '12px', fontWeight: '700', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '2px' }}>വിദ്യാർത്ഥി റിപ്പോർട്ട്</div>
+                        <div style={{ fontSize: '12px', fontWeight: '700', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Report</div>
                         <div style={{ fontSize: '24px', fontWeight: '900', marginTop: '8px' }}>{matchedStudent.name}</div>
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                           <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>Reg: {sRegNo}</span>
-                          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>ടീം: {teamObj ? teamObj.name : '' || '-'}</span>
+                          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
                           <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>{catObj ? catObj.name : '' || '-'}</span>
                           <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
                         </div>
@@ -1222,7 +1222,7 @@ function App() {
 
                       {/* Results */}
                       {sResults.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>ഫലങ്ങൾ ഒന്നും ഇല്ല.</p>
+                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results.</p>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '15px' }}>
                           {sResults.map((r, idx) => {
@@ -1242,7 +1242,7 @@ function App() {
 
                       {/* Download Button */}
                       <button onClick={printReport} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#78350f', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
-                        📥 റിപ്പോർട്ട് ഡൗൺലോഡ് / പ്രിന്റ്ട് ചെയ്യുക
+                        📥 Download / Print Report
                       </button>
                     </div>
                   );
@@ -1257,11 +1257,11 @@ function App() {
                   <table>
                     <thead>
                       <tr>
-                        <th>മത്സരം</th><th>ഇനം</th><th>കാറ്റഗറി</th><th>രജിസ്റ്റർ നമ്പർ</th><th>വിദ്യാർത്ഥി</th><th>ലിംഗഭേദം</th><th>ടീം</th><th>സ്ഥാനം</th><th>ഗ്രേഡ്</th><th>പോയിന്റ്</th>{loginRole === 'ADMIN' && <th>ഒഴിവാക്കുക</th>}
+                        <th>Program</th><th>ഇനം</th><th>Category</th><th>Register Number</th><th>Student</th><th>Gender</th><th>ടീം</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {resultsList.length === 0 ? <tr><td colSpan="11">ഫലങ്ങൾ ഒന്നും ഇതുവരെ പ്രഖ്യാപിച്ചിട്ടില്ല.</td></tr> :
+                      {resultsList.length === 0 ? <tr><td colSpan="11">No results announced yet.</td></tr> :
                         resultsList.map(r => {
                           const sName = r.studentname || r.studentName || '';
                           const dashIdx = sName.indexOf(' - ');
@@ -1298,9 +1298,9 @@ function App() {
 
                 {/* Category Selector */}
                 <div style={{ marginTop: '15px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>കാറ്റഗറി തിരഞ്ഞെടുക്കുക</label>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>Select Category</label>
                   <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampGender('BOYS'); }}>
-                    <option value="">-- കാറ്റഗറി തിരഞ്ഞെടുക്കുക --</option>
+                    <option value="">-- Select Category --</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
@@ -1308,7 +1308,7 @@ function App() {
                 {/* Gender Tabs */}
                 {champCat && (
                   <div style={{ marginTop: '15px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>വിഭാഗം</label>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>Division</label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       {['BOYS', 'GIRLS', 'GENERAL'].map(g => (
                         <button key={g} type="button"
@@ -1350,7 +1350,7 @@ function App() {
 
                   if (genderFilteredResults.length === 0) return (
                     <p style={{ marginTop: '20px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
-                      ഈ കാറ്റഗറിയിൽ / വിഭാഗത്തിൽ ഫലങ്ങൾ ഒന്നും ഇല്ല.
+                      ഈ Categoryയിൽ / വിഭാഗത്തിൽ No results.
                     </p>
                   );
 
@@ -1413,7 +1413,7 @@ function App() {
                               <div style={{ fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.8, marginBottom: '6px' }}>{cfg.label}</div>
                               <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '3px 10px', display: 'inline-block', fontSize: '11px', fontWeight: '700', marginBottom: '8px' }}>#{student.regPart}</div>
                               <div style={{ fontSize: '19px', fontWeight: '900', marginBottom: '6px', lineHeight: 1.3 }}>{student.namePart}</div>
-                              <div style={{ fontSize: '12px', opacity: 0.85 }}>ടീം: <b>{student.teamname}</b></div>
+                              <div style={{ fontSize: '12px', opacity: 0.85 }}>Team: <b>{student.teamname}</b></div>
                               <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>{student.studentgender === 'BOY' ? '👦 Boy' : '👧 Girl'}</div>
                               <div style={{ marginTop: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '800', fontSize: '16px' }}>⭐ {student.totalPoints} Pts</div>
                             </div>
@@ -1433,7 +1433,7 @@ function App() {
           {/* ---------------- 🎯 TAB 3: MASTER SETTINGS ---------------- */}
           {activeTab === 'SETTINGS' && (
             <div className="card animate-tab">
-              <h2>⚙️ മാസ്റ്റർ സെറ്റിങ്സ് (Admin Control Panel)</h2>
+              <h2>⚙️ Master Settings (Admin Control Panel)</h2>
 
               {loginRole !== 'ADMIN' ? (
                 <div style={{ minHeight: '200px' }}></div>
@@ -1441,12 +1441,12 @@ function App() {
                 <div>
                   {/* Settings sub tab navigation */}
                   <div className="sub-tab-nav">
-                    <button className={`sub-nav-item ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>🚩 ടീമുകൾ</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>📂 കാറ്റഗറികൾ</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>🧑‍🎓 വിദ്യാർത്ഥികൾ</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>🏆 പ്രോഗ്രാമുകൾ</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>📝 മാർക്ക് എൻട്രി</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>⚙️ പോയിന്റ് ഘടന</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>🚩 Teams</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>📂 Categories</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>🧑‍🎓 Students</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>🏆 Programs</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>📝 Mark Entry</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>⚙️ Point Structure</button>
                   </div>
 
                   <div className="settings-content">
@@ -1454,15 +1454,15 @@ function App() {
                     {settingsSubTab === 'TEAMS' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>🚩 പുതിയ ടീം ചേർക്കുക</h3>
+                          <h3>🚩 Add New Team</h3>
                           <form onSubmit={handleAddTeam} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="Team Name (ഉദാ: Team A)" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} required />
-                            <button type="submit" className="btn-add-action">ചേർക്കുക (Add Team)</button>
+                            <input type="text" className="settings-input" placeholder="Team Name (eg: Team A)" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} required />
+                            <button type="submit" className="btn-add-action">Add Team</button>
                           </form>
                         </div>
                         <div className="settings-list-box">
-                          <h3>📜 നിലവിലുള്ള ടീമുകൾ</h3>
-                          {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>ടീമുകൾ ഒന്നും ചേർത്തിട്ടില്ല.</p> : (
+                          <h3>📜 Existing Teams</h3>
+                          {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No teams added.</p> : (
                             teams.map(t => (
                               <div key={t.id} className="settings-item-row">
                                 {editingTeamId === t.id ? (
@@ -1491,22 +1491,22 @@ function App() {
                     {settingsSubTab === 'CATEGORIES' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>📂 പുതിയ കാറ്റഗറി ചേർക്കുക</h3>
+                          <h3>📂 Add New Category</h3>
                           <form onSubmit={handleAddCategory} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="Category Name (ഉദാ: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
-                            <input type="text" className="settings-input" placeholder="ഏതൊക്കെ ക്ലാസ്? (ഉദാ: 1 മുതൽ 4 വരെ)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
-                            <button type="submit" className="btn-add-action">ചേർക്കുക (Add Category)</button>
+                            <input type="text" className="settings-input" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
+                            <input type="text" className="settings-input" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
+                            <button type="submit" className="btn-add-action">Add Category</button>
                           </form>
                         </div>
                         <div className="settings-list-box">
-                          <h3>📜 നിലവിലുള്ള കാറ്റഗറികൾ</h3>
-                          {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>കാറ്റഗറികൾ ഒന്നും ചേർത്തിട്ടില്ല.</p> : (
+                          <h3>📜 Existing Categories</h3>
+                          {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No categories added.</p> : (
                             categories.map(c => (
                               <div key={c.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
                                 {editingCatId === c.id ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
                                     <input type="text" className="settings-input" value={editingCatName} onChange={e => setEditingCatName(e.target.value)} placeholder="Category Name" />
-                                    <input type="text" className="settings-input" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="ഏതൊക്കെ ക്ലാസ്? (ഉദാ: 1 മുതൽ 4 വരെ)" />
+                                    <input type="text" className="settings-input" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="Which classes? (eg: 1 to 4)" />
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                       <button onClick={handleSaveCatEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
                                       <button onClick={() => setEditingCatId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
@@ -1517,7 +1517,7 @@ function App() {
                                     <div>
                                       <span style={{ fontWeight: '600' }}>{c.name}</span>
                                       {c.classrange && (
-                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>📚 ക്ലാസ്: {c.classrange}</div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>📚 Class: {c.classrange}</div>
                                       )}
                                     </div>
                                     <div>
@@ -1537,13 +1537,13 @@ function App() {
                     {settingsSubTab === 'STUDENTS' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>🧑‍🎓 പുതിയ വിദ്യാർത്ഥിയെ ചേർക്കുക</h3>
+                          <h3>🧑‍🎓 Add New Student</h3>
                           <form onSubmit={handleAddStudent} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="വിദ്യാർത്ഥിയുടെ പേര്" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} required />
-                            <input type="text" className="settings-input" placeholder="രജിസ്റ്റർ നമ്പർ / ചെസ്റ്റ് നമ്പർ" value={studentRegNo} onChange={(e) => setStudentRegNo(e.target.value)} required />
+                            <input type="text" className="settings-input" placeholder="Student Name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} required />
+                            <input type="text" className="settings-input" placeholder="Register Number / Chest Number" value={studentRegNo} onChange={(e) => setStudentRegNo(e.target.value)} required />
 
                             <select className="settings-input" value={selectedStudentTeam} onChange={(e) => setSelectedStudentTeam(e.target.value)} required>
-                              <option value="">ടീം തിരഞ്ഞെടുക്കുക</option>
+                              <option value="">Select Team</option>
                               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                             </select>
 
@@ -1558,21 +1558,21 @@ function App() {
                                 setStudentGender(g);
                               }
                             }} required>
-                              <option value="">കാറ്റഗറി & വിഭാഗം തിരഞ്ഞെടുക്കുക</option>
+                              <option value="">Select Category & Division</option>
                               {categories.map(c => (
                                 <React.Fragment key={c.id}>
-                                  <option value={`${c.id}_BOY`}>{c.name} - ആൺകുട്ടി (Boy)</option>
-                                  <option value={`${c.id}_GIRL`}>{c.name} - പെൺകുട്ടി (Girl)</option>
+                                  <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
+                                  <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
                                 </React.Fragment>
                               ))}
                             </select>
 
-                            <button type="submit" className="btn-add-action">ചേർക്കുക (Add Student)</button>
+                            <button type="submit" className="btn-add-action">Add Student</button>
                           </form>
                         </div>
                         <div className="settings-list-box">
-                          <h3>📜 രജിസ്റ്റർ ചെയ്ത വിദ്യാർത്ഥികൾ ({students.length})</h3>
-                          {students.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>കുട്ടികൾ ആരും രജിസ്റ്റർ ചെയ്തിട്ടില്ല.</p> : (
+                          <h3>📜 Registered Students ({students.length})</h3>
+                          {students.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No students registered.</p> : (
                             students.map(s => {
                               const sRegNo = s.regno || s.regNo || '';
                               const sTeamId = s.teamid || s.teamId || '';
@@ -1584,11 +1584,11 @@ function App() {
                                 <div key={s.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
                                   {editingStudentId === s.id ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                      <input type="text" className="settings-input" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="പേര്" />
-                                      <input type="text" className="settings-input" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="രജിസ്റ്റർ നമ്പർ" />
+                                      <input type="text" className="settings-input" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="Name" />
+                                      <input type="text" className="settings-input" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="Register Number" />
 
                                       <select className="settings-input" value={editingStudentData.teamid || editingStudentData.teamId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, teamid: e.target.value, teamId: e.target.value })}>
-                                        <option value="">ടീം തിരഞ്ഞെടുക്കുക</option>
+                                        <option value="">Select Team</option>
                                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                       </select>
 
@@ -1599,11 +1599,11 @@ function App() {
                                           setEditingStudentData({ ...editingStudentData, catid: cId, catId: cId, gender: g });
                                         }
                                       }}>
-                                        <option value="">കാറ്റഗറി & വിഭാഗം തിരഞ്ഞെടുക്കുക</option>
+                                        <option value="">Select Category & Division</option>
                                         {categories.map(c => (
                                           <React.Fragment key={c.id}>
-                                            <option value={`${c.id}_BOY`}>{c.name} - ആൺകുട്ടി (Boy)</option>
-                                            <option value={`${c.id}_GIRL`}>{c.name} - പെൺകുട്ടി (Girl)</option>
+                                            <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
+                                            <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
                                           </React.Fragment>
                                         ))}
                                       </select>
@@ -1618,7 +1618,7 @@ function App() {
                                       <div>
                                         <strong>{sRegNo}</strong> - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'})
                                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                          ടീം: {teamObj ? teamObj.name : 'Unknown'} | കാറ്റഗറി: {catObj ? catObj.name : 'Unknown'}
+                                          Team: {teamObj ? teamObj.name : 'Unknown'} | Category: {catObj ? catObj.name : 'Unknown'}
                                         </div>
                                       </div>
                                       <div>
@@ -1639,10 +1639,10 @@ function App() {
                     {settingsSubTab === 'PROGRAMS' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>🏆 പുതിയ മത്സരം (Program) ചേർക്കുക</h3>
+                          <h3>🏆 Add New Program</h3>
                           <form onSubmit={handleAddProgram} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="മത്സരത്തിന്റെ പേര് (ഉദാ: പ്രസംഗം)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
-                            <input type="text" className="settings-input" placeholder="മത്സര കോഡ് (ഉദാ: P101)" value={newProgCode} onChange={(e) => setNewProgCode(e.target.value)} required />
+                            <input type="text" className="settings-input" placeholder="മത്സരത്തിന്റെ Name (ഉദാ: പ്രസംഗം)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
+                            <input type="text" className="settings-input" placeholder="Program Code (eg: P101)" value={newProgCode} onChange={(e) => setNewProgCode(e.target.value)} required />
 
                             <select className="settings-input" value={selectedProgCat && progGender ? `${selectedProgCat}_${progGender}` : ''} onChange={(e) => {
                               const val = e.target.value;
@@ -1654,27 +1654,27 @@ function App() {
                                 setSelectedProgCat('');
                               }
                             }} required>
-                              <option value="">കാറ്റഗറി & വിഭാഗം തിരഞ്ഞെടുക്കുക</option>
+                              <option value="">Select Category & Division</option>
                               {categories.map(c => (
                                 <React.Fragment key={c.id}>
-                                  <option value={`${c.id}_BOY`}>{c.name} - ആൺകുട്ടികൾ (Boys)</option>
-                                  <option value={`${c.id}_GIRL`}>{c.name} - പെൺകുട്ടികൾ (Girls)</option>
-                                  <option value={`${c.id}_COMMON`}>{c.name} - പൊതുവായത് (Common)</option>
+                                  <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                  <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                  <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                 </React.Fragment>
                               ))}
                             </select>
 
                             <select className="settings-input" value={progType} onChange={(e) => setProgType(e.target.value)}>
-                              <option value="SINGLE">SINGLE (വ്യക്തിഗതം)</option>
-                              <option value="GROUP">GROUP (ഗ്രൂപ്പ് ഇനം)</option>
+                              <option value="SINGLE">SINGLE (Individual)</option>
+                              <option value="GROUP">GROUP (Group Event)</option>
                             </select>
 
-                            <button type="submit" className="btn-add-action">ചേർക്കുക (Add Program)</button>
+                            <button type="submit" className="btn-add-action">Add Program</button>
                           </form>
                         </div>
                         <div className="settings-list-box">
-                          <h3>📜 പ്രോഗ്രാമുകൾ ({programs.length})</h3>
-                          {programs.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>പ്രോഗ്രാമുകൾ ഒന്നും ചേർത്തിട്ടില്ല.</p> : (
+                          <h3>📜 Programs ({programs.length})</h3>
+                          {programs.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No programs added.</p> : (
                             programs.map(p => {
                               const pCatId = p.catid || p.catId || '';
                               const catObj = categories.find(c => String(c.id) === String(pCatId));
@@ -1682,8 +1682,8 @@ function App() {
                                 <div key={p.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
                                   {editingProgId === p.id ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                      <input type="text" className="settings-input" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="പേര്" />
-                                      <input type="text" className="settings-input" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="കോഡ്" />
+                                      <input type="text" className="settings-input" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
+                                      <input type="text" className="settings-input" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
 
                                       <select className="settings-input" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
                                         const val = e.target.value;
@@ -1693,12 +1693,12 @@ function App() {
                                           setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
                                         }
                                       }}>
-                                        <option value="">കാറ്റഗറി & വിഭാഗം തിരഞ്ഞെടുക്കുക</option>
+                                        <option value="">Select Category & Division</option>
                                         {categories.map(c => (
                                           <React.Fragment key={c.id}>
-                                            <option value={`${c.id}_BOY`}>{c.name} - ആൺകുട്ടികൾ (Boys)</option>
-                                            <option value={`${c.id}_GIRL`}>{c.name} - പെൺകുട്ടികൾ (Girls)</option>
-                                            <option value={`${c.id}_COMMON`}>{c.name} - പൊതുവായത് (Common)</option>
+                                            <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                            <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                            <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                           </React.Fragment>
                                         ))}
                                       </select>
@@ -1721,7 +1721,7 @@ function App() {
                                       <div>
                                         <strong>{p.code}</strong> - {p.name}
                                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                          കാറ്റഗറി: {catObj ? catObj.name : 'Unknown'} | വിഭാഗം: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | ഇനം: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                          Category: {catObj ? catObj.name : 'Unknown'} | Division: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
                                         </div>
                                       </div>
                                       <div>
@@ -1742,12 +1742,12 @@ function App() {
                     {settingsSubTab === 'MARK_ENTRY' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>📝 മാർക്ക് എൻട്രി (Mark Entry System)</h3>
+                          <h3>📝 Mark Entry (Mark Entry System)</h3>
                           <form onSubmit={handleAddResult} className="settings-form">
 
                             {/* Step 1: Category & Gender */}
                             <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① കാറ്റഗറി & വിഭാഗം തിരഞ്ഞെടുക്കുക</label>
+                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
                               <select className="settings-input" value={selectedResultCat && selectedResultGender && selectedResultGender !== 'ALL' ? `${selectedResultCat}_${selectedResultGender}` : ''} onChange={(e) => {
                                 const val = e.target.value;
                                 if (!val) {
@@ -1761,11 +1761,11 @@ function App() {
                                 setSelectedResultProg('');
                                 setSelectedResultStudent('');
                               }} required>
-                                <option value="">-- കാറ്റഗറി & വിഭാഗം --</option>
+                                <option value="">-- Category & Division --</option>
                                 {categories.map(c => (
                                   <React.Fragment key={c.id}>
-                                    <option value={`${c.id}_BOY`}>{c.name} - ആൺകുട്ടികൾ (Boys)</option>
-                                    <option value={`${c.id}_GIRL`}>{c.name} - പെൺകുട്ടികൾ (Girls)</option>
+                                    <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                    <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
                                   </React.Fragment>
                                 ))}
                               </select>
@@ -1773,12 +1773,12 @@ function App() {
 
                             {/* Step 2: Program (filtered by category and gender) */}
                             <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② മത്സരം തിരഞ്ഞെടുക്കുക</label>
+                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Program</label>
                               <select className="settings-input" value={selectedResultProg} onChange={(e) => {
                                 setSelectedResultProg(e.target.value);
                                 setSelectedResultStudent('');
                               }} required disabled={!selectedResultCat}>
-                                <option value="">{selectedResultCat ? '-- മത്സരം തിരഞ്ഞെടുക്കുക --' : 'ആദ്യം കാറ്റഗറി തിരഞ്ഞെടുക്കുക'}</option>
+                                <option value="">{selectedResultCat ? '-- Select Program --' : 'Select Category First'}</option>
                                 {programs
                                   .filter(p => {
                                      if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
@@ -1798,9 +1798,9 @@ function App() {
 
                             {/* Step 3: Student (filtered by category & gender, supporting 'General') */}
                             <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', display: 'block', marginBottom: '6px' }}>③ വിദ്യാർത്ഥിയെ തിരഞ്ഞെടുക്കുക</label>
+                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', display: 'block', marginBottom: '6px' }}>③ Select Student</label>
                               <select className="settings-input" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
-                                <option value="">{selectedResultCat ? '-- വിദ്യാർത്ഥിയെ തിരഞ്ഞെടുക്കുക --' : 'ആദ്യം കാറ്റഗറി തിരഞ്ഞെടുക്കുക'}</option>
+                                <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
                                 {(() => {
                                   const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
                                   const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
@@ -1825,10 +1825,10 @@ function App() {
                             {/* Step 4: Place & Grade */}
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <select className="settings-input" value={selectedPlace} onChange={(e) => setSelectedPlace(e.target.value)}>
-                                <option value="1">ഒന്നാം സ്ഥാനം (First)</option>
-                                <option value="2">രണ്ടാം സ്ഥാനം (Second)</option>
-                                <option value="3">മൂന്നാം സ്ഥാനം (Third)</option>
-                                <option value="0">സ്ഥാനമില്ല (No Place)</option>
+                                <option value="1">First Place</option>
+                                <option value="2">Second Place</option>
+                                <option value="3">Third Place</option>
+                                <option value="0">No Place</option>
                               </select>
                               <select className="settings-input" value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
                                 <option value="A">A Grade</option>
@@ -1846,20 +1846,20 @@ function App() {
                     {settingsSubTab === 'POINTS' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>⚙️ പോയിന്റ് ഘടന രൂപകൽപ്പന ചെയ്യുക</h3>
+                          <h3>⚙️ Point Structure രൂപകൽപ്പന ചെയ്യുക</h3>
                           <form onSubmit={handleSavePoints} className="settings-form">
                             <h5 style={{ margin: '5px 0', color: '#0f766e' }}>വ്യക്തിഗത ഇനങ്ങൾ (Single Events Points):</h5>
                             <div className="points-grid-setup">
                               <div className="points-setup-card">
-                                <label>ഒന്നാം സ്ഥാനം</label>
+                                <label>ഒന്നാം Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.p1} onChange={e => setPointSystem({ ...pointSystem, p1: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>രണ്ടാം സ്ഥാനം</label>
+                                <label>രണ്ടാം Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.p2} onChange={e => setPointSystem({ ...pointSystem, p2: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>മൂന്നാം സ്ഥാനം</label>
+                                <label>മൂന്നാം Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.p3} onChange={e => setPointSystem({ ...pointSystem, p3: e.target.value })} required />
                               </div>
                             </div>
@@ -1881,15 +1881,15 @@ function App() {
                             <h5 style={{ margin: '5px 0', color: '#ef4444' }}>ഗ്രൂപ്പ് ഇനങ്ങൾ (Group Events Points):</h5>
                             <div className="points-grid-setup">
                               <div className="points-setup-card">
-                                <label>ഒന്നാം സ്ഥാനം</label>
+                                <label>ഒന്നാം Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.gp1} onChange={e => setPointSystem({ ...pointSystem, gp1: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>രണ്ടാം സ്ഥാനം</label>
+                                <label>രണ്ടാം Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.gp2} onChange={e => setPointSystem({ ...pointSystem, gp2: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>മൂന്നാം സ്ഥാനം</label>
+                                <label>മൂന്നാം Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.gp3} onChange={e => setPointSystem({ ...pointSystem, gp3: e.target.value })} required />
                               </div>
                             </div>
