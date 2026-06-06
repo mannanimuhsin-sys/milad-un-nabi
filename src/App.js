@@ -1034,7 +1034,7 @@ function App() {
               {/* Results Card Grid Navigation */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
                 {[
-                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program വിജയികൾ', sub: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
+                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program Winners', sub: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
                   { key: 'STUDENT_REPORT',  icon: '🔍', label: 'Student Report', sub: 'Student Report', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
                   { key: 'RESULTS_HISTORY', icon: '📜', label: 'Results History', sub: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
                   { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', sub: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
