@@ -1034,10 +1034,10 @@ function App() {
               {/* Results Card Grid Navigation */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
                 {[
-                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program Winners', sub: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
-                  { key: 'STUDENT_REPORT',  icon: '🔍', label: 'Student Report', sub: 'Student Report', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
-                  { key: 'RESULTS_HISTORY', icon: '📜', label: 'Results History', sub: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
-                  { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', sub: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
+                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
+                  { key: 'STUDENT_REPORT',  icon: '🔍', label: 'Student Report', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
+                  { key: 'RESULTS_HISTORY', icon: '📜', label: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
+                  { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
                 ].map(tab => {
                   const isActive = resultsSubTab === tab.key;
                   return (
@@ -1063,7 +1063,6 @@ function App() {
                       )}
                       <div style={{ fontSize: '28px', marginBottom: '4px', filter: isActive ? 'none' : 'grayscale(0.3)' }}>{tab.icon}</div>
                       <div style={{ fontSize: '12px', fontWeight: '800', color: isActive ? '#1e293b' : '#475569', lineHeight: 1.3, marginBottom: '2px' }}>{tab.label}</div>
-                      <div style={{ fontSize: '10px', color: isActive ? '#64748b' : '#94a3b8', fontWeight: '500' }}>{tab.sub}</div>
                     </button>
                   );
                 })}
