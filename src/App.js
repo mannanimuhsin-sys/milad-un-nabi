@@ -92,6 +92,12 @@ function App() {
   const [champCat, setChampCat] = useState('');
   const [champGender, setChampGender] = useState('BOYS');
 
+  // Filter states for Students list in Master Settings
+  const [studentFilterTeam, setStudentFilterTeam] = useState('ALL');
+  const [studentFilterCat, setStudentFilterCat] = useState('ALL');
+  const [studentFilterGender, setStudentFilterGender] = useState('ALL');
+
+
 
   // 🔄 സുപർബേസിൽ നിന്നും തത്സമയം വിവരങ്ങൾ ലോഡ് ചെയ്യാനുള്ള ഫങ്ഷൻ
   const fetchSupabaseData = async (rNum) => {
@@ -1569,68 +1575,162 @@ function App() {
                             <button type="submit" className="btn-add-action">Add Student</button>
                           </form>
                         </div>
-                        <div className="settings-list-box">
-                          <h3>📜 Registered Students ({students.length})</h3>
-                          {students.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No students registered.</p> : (
-                            students.map(s => {
-                              const sRegNo = s.regno || s.regNo || '';
-                              const sTeamId = s.teamid || s.teamId || '';
-                              const sCatId = s.catid || s.catId || '';
-                              const teamObj = teams.find(t => String(t.id) === String(sTeamId));
-                              const catObj = categories.find(c => String(c.id) === String(sCatId));
+                        <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                          {(() => {
+                            const filteredStudents = students.filter(s => {
+                              const matchTeam = studentFilterTeam === 'ALL' || String(s.teamid || s.teamId || '') === String(studentFilterTeam);
+                              const matchCat = studentFilterCat === 'ALL' || String(s.catid || s.catId || '') === String(studentFilterCat);
+                              const matchGender = studentFilterGender === 'ALL' || (s.gender || '') === studentFilterGender;
+                              return matchTeam && matchCat && matchGender;
+                            });
 
-                              return (
-                                <div key={s.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                                  {editingStudentId === s.id ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                      <input type="text" className="settings-input" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="Name" />
-                                      <input type="text" className="settings-input" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="Register Number" />
-
-                                      <select className="settings-input" value={editingStudentData.teamid || editingStudentData.teamId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, teamid: e.target.value, teamId: e.target.value })}>
-                                        <option value="">Select Team</option>
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                      </select>
-
-                                      <select className="settings-input" value={editingStudentData.catid && editingStudentData.gender ? `${editingStudentData.catid || editingStudentData.catId}_${editingStudentData.gender}` : ''} onChange={e => {
-                                        const val = e.target.value;
-                                        if (val) {
-                                          const [cId, g] = val.split('_');
-                                          setEditingStudentData({ ...editingStudentData, catid: cId, catId: cId, gender: g });
-                                        }
-                                      }}>
-                                        <option value="">Select Category & Division</option>
-                                        {categories.map(c => (
-                                          <React.Fragment key={c.id}>
-                                            <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
-                                            <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
-                                          </React.Fragment>
-                                        ))}
-                                      </select>
-
-                                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                        <button onClick={handleSaveStudentEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
-                                        <button onClick={() => setEditingStudentId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+                            return (
+                              <>
+                                <h3>📜 Registered Students ({filteredStudents.length} / {students.length})</h3>
+                                
+                                {/* 🔍 ഫിൽറ്ററുകൾ (Interactive Filters) */}
+                                <div className="student-filters-container">
+                                  {/* 1. ടീം ഫിൽറ്റർ */}
+                                  <div>
+                                    <div className="filter-section-title">🚩 ടീം തിരഞ്ഞെടുക്കുക (Select Team)</div>
+                                    <div className="filter-chips-wrapper">
+                                      <div 
+                                        className={`filter-chip-box ${studentFilterTeam === 'ALL' ? 'active' : ''}`}
+                                        onClick={() => setStudentFilterTeam('ALL')}
+                                      >
+                                        👥 എല്ലാ ടീമും (All)
                                       </div>
-                                    </div>
-                                  ) : (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                      <div>
-                                        <strong>{sRegNo}</strong> - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'})
-                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                          Team: {teamObj ? teamObj.name : 'Unknown'} | Category: {catObj ? catObj.name : 'Unknown'}
+                                      {teams.map(t => (
+                                        <div 
+                                          key={t.id}
+                                          className={`filter-chip-box ${String(studentFilterTeam) === String(t.id) ? 'active' : ''}`}
+                                          onClick={() => setStudentFilterTeam(t.id)}
+                                        >
+                                          {t.name}
                                         </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* 2. കാറ്റഗറി ഫിൽറ്റർ */}
+                                  <div>
+                                    <div className="filter-section-title">📂 കാറ്റഗറി തിരഞ്ഞെടുക്കുക (Select Category)</div>
+                                    <div className="filter-chips-wrapper">
+                                      <div 
+                                        className={`filter-chip-box ${studentFilterCat === 'ALL' ? 'active' : ''}`}
+                                        onClick={() => setStudentFilterCat('ALL')}
+                                      >
+                                        📁 എല്ലാ കാറ്റഗറിയും (All)
                                       </div>
-                                      <div>
-                                        <button onClick={() => startEditStudent(s)} className="settings-action-btn" title="Edit">✏️</button>
-                                        <button onClick={() => handleDeleteStudent(s.id)} className="settings-action-btn" title="Delete">❌</button>
+                                      {categories.map(c => (
+                                        <div 
+                                          key={c.id}
+                                          className={`filter-chip-box ${String(studentFilterCat) === String(c.id) ? 'active' : ''}`}
+                                          onClick={() => setStudentFilterCat(c.id)}
+                                        >
+                                          {c.name}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* 3. ജെൻഡർ ഫിൽറ്റർ */}
+                                  <div>
+                                    <div className="filter-section-title">👦/👧 വിഭാഗം തിരഞ്ഞെടുക്കുക (Select Division)</div>
+                                    <div className="filter-chips-wrapper">
+                                      <div 
+                                        className={`filter-chip-box ${studentFilterGender === 'ALL' ? 'active' : ''}`}
+                                        onClick={() => setStudentFilterGender('ALL')}
+                                      >
+                                        👥 എല്ലാം (All)
+                                      </div>
+                                      <div 
+                                        className={`filter-chip-box ${studentFilterGender === 'BOY' ? 'active-boy' : ''}`}
+                                        onClick={() => setStudentFilterGender('BOY')}
+                                      >
+                                        👦 ആൺകുട്ടികൾ (Boys)
+                                      </div>
+                                      <div 
+                                        className={`filter-chip-box ${studentFilterGender === 'GIRL' ? 'active-girl' : ''}`}
+                                        onClick={() => setStudentFilterGender('GIRL')}
+                                      >
+                                        👧 പെൺകുട്ടികൾ (Girls)
                                       </div>
                                     </div>
+                                  </div>
+                                </div>
+
+                                {/* 📜 വിദ്യാർത്ഥികളുടെ ലിസ്റ്റ് */}
+                                <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+                                  {students.length === 0 ? (
+                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students registered.</p>
+                                  ) : filteredStudents.length === 0 ? (
+                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>ആവശ്യപ്പെട്ട ഫിൽറ്ററുകൾക്ക് അനുയോജ്യമായ വിദ്യാർത്ഥികൾ ആരുമില്ല.</p>
+                                  ) : (
+                                    filteredStudents.map(s => {
+                                      const sRegNo = s.regno || s.regNo || '';
+                                      const sTeamId = s.teamid || s.teamId || '';
+                                      const sCatId = s.catid || s.catId || '';
+                                      const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+                                      const catObj = categories.find(c => String(c.id) === String(sCatId));
+
+                                      return (
+                                        <div key={s.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                                          {editingStudentId === s.id ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                              <input type="text" className="settings-input" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="Name" />
+                                              <input type="text" className="settings-input" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="Register Number" />
+
+                                              <select className="settings-input" value={editingStudentData.teamid || editingStudentData.teamId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, teamid: e.target.value, teamId: e.target.value })}>
+                                                <option value="">Select Team</option>
+                                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                              </select>
+
+                                              <select className="settings-input" value={editingStudentData.catid && editingStudentData.gender ? `${editingStudentData.catid || editingStudentData.catId}_${editingStudentData.gender}` : ''} onChange={e => {
+                                                const val = e.target.value;
+                                                if (val) {
+                                                  const [cId, g] = val.split('_');
+                                                  setEditingStudentData({ ...editingStudentData, catid: cId, catId: cId, gender: g });
+                                                }
+                                              }}>
+                                                <option value="">Select Category & Division</option>
+                                                {categories.map(c => (
+                                                  <React.Fragment key={c.id}>
+                                                    <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
+                                                    <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
+                                                  </React.Fragment>
+                                                ))}
+                                              </select>
+
+                                              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                                <button onClick={handleSaveStudentEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
+                                                <button onClick={() => setEditingStudentId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                              <div>
+                                                <strong>{sRegNo}</strong> - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'})
+                                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                                  Team: {teamObj ? teamObj.name : 'Unknown'} | Category: {catObj ? catObj.name : 'Unknown'}
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <button onClick={() => startEditStudent(s)} className="settings-action-btn" title="Edit">✏️</button>
+                                                <button onClick={() => handleDeleteStudent(s.id)} className="settings-action-btn" title="Delete">❌</button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })
                                   )}
                                 </div>
-                              );
-                            })
-                          )}
+                              </>
+                            );
+                          })()}
                         </div>
+
                       </div>
                     )}
 

@@ -760,3 +760,82 @@ tr:nth-child(even) {
     margin-bottom: 4px;
     color: #475569;
 }
+
+/* ==========================================================================
+   🧑‍🎓 7. REGISTERED STUDENTS FILTER STYLES
+   ========================================================================== */
+
+.student-filters-container {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.filter-section-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #475569;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.filter-chips-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.filter-chip-box {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.filter-chip-box:hover {
+    border-color: var(--primary-light);
+    color: var(--primary-light);
+    transform: translateY(-1px);
+}
+
+.filter-chip-box.active {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(15, 118, 110, 0.2);
+}
+
+.filter-chip-box.active-boy {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+.filter-chip-box.active-girl {
+    background: #db2777;
+    border-color: #db2777;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(219, 39, 119, 0.2);
+}
