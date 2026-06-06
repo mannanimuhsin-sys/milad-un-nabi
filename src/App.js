@@ -8,7 +8,7 @@ function App() {
   const [loginRole, setLoginRole] = useState('');
   const [secretKey, setSecretKey] = useState('');
 
-  // മദ്രസ രജിസ്ട്രേഷൻ സ്റ്റേറ്റുകൾ (Supabase)
+  // Madrasa registration states (Supabase)
   const [loggedInMadrasa, setLoggedInMadrasa] = useState(null);
   const [regName, setRegName] = useState('');
   const [regNumber, setRegNumber] = useState('');
@@ -16,49 +16,49 @@ function App() {
   const [adminPassword, setAdminPassword] = useState('');
   const [viewPassword, setViewPassword] = useState('');
 
-  // ലോഗിൻ സ്റ്റേറ്റുകൾ
+  // Login states
   const [loginRegNum, setLoginRegNum] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // സൂപ്പർ അഡ്മിൻ പാനലിലെ സ്റ്റേറ്റുകൾ
+  // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
   const [pendingMadrasa, setPendingMadrasa] = useState(null);
   const [editingMadrasaId, setEditingMadrasaId] = useState(null);
   const [editingMadrasaData, setEditingMadrasaData] = useState({});
 
-  // മാസ്റ്റർ ഡാറ്റാ സ്റ്റേറ്റുകൾ (Supabase ഓൺലൈൻ ഡാറ്റാബേസ്)
+  // Master data states (Supabase online database)
   const [teams, setTeams] = useState([]);
   const [categories, setCategories] = useState([]);
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
 
-  // ഡൈനാമിക് Points സിസ്റ്റം സ്റ്റേറ്റ്
+  // Dynamic Points system state
   const [pointSystem, setPointSystem] = useState({
     p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
     gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
   });
 
-  // ഇൻപുട്ട് ഫോം സ്റ്റേറ്റുകൾ
+  // Input form states
   const [newTeamName, setNewTeamName] = useState('');
   const [newCatName, setNewCatName] = useState('');
 
-  // സ്റ്റുഡന്റ് ഫോം സ്റ്റേറ്റുകൾ
+  // Student form states
   const [newStudentName, setNewStudentName] = useState('');
   const [studentRegNo, setStudentRegNo] = useState('');
   const [selectedStudentTeam, setSelectedStudentTeam] = useState('');
   const [selectedStudentCat, setSelectedStudentCat] = useState('');
   const [studentGender, setStudentGender] = useState('BOY');
 
-  // Program ഫോം സ്റ്റേറ്റുകൾ
+  // Program form states
   const [newProgName, setNewProgName] = useState('');
   const [newProgCode, setNewProgCode] = useState('');
   const [selectedProgCat, setSelectedProgCat] = useState('');
   const [progType, setProgType] = useState('SINGLE');
   const [progGender, setProgGender] = useState('COMMON');
 
-  // മാർക്ക് എന്ററി സ്റ്റേറ്റുകൾ
+  // Mark entry states
   const [selectedResultCat, setSelectedResultCat] = useState('');
   const [selectedResultGender, setSelectedResultGender] = useState('ALL');
   const [selectedResultProg, setSelectedResultProg] = useState('');
@@ -66,7 +66,7 @@ function App() {
   const [selectedPlace, setSelectedPlace] = useState('1');
   const [selectedGrade, setSelectedGrade] = useState('A');
 
-  // എഡിറ്റിംഗ് സ്റ്റേറ്റുകൾ
+  // Editing states
   const [editingStudentId, setEditingStudentId] = useState(null);
   const [editingStudentData, setEditingStudentData] = useState({});
   const [editingTeamId, setEditingTeamId] = useState(null);
@@ -99,7 +99,7 @@ function App() {
 
 
 
-  // 🔄 സുപർബേസിൽ നിന്നും തത്സമയം വിവരങ്ങൾ ലോഡ് ചെയ്യാനുള്ള ഫങ്ഷൻ
+  // 🔄 Function to load real-time data from Supabase
   const fetchSupabaseData = async (rNum) => {
     try {
       const [
@@ -130,21 +130,21 @@ function App() {
     if (loggedInMadrasa) {
       const rNum = loggedInMadrasa.regNumber;
 
-      // ഓൺലൈൻ ഡാറ്റാബേസിൽ നിന്ന് വിവരങ്ങൾ എടുക്കുന്നു
+      // Fetch data from online database
       fetchSupabaseData(rNum);
 
-      // Points സിസ്റ്റം ഇപ്പോഴും ലോക്കൽ സ്റ്റോറേജിൽ സൂക്ഷിക്കുന്നു
+      // Points system is still stored in localStorage
       setPointSystem(JSON.parse(localStorage.getItem(`points_${rNum}`)) || {
         p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
         gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
       });
 
-      // ആദ്യമായി ലോഗിൻ ചെയ്യുമ്പോൾ ഡാറ്റാബേസിൽ Category ഒന്നുമില്ലെങ്കിൽ ഡിഫോൾട്ട് ആയി സെറ്റ് ചെയ്യാനുള്ള ഒരു ചെക്കർ
+      // Checker to set default categories on first login if database is empty
       checkAndInsertDefaultCategories(rNum);
     }
   }, [loggedInMadrasa]);
 
-  // ഡിഫോൾട്ട് Categoryകൾ സുപർബേസിലേക്ക് ആഡ് ചെയ്യാനുള്ള Code
+  // Code to add default categories to Supabase
   const checkAndInsertDefaultCategories = async (rNum) => {
     const { data } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
     if (data && data.length === 0) {
@@ -728,7 +728,7 @@ function App() {
               </p>
 
               <a
-                href={`https://wa.me/917559950633?text=${encodeURIComponent(`ഹലോ അഡ്മിൻ,\nഞങ്ങളുടെ മദ്രസ രജിസ്ട്രേഷൻ അപ്പ്രൂവ് ചെയ്യണം.\n\nമദ്രസയുടെ Name: ${pendingMadrasa.name}\nRegister Number: ${pendingMadrasa.regNumber}\nസ്ഥലം: ${(pendingMadrasa.place || '').split('|')[0]}`)}`}
+                href={`https://wa.me/917559950633?text=${encodeURIComponent(`Hello Admin,\nPlease approve our Madrasa registration.\n\nMadrasa Name: ${pendingMadrasa.name}\nRegister Number: ${pendingMadrasa.regNumber}\nPlace: ${(pendingMadrasa.place || '').split('|')[0]}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="whatsapp-btn"
@@ -774,23 +774,23 @@ function App() {
           {/* Stats section */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
             <div className="card" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', margin: 0, padding: '15px' }}>
-              <h4 style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>ആകെ മദ്രസകൾ</h4>
+              <h4 style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>Total Madrasas</h4>
               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#1d4ed8' }}>{superMadrasas.length}</p>
             </div>
             <div className="card" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', margin: 0, padding: '15px' }}>
-              <h4 style={{ color: '#065f46', fontSize: '14px', margin: 0 }}>അപ്പ്രൂവ് ചെയ്തവ</h4>
+              <h4 style={{ color: '#065f46', fontSize: '14px', margin: 0 }}>Approved</h4>
               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#047857' }}>
                 {superMadrasas.filter(m => !(m.place || '').includes('|pending') && !(m.place || '').includes('|blocked')).length}
               </p>
             </div>
             <div className="card" style={{ background: '#fffbeb', border: '1px solid #fde68a', margin: 0, padding: '15px' }}>
-              <h4 style={{ color: '#92400e', fontSize: '14px', margin: 0 }}>പെൻഡിങ് മദ്രസകൾ</h4>
+              <h4 style={{ color: '#92400e', fontSize: '14px', margin: 0 }}>Pending Madrasas</h4>
               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#d97706' }}>
                 {superMadrasas.filter(m => (m.place || '').includes('|pending')).length}
               </p>
             </div>
             <div className="card" style={{ background: '#fef2f2', border: '1px solid #fecaca', margin: 0, padding: '15px' }}>
-              <h4 style={{ color: '#991b1b', fontSize: '14px', margin: 0 }}>ബ്ലോക്ക് ചെയ്തവ</h4>
+              <h4 style={{ color: '#991b1b', fontSize: '14px', margin: 0 }}>Blocked</h4>
               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#dc2626' }}>
                 {superMadrasas.filter(m => (m.place || '').includes('|blocked')).length}
               </p>
@@ -799,24 +799,24 @@ function App() {
 
           {/* Madrasa List */}
           <div className="card">
-            <h2>📜 രജിസ്റ്റർ ചെയ്ത മദ്രസകൾ</h2>
+            <h2>📜 Registered Madrasas</h2>
             <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
               <table>
                 <thead>
                   <tr>
                     <th>Name</th>
                     <th>Register Number</th>
-                    <th>സ്ഥലം</th>
-                    <th>അഡ്മിൻ പാസ്‌വേർഡ്</th>
-                    <th>വ്യൂവേഴ്സ് പാസ്‌വേർഡ്</th>
-                    <th>സ്റ്റാറ്റസ്</th>
-                    <th>നിയന്ത്രണം</th>
+                    <th>Place</th>
+                    <th>Admin Password</th>
+                    <th>Viewers Password</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {superMadrasas.length === 0 ? (
                     <tr>
-                      <td colSpan="7" style={{ color: '#64748b', fontStyle: 'italic' }}>മദ്രസകൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല.</td>
+                      <td colSpan="7" style={{ color: '#64748b', fontStyle: 'italic' }}>No madrasas registered.</td>
                     </tr>
                   ) : (
                     superMadrasas.map(m => {
@@ -1171,7 +1171,7 @@ function App() {
               {resultsSubTab === 'STUDENT_REPORT' && (
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ marginTop: '10px' }}>
-                  <input type="text" className="settings-input" placeholder="Register Number അടിക്കുക..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
+                  <input type="text" className="settings-input" placeholder="Enter Register Number..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
                 </div>
 
                 {searchRegNo.trim() && (() => {
@@ -1203,7 +1203,7 @@ function App() {
                     <p style='margin-top:10px;opacity:0.85'>Team: ${teamObj ? teamObj.name : '' || '-'} | Category: ${catObj ? catObj.name : '' || '-'} | ${matchedStudent.gender === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</p>
                     </div>
                     <table><thead><tr><th>Program</th><th>Category</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
-                    <p style='margin-top:20px;color:#64748b;font-size:13px'>ആകെ Points: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
+                    <p style='margin-top:20px;color:#64748b;font-size:13px'>Total Points: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
                     </body></html>`);
                     printWindow.document.close();
                     printWindow.print();
@@ -1262,7 +1262,7 @@ function App() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Program</th><th>ഇനം</th><th>Category</th><th>Register Number</th><th>Student</th><th>Gender</th><th>ടീം</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
+                        <th>Program</th><th>Type</th><th>Category</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1355,7 +1355,7 @@ function App() {
 
                   if (genderFilteredResults.length === 0) return (
                     <p style={{ marginTop: '20px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
-                      ഈ Categoryയിൽ / വിഭാഗത്തിൽ No results.
+                      No results in this Category / Division.
                     </p>
                   );
 
@@ -1586,19 +1586,19 @@ function App() {
 
                             return (
                               <>
-                                <h3>📜 Registered Students ({filteredStudents.length} / {students.length})</h3>
+                                <h3>📜 Registered Students</h3>
                                 
-                                {/* 🔍 ഫിൽറ്ററുകൾ (Interactive Filters) */}
+                                {/* 🔍 Interactive Filters */}
                                 <div className="student-filters-container">
-                                  {/* 1. ടീം ഫിൽറ്റർ */}
+                                  {/* 1. Team Filter */}
                                   <div>
-                                    <div className="filter-section-title">🚩 ടീം തിരഞ്ഞെടുക്കുക (Select Team)</div>
+                                    <div className="filter-section-title">🚩 Select Team</div>
                                     <div className="filter-chips-wrapper">
                                       <div 
                                         className={`filter-chip-box ${studentFilterTeam === 'ALL' ? 'active' : ''}`}
                                         onClick={() => setStudentFilterTeam('ALL')}
                                       >
-                                        👥 എല്ലാ ടീമും (All)
+                                        👥 All
                                       </div>
                                       {teams.map(t => (
                                         <div 
@@ -1612,15 +1612,15 @@ function App() {
                                     </div>
                                   </div>
 
-                                  {/* 2. കാറ്റഗറി ഫിൽറ്റർ */}
+                                  {/* 2. Category Filter */}
                                   <div>
-                                    <div className="filter-section-title">📂 കാറ്റഗറി തിരഞ്ഞെടുക്കുക (Select Category)</div>
+                                    <div className="filter-section-title">📂 Select Category</div>
                                     <div className="filter-chips-wrapper">
                                       <div 
                                         className={`filter-chip-box ${studentFilterCat === 'ALL' ? 'active' : ''}`}
                                         onClick={() => setStudentFilterCat('ALL')}
                                       >
-                                        📁 എല്ലാ കാറ്റഗറിയും (All)
+                                        📁 All
                                       </div>
                                       {categories.map(c => (
                                         <div 
@@ -1634,38 +1634,38 @@ function App() {
                                     </div>
                                   </div>
 
-                                  {/* 3. ജെൻഡർ ഫിൽറ്റർ */}
+                                  {/* 3. Gender Filter */}
                                   <div>
-                                    <div className="filter-section-title">👦/👧 വിഭാഗം തിരഞ്ഞെടുക്കുക (Select Division)</div>
+                                    <div className="filter-section-title">👦/👧 Select Division</div>
                                     <div className="filter-chips-wrapper">
                                       <div 
                                         className={`filter-chip-box ${studentFilterGender === 'ALL' ? 'active' : ''}`}
                                         onClick={() => setStudentFilterGender('ALL')}
                                       >
-                                        👥 എല്ലാം (All)
+                                        👥 All
                                       </div>
                                       <div 
                                         className={`filter-chip-box ${studentFilterGender === 'BOY' ? 'active-boy' : ''}`}
                                         onClick={() => setStudentFilterGender('BOY')}
                                       >
-                                        👦 ആൺകുട്ടികൾ (Boys)
+                                        👦 Boys
                                       </div>
                                       <div 
                                         className={`filter-chip-box ${studentFilterGender === 'GIRL' ? 'active-girl' : ''}`}
                                         onClick={() => setStudentFilterGender('GIRL')}
                                       >
-                                        👧 പെൺകുട്ടികൾ (Girls)
+                                        👧 Girls
                                       </div>
                                     </div>
                                   </div>
                                 </div>
 
-                                {/* 📜 വിദ്യാർത്ഥികളുടെ ലിസ്റ്റ് */}
+                                {/* 📜 Student List */}
                                 <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
                                   {students.length === 0 ? (
                                     <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students registered.</p>
                                   ) : filteredStudents.length === 0 ? (
-                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>ആവശ്യപ്പെട്ട ഫിൽറ്ററുകൾക്ക് അനുയോജ്യമായ വിദ്യാർത്ഥികൾ ആരുമില്ല.</p>
+                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students found matching the selected filters.</p>
                                   ) : (
                                     filteredStudents.map(s => {
                                       const sRegNo = s.regno || s.regNo || '';
@@ -1740,7 +1740,7 @@ function App() {
                         <div className="settings-form-box">
                           <h3>🏆 Add New Program</h3>
                           <form onSubmit={handleAddProgram} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="മത്സരത്തിന്റെ Name (ഉദാ: പ്രസംഗം)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
+                            <input type="text" className="settings-input" placeholder="Program Name (eg: Speech)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
                             <input type="text" className="settings-input" placeholder="Program Code (eg: P101)" value={newProgCode} onChange={(e) => setNewProgCode(e.target.value)} required />
 
                             <select className="settings-input" value={selectedProgCat && progGender ? `${selectedProgCat}_${progGender}` : ''} onChange={(e) => {
@@ -1945,20 +1945,20 @@ function App() {
                     {settingsSubTab === 'POINTS' && (
                       <div className="settings-card-container">
                         <div className="settings-form-box">
-                          <h3>⚙️ Point Structure രൂപകൽപ്പന ചെയ്യുക</h3>
+                          <h3>⚙️ Design Point Structure</h3>
                           <form onSubmit={handleSavePoints} className="settings-form">
-                            <h5 style={{ margin: '5px 0', color: '#0f766e' }}>വ്യക്തിഗത ഇനങ്ങൾ (Single Events Points):</h5>
+                            <h5 style={{ margin: '5px 0', color: '#0f766e' }}>Single Events Points:</h5>
                             <div className="points-grid-setup">
                               <div className="points-setup-card">
-                                <label>ഒന്നാം Place</label>
+                                <label>First Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.p1} onChange={e => setPointSystem({ ...pointSystem, p1: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>രണ്ടാം Place</label>
+                                <label>Second Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.p2} onChange={e => setPointSystem({ ...pointSystem, p2: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>മൂന്നാം Place</label>
+                                <label>Third Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.p3} onChange={e => setPointSystem({ ...pointSystem, p3: e.target.value })} required />
                               </div>
                             </div>
@@ -1977,18 +1977,18 @@ function App() {
                               </div>
                             </div>
 
-                            <h5 style={{ margin: '5px 0', color: '#ef4444' }}>ഗ്രൂപ്പ് ഇനങ്ങൾ (Group Events Points):</h5>
+                            <h5 style={{ margin: '5px 0', color: '#ef4444' }}>Group Events Points:</h5>
                             <div className="points-grid-setup">
                               <div className="points-setup-card">
-                                <label>ഒന്നാം Place</label>
+                                <label>First Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.gp1} onChange={e => setPointSystem({ ...pointSystem, gp1: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>രണ്ടാം Place</label>
+                                <label>Second Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.gp2} onChange={e => setPointSystem({ ...pointSystem, gp2: e.target.value })} required />
                               </div>
                               <div className="points-setup-card">
-                                <label>മൂന്നാം Place</label>
+                                <label>Third Place</label>
                                 <input type="number" className="settings-input" value={pointSystem.gp3} onChange={e => setPointSystem({ ...pointSystem, gp3: e.target.value })} required />
                               </div>
                             </div>

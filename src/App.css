@@ -3,9 +3,9 @@
    ========================================================================== */
 
 :root {
-    --primary-deep: #064e3b;     /* ഗംഭീരമായ ഡാർക്ക് ഗ്രീൻ */
-    --primary-light: #0f766e;    /* മോഡേൺ ടീൽ ഗ്രീൻ */
-    --accent-gold: #f59e0b;      /* പ്രീമിയം ഗോൾഡ് കളർ */
+    --primary-deep: #064e3b;     /* Deep dark green */
+    --primary-light: #0f766e;    /* Modern teal green */
+    --accent-gold: #f59e0b;      /* Premium gold color */
     --accent-gold-hover: #d97706;
     --bg-gradient: linear-gradient(135deg, #0f172a 0%, #022c22 100%); 
     --glass-bg: rgba(255, 255, 255, 0.04);
@@ -13,13 +13,13 @@
     --text-white: #f8fafc;
     --text-muted: #94a3b8;
     
-    /* ഡാഷ്‌ബോർഡ് ലൈറ്റ് തീം */
+    /* Dashboard light theme */
     --dash-bg: #f8fafc;
     --card-bg: #ffffff;
     --text-dark: #1e293b;
 }
 
-/* റീസെറ്റ് കോഡുകൾ */
+/* Reset styles */
 * {
     margin: 0;
     padding: 0;
@@ -30,7 +30,7 @@
 body {
     background-color: var(--dash-bg);
     color: var(--text-dark);
-    padding-bottom: 80px; /* മൊബൈലിൽ താഴെ ബോട്ടം ബാർ വരുമ്പോൾ കണ്ടന്റ് മറയാതിരിക്കാൻ */
+    padding-bottom: 80px; /* Prevent content from being hidden behind the mobile bottom bar */
 }
 
 /* ==========================================================================
@@ -49,7 +49,7 @@ body {
     overflow: hidden;
 }
 
-/* തിളങ്ങുന്ന പ്രീമിയം കാർഡ് ലുക്ക് */
+/* Shining premium card look */
 .executive-login-card {
     background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(16px);
@@ -88,7 +88,7 @@ body {
     font-weight: 500;
 }
 
-/* ഇൻപുട്ട് ഗ്രൂപ്പുകൾ */
+/* Input groups */
 .executive-form-group {
     margin-bottom: 22px;
 }
@@ -116,7 +116,7 @@ body {
 
 .executive-input {
     width: 100%;
-    padding: 13px 14px 13px 42px; /* ഐക്കണിന് വേണ്ടി ലെഫ്റ്റ് സ്പേസ് */
+    padding: 13px 14px 13px 42px; /* Left space for icon */
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--glass-border);
     border-radius: 10px;
@@ -132,7 +132,7 @@ body {
     box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
-/* ബട്ടണുകൾ */
+/* Buttons */
 .btn-executive-gold {
     width: 100%;
     padding: 14px;
@@ -203,7 +203,7 @@ body {
     padding: 15px;
 }
 
-/* പ്രീമിയം ടോപ്പ് ഹെഡർ */
+/* Premium top header */
 .dash-header {
     background: linear-gradient(135deg, var(--primary-deep) 0%, #022c22 100%);
     color: white;
@@ -244,7 +244,7 @@ body {
     border-color: #ef4444;
 }
 
-/* 📢 ടിക്കർ സെക്ഷൻ */
+/* 📢 Ticker section */
 .live-ticker-container {
     background: #1e1b4b;
     color: white;
@@ -265,7 +265,7 @@ body {
     }
 }
 
-/* കോമൺ കാർഡ് സ്റ്റൈൽ */
+/* Common card style */
 .card {
     background: var(--card-bg);
     padding: 24px;
@@ -289,7 +289,7 @@ body {
    📊 3. SCOREBOARD GRAPH & RESPONSIVE TABLES
    ========================================================================== */
 
-/* പുതിയ ലീഡർബോർഡ് ഡിസൈൻ (Live Scoreboard Graph) */
+/* New leaderboard design (Live Scoreboard Graph) */
 .scoreboard-main-card {
     background: #ffffff;
     padding: 24px;
@@ -484,7 +484,7 @@ body {
     100% { transform: translateX(100%); }
 }
 
-/* 📱 ടേബിളുകൾ മൊബൈലിൽ വശങ്ങളിലേക്ക് സ്ക്രോൾ ചെയ്യാനുള്ള സെറ്റപ്പ് */
+/* 📱 Setup for horizontal scrolling of tables on mobile */
 .table-responsive-wrapper {
     width: 100%;
     overflow-x: auto;
@@ -497,7 +497,7 @@ body {
 table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 600px; /* മൊബൈലിൽ കോളം ഇടുങ്ങിപ്പോകാതിരിക്കാൻ സ്ഥിരമായ വീതി */
+    min-width: 600px; /* Fixed width to prevent columns from collapsing on mobile */
     font-size: 14px;
 }
 
@@ -591,12 +591,12 @@ tr:nth-child(even) {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 8px 0 12px 0; /* മൊബൈൽ ഹോം ബാറിന് വേണ്ടി താഴെ അല്പം സ്പേസ് */
+    padding: 8px 0 12px 0; /* Extra bottom space for mobile home bar */
     z-index: 999;
     border-top: 1px solid #f1f5f9;
 }
 
-/* ഓരോ ടാബ് ഐറ്റവും */
+/* Each tab item */
 .nav-tab-item {
     display: flex;
     flex-direction: column;
@@ -604,7 +604,7 @@ tr:nth-child(even) {
     justify-content: center;
     background: none;
     border: none;
-    color: #94a3b8; /* സാധാരണ കാണിക്കുന്ന ഗ്രേ കളർ */
+    color: #94a3b8; /* Default grey color */
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
@@ -618,18 +618,18 @@ tr:nth-child(even) {
     transition: transform 0.2s ease;
 }
 
-/* 🎯 ആക്റ്റീവ് ആയി നിൽക്കുന്ന ടാബ് (WhatsApp ഗ്രീൻ ഐഡന്റിറ്റി) */
+/* 🎯 Active tab style (WhatsApp green identity) */
 .nav-tab-item.active {
     color: var(--primary-light);
 }
 
-/* ആക്റ്റീവ് ആകുമ്പോൾ ഐക്കൺ അല്പം വലുതാകുന്ന ആനിമേഷൻ */
+/* Icon scales up slightly when active */
 .nav-tab-item.active .nav-icon {
     transform: scale(1.15);
     filter: drop-shadow(0 4px 6px rgba(15, 118, 110, 0.2));
 }
 
-/* ടാബുകൾ മാറുമ്പോൾ ഉള്ള സുന്ദരമായ ഫേഡ്-ഇൻ ആനിമേഷൻ */
+/* Beautiful fade-in animation when switching tabs */
 .animate-tab {
     animation: fadeInTab 0.3s ease-in-out;
 }
