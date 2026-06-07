@@ -132,7 +132,6 @@ function App() {
 
       // Fetch data from online database
       fetchSupabaseData(rNum);
-
       // Points system is still stored in localStorage
       setPointSystem(JSON.parse(localStorage.getItem(`points_${rNum}`)) || {
         p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
