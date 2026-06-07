@@ -1225,7 +1225,7 @@ function App() {
 <!DOCTYPE html>
 <html><head><title>Certificate - ${matchedStudent.name}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1477,7 +1477,7 @@ function downloadAsImage() {
     btn.disabled = false;
   });
 }
-<\/script>
+</script>
 </body></html>`);
                     certWindow.document.close();
                   };
