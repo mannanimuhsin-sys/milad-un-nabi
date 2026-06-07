@@ -617,7 +617,7 @@ function App() {
         <div className="executive-login-container">
           <div className="executive-login-card">
             <div className="login-brand-section">
-              <span className="mosque-icon-wrapper"><h3>🕌</h3></span>
+              <img src="/logo192.png" alt="Milad Fest Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', marginBottom: '10px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h2>MILAD FEST</h2>
               <p className="subtitle">Madrasa Login System</p>
             </div>
@@ -1217,22 +1217,27 @@ function App() {
                     const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
                     const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
                     const logoUrl = window.location.origin + '/logo192.png';
+                    const signatureUrl = window.location.origin + '/signature.png';
+                    const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
                     
                     certWindow.document.write(`
 <!DOCTYPE html>
 <html><head><title>Certificate - ${matchedStudent.name}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { 
     font-family: 'Inter', sans-serif; 
     display: flex; 
+    flex-direction: column;
     justify-content: center; 
     align-items: center; 
     min-height: 100vh; 
     background: #f0f0f0; 
     padding: 20px;
+    gap: 16px;
   }
   .certificate-wrapper {
     width: 1050px;
@@ -1242,7 +1247,6 @@ function App() {
     overflow: hidden;
     box-shadow: 0 25px 80px rgba(0,0,0,0.15);
   }
-  /* Outer decorative border */
   .cert-border-outer {
     position: absolute;
     top: 12px; left: 12px; right: 12px; bottom: 12px;
@@ -1255,7 +1259,6 @@ function App() {
     border: 1.5px solid #c5a44e;
     border-radius: 2px;
   }
-  /* Corner ornaments */
   .corner-ornament {
     position: absolute;
     width: 70px;
@@ -1278,217 +1281,93 @@ function App() {
     justify-content: space-between;
   }
   
-  /* Header section */
-  .cert-header {
-    text-align: center;
-    width: 100%;
-  }
+  .cert-header { text-align: center; width: 100%; }
   .cert-logo {
-    width: 80px;
-    height: 80px;
-    border-radius: 16px;
-    object-fit: cover;
-    margin-bottom: 8px;
-    border: 2px solid #1a5e3a;
+    width: 80px; height: 80px; border-radius: 16px; object-fit: cover;
+    margin-bottom: 8px; border: 2px solid #1a5e3a;
     box-shadow: 0 4px 15px rgba(26,94,58,0.2);
   }
   .cert-org-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 22px;
-    font-weight: 800;
-    color: #1a5e3a;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-bottom: 2px;
+    font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800;
+    color: #1a5e3a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 2px;
   }
-  .cert-org-details {
-    font-size: 11px;
-    color: #666;
-    letter-spacing: 1px;
-    font-weight: 500;
-  }
+  .cert-org-details { font-size: 11px; color: #666; letter-spacing: 1px; font-weight: 500; }
   
-  /* Decorative line */
   .cert-divider {
-    width: 350px;
-    height: 2px;
+    width: 350px; height: 2px;
     background: linear-gradient(90deg, transparent, #c5a44e, #1a5e3a, #c5a44e, transparent);
     margin: 10px auto;
   }
   
-  /* Title */
-  .cert-title-wrapper {
-    text-align: center;
-  }
+  .cert-title-wrapper { text-align: center; }
   .cert-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 42px;
-    font-weight: 900;
-    color: #1a5e3a;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    margin-bottom: 4px;
+    font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 900;
+    color: #1a5e3a; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 4px;
     text-shadow: 0 2px 4px rgba(26,94,58,0.1);
   }
-  .cert-subtitle {
-    font-family: 'Great Vibes', cursive;
-    font-size: 20px;
-    color: #c5a44e;
-    margin-bottom: 2px;
-  }
+  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 20px; color: #c5a44e; margin-bottom: 2px; }
   
-  /* Body section */
-  .cert-body {
-    text-align: center;
-    width: 100%;
-  }
+  .cert-body { text-align: center; width: 100%; }
   .cert-presented {
-    font-size: 14px;
-    color: #555;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: 500;
-    margin-bottom: 10px;
+    font-size: 14px; color: #555; letter-spacing: 2px;
+    text-transform: uppercase; font-weight: 500; margin-bottom: 10px;
   }
   .cert-student-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 36px;
-    font-weight: 800;
-    color: #1a3a5c;
-    border-bottom: 3px solid #c5a44e;
-    display: inline-block;
-    padding-bottom: 6px;
-    margin-bottom: 12px;
-    letter-spacing: 1px;
+    font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 800;
+    color: #1a3a5c; border-bottom: 3px solid #c5a44e; display: inline-block;
+    padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 1px;
   }
-  .cert-details-grid {
-    display: flex;
-    justify-content: center;
-    gap: 25px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
+  .cert-details-grid { display: flex; justify-content: center; gap: 25px; margin-bottom: 14px; flex-wrap: wrap; }
   .cert-detail-item {
-    background: linear-gradient(135deg, #f8f6f0, #f0ede4);
-    border: 1px solid #e0dcc8;
-    border-radius: 10px;
-    padding: 8px 20px;
-    text-align: center;
-    min-width: 120px;
+    background: linear-gradient(135deg, #f8f6f0, #f0ede4); border: 1px solid #e0dcc8;
+    border-radius: 10px; padding: 8px 20px; text-align: center; min-width: 120px;
   }
-  .cert-detail-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #888;
-    font-weight: 600;
-    margin-bottom: 2px;
-  }
-  .cert-detail-value {
-    font-size: 14px;
-    font-weight: 700;
-    color: #1a3a5c;
-  }
+  .cert-detail-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; margin-bottom: 2px; }
+  .cert-detail-value { font-size: 14px; font-weight: 700; color: #1a3a5c; }
   
-  /* Achievement section */
-  .cert-achievement {
-    text-align: center;
-    margin: 5px 0;
-  }
-  .cert-program-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a5e3a;
-    margin-bottom: 8px;
-  }
+  .cert-achievement { text-align: center; margin: 5px 0; }
+  .cert-program-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: #1a5e3a; margin-bottom: 8px; }
   .cert-place-badge {
-    display: inline-block;
-    background: linear-gradient(135deg, #c5a44e, #a08530);
-    color: white;
-    padding: 8px 32px;
-    border-radius: 30px;
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    box-shadow: 0 4px 15px rgba(197,164,78,0.4);
+    display: inline-block; background: linear-gradient(135deg, #c5a44e, #a08530); color: white;
+    padding: 8px 32px; border-radius: 30px; font-size: 16px; font-weight: 800;
+    letter-spacing: 3px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(197,164,78,0.4);
   }
-  .cert-grade-text {
-    margin-top: 6px;
-    font-size: 13px;
-    color: #888;
-    font-weight: 500;
-  }
+  .cert-grade-text { margin-top: 6px; font-size: 13px; color: #888; font-weight: 500; }
   
-  /* Footer / Signature section */
-  .cert-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    width: 100%;
-    padding: 0 30px;
-  }
-  .cert-date-section {
-    text-align: center;
-  }
-  .cert-date-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 4px;
-  }
-  .cert-date-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #888;
-    border-top: 1.5px solid #ccc;
-    padding-top: 5px;
-    min-width: 140px;
-  }
-  .cert-sign-section {
-    text-align: center;
-  }
-  .cert-signature {
-    font-family: 'Great Vibes', cursive;
-    font-size: 32px;
-    color: #1a3a5c;
-    margin-bottom: 0px;
-    opacity: 0.85;
-  }
-  .cert-sign-line {
-    border-top: 1.5px solid #ccc;
-    padding-top: 5px;
-    min-width: 180px;
-  }
-  .cert-sign-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #888;
-    font-weight: 600;
-  }
-  .cert-sign-role {
-    font-size: 9px;
-    color: #aaa;
-    letter-spacing: 1px;
-  }
+  .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
+  .cert-date-section { text-align: center; }
+  .cert-date-value { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+  .cert-date-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 140px; }
+  .cert-sign-section { text-align: center; }
+  .cert-signature-img { width: 150px; height: auto; margin-bottom: 2px; }
+  .cert-sign-line { border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 180px; }
+  .cert-sign-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; }
+  .cert-sign-role { font-size: 9px; color: #aaa; letter-spacing: 1px; }
   
-  /* Watermark */
   .cert-watermark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 300px;
-    height: 300px;
-    opacity: 0.03;
-    z-index: 0;
-    pointer-events: none;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 300px; height: 300px; opacity: 0.03; z-index: 0; pointer-events: none;
   }
   
-  /* Print styles */
+  /* Action buttons */
+  .cert-actions {
+    display: flex; gap: 12px; justify-content: center; margin-top: 4px;
+  }
+  .btn-download {
+    background: linear-gradient(135deg, #1a5e3a, #2d8659); color: white; border: none;
+    padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 6px 24px rgba(26,94,58,0.4);
+    display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
+  }
+  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(26,94,58,0.5); }
+  .btn-back {
+    background: linear-gradient(135deg, #64748b, #475569); color: white; border: none;
+    padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 6px 24px rgba(100,116,139,0.4);
+    display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
+  }
+  .btn-back:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(100,116,139,0.5); }
+  
   @media print {
     body { background: white; padding: 0; margin: 0; }
     .certificate-wrapper { box-shadow: none; width: 100%; height: 100vh; }
@@ -1497,8 +1376,7 @@ function App() {
 </style>
 </head>
 <body>
-<div class="certificate-wrapper">
-  <!-- Decorative borders -->
+<div class="certificate-wrapper" id="certificateArea">
   <div class="cert-border-outer"></div>
   <div class="cert-border-inner"></div>
   <div class="corner-ornament tl"></div>
@@ -1506,11 +1384,9 @@ function App() {
   <div class="corner-ornament bl"></div>
   <div class="corner-ornament br"></div>
   
-  <!-- Watermark logo -->
   <img src="${logoUrl}" class="cert-watermark" alt="" />
   
   <div class="cert-content">
-    <!-- Header -->
     <div class="cert-header">
       <img src="${logoUrl}" class="cert-logo" alt="Logo" />
       <div class="cert-org-name">${madrasaName}</div>
@@ -1519,13 +1395,11 @@ function App() {
     
     <div class="cert-divider"></div>
     
-    <!-- Title -->
     <div class="cert-title-wrapper">
       <div class="cert-title">Certificate</div>
       <div class="cert-subtitle">of Achievement</div>
     </div>
     
-    <!-- Body -->
     <div class="cert-body">
       <div class="cert-presented">This is proudly presented to</div>
       <div class="cert-student-name">${matchedStudent.name}</div>
@@ -1550,7 +1424,6 @@ function App() {
       </div>
     </div>
     
-    <!-- Achievement -->
     <div class="cert-achievement">
       <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">For Outstanding Performance in</div>
       <div class="cert-program-name">${result.progname || result.progName}</div>
@@ -1558,14 +1431,13 @@ function App() {
       ${gradeText ? '<div class="cert-grade-text">Grade: <b>' + gradeText + '</b></div>' : ''}
     </div>
     
-    <!-- Footer -->
     <div class="cert-footer">
       <div class="cert-date-section">
-        <div class="cert-date-value">${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        <div class="cert-date-value">${resultDate}</div>
         <div class="cert-date-label">Date</div>
       </div>
       <div class="cert-sign-section">
-        <div class="cert-signature">Milad Fest</div>
+        <img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />
         <div class="cert-sign-line">
           <div class="cert-sign-label">Programme Convener</div>
           <div class="cert-sign-role">MILAD FEST Committee</div>
@@ -1575,7 +1447,36 @@ function App() {
   </div>
 </div>
 
-<button class="no-print" onclick="window.print()" style="position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,#1a5e3a,#2d8659);color:white;border:none;padding:14px 28px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 24px rgba(26,94,58,0.4);z-index:999">🖨️ Print Certificate</button>
+<div class="cert-actions no-print">
+  <button class="btn-download" onclick="downloadAsImage()">📥 Download Image</button>
+  <button class="btn-back" onclick="window.close()">⬅️ Back</button>
+</div>
+
+<script>
+function downloadAsImage() {
+  var btn = document.querySelector('.btn-download');
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+  html2canvas(document.getElementById('certificateArea'), {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#fffdf7',
+    width: 1050,
+    height: 740
+  }).then(function(canvas) {
+    var link = document.createElement('a');
+    link.download = 'Certificate_${matchedStudent.name.replace(/[^a-zA-Z0-9]/g, '_')}_${(result.progname || result.progName || '').replace(/[^a-zA-Z0-9]/g, '_')}.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    btn.innerHTML = '📥 Download Image';
+    btn.disabled = false;
+  }).catch(function(err) {
+    alert('Error generating image: ' + err.message);
+    btn.innerHTML = '📥 Download Image';
+    btn.disabled = false;
+  });
+}
+<\/script>
 </body></html>`);
                     certWindow.document.close();
                   };
