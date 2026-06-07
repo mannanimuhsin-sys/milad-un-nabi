@@ -650,6 +650,7 @@ function App() {
         </div>
       )}
 
+
       {/* 🔐 SECURITY LOCK */}
       {currentScreen === 'REGISTER_LOCK' && (
         <div className="executive-login-container">
