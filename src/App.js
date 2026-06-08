@@ -162,8 +162,9 @@ function App() {
       return;
     }
 
-    // Detect iOS device
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    // Detect iOS device / macOS Safari (Apple ecosystem)
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || 
+                  (navigator.userAgent.includes("Mac") && "ontouchend" in document);
     setIsIosDevice(isIos);
 
     // Auto-show the install notification popup (only in browser mode)
