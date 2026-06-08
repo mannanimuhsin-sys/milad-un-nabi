@@ -138,11 +138,24 @@ function App() {
 
       // Fetch data from online database
       fetchSupabaseData(rNum);
-      // Points system is still stored in localStorage
-      setPointSystem(JSON.parse(localStorage.getItem(`points_${rNum}`)) || {
-        p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
-        gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
-      });
+      // Points system is still stored in localStorage - safely parsed
+      try {
+        const storedPoints = localStorage.getItem(`points_${rNum}`);
+        if (storedPoints) {
+          setPointSystem(JSON.parse(storedPoints));
+        } else {
+          setPointSystem({
+            p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
+            gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse stored points", e);
+        setPointSystem({
+          p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
+          gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+        });
+      }
 
       // Checker to set default categories on first login if database is empty
       checkAndInsertDefaultCategories(rNum);
