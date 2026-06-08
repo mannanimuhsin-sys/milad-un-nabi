@@ -1532,7 +1532,43 @@ function downloadAsImage() {
               )}
 
               {/* ── Section 3: Results History Table ── */}
-              {resultsSubTab === 'RESULTS_HISTORY' && (
+              {resultsSubTab === 'RESULTS_HISTORY' && (() => {
+                const printResultsHistory = () => {
+                  const printWindow = window.open('', '_blank');
+                  const rows = resultsList.map(r => {
+                    const sName = r.studentname || r.studentName || '';
+                    const dashIdx = sName.indexOf(' - ');
+                    const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                    const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                    const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
+                    const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+                    return `<tr>
+                      <td>${r.progname || r.progName}</td>
+                      <td>${String(r.progtype || r.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</td>
+                      <td>${r.catname || r.catName}</td>
+                      <td>${regPart}</td>
+                      <td>${namePart}</td>
+                      <td>${(r.studentgender || r.studentGender) === 'BOY' ? 'Boy' : 'Girl'}</td>
+                      <td>${r.teamname || r.teamName}</td>
+                      <td>${placeLabel}</td>
+                      <td>${gradeLabel}</td>
+                      <td>${r.points}</td>
+                    </tr>`;
+                  }).join('');
+
+                  printWindow.document.write(`
+                    <html><head><title>Results History</title>
+                    <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
+                    <body>
+                    <h1>🏆 Results History</h1>
+                    <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
+                    </body></html>
+                  `);
+                  printWindow.document.close();
+                  printWindow.print();
+                };
+
+                return (
               <div>
                 <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
                   <table>
@@ -1570,8 +1606,12 @@ function downloadAsImage() {
                     </tbody>
                   </table>
                 </div>
+                <button onClick={printResultsHistory} style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
+                  📄 Download PDF / Print
+                </button>
               </div>
-              )}
+              );
+              })}
 
               {/* ── Section 4: Champion Section ── */}
               {resultsSubTab === 'CHAMPIONS' && (
