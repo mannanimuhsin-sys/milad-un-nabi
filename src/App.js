@@ -1611,7 +1611,7 @@ function downloadAsImage() {
                 </button>
               </div>
               );
-              })}
+              })()}
 
               {/* ── Section 4: Champion Section ── */}
               {resultsSubTab === 'CHAMPIONS' && (
