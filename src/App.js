@@ -151,33 +151,27 @@ function App() {
 
   // PWA Install prompt setup
   useEffect(() => {
-    // If already installed, don't show button
-    if (localStorage.getItem('pwa_installed') === 'true') return;
-
     // Detect if already running as installed PWA
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
+      
     if (isStandalone) {
       localStorage.setItem('pwa_installed', 'true');
+      setShowInstallBtn(false);
       return;
     }
+
+    // Always show the install button if not running standalone
+    setShowInstallBtn(true);
 
     // Android / Chrome – capture the install prompt
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       deferredPromptRef.current = e;
       setDeferredPrompt(e);
-      setShowInstallBtn(true);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
-    // iOS Safari detection (no beforeinstallprompt support)
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isSafari = /safari/i.test(navigator.userAgent) && !/chrome/i.test(navigator.userAgent);
-    if (isIos) {
-      setShowInstallBtn(true);
-    }
 
     // Track when app gets installed
     window.addEventListener('appinstalled', () => {
@@ -193,20 +187,31 @@ function App() {
 
   const handleInstallClick = async () => {
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+    
     if (isIos) {
       setShowIosGuide(true);
       return;
     }
+    
     const prompt = deferredPromptRef.current;
-    if (!prompt) return;
-    prompt.prompt();
-    const { outcome } = await prompt.userChoice;
-    if (outcome === 'accepted') {
-      localStorage.setItem('pwa_installed', 'true');
-      setShowInstallBtn(false);
+    if (prompt) {
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      if (outcome === 'accepted') {
+        localStorage.setItem('pwa_installed', 'true');
+        setShowInstallBtn(false);
+      }
+      deferredPromptRef.current = null;
+      setDeferredPrompt(null);
+    } else {
+      // Fallback if beforeinstallprompt hasn't fired
+      if (isAndroid) {
+        alert("Please tap the browser menu (⋮) and select 'Install app' or 'Add to Home screen'.");
+      } else {
+        alert("To install, click the install icon (🖥️/⬇️) in your browser's address bar or use the browser menu to 'Install app' or 'Add to Home screen'.");
+      }
     }
-    deferredPromptRef.current = null;
-    setDeferredPrompt(null);
   };
 
   // Code to add default categories to Supabase
