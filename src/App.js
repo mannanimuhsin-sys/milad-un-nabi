@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function App() {
@@ -20,6 +20,12 @@ function App() {
   const [loginRegNum, setLoginRegNum] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // PWA Install states
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
+  const deferredPromptRef = useRef(null);
 
   // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
@@ -142,6 +148,66 @@ function App() {
       checkAndInsertDefaultCategories(rNum);
     }
   }, [loggedInMadrasa]);
+
+  // PWA Install prompt setup
+  useEffect(() => {
+    // If already installed, don't show button
+    if (localStorage.getItem('pwa_installed') === 'true') return;
+
+    // Detect if already running as installed PWA
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    if (isStandalone) {
+      localStorage.setItem('pwa_installed', 'true');
+      return;
+    }
+
+    // Android / Chrome – capture the install prompt
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      deferredPromptRef.current = e;
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    // iOS Safari detection (no beforeinstallprompt support)
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSafari = /safari/i.test(navigator.userAgent) && !/chrome/i.test(navigator.userAgent);
+    if (isIos) {
+      setShowInstallBtn(true);
+    }
+
+    // Track when app gets installed
+    window.addEventListener('appinstalled', () => {
+      localStorage.setItem('pwa_installed', 'true');
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isIos) {
+      setShowIosGuide(true);
+      return;
+    }
+    const prompt = deferredPromptRef.current;
+    if (!prompt) return;
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === 'accepted') {
+      localStorage.setItem('pwa_installed', 'true');
+      setShowInstallBtn(false);
+    }
+    deferredPromptRef.current = null;
+    setDeferredPrompt(null);
+  };
 
   // Code to add default categories to Supabase
   const checkAndInsertDefaultCategories = async (rNum) => {
@@ -620,6 +686,23 @@ function App() {
               <h2>MILAD FEST</h2>
               <p className="subtitle">Madrasa Login System</p>
             </div>
+
+            {/* 📲 PWA Install Button – shown only until installed */}
+            {showInstallBtn && (
+              <button
+                onClick={handleInstallClick}
+                className="btn-pwa-install"
+                id="pwa-install-btn"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}>
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download App
+              </button>
+            )}
+
             <form onSubmit={handleLogin}>
               <div className="executive-form-group">
                 <label>Madrasa Register Number</label>
@@ -646,6 +729,38 @@ function App() {
             <div className="admin-only-footer">
               <span onClick={() => { setCurrentScreen('REGISTER_LOCK'); }} className="admin-premium-link">⚙️ Admin Control Panel</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📱 iOS Install Guide Modal */}
+      {showIosGuide && (
+        <div className="ios-guide-overlay" onClick={() => setShowIosGuide(false)}>
+          <div className="ios-guide-card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ color: '#fff', margin: '0 0 12px', fontSize: '17px' }}>📲 Install on iPhone / iPad</h3>
+            <ol style={{ color: '#cbd5e1', fontSize: '14px', lineHeight: '1.8', paddingLeft: '18px', margin: 0 }}>
+              <li>Tap the <b style={{ color: '#fff' }}>Share</b> button (⎙) at the bottom of Safari</li>
+              <li>Scroll down and tap <b style={{ color: '#fff' }}>"Add to Home Screen"</b></li>
+              <li>Tap <b style={{ color: '#fff' }}>"Add"</b> in the top-right corner</li>
+            </ol>
+            <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '12px' }}>The app icon will appear on your Home Screen.</p>
+            <button
+              onClick={() => {
+                setShowIosGuide(false);
+                localStorage.setItem('pwa_installed', 'true');
+                setShowInstallBtn(false);
+              }}
+              className="btn-pwa-install"
+              style={{ marginTop: '16px', width: '100%' }}
+            >
+              ✅ Done – Hide this button
+            </button>
+            <button
+              onClick={() => setShowIosGuide(false)}
+              style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '13px', marginTop: '8px', width: '100%', cursor: 'pointer', padding: '4px' }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

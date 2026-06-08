@@ -839,3 +839,83 @@ tr:nth-child(even) {
     color: #ffffff;
     box-shadow: 0 4px 10px rgba(219, 39, 119, 0.2);
 }
+
+
+/* ==========================================================================
+   📲 PWA INSTALL BUTTON & iOS GUIDE MODAL
+   ========================================================================== */
+
+/* Green Download / Install App button shown on login screen */
+.btn-pwa-install {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 13px 18px;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    border: none;
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 18px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 18px rgba(22, 163, 74, 0.40);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    animation: pulsGreen 2.4s infinite;
+}
+
+.btn-pwa-install:hover {
+    background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(22, 163, 74, 0.50);
+    animation: none;
+}
+
+.btn-pwa-install:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.30);
+}
+
+@keyframes pulsGreen {
+    0%   { box-shadow: 0 4px 18px rgba(22, 163, 74, 0.40); }
+    50%  { box-shadow: 0 4px 28px rgba(22, 163, 74, 0.65); }
+    100% { box-shadow: 0 4px 18px rgba(22, 163, 74, 0.40); }
+}
+
+/* iOS guide overlay backdrop */
+.ios-guide-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.70);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    animation: fadeInOverlay 0.25s ease;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* iOS guide card (bottom sheet style) */
+.ios-guide-card {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px 20px 16px 16px;
+    padding: 28px 24px 20px;
+    width: 100%;
+    max-width: 420px;
+    animation: slideUpCard 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideUpCard {
+    from { transform: translateY(60px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
