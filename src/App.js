@@ -23,8 +23,8 @@ function App() {
 
   // PWA Install states
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showInstallBtn, setShowInstallBtn] = useState(false);
-  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
+  const [isIosDevice, setIsIosDevice] = useState(false);
   const deferredPromptRef = useRef(null);
 
   // Super admin panel states
@@ -149,21 +149,25 @@ function App() {
     }
   }, [loggedInMadrasa]);
 
-  // PWA Install prompt setup
+  // PWA Install prompt setup – auto show notification popup
   useEffect(() => {
-    // Detect if already running as installed PWA
+    // Detect if already running as installed PWA (standalone mode)
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
       
     if (isStandalone) {
-      localStorage.setItem('pwa_installed', 'true');
-      setShowInstallBtn(false);
+      // App is installed & running standalone – never show the popup
+      setShowInstallPopup(false);
       return;
     }
 
-    // Always show the install button if not running standalone
-    setShowInstallBtn(true);
+    // Detect iOS device
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    setIsIosDevice(isIos);
+
+    // Auto-show the install notification popup (only in browser mode)
+    setShowInstallPopup(true);
 
     // Android / Chrome – capture the install prompt
     const handleBeforeInstall = (e) => {
@@ -174,44 +178,39 @@ function App() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
     // Track when app gets installed
-    window.addEventListener('appinstalled', () => {
-      localStorage.setItem('pwa_installed', 'true');
-      setShowInstallBtn(false);
+    const handleAppInstalled = () => {
+      setShowInstallPopup(false);
       setDeferredPrompt(null);
-    });
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
-  const handleInstallClick = async () => {
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isAndroid = /android/i.test(navigator.userAgent);
-    
-    if (isIos) {
-      setShowIosGuide(true);
-      return;
-    }
-    
+  // Handle the "Install" button click (Android)
+  const handleInstallApp = async () => {
     const prompt = deferredPromptRef.current;
     if (prompt) {
       prompt.prompt();
       const { outcome } = await prompt.userChoice;
       if (outcome === 'accepted') {
-        localStorage.setItem('pwa_installed', 'true');
-        setShowInstallBtn(false);
+        setShowInstallPopup(false);
       }
       deferredPromptRef.current = null;
       setDeferredPrompt(null);
     } else {
       // Fallback if beforeinstallprompt hasn't fired
-      if (isAndroid) {
-        alert("Please tap the browser menu (⋮) and select 'Install app' or 'Add to Home screen'.");
-      } else {
-        alert("To install, click the install icon (🖥️/⬇️) in your browser's address bar or use the browser menu to 'Install app' or 'Add to Home screen'.");
-      }
+      alert("ബ്രൗസർ മെനു (⋮) ടാപ്പ് ചെയ്ത് 'Install app' അല്ലെങ്കിൽ 'Add to Home screen' തിരഞ്ഞെടുക്കുക.");
+      setShowInstallPopup(false);
     }
+  };
+
+  // Handle "Cancel" button – just dismiss the popup
+  const handleDismissInstall = () => {
+    setShowInstallPopup(false);
   };
 
   // Code to add default categories to Supabase
@@ -692,20 +691,54 @@ function App() {
               <p className="subtitle">Madrasa Login System</p>
             </div>
 
-            {/* 📲 PWA Install Button – shown only until installed */}
-            {showInstallBtn && (
-              <button
-                onClick={handleInstallClick}
-                className="btn-pwa-install"
-                id="pwa-install-btn"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', flexShrink: 0 }}>
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download App
-              </button>
+            {/* 📲 PWA Install Popup - Custom Notification Popup shown before credential inputs */}
+            {showInstallPopup && (
+              <div className="pwa-notification-popup">
+                <div className="pwa-popup-header">
+                  <span className="pwa-popup-icon">📲</span>
+                  <div className="pwa-popup-title-area">
+                    <h4>Milad Fest ഇൻസ്റ്റാൾ ചെയ്യാം</h4>
+                    <p>ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്താൽ വളരെ പെട്ടെന്ന് ഉപയോഗിക്കാം</p>
+                  </div>
+                </div>
+
+                {!isIosDevice ? (
+                  /* Android UI */
+                  <div className="pwa-popup-body">
+                    <p className="pwa-popup-description">
+                      മീലാദ് ഫെസ്റ്റ് ആപ്ലിക്കേഷൻ നിങ്ങളുടെ മൊബൈലിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്യുക.
+                    </p>
+                    <div className="pwa-popup-actions">
+                      <button onClick={handleInstallApp} className="btn-popup-install">
+                        Install App
+                      </button>
+                      <button onClick={handleDismissInstall} className="btn-popup-cancel">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* iOS UI (iPhone/iPad) */
+                  <div className="pwa-popup-body">
+                    <div className="ios-steps-container">
+                      <p className="ios-steps-title">ഇൻസ്റ്റാൾ ചെയ്യേണ്ട രൂപം:</p>
+                      <ol className="ios-steps-list">
+                        <li>സഫാരി ബ്രൗസറിലെ <strong>Share</strong> (⎙) ബട്ടൺ അമർത്തുക.</li>
+                        <li>താഴേക്ക് സ്ക്രോൾ ചെയ്ത് <strong>'Add to Home Screen'</strong> എന്നത് സെലക്ട് ചെയ്യുക.</li>
+                        <li>മുകളിൽ വലതുഭാഗത്തുള്ള <strong>'Add'</strong> ബട്ടൺ അമർത്തുക.</li>
+                      </ol>
+                    </div>
+                    <div className="pwa-popup-actions">
+                      <button onClick={handleDismissInstall} className="btn-popup-install">
+                        OK
+                      </button>
+                      <button onClick={handleDismissInstall} className="btn-popup-cancel">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <form onSubmit={handleLogin}>
@@ -734,38 +767,6 @@ function App() {
             <div className="admin-only-footer">
               <span onClick={() => { setCurrentScreen('REGISTER_LOCK'); }} className="admin-premium-link">⚙️ Admin Control Panel</span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* 📱 iOS Install Guide Modal */}
-      {showIosGuide && (
-        <div className="ios-guide-overlay" onClick={() => setShowIosGuide(false)}>
-          <div className="ios-guide-card" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ color: '#fff', margin: '0 0 12px', fontSize: '17px' }}>📲 Install on iPhone / iPad</h3>
-            <ol style={{ color: '#cbd5e1', fontSize: '14px', lineHeight: '1.8', paddingLeft: '18px', margin: 0 }}>
-              <li>Tap the <b style={{ color: '#fff' }}>Share</b> button (⎙) at the bottom of Safari</li>
-              <li>Scroll down and tap <b style={{ color: '#fff' }}>"Add to Home Screen"</b></li>
-              <li>Tap <b style={{ color: '#fff' }}>"Add"</b> in the top-right corner</li>
-            </ol>
-            <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '12px' }}>The app icon will appear on your Home Screen.</p>
-            <button
-              onClick={() => {
-                setShowIosGuide(false);
-                localStorage.setItem('pwa_installed', 'true');
-                setShowInstallBtn(false);
-              }}
-              className="btn-pwa-install"
-              style={{ marginTop: '16px', width: '100%' }}
-            >
-              ✅ Done – Hide this button
-            </button>
-            <button
-              onClick={() => setShowIosGuide(false)}
-              style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '13px', marginTop: '8px', width: '100%', cursor: 'pointer', padding: '4px' }}
-            >
-              Close
-            </button>
           </div>
         </div>
       )}
