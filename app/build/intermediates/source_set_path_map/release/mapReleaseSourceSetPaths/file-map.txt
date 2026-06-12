@@ -1,0 +1,28 @@
+app.vercel.milad_un_nabi.twa.app-androidbrowserhelper-2.6.2-0 C:\Users\ccuse\.gradle\caches\8.14\transforms\1192f500a57e49971eb2813750d0c971\transformed\androidbrowserhelper-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-core-1.13.0-1 C:\Users\ccuse\.gradle\caches\8.14\transforms\1eab65316c79768c22a40736729eecbb\transformed\core-1.13.0\res
+app.vercel.milad_un_nabi.twa.app-core-runtime-2.2.0-2 C:\Users\ccuse\.gradle\caches\8.14\transforms\272c170b88646249c621d0f915b0db9f\transformed\core-runtime-2.2.0\res
+app.vercel.milad_un_nabi.twa.app-annotation-experimental-1.4.1-3 C:\Users\ccuse\.gradle\caches\8.14\transforms\305678aad9e431966a892a7c154003cc\transformed\annotation-experimental-1.4.1\res
+app.vercel.milad_un_nabi.twa.app-emoji2-1.3.0-4 C:\Users\ccuse\.gradle\caches\8.14\transforms\3c2b5ef56d45bf74759f0f1dd4decf7c\transformed\emoji2-1.3.0\res
+app.vercel.milad_un_nabi.twa.app-profileinstaller-1.3.1-5 C:\Users\ccuse\.gradle\caches\8.14\transforms\4f5f94216c533ff623f131ebe8e9890e\transformed\profileinstaller-1.3.1\res
+app.vercel.milad_un_nabi.twa.app-emoji2-views-helper-1.3.0-6 C:\Users\ccuse\.gradle\caches\8.14\transforms\7389cae11790c334c9b965406219c34d\transformed\emoji2-views-helper-1.3.0\res
+app.vercel.milad_un_nabi.twa.app-savedstate-1.2.1-7 C:\Users\ccuse\.gradle\caches\8.14\transforms\7f2fcf0b665039edab4eabe884b4de29\transformed\savedstate-1.2.1\res
+app.vercel.milad_un_nabi.twa.app-appcompat-resources-1.7.0-8 C:\Users\ccuse\.gradle\caches\8.14\transforms\8e992c26df407134636de51acc24ab45\transformed\appcompat-resources-1.7.0\res
+app.vercel.milad_un_nabi.twa.app-lifecycle-livedata-core-2.6.2-9 C:\Users\ccuse\.gradle\caches\8.14\transforms\8fc1a44622ff8e51c1239baa356ce9e6\transformed\lifecycle-livedata-core-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-lifecycle-viewmodel-savedstate-2.6.2-10 C:\Users\ccuse\.gradle\caches\8.14\transforms\97d946d2262160d0003e59ca2f4a8e38\transformed\lifecycle-viewmodel-savedstate-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-startup-runtime-1.1.1-11 C:\Users\ccuse\.gradle\caches\8.14\transforms\b808072358eb8396b4030e68c3b22ad7\transformed\startup-runtime-1.1.1\res
+app.vercel.milad_un_nabi.twa.app-core-ktx-1.13.0-12 C:\Users\ccuse\.gradle\caches\8.14\transforms\bd649051245a13fb193663eae48ac712\transformed\core-ktx-1.13.0\res
+app.vercel.milad_un_nabi.twa.app-appcompat-1.7.0-13 C:\Users\ccuse\.gradle\caches\8.14\transforms\c2b4a15c3302d2f83a97c83645bb51ec\transformed\appcompat-1.7.0\res
+app.vercel.milad_un_nabi.twa.app-lifecycle-runtime-2.6.2-14 C:\Users\ccuse\.gradle\caches\8.14\transforms\c86ce3230e713ad21adff6f8a89628e1\transformed\lifecycle-runtime-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-browser-1.9.0-alpha04-15 C:\Users\ccuse\.gradle\caches\8.14\transforms\d2e6ca8bae06661e09703c3a90bbefbb\transformed\browser-1.9.0-alpha04\res
+app.vercel.milad_un_nabi.twa.app-lifecycle-viewmodel-2.6.2-16 C:\Users\ccuse\.gradle\caches\8.14\transforms\d680cf8cce29fe5eaf7e0bbb83710ee7\transformed\lifecycle-viewmodel-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-fragment-1.5.4-17 C:\Users\ccuse\.gradle\caches\8.14\transforms\d90123b5d13d5151679f36e7fb63c152\transformed\fragment-1.5.4\res
+app.vercel.milad_un_nabi.twa.app-lifecycle-process-2.6.2-18 C:\Users\ccuse\.gradle\caches\8.14\transforms\dffff873ecd3182db99c7a20e6765ae5\transformed\lifecycle-process-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-activity-1.9.0-19 C:\Users\ccuse\.gradle\caches\8.14\transforms\e2b695c5c20406e66058cd25985e0fc5\transformed\activity-1.9.0\res
+app.vercel.milad_un_nabi.twa.app-lifecycle-livedata-2.6.2-20 C:\Users\ccuse\.gradle\caches\8.14\transforms\f13af0fc89c7d84daf74b8b371ffdb7f\transformed\lifecycle-livedata-2.6.2\res
+app.vercel.milad_un_nabi.twa.app-pngs-21 D:\MILAD UN NABI\milad\app\build\generated\res\pngs\release
+app.vercel.milad_un_nabi.twa.app-resValues-22 D:\MILAD UN NABI\milad\app\build\generated\res\resValues\release
+app.vercel.milad_un_nabi.twa.app-packageReleaseResources-23 D:\MILAD UN NABI\milad\app\build\intermediates\incremental\release\packageReleaseResources\merged.dir
+app.vercel.milad_un_nabi.twa.app-packageReleaseResources-24 D:\MILAD UN NABI\milad\app\build\intermediates\incremental\release\packageReleaseResources\stripped.dir
+app.vercel.milad_un_nabi.twa.app-release-25 D:\MILAD UN NABI\milad\app\build\intermediates\merged_res\release\mergeReleaseResources
+app.vercel.milad_un_nabi.twa.app-main-26 D:\MILAD UN NABI\milad\app\src\main\res
+app.vercel.milad_un_nabi.twa.app-release-27 D:\MILAD UN NABI\milad\app\src\release\res
