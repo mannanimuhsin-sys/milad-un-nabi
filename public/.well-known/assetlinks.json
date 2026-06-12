@@ -1,0 +1,26 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.miladfest.app",
+      "sha256_cert_fingerprints": [
+        "37:05:D5:C3:41:A3:38:8F:B7:9F:26:22:F8:25:D4:7D:9B:CF:69:DA:00:5F:B7:47:B9:72:6F:DA:8C:B4:BB:32"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.milad_un_nabi.twa",
+      "sha256_cert_fingerprints": [
+        "37:05:D5:C3:41:A3:38:8F:B7:9F:26:22:F8:25:D4:7D:9B:CF:69:DA:00:5F:B7:47:B9:72:6F:DA:8C:B4:BB:32"
+      ]
+    }
+  }
+]
