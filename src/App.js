@@ -700,7 +700,7 @@ function App() {
         <div className="executive-login-container">
           <div className="executive-login-card">
             <div className="login-brand-section">
-              <img src="/logo192.png" alt="Milad Fest Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', marginBottom: '10px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
+              <img src="/logo192_black.png" alt="Milad Fest Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', marginBottom: '10px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h2>MILAD FEST</h2>
               <p className="subtitle">Madrasa Login System</p>
             </div>

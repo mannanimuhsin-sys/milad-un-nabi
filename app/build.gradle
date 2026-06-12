@@ -24,9 +24,9 @@ def twaManifest = [
     applicationId: 'app.vercel.milad_un_nabi.twa',
     hostName: 'milad-un-nabi.vercel.app', // The domain being opened in the TWA.
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
-    name: 'milad fest', // The application name.
+    name: 'Milad Fest', // The application name.
     launcherName: 'Milad Fest', // The name shown on the Android Launcher.
-    themeColor: '#FFFFFF', // The color used for the status bar.
+    themeColor: '#000000', // The color used for the status bar.
     themeColorDark: '#000000', // The color used for the dark status bar.
     navigationColor: '#000000', // The color used for the navigation bar.
     navigationColorDark: '#000000', // The color used for the dark navbar.
@@ -47,7 +47,7 @@ def twaManifest = [
     // 'customtabs' and 'webview'.
     fallbackType: 'customtabs',
     enableSiteSettingsShortcut: 'true',
-    orientation: 'portrait',
+    orientation: 'landscape-secondary',
 ]
 
 android {
@@ -150,9 +150,18 @@ android {
 
         
     }
+    signingConfigs {
+        release {
+            storeFile file("../key0633")
+            storePassword "key0633"
+            keyAlias "android"
+            keyPassword "key0633"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
