@@ -22,6 +22,7 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // PWA Install states
+  // eslint-disable-next-line no-unused-vars
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallPopup, setShowInstallPopup] = useState(false);
   const [isIosDevice, setIsIosDevice] = useState(false);
