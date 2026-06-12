@@ -1,10 +1,10 @@
 {
-  "packageId": "app.vercel.milad_un_nabi.twa",
+  "packageId": "com.miladfest.app",
   "host": "milad-un-nabi.vercel.app",
-  "name": "Milad Fest",
-  "launcherName": "Milad Fest",
+  "name": "milad fest",
+  "launcherName": "milad fest",
   "display": "standalone",
-  "themeColor": "#000000",
+  "themeColor": "#FFFFFF",
   "themeColorDark": "#000000",
   "navigationColor": "#000000",
   "navigationColorDark": "#000000",
@@ -21,8 +21,8 @@
     "path": "key0633",
     "alias": "android"
   },
-  "appVersionName": "1",
-  "appVersionCode": 1,
+  "appVersionName": "2",
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://milad-un-nabi.vercel.app/manifest.json",
@@ -36,7 +36,7 @@
   "isMetaQuest": false,
   "fullScopeUrl": "https://milad-un-nabi.vercel.app/",
   "minSdkVersion": 21,
-  "orientation": "landscape-secondary",
+  "orientation": "portrait",
   "fingerprints": [],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
@@ -44,5 +44,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1"
+  "appVersion": "2"
 }

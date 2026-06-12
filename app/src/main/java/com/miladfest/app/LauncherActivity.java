@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package app.vercel.milad_un_nabi.twa;
+package com.miladfest.app;
 
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
@@ -36,7 +36,7 @@ public class LauncherActivity
         // splash screen and Chrome will still respect the orientation.
         // See https://github.com/GoogleChromeLabs/bubblewrap/issues/496 for details.
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE);
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT);
         } else {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
