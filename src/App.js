@@ -3,13 +3,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('LOGIN');
+  // ── Persistent session: restore from localStorage on first render ──
+  const savedSession = (() => {
+    try { return JSON.parse(localStorage.getItem('miladfest_session') || 'null'); } catch { return null; }
+  })();
+
+  const [currentScreen, setCurrentScreen] = useState(savedSession ? 'DASHBOARD' : 'LOGIN');
   const [activeTab, setActiveTab] = useState('SCOREBOARD');
-  const [loginRole, setLoginRole] = useState('');
+  const [loginRole, setLoginRole] = useState(savedSession ? savedSession.role : '');
   const [secretKey, setSecretKey] = useState('');
 
   // Madrasa registration states (Supabase)
-  const [loggedInMadrasa, setLoggedInMadrasa] = useState(null);
+  const [loggedInMadrasa, setLoggedInMadrasa] = useState(savedSession ? savedSession.madrasa : null);
   const [regName, setRegName] = useState('');
   const [regNumber, setRegNumber] = useState('');
   const [regPlace, setRegPlace] = useState('');
@@ -296,6 +301,9 @@ function App() {
         setLoginRole(role);
         setCurrentScreen('DASHBOARD');
         setActiveTab('SCOREBOARD');
+
+        // 💾 Save session to localStorage for auto-login
+        localStorage.setItem('miladfest_session', JSON.stringify({ madrasa: sanitizedMadrasa, role }));
 
         // Clear login form
         setLoginRegNum('');
@@ -1083,7 +1091,13 @@ function App() {
               <h1>{loggedInMadrasa ? loggedInMadrasa.name : ''}</h1>
               <p>Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''} ({loginRole} MODE)</p>
             </div>
-            <button onClick={() => { setCurrentScreen('LOGIN'); setLoggedInMadrasa(null); }} className="btn-logout-top">Logout</button>
+            <button onClick={() => {
+              // 🔓 Clear saved session on explicit logout
+              localStorage.removeItem('miladfest_session');
+              setCurrentScreen('LOGIN');
+              setLoggedInMadrasa(null);
+              setLoginRole('');
+            }} className="btn-logout-top">Logout</button>
           </header>
 
           {/* ---------------- 🎯 TAB 1: SCOREBOARD ---------------- */}
