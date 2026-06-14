@@ -104,6 +104,9 @@ function App() {
   const [studentFilterCat, setStudentFilterCat] = useState('ALL');
   const [studentFilterGender, setStudentFilterGender] = useState('ALL');
 
+  // Filter state for Programs list in Master Settings
+  const [programFilterCat, setProgramFilterCat] = useState('ALL');
+
 
 
   // 🔄 Function to load real-time data from Supabase
@@ -2223,68 +2226,324 @@ function downloadAsImage() {
                             <button type="submit" className="btn-add-action">Add Program</button>
                           </form>
                         </div>
-                        <div className="settings-list-box">
-                          <h3>📜 Programs ({programs.length})</h3>
-                          {programs.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No programs added.</p> : (
-                            programs.map(p => {
-                              const pCatId = p.catid || p.catId || '';
-                              const catObj = categories.find(c => String(c.id) === String(pCatId));
-                              return (
-                                <div key={p.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                                  {editingProgId === p.id ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                      <input type="text" className="settings-input" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
-                                      <input type="text" className="settings-input" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
+                        <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                          {(() => {
+                            // Category filter chips
+                            const filteredPrograms = programFilterCat === 'ALL'
+                              ? programs
+                              : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat));
 
-                                      <select className="settings-input" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
-                                        const val = e.target.value;
-                                        if (val) {
-                                          const [cId, g] = val.split('_');
-                                          const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
-                                          setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
-                                        }
-                                      }}>
-                                        <option value="">Select Category & Division</option>
-                                        {categories.map(c => (
-                                          <React.Fragment key={c.id}>
-                                            <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                            <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                            <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
-                                          </React.Fragment>
-                                        ))}
-                                      </select>
+                            // PDF generator function
+                            const generateProgramsPDF = (catIdFilter) => {
+                              const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                              const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                              const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
-                                      <select className="settings-input" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
-                                        const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
-                                        setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
-                                      }}>
-                                        <option value="SINGLE">SINGLE</option>
-                                        <option value="GROUP">GROUP</option>
-                                      </select>
+                              const catsToShow = catIdFilter === 'ALL'
+                                ? categories
+                                : categories.filter(c => String(c.id) === String(catIdFilter));
 
-                                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                        <button onClick={handleSaveProgEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
-                                        <button onClick={() => setEditingProgId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+                              const catSections = catsToShow.map(cat => {
+                                const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                if (catProgs.length === 0) return '';
+                                const rows = catProgs.map(p => {
+                                  const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                  const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                  return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                }).join('');
+                                return `
+                                  <div class="cat-section">
+                                    <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
+                                    <table>
+                                      <thead><tr><th>Code</th><th>Program Name</th><th>Division</th><th>Type</th></tr></thead>
+                                      <tbody>${rows}</tbody>
+                                    </table>
+                                  </div>`;
+                              }).join('');
+
+                              const printWindow = window.open('', '_blank');
+                              printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Programs List - ${madrasaName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Serif+Malayalam:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 20mm 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+  .notice-board {
+    border: 4px solid #1e3a5f;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .notice-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d6a4f 100%);
+    color: white;
+    text-align: center;
+    padding: 28px 20px 20px;
+    position: relative;
+  }
+  .notice-header::after {
+    content: '';
+    display: block;
+    width: 80px;
+    height: 3px;
+    background: #f59e0b;
+    margin: 12px auto 0;
+    border-radius: 2px;
+  }
+  .madrasa-name {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .madrasa-sub {
+    font-size: 13px;
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+  }
+  .notice-title-bar {
+    background: #f59e0b;
+    color: #78350f;
+    text-align: center;
+    padding: 10px;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .notice-body { padding: 20px 25px 30px; }
+  .cat-section { margin-bottom: 28px; }
+  .cat-heading {
+    background: linear-gradient(90deg, #1e3a5f, #2d6a4f);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cat-heading::before { content: '📂'; }
+  .cat-range { font-size: 11px; opacity: 0.8; font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: #f1f5f9;
+    color: #1e3a5f;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 2px solid #cbd5e1;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  td:first-child { font-weight: 700; color: #1e40af; }
+  .footer {
+    text-align: center;
+    padding: 15px;
+    font-size: 11px;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 10px;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+  }
+  .print-btn {
+    display: block;
+    margin: 20px auto;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #1e3a5f, #2d6a4f);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
+<div class="notice-board">
+  <div class="notice-header">
+    <div class="madrasa-name">${madrasaName}</div>
+    <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
+  </div>
+  <div class="notice-title-bar">🏆 Programs List — ${catIdFilter === 'ALL' ? 'All Categories' : (categories.find(c => String(c.id) === String(catIdFilter)) || {}).name || ''}</div>
+  <div class="notice-body">
+    ${catSections || '<p style="color:#94a3b8;text-align:center;padding:30px">No programs found.</p>'}
+  </div>
+  <div class="footer">Generated by Milad Fest App • Total Programs: ${catIdFilter === 'ALL' ? programs.length : programs.filter(p => String(p.catid || p.catId || '') === String(catIdFilter)).length}</div>
+</div>
+</body></html>`);
+                              printWindow.document.close();
+                              printWindow.print();
+                            };
+
+                            return (
+                              <>
+                                <h3>📜 Programs ({programs.length})</h3>
+
+                                {/* Category filter chips */}
+                                <div className="student-filters-container" style={{ marginTop: '10px' }}>
+                                  <div>
+                                    <div className="filter-section-title">📂 Filter by Category</div>
+                                    <div className="filter-chips-wrapper">
+                                      <div
+                                        className={`filter-chip-box ${programFilterCat === 'ALL' ? 'active' : ''}`}
+                                        onClick={() => setProgramFilterCat('ALL')}
+                                      >
+                                        📁 All
                                       </div>
-                                    </div>
-                                  ) : (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                      <div>
-                                        <strong>{p.code}</strong> - {p.name}
-                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                          Category: {catObj ? catObj.name : 'Unknown'} | Division: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                      {categories.map(c => (
+                                        <div
+                                          key={c.id}
+                                          className={`filter-chip-box ${String(programFilterCat) === String(c.id) ? 'active' : ''}`}
+                                          onClick={() => setProgramFilterCat(c.id)}
+                                        >
+                                          {c.name}
                                         </div>
-                                      </div>
-                                      <div>
-                                        <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="settings-action-btn" title="Edit">✏️</button>
-                                        <button onClick={() => handleDeleteProgram(p.id)} className="settings-action-btn" title="Delete">❌</button>
-                                      </div>
+                                      ))}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
-                              );
-                            })
-                          )}
+
+                                {/* PDF Download buttons */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '4px' }}>
+                                  <button
+                                    onClick={() => generateProgramsPDF('ALL')}
+                                    style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d6a4f)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                  >
+                                    📄 All Programs PDF
+                                  </button>
+                                  {categories.map(c => {
+                                    const hasProgs = programs.some(p => String(p.catid || p.catId || '') === String(c.id));
+                                    if (!hasProgs) return null;
+                                    return (
+                                      <button
+                                        key={c.id}
+                                        onClick={() => generateProgramsPDF(c.id)}
+                                        style={{ background: 'linear-gradient(135deg, #0f766e, #0891b2)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                      >
+                                        📄 {c.name}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Programs grouped by category */}
+                                {programs.length === 0 ? (
+                                  <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs added.</p>
+                                ) : filteredPrograms.length === 0 ? (
+                                  <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs in this category.</p>
+                                ) : (() => {
+                                  // Group by category
+                                  const catsToShow = programFilterCat === 'ALL'
+                                    ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
+                                    : categories.filter(c => String(c.id) === String(programFilterCat));
+
+                                  return catsToShow.map(cat => {
+                                    const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                    if (catProgs.length === 0) return null;
+                                    return (
+                                      <div key={cat.id} style={{ marginTop: '16px' }}>
+                                        {/* Category heading */}
+                                        <div style={{
+                                          background: 'linear-gradient(90deg, #1e3a5f, #2d6a4f)',
+                                          color: 'white',
+                                          padding: '8px 14px',
+                                          borderRadius: '8px',
+                                          fontWeight: '700',
+                                          fontSize: '13px',
+                                          marginBottom: '8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px'
+                                        }}>
+                                          📂 {cat.name}
+                                          {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
+                                          <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
+                                        </div>
+                                        {/* Programs in this category */}
+                                        {catProgs.map(p => (
+                                          <div key={p.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px', marginBottom: '6px' }}>
+                                            {editingProgId === p.id ? (
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <input type="text" className="settings-input" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
+                                                <input type="text" className="settings-input" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
+
+                                                <select className="settings-input" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
+                                                  const val = e.target.value;
+                                                  if (val) {
+                                                    const [cId, g] = val.split('_');
+                                                    const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
+                                                    setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
+                                                  }
+                                                }}>
+                                                  <option value="">Select Category & Division</option>
+                                                  {categories.map(c => (
+                                                    <React.Fragment key={c.id}>
+                                                      <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                                      <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                                      <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                                    </React.Fragment>
+                                                  ))}
+                                                </select>
+
+                                                <select className="settings-input" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
+                                                  const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
+                                                  setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
+                                                }}>
+                                                  <option value="SINGLE">SINGLE</option>
+                                                  <option value="GROUP">GROUP</option>
+                                                </select>
+
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                                  <button onClick={handleSaveProgEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
+                                                  <button onClick={() => setEditingProgId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                <div>
+                                                  <strong>{p.code}</strong> - {p.name}
+                                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                                    Division: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="settings-action-btn" title="Edit">✏️</button>
+                                                  <button onClick={() => handleDeleteProgram(p.id)} className="settings-action-btn" title="Delete">❌</button>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  });
+                                })()}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
