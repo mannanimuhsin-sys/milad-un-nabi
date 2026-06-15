@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import './App.css';
 
 function App() {
@@ -112,7 +114,25 @@ function App() {
   // Filter state for Programs list in Master Settings
   const [programFilterCat, setProgramFilterCat] = useState('ALL');
 
+  // ── Profile Tab States ──
+  const [profileRegNo, setProfileRegNo] = useState('');
+  const [profileStudent, setProfileStudent] = useState(null);
+  const [profileStep, setProfileStep] = useState('INPUT'); // INPUT, FOUND, UPLOADING, WAITING, APPROVED
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
+  const [profileCropMode, setProfileCropMode] = useState(false);
+  const [profileUploading, setProfileUploading] = useState(false);
 
+  // Admin Profile states
+  const [profileAdminSubTab, setProfileAdminSubTab] = useState('APPROVAL');
+  const [profileAdminCatFilter, setProfileAdminCatFilter] = useState('ALL');
+  const [profileAdminTeamFilter, setProfileAdminTeamFilter] = useState('ALL');
+  const [profileAdminGenderFilter, setProfileAdminGenderFilter] = useState('ALL');
+  const [profilePdfGenerating, setProfilePdfGenerating] = useState(false);
+
+  // Refs for ID card rendering
+  const idCardRef = useRef(null);
+  const idCardGalleryRef = useRef(null);
 
   // 🔄 Function to load real-time data from Supabase
   const fetchSupabaseData = async (rNum) => {
@@ -703,6 +723,236 @@ function App() {
   const getTeamTotalPoints = (teamId) => {
     return resultsList.filter(r => String(r.teamId) === String(teamId) || String(r.teamid) === String(teamId)).reduce((sum, r) => sum + r.points, 0);
   };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 👤 PROFILE TAB HANDLERS
+  // ══════════════════════════════════════════════════════════════════════
+
+  // Look up student by register number
+  const handleProfileLookup = () => {
+    if (!profileRegNo.trim()) { alert('Please enter a register number!'); return; }
+    const found = students.find(s => String(s.regno || s.regNo || '') === String(profileRegNo.trim()));
+    if (!found) { alert('Student not found! Please check the register number.'); return; }
+    setProfileStudent(found);
+    const status = found.photo_status || 'none';
+    if (status === 'approved') setProfileStep('APPROVED');
+    else if (status === 'pending') setProfileStep('WAITING');
+    else setProfileStep('FOUND');
+  };
+
+  const handleProfileReset = () => {
+    setProfileRegNo('');
+    setProfileStudent(null);
+    setProfileStep('INPUT');
+    setProfilePhotoFile(null);
+    setProfilePhotoPreview(null);
+    setProfileCropMode(false);
+  };
+
+  // Handle photo file selection and perform center cropping and resizing to 300x300px
+  const handleProfilePhotoSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        // Create canvas for cropping and resizing to 300x300
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+
+        // Calculate crop coordinates (center square)
+        const size = Math.min(img.width, img.height);
+        const x = (img.width - size) / 2;
+        const y = (img.height - size) / 2;
+
+        // Draw cropped and resized image onto canvas
+        ctx.drawImage(img, x, y, size, size, 0, 0, 300, 300);
+
+        // Convert canvas back to a file/blob for upload
+        canvas.toBlob((blob) => {
+          if (blob) {
+            // Re-create file object from blob
+            const croppedFile = new File([blob], file.name || 'photo.jpg', { type: 'image/jpeg' });
+            setProfilePhotoFile(croppedFile);
+            setProfilePhotoPreview(canvas.toDataURL('image/jpeg', 0.85));
+            setProfileCropMode(true);
+          }
+        }, 'image/jpeg', 0.85);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload photo to Supabase Storage
+  const handleProfilePhotoUpload = async () => {
+    if (!profilePhotoFile || !profileStudent || !loggedInMadrasa) return;
+    setProfileUploading(true);
+    try {
+      const fileExt = profilePhotoFile.name.split('.').pop();
+      const filePath = `${loggedInMadrasa.regNumber}/${profileStudent.id}_${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(filePath, profilePhotoFile, { upsert: true });
+
+      if (uploadError) { alert('Upload failed: ' + uploadError.message); setProfileUploading(false); return; }
+
+      const { data: urlData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+
+      const { error: updateError } = await supabase.from('students').update({
+        photo_url: publicUrl,
+        photo_status: 'pending'
+      }).eq('id', profileStudent.id);
+
+      if (updateError) { alert('Update failed: ' + updateError.message); setProfileUploading(false); return; }
+
+      setProfileStep('WAITING');
+      setProfilePhotoFile(null);
+      setProfilePhotoPreview(null);
+      setProfileCropMode(false);
+      if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+    setProfileUploading(false);
+  };
+
+  // Admin: Approve photo
+  const handleApprovePhoto = async (studentId) => {
+    const { error } = await supabase.from('students').update({ photo_status: 'approved' }).eq('id', studentId);
+    if (error) alert('Error: ' + error.message);
+    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+  };
+
+  // Admin: Delete photo
+  const handleDeletePhoto = async (student) => {
+    if (!window.confirm('Delete this student\'s photo?')) return;
+    // Try to delete from storage
+    if (student.photo_url) {
+      try {
+        const urlParts = student.photo_url.split('/student-photos/');
+        if (urlParts[1]) {
+          await supabase.storage.from('student-photos').remove([decodeURIComponent(urlParts[1])]);
+        }
+      } catch (e) { console.warn('Storage delete failed:', e); }
+    }
+    const { error } = await supabase.from('students').update({ photo_url: null, photo_status: 'none' }).eq('id', student.id);
+    if (error) alert('Error: ' + error.message);
+    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+  };
+
+  // Admin: Edit photo (re-upload)
+  const handleAdminPhotoReUpload = async (studentId, file) => {
+    if (!file || !loggedInMadrasa) return;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${loggedInMadrasa.regNumber}/${studentId}_${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage.from('student-photos').upload(filePath, file, { upsert: true });
+    if (uploadError) { alert('Upload failed: ' + uploadError.message); return; }
+    const { data: urlData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
+    const { error } = await supabase.from('students').update({ photo_url: urlData.publicUrl, photo_status: 'pending' }).eq('id', studentId);
+    if (error) alert('Error: ' + error.message);
+    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+  };
+
+  // Download single ID card as image
+  const handleDownloadIdCard = async (cardElement, studentName) => {
+    if (!cardElement) return;
+    try {
+      const canvas = await html2canvas(cardElement, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `ID_Card_${studentName.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) { alert('Download failed: ' + err.message); }
+  };
+
+  // Generate PDF of multiple ID cards
+  const handleDownloadPDF = useCallback(async (filteredStudentsList) => {
+    if (filteredStudentsList.length === 0) { alert('No ID cards to export!'); return; }
+    setProfilePdfGenerating(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const cardW = 85;
+      const cardH = 130;
+      const marginX = 13;
+      const marginY = 10;
+      const cols = 2;
+      const gap = 7;
+      let x = marginX, y = marginY, cardIndex = 0;
+
+      for (let i = 0; i < filteredStudentsList.length; i++) {
+        const s = filteredStudentsList[i];
+        if (!s.photo_url || s.photo_status !== 'approved') continue;
+
+        // Create a temporary ID card DOM
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.width = '340px';
+        document.body.appendChild(tempDiv);
+
+        const sTeamId = s.teamid || s.teamId || '';
+        const sCatId = s.catid || s.catId || '';
+        const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+        const catObj = categories.find(c => String(c.id) === String(sCatId));
+
+        tempDiv.innerHTML = `
+          <div style="width:340px;background:#fff;border-radius:16px;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;">
+            <div style="background:linear-gradient(135deg,#064e3b,#0f766e);padding:14px 16px;text-align:center;">
+              <div style="color:#fbbf24;font-size:16px;font-weight:800;letter-spacing:1px;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+              <div style="color:rgba(255,255,255,0.8);font-size:10px;margin-top:3px;">Reg No: ${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;padding:18px 16px 14px;">
+              <div style="width:90px;height:90px;border-radius:50%;border:3px solid #064e3b;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.15);margin-bottom:12px;">
+                <img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />
+              </div>
+              <div style="font-size:20px;font-weight:800;color:#1e293b;text-align:center;margin-bottom:2px;">${s.name}</div>
+              <div style="background:linear-gradient(135deg,#064e3b,#0f766e);color:#fff;padding:5px 18px;border-radius:20px;font-size:14px;font-weight:700;margin:6px 0;">${s.regno || s.regNo || ''}</div>
+              <div style="display:flex;gap:14px;margin-top:8px;font-size:12px;color:#475569;">
+                <span>📂 ${catObj ? catObj.name : 'N/A'}</span>
+                <span>🚩 ${teamObj ? teamObj.name : 'N/A'}</span>
+                <span>${s.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+              </div>
+            </div>
+            <div style="background:#f8fafc;padding:8px;text-align:center;border-top:1px solid #e2e8f0;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;">MILAD FEST • ID CARD</span>
+            </div>
+          </div>
+        `;
+
+        const canvas = await html2canvas(tempDiv.firstElementChild, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+        document.body.removeChild(tempDiv);
+
+        const imgData = canvas.toDataURL('image/png');
+
+        if (cardIndex > 0 && cardIndex % (cols * 2) === 0) {
+          pdf.addPage();
+          y = marginY;
+          x = marginX;
+        }
+
+        const col = cardIndex % cols;
+        const row = Math.floor(cardIndex % (cols * 2) / cols);
+        x = marginX + col * (cardW + gap);
+        y = marginY + row * (cardH + gap);
+
+        pdf.addImage(imgData, 'PNG', x, y, cardW, cardH);
+        cardIndex++;
+      }
+
+      pdf.save(`ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}.pdf`);
+    } catch (err) {
+      alert('PDF generation failed: ' + err.message);
+    }
+    setProfilePdfGenerating(false);
+  }, [teams, categories, loggedInMadrasa]);
 
   return (
     <div className="main-container">
@@ -1904,6 +2154,346 @@ function downloadAsImage() {
             </div>
           )}
 
+          {/* ---------------- 🎯 TAB 2.5: PROFILE ---------------- */}
+          {activeTab === 'PROFILE' && (
+            <div className="card animate-tab">
+              <h2 style={{ marginBottom: '18px' }}>👤 Profile</h2>
+
+              {/* ══════════ VIEW MODE ══════════ */}
+              {loginRole !== 'ADMIN' ? (
+                <div className="profile-container">
+
+                  {/* Step 1: Register number input */}
+                  {profileStep === 'INPUT' && (
+                    <div className="profile-reg-input-card">
+                      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '8px' }}>🪪</div>
+                        <h3 style={{ color: '#1e293b', fontSize: '18px', fontWeight: '700' }}>Student ID Card</h3>
+                        <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>Enter your register number to access your profile</p>
+                      </div>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        className="settings-input"
+                        placeholder="Enter Register Number"
+                        value={profileRegNo}
+                        onChange={(e) => setProfileRegNo(e.target.value)}
+                        style={{ textAlign: 'center', fontSize: '18px', padding: '14px', marginBottom: '12px' }}
+                      />
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handleProfileLookup} className="btn-add-action" style={{ flex: 1 }}>Confirm</button>
+                        <button onClick={handleProfileReset} className="btn-add-action" style={{ flex: 1, background: '#94a3b8' }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2: Student found - show details + upload */}
+                  {profileStep === 'FOUND' && profileStudent && (
+                    <div className="profile-reg-input-card">
+                      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                        <div style={{ fontSize: '36px', marginBottom: '6px' }}>🎓</div>
+                        <h3 style={{ color: '#1e293b', fontWeight: '700' }}>{profileStudent.name}</h3>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '8px', fontSize: '13px', color: '#475569' }}>
+                          <span>📋 {profileStudent.regno || profileStudent.regNo}</span>
+                          <span>🚩 {(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>
+                          <span>📂 {(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
+                          <span>{profileStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                        </div>
+                      </div>
+
+                      {/* Photo Upload Area */}
+                      <div className="photo-upload-area">
+                        {!profilePhotoPreview ? (
+                          <>
+                            <div style={{ fontSize: '40px', marginBottom: '8px' }}>📷</div>
+                            <p style={{ color: '#475569', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Upload Your Photo</p>
+                            <label className="btn-add-action" style={{ display: 'inline-block', cursor: 'pointer', padding: '10px 24px', width: 'auto' }}>
+                              Select Photo
+                              <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
+                            </label>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ width: '140px', height: '140px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #064e3b', margin: '0 auto 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
+                              <img src={profilePhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                            {profileCropMode && (
+                              <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600', marginBottom: '8px', textAlign: 'center' }}>
+                                ✂️ Automatically Cropped to Square
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                              <button onClick={handleProfilePhotoUpload} className="btn-add-action" style={{ width: 'auto', padding: '10px 24px' }} disabled={profileUploading}>
+                                {profileUploading ? '⏳ Uploading...' : '✅ Upload'}
+                              </button>
+                              <label className="btn-add-action" style={{ width: 'auto', padding: '10px 24px', background: '#64748b', cursor: 'pointer' }}>
+                                🔄 Change
+                                <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
+                              </label>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
+                    </div>
+                  )}
+
+                  {/* Step 3: Waiting for approval */}
+                  {profileStep === 'WAITING' && profileStudent && (
+                    <div className="profile-reg-input-card">
+                      <div className="waiting-approval-box">
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>⏳</div>
+                        <h3 style={{ color: '#1e293b', fontWeight: '700', marginBottom: '6px' }}>Waiting for Approval</h3>
+                        <p style={{ color: '#64748b', fontSize: '13px' }}>Your photo has been uploaded and is pending admin approval.</p>
+                        <div style={{ margin: '16px auto', width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #e2e8f0' }}>
+                          {profileStudent.photo_url ? (
+                            <img src={profileStudent.photo_url} alt="Uploaded" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '36px' }}>👤</div>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#0f766e' }}>{profileStudent.name}</p>
+                      </div>
+                      <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
+                    </div>
+                  )}
+
+                  {/* Step 4: Approved - Show ID Card */}
+                  {profileStep === 'APPROVED' && profileStudent && (
+                    <div>
+                      {/* Professional ID Card */}
+                      <div className="id-card" ref={idCardRef}>
+                        <div className="id-card-header">
+                          <div className="id-card-madrasa-name">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+                          <div className="id-card-madrasa-info">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+                        </div>
+                        <div className="id-card-body">
+                          <div className="id-card-photo">
+                            {profileStudent.photo_url ? (
+                              <img src={profileStudent.photo_url} alt={profileStudent.name} crossOrigin="anonymous" />
+                            ) : (
+                              <div className="id-card-photo-placeholder">👤</div>
+                            )}
+                          </div>
+                          <div className="id-card-name">{profileStudent.name}</div>
+                          <div className="id-card-regno">{profileStudent.regno || profileStudent.regNo || ''}</div>
+                          <div className="id-card-details">
+                            <span>📂 {(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
+                            <span>🚩 {(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>
+                            <span>{profileStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                          </div>
+                        </div>
+                        <div className="id-card-footer">
+                          <span>MILAD FEST • ID CARD</span>
+                        </div>
+                      </div>
+
+                      {/* Download Button */}
+                      <button
+                        onClick={() => handleDownloadIdCard(idCardRef.current, profileStudent.name)}
+                        className="btn-add-action"
+                        style={{ marginTop: '16px', background: 'linear-gradient(135deg, #064e3b, #0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      >
+                        📥 Download ID Card
+                      </button>
+                      <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '8px' }}>← Back</button>
+                    </div>
+                  )}
+                </div>
+
+              ) : (
+
+                /* ══════════ ADMIN MODE ══════════ */
+                <div className="profile-container">
+                  {/* Admin Sub-tabs */}
+                  <div className="sub-tab-nav" style={{ marginBottom: '16px' }}>
+                    <button className={`sub-nav-item ${profileAdminSubTab === 'APPROVAL' ? 'active' : ''}`} onClick={() => setProfileAdminSubTab('APPROVAL')}>✅ Approval</button>
+                    <button className={`sub-nav-item ${profileAdminSubTab === 'ID_CARDS' ? 'active' : ''}`} onClick={() => setProfileAdminSubTab('ID_CARDS')}>🪪 ID Cards</button>
+                  </div>
+
+                  {/* ── Section A: APPROVAL ── */}
+                  {profileAdminSubTab === 'APPROVAL' && (
+                    <div>
+                      {/* Category filter chips */}
+                      <div className="student-filters-container" style={{ marginBottom: '16px' }}>
+                        <div className="filter-section-title">📂 Filter by Category</div>
+                        <div className="filter-chips-wrapper">
+                          <div className={`filter-chip-box ${profileAdminCatFilter === 'ALL' ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter('ALL')}>📁 All</div>
+                          {categories.map(c => (
+                            <div key={c.id} className={`filter-chip-box ${String(profileAdminCatFilter) === String(c.id) ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter(c.id)}>{c.name}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Approval list */}
+                      <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                        <h3>📋 Students Photo Approval</h3>
+                        {(() => {
+                          const filtered = students.filter(s => {
+                            const matchCat = profileAdminCatFilter === 'ALL' || String(s.catid || s.catId || '') === String(profileAdminCatFilter);
+                            const hasPhoto = s.photo_url && s.photo_status && s.photo_status !== 'none';
+                            return matchCat && hasPhoto;
+                          });
+
+                          if (filtered.length === 0) return <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No photos pending for approval.</p>;
+
+                          return filtered.map(s => {
+                            const sTeamId = s.teamid || s.teamId || '';
+                            const sCatId = s.catid || s.catId || '';
+                            const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+                            const catObj = categories.find(c => String(c.id) === String(sCatId));
+                            const isPending = s.photo_status === 'pending';
+                            const isApproved = s.photo_status === 'approved';
+
+                            return (
+                              <div key={s.id} className="approval-item">
+                                <div className="approval-item-left">
+                                  <div className="approval-photo-thumb">
+                                    {s.photo_url ? (
+                                      <img src={s.photo_url} alt={s.name} />
+                                    ) : (
+                                      <span>👤</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <strong>{s.regno || s.regNo || ''}</strong> - {s.name}
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                      Team: {teamObj ? teamObj.name : 'N/A'}
+                                      {profileAdminCatFilter === 'ALL' && <> | Category: {catObj ? catObj.name : 'N/A'}</>}
+                                    </div>
+                                    <div style={{ marginTop: '4px' }}>
+                                      <span className={`approval-status-badge ${isApproved ? 'status-approved' : 'status-pending'}`}>
+                                        {isApproved ? '✅ Approved' : '⏳ Pending'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="approval-actions">
+                                  {isPending && (
+                                    <button onClick={() => handleApprovePhoto(s.id)} className="approval-btn approve-btn" title="Approve">✅</button>
+                                  )}
+                                  <label className="approval-btn edit-btn" title="Re-upload Photo">
+                                    ✏️
+                                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleAdminPhotoReUpload(s.id, e.target.files[0]); }} />
+                                  </label>
+                                  <button onClick={() => handleDeletePhoto(s)} className="approval-btn delete-btn" title="Delete Photo">🗑️</button>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Section B: ID CARDS ── */}
+                  {profileAdminSubTab === 'ID_CARDS' && (
+                    <div>
+                      {/* Filters */}
+                      <div className="student-filters-container" style={{ marginBottom: '16px' }}>
+                        <div>
+                          <div className="filter-section-title">📂 Category</div>
+                          <div className="filter-chips-wrapper">
+                            <div className={`filter-chip-box ${profileAdminCatFilter === 'ALL' ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter('ALL')}>📁 All</div>
+                            {categories.map(c => (
+                              <div key={c.id} className={`filter-chip-box ${String(profileAdminCatFilter) === String(c.id) ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter(c.id)}>{c.name}</div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="filter-section-title">🚩 Team</div>
+                          <div className="filter-chips-wrapper">
+                            <div className={`filter-chip-box ${profileAdminTeamFilter === 'ALL' ? 'active' : ''}`} onClick={() => setProfileAdminTeamFilter('ALL')}>👥 All</div>
+                            {teams.map(t => (
+                              <div key={t.id} className={`filter-chip-box ${String(profileAdminTeamFilter) === String(t.id) ? 'active' : ''}`} onClick={() => setProfileAdminTeamFilter(t.id)}>{t.name}</div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="filter-section-title">👦/👧 Division</div>
+                          <div className="filter-chips-wrapper">
+                            <div className={`filter-chip-box ${profileAdminGenderFilter === 'ALL' ? 'active' : ''}`} onClick={() => setProfileAdminGenderFilter('ALL')}>👥 All</div>
+                            <div className={`filter-chip-box ${profileAdminGenderFilter === 'BOY' ? 'active-boy' : ''}`} onClick={() => setProfileAdminGenderFilter('BOY')}>👦 Boys</div>
+                            <div className={`filter-chip-box ${profileAdminGenderFilter === 'GIRL' ? 'active-girl' : ''}`} onClick={() => setProfileAdminGenderFilter('GIRL')}>👧 Girls</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* PDF Export Button */}
+                      {(() => {
+                        const approvedFiltered = students.filter(s => {
+                          if (s.photo_status !== 'approved') return false;
+                          const matchCat = profileAdminCatFilter === 'ALL' || String(s.catid || s.catId || '') === String(profileAdminCatFilter);
+                          const matchTeam = profileAdminTeamFilter === 'ALL' || String(s.teamid || s.teamId || '') === String(profileAdminTeamFilter);
+                          const matchGender = profileAdminGenderFilter === 'ALL' || (s.gender || '') === profileAdminGenderFilter;
+                          return matchCat && matchTeam && matchGender;
+                        });
+
+                        return (
+                          <>
+                            <button
+                              onClick={() => handleDownloadPDF(approvedFiltered)}
+                              disabled={profilePdfGenerating || approvedFiltered.length === 0}
+                              className="btn-add-action"
+                              style={{ marginBottom: '16px', background: 'linear-gradient(135deg, #7c3aed, #4c1d95)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            >
+                              {profilePdfGenerating ? '⏳ Generating PDF...' : `📄 Download PDF (${approvedFiltered.length} cards)`}
+                            </button>
+
+                            {/* ID Card Gallery Grid */}
+                            <div className="id-card-grid" ref={idCardGalleryRef}>
+                              {approvedFiltered.length === 0 ? (
+                                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '30px 0', gridColumn: '1 / -1' }}>No approved ID cards found for the selected filters.</p>
+                              ) : (
+                                approvedFiltered.map(s => {
+                                  const sTeamId = s.teamid || s.teamId || '';
+                                  const sCatId = s.catid || s.catId || '';
+                                  const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+                                  const catObj = categories.find(c => String(c.id) === String(sCatId));
+
+                                  return (
+                                    <div key={s.id} className="id-card-gallery-item">
+                                      <div className="id-card id-card-mini">
+                                        <div className="id-card-header">
+                                          <div className="id-card-madrasa-name">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+                                          <div className="id-card-madrasa-info">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+                                        </div>
+                                        <div className="id-card-body">
+                                          <div className="id-card-photo">
+                                            {s.photo_url ? (
+                                              <img src={s.photo_url} alt={s.name} crossOrigin="anonymous" />
+                                            ) : (
+                                              <div className="id-card-photo-placeholder">👤</div>
+                                            )}
+                                          </div>
+                                          <div className="id-card-name">{s.name}</div>
+                                          <div className="id-card-regno">{s.regno || s.regNo || ''}</div>
+                                          <div className="id-card-details">
+                                            <span>📂 {catObj ? catObj.name : 'N/A'}</span>
+                                            <span>🚩 {teamObj ? teamObj.name : 'N/A'}</span>
+                                            <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="id-card-footer">
+                                          <span>MILAD FEST • ID CARD</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ---------------- 🎯 TAB 3: MASTER SETTINGS ---------------- */}
           {activeTab === 'SETTINGS' && (
             <div className="card animate-tab">
@@ -2754,6 +3344,9 @@ function downloadAsImage() {
           </button>
           <button className={`nav-tab-item ${activeTab === 'RECENT' ? 'active' : ''}`} onClick={() => setActiveTab('RECENT')}>
             <span className="nav-icon">📜</span><span>Results</span>
+          </button>
+          <button className={`nav-tab-item ${activeTab === 'PROFILE' ? 'active' : ''}`} onClick={() => setActiveTab('PROFILE')}>
+            <span className="nav-icon">👤</span><span>Profile</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'SETTINGS' ? 'active' : ''}`} onClick={() => setActiveTab('SETTINGS')}>
             <span className="nav-icon">⚙️</span><span>Master Settings</span>
