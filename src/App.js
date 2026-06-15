@@ -848,35 +848,45 @@ function App() {
     setCropperImageDims(null);
   };
 
-  // Upload photo to Supabase Storage
+  // Upload photo — stored as base64 directly in DB (no Storage bucket needed)
   const handleProfilePhotoUpload = async () => {
     if (!profilePhotoFile) { alert('No photo selected!'); return; }
     if (!profileStudent) { alert('No student selected!'); return; }
     if (!loggedInMadrasa) { alert('Session expired. Please log in again.'); return; }
     setProfileUploading(true);
     try {
-      // Always upload as .jpg since we convert to JPEG during crop
-      const filePath = `${loggedInMadrasa.regNumber}/${profileStudent.id}_${Date.now()}.jpg`;
+      // Compress image to ≤200KB before storing as base64
+      const compressImage = (file, maxKB = 200) => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 300;
+            canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
+            let quality = 0.85;
+            let dataUrl = canvas.toDataURL('image/jpeg', quality);
+            // Reduce quality until under maxKB
+            while (dataUrl.length > maxKB * 1024 * 1.37 && quality > 0.3) {
+              quality -= 0.1;
+              dataUrl = canvas.toDataURL('image/jpeg', quality);
+            }
+            resolve(dataUrl);
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('student-photos')
-        .upload(filePath, profilePhotoFile, { upsert: true, contentType: 'image/jpeg' });
-
-      if (uploadError) {
-        alert('Upload failed: ' + uploadError.message + '\n\nMake sure the storage bucket "student-photos" exists and has public upload enabled in Supabase.');
-        setProfileUploading(false);
-        return;
-      }
-
-      const { data: urlData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
-      const publicUrl = urlData.publicUrl;
+      const base64DataUrl = await compressImage(profilePhotoFile);
 
       const { error: updateError } = await supabase.from('students').update({
-        photo_url: publicUrl,
+        photo_url: base64DataUrl,
         photo_status: 'pending'
       }).eq('id', profileStudent.id);
 
-      if (updateError) { alert('DB update failed: ' + updateError.message); setProfileUploading(false); return; }
+      if (updateError) { alert('Upload failed: ' + updateError.message); setProfileUploading(false); return; }
 
       setProfileStep('WAITING');
       setProfilePhotoFile(null);
@@ -899,31 +909,31 @@ function App() {
   // Admin: Delete photo
   const handleDeletePhoto = async (student) => {
     if (!window.confirm('Delete this student\'s photo?')) return;
-    // Try to delete from storage
-    if (student.photo_url) {
-      try {
-        const urlParts = student.photo_url.split('/student-photos/');
-        if (urlParts[1]) {
-          await supabase.storage.from('student-photos').remove([decodeURIComponent(urlParts[1])]);
-        }
-      } catch (e) { console.warn('Storage delete failed:', e); }
-    }
+    // Photo stored as base64 in DB — just null it out
     const { error } = await supabase.from('students').update({ photo_url: null, photo_status: 'none' }).eq('id', student.id);
     if (error) alert('Error: ' + error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
   };
 
-  // Admin: Edit photo (re-upload)
+  // Admin: Edit photo (re-upload as base64)
   const handleAdminPhotoReUpload = async (studentId, file) => {
     if (!file || !loggedInMadrasa) return;
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${loggedInMadrasa.regNumber}/${studentId}_${Date.now()}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from('student-photos').upload(filePath, file, { upsert: true });
-    if (uploadError) { alert('Upload failed: ' + uploadError.message); return; }
-    const { data: urlData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
-    const { error } = await supabase.from('students').update({ photo_url: urlData.publicUrl, photo_status: 'pending' }).eq('id', studentId);
-    if (error) alert('Error: ' + error.message);
-    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
+        const base64DataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const { error } = await supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'pending' }).eq('id', studentId);
+        if (error) alert('Error: ' + error.message);
+        else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   // Download single ID card as image
