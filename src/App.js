@@ -130,6 +130,21 @@ function App() {
   const [profileAdminGenderFilter, setProfileAdminGenderFilter] = useState('ALL');
   const [profilePdfGenerating, setProfilePdfGenerating] = useState(false);
 
+  // ── Manual Cropper States & Refs ──
+  const [cropperSrc, setCropperSrc] = useState(null);
+  const [cropperZoom, setCropperZoom] = useState(1);
+  const [cropperImageDims, setCropperImageDims] = useState(null);
+  const [cropperFilename, setCropperFilename] = useState('photo.jpg');
+
+  const cropperImageRef = useRef(null);
+  const dragStateRef = useRef({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0
+  });
+
   // Refs for ID card rendering
   const idCardRef = useRef(null);
   const idCardGalleryRef = useRef(null);
@@ -749,58 +764,109 @@ function App() {
     setProfileCropMode(false);
   };
 
-  // Handle photo file selection and perform center cropping and resizing to 300x300px
+  // Handle photo file selection — open manual cropper
   const handleProfilePhotoSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
+    // Reset the input so the same file can be re-selected after cancel
+    e.target.value = '';
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
       img.onload = () => {
-        // Create canvas for cropping and resizing to 300x300
-        const canvas = document.createElement('canvas');
-        canvas.width = 300;
-        canvas.height = 300;
-        const ctx = canvas.getContext('2d');
-
-        // Calculate crop coordinates (center square)
-        const size = Math.min(img.width, img.height);
-        const x = (img.width - size) / 2;
-        const y = (img.height - size) / 2;
-
-        // Draw cropped and resized image onto canvas
-        ctx.drawImage(img, x, y, size, size, 0, 0, 300, 300);
-
-        // Convert canvas back to a file/blob for upload
-        canvas.toBlob((blob) => {
-          if (blob) {
-            // Re-create file object from blob
-            const croppedFile = new File([blob], file.name || 'photo.jpg', { type: 'image/jpeg' });
-            setProfilePhotoFile(croppedFile);
-            setProfilePhotoPreview(canvas.toDataURL('image/jpeg', 0.85));
-            setProfileCropMode(true);
-          }
-        }, 'image/jpeg', 0.85);
+        // Store filename for later use
+        setCropperFilename(file.name || 'photo.jpg');
+        // Set image source — triggers the cropper modal
+        setCropperSrc(ev.target.result);
+        // Compute initial dims so we can centre the image in the viewport
+        setCropperImageDims({ width: img.width, height: img.height });
+        // Reset zoom & drag offset
+        setCropperZoom(1);
+        dragStateRef.current = { isDragging: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0 };
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   };
 
+  // Confirm crop: draw whatever is visible in the 260x260 viewport onto a 300x300 canvas
+  const handleCropConfirm = () => {
+    const imgEl = cropperImageRef.current;
+    if (!imgEl || !cropperSrc || !cropperImageDims) return;
+
+    // The circular viewport on screen is 260 px wide/tall
+    const VIEWPORT = 260;
+
+    // Current rendered size of the image element (zoom applied via CSS transform)
+    const naturalW = cropperImageDims.width;
+    const naturalH = cropperImageDims.height;
+
+    // Compute the rendered size (longest side fills viewport * zoom)
+    const scale = (VIEWPORT / Math.min(naturalW, naturalH)) * cropperZoom;
+    const renderedW = naturalW * scale;
+    const renderedH = naturalH * scale;
+
+    // Drag offsets are in CSS pixels relative to rendered image centre
+    const { offsetX, offsetY } = dragStateRef.current;
+
+    // Centre of viewport in rendered-image coordinates
+    const centreX = renderedW / 2 - offsetX;
+    const centreY = renderedH / 2 - offsetY;
+
+    // Top-left of the crop square in natural-image coordinates
+    const cropSize = VIEWPORT / scale;   // natural pixels covered by viewport
+    const srcX = (centreX / scale) - cropSize / 2;
+    const srcY = (centreY / scale) - cropSize / 2;
+
+    // Draw onto 300×300 output canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, srcX, srcY, cropSize, cropSize, 0, 0, 300, 300);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const croppedFile = new File([blob], cropperFilename, { type: 'image/jpeg' });
+          setProfilePhotoFile(croppedFile);
+          setProfilePhotoPreview(canvas.toDataURL('image/jpeg', 0.9));
+          setProfileCropMode(true);
+        }
+        // Close cropper
+        setCropperSrc(null);
+        setCropperImageDims(null);
+      }, 'image/jpeg', 0.9);
+    };
+    img.src = cropperSrc;
+  };
+
+  // Cancel cropper without keeping anything
+  const handleCropCancel = () => {
+    setCropperSrc(null);
+    setCropperImageDims(null);
+  };
+
   // Upload photo to Supabase Storage
   const handleProfilePhotoUpload = async () => {
-    if (!profilePhotoFile || !profileStudent || !loggedInMadrasa) return;
+    if (!profilePhotoFile) { alert('No photo selected!'); return; }
+    if (!profileStudent) { alert('No student selected!'); return; }
+    if (!loggedInMadrasa) { alert('Session expired. Please log in again.'); return; }
     setProfileUploading(true);
     try {
-      const fileExt = profilePhotoFile.name.split('.').pop();
-      const filePath = `${loggedInMadrasa.regNumber}/${profileStudent.id}_${Date.now()}.${fileExt}`;
+      // Always upload as .jpg since we convert to JPEG during crop
+      const filePath = `${loggedInMadrasa.regNumber}/${profileStudent.id}_${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('student-photos')
-        .upload(filePath, profilePhotoFile, { upsert: true });
+        .upload(filePath, profilePhotoFile, { upsert: true, contentType: 'image/jpeg' });
 
-      if (uploadError) { alert('Upload failed: ' + uploadError.message); setProfileUploading(false); return; }
+      if (uploadError) {
+        alert('Upload failed: ' + uploadError.message + '\n\nMake sure the storage bucket "student-photos" exists and has public upload enabled in Supabase.');
+        setProfileUploading(false);
+        return;
+      }
 
       const { data: urlData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
       const publicUrl = urlData.publicUrl;
@@ -810,7 +876,7 @@ function App() {
         photo_status: 'pending'
       }).eq('id', profileStudent.id);
 
-      if (updateError) { alert('Update failed: ' + updateError.message); setProfileUploading(false); return; }
+      if (updateError) { alert('DB update failed: ' + updateError.message); setProfileUploading(false); return; }
 
       setProfileStep('WAITING');
       setProfilePhotoFile(null);
@@ -818,7 +884,7 @@ function App() {
       setProfileCropMode(false);
       if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
     } catch (err) {
-      alert('Error: ' + err.message);
+      alert('Unexpected error: ' + err.message);
     }
     setProfileUploading(false);
   };
@@ -956,6 +1022,149 @@ function App() {
 
   return (
     <div className="main-container">
+
+      {/* ✂️ MANUAL PHOTO CROPPER MODAL */}
+      {cropperSrc && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.92)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '8px', textAlign: 'center' }}>
+            📸 Move & Zoom to Crop
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '16px', textAlign: 'center' }}>
+            Drag to reposition • Scroll/pinch to zoom
+          </div>
+
+          {/* Circular viewport */}
+          <div
+            style={{
+              width: '260px', height: '260px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              border: '3px solid #22c55e',
+              boxShadow: '0 0 0 9999px rgba(0,0,0,0.75)',
+              position: 'relative',
+              cursor: 'grab',
+              touchAction: 'none',
+              userSelect: 'none'
+            }}
+            onMouseDown={(e) => {
+              dragStateRef.current.isDragging = true;
+              dragStateRef.current.startX = e.clientX;
+              dragStateRef.current.startY = e.clientY;
+            }}
+            onMouseMove={(e) => {
+              if (!dragStateRef.current.isDragging) return;
+              const dx = e.clientX - dragStateRef.current.startX;
+              const dy = e.clientY - dragStateRef.current.startY;
+              dragStateRef.current.startX = e.clientX;
+              dragStateRef.current.startY = e.clientY;
+              dragStateRef.current.offsetX += dx;
+              dragStateRef.current.offsetY += dy;
+              if (cropperImageRef.current) {
+                cropperImageRef.current.style.transform =
+                  `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${cropperZoom})`;
+              }
+            }}
+            onMouseUp={() => { dragStateRef.current.isDragging = false; }}
+            onMouseLeave={() => { dragStateRef.current.isDragging = false; }}
+            onWheel={(e) => {
+              e.preventDefault();
+              const delta = e.deltaY > 0 ? -0.1 : 0.1;
+              setCropperZoom(prev => {
+                const next = Math.min(5, Math.max(0.5, prev + delta));
+                if (cropperImageRef.current) {
+                  cropperImageRef.current.style.transform =
+                    `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${next})`;
+                }
+                return next;
+              });
+            }}
+            onTouchStart={(e) => {
+              if (e.touches.length === 1) {
+                dragStateRef.current.isDragging = true;
+                dragStateRef.current.startX = e.touches[0].clientX;
+                dragStateRef.current.startY = e.touches[0].clientY;
+              }
+            }}
+            onTouchMove={(e) => {
+              e.preventDefault();
+              if (e.touches.length === 1 && dragStateRef.current.isDragging) {
+                const dx = e.touches[0].clientX - dragStateRef.current.startX;
+                const dy = e.touches[0].clientY - dragStateRef.current.startY;
+                dragStateRef.current.startX = e.touches[0].clientX;
+                dragStateRef.current.startY = e.touches[0].clientY;
+                dragStateRef.current.offsetX += dx;
+                dragStateRef.current.offsetY += dy;
+                if (cropperImageRef.current) {
+                  cropperImageRef.current.style.transform =
+                    `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${cropperZoom})`;
+                }
+              }
+            }}
+            onTouchEnd={() => { dragStateRef.current.isDragging = false; }}
+          >
+            <img
+              ref={cropperImageRef}
+              src={cropperSrc}
+              alt="crop"
+              style={{
+                width: '260px',
+                height: '260px',
+                objectFit: 'cover',
+                transform: `translate(0px, 0px) scale(${cropperZoom})`,
+                transformOrigin: 'center center',
+                pointerEvents: 'none',
+                display: 'block'
+              }}
+              draggable={false}
+            />
+          </div>
+
+          {/* Zoom slider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', width: '260px' }}>
+            <span style={{ color: '#94a3b8', fontSize: '14px' }}>🔍−</span>
+            <input
+              type="range" min="0.5" max="3" step="0.05"
+              value={cropperZoom}
+              onChange={(e) => {
+                const z = parseFloat(e.target.value);
+                setCropperZoom(z);
+                if (cropperImageRef.current) {
+                  cropperImageRef.current.style.transform =
+                    `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${z})`;
+                }
+              }}
+              style={{ flex: 1, accentColor: '#22c55e' }}
+            />
+            <span style={{ color: '#94a3b8', fontSize: '14px' }}>+</span>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+            <button
+              onClick={handleCropCancel}
+              style={{
+                padding: '12px 28px', borderRadius: '10px', border: 'none',
+                background: '#475569', color: '#fff', fontWeight: '700',
+                fontSize: '14px', cursor: 'pointer'
+              }}
+            >✕ Cancel</button>
+            <button
+              onClick={handleCropConfirm}
+              style={{
+                padding: '12px 28px', borderRadius: '10px', border: 'none',
+                background: '#16a34a', color: '#fff', fontWeight: '700',
+                fontSize: '14px', cursor: 'pointer'
+              }}
+            >✓ Crop & Use</button>
+          </div>
+        </div>
+      )}
 
       {/* 🔐 LOGIN SCREEN */}
       {currentScreen === 'LOGIN' && (
@@ -2219,7 +2428,7 @@ function downloadAsImage() {
                             </div>
                             {profileCropMode && (
                               <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600', marginBottom: '8px', textAlign: 'center' }}>
-                                ✂️ Automatically Cropped to Square
+                                ✂️ Manually Cropped — Ready to Upload
                               </div>
                             )}
                             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
