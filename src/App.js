@@ -2,7 +2,38 @@ import { supabase } from './supabaseClient';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
 import './App.css';
+
+// Inline component to generate and display QR code asynchronously
+function StudentQrCode({ madrasaReg, studentId }) {
+  const [qrUrl, setQrUrl] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const generate = async () => {
+      const appUrl = window.location.origin;
+      const scanUrl = `${appUrl}/?qr=${madrasaReg}_${studentId}`;
+      try {
+        const url = await QRCode.toDataURL(scanUrl, {
+          width: 150,
+          margin: 1,
+          color: { dark: '#064e3b', light: '#ffffff' }
+        });
+        if (active) setQrUrl(url);
+      } catch (err) {
+        console.error("QR generation failed: ", err);
+      }
+    };
+    if (madrasaReg && studentId) {
+      generate();
+    }
+    return () => { active = false; };
+  }, [madrasaReg, studentId]);
+
+  if (!qrUrl) return <div className="qr-placeholder" style={{ width: '70px', height: '70px', background: '#f1f5f9', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#94a3b8' }}>Generating...</div>;
+  return <img src={qrUrl} alt="QR Code" style={{ width: '70px', height: '70px', display: 'block', margin: '0 auto' }} />;
+}
 
 function App() {
   // ── Persistent session: restore from localStorage on first render ──
@@ -130,6 +161,11 @@ function App() {
   const [profileAdminGenderFilter, setProfileAdminGenderFilter] = useState('ALL');
   const [profilePdfGenerating, setProfilePdfGenerating] = useState(false);
 
+  // QR Code scan modal states
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalData, setQrModalData] = useState(null);
+  const [qrModalLoading, setQrModalLoading] = useState(false);
+
   // ── Manual Cropper States & Refs ──
   const [cropperSrc, setCropperSrc] = useState(null);
   const [cropperZoom, setCropperZoom] = useState(1);
@@ -205,6 +241,79 @@ function App() {
       checkAndInsertDefaultCategories(rNum);
     }
   }, [loggedInMadrasa]);
+
+  // ── QR Code URL Parameter Handler ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qrParam = params.get('qr');
+    if (qrParam) {
+      // Format: madrasaRegNum_studentId
+      const parts = qrParam.split('_');
+      if (parts.length >= 2) {
+        const madrasaReg = parts[0];
+        const studentId = parts.slice(1).join('_');
+        handleQrScan(madrasaReg, studentId);
+      }
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // QR scan data fetcher
+  const handleQrScan = async (madrasaReg, studentId) => {
+    setQrModalLoading(true);
+    setQrModalOpen(true);
+    try {
+      const [{ data: madrasaData }, { data: studentData }, { data: resultsData }, { data: teamsData }, { data: catsData }, { data: progsData }] = await Promise.all([
+        supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
+        supabase.from('students').select('*').eq('id', studentId).maybeSingle(),
+        supabase.from('results').select('*').eq('madrasa_id', madrasaReg),
+        supabase.from('teams').select('*').eq('madrasa_id', madrasaReg),
+        supabase.from('categories').select('*').eq('madrasa_id', madrasaReg),
+        supabase.from('programs').select('*').eq('madrasa_id', madrasaReg)
+      ]);
+
+      if (!studentData) {
+        setQrModalData({ error: 'Student not found!' });
+        setQrModalLoading(false);
+        return;
+      }
+
+      const [actualPlace] = (madrasaData?.place || '').split('|');
+      const teamObj = teamsData?.find(t => String(t.id) === String(studentData.teamid || studentData.teamId || ''));
+      const catObj = catsData?.find(c => String(c.id) === String(studentData.catid || studentData.catId || ''));
+
+      // Find programs this student is registered in (from results)
+      const studentRegNo = studentData.regno || studentData.regNo || '';
+      const studentResults = (resultsData || []).filter(r => {
+        const rStudentName = r.studentname || '';
+        return rStudentName.includes(studentRegNo + ' -') || rStudentName.includes(studentRegNo + ' -');
+      });
+
+      setQrModalData({
+        madrasa: madrasaData ? { ...madrasaData, place: actualPlace } : null,
+        student: studentData,
+        team: teamObj,
+        category: catObj,
+        results: studentResults,
+        programs: progsData || []
+      });
+    } catch (err) {
+      setQrModalData({ error: 'Failed to load data: ' + err.message });
+    }
+    setQrModalLoading(false);
+  };
+
+  // Generate QR code data URL
+  // eslint-disable-next-line no-unused-vars
+  const generateQrDataUrl = useCallback(async (madrasaReg, studentId) => {
+    const appUrl = window.location.origin;
+    const qrUrl = `${appUrl}/?qr=${madrasaReg}_${studentId}`;
+    try {
+      return await QRCode.toDataURL(qrUrl, { width: 200, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+    } catch { return null; }
+  }, []);
+
 
   // PWA Install prompt setup – auto show notification popup
   useEffect(() => {
@@ -948,6 +1057,21 @@ function App() {
     } catch (err) { alert('Download failed: ' + err.message); }
   };
 
+  // Download QR Scan Poster as image
+  const handleDownloadPoster = async () => {
+    const element = document.getElementById('qr-student-poster');
+    if (!element || !qrModalData?.student) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `Poster_${qrModalData.student.name.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      alert('Poster download failed: ' + err.message);
+    }
+  };
+
   // Generate PDF of multiple ID cards
   const handleDownloadPDF = useCallback(async (filteredStudentsList) => {
     if (filteredStudentsList.length === 0) { alert('No ID cards to export!'); return; }
@@ -979,26 +1103,51 @@ function App() {
         const teamObj = teams.find(t => String(t.id) === String(sTeamId));
         const catObj = categories.find(c => String(c.id) === String(sCatId));
 
+        // Generate QR code data URL for this student
+        const appUrl = window.location.origin;
+        const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
+        let qrDataUrl = '';
+        try {
+          qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 150, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+        } catch (e) {
+          console.error(e);
+        }
+
         tempDiv.innerHTML = `
-          <div style="width:340px;background:#fff;border-radius:16px;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;">
-            <div style="background:linear-gradient(135deg,#064e3b,#0f766e);padding:14px 16px;text-align:center;">
-              <div style="color:#fbbf24;font-size:16px;font-weight:800;letter-spacing:1px;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
-              <div style="color:rgba(255,255,255,0.8);font-size:10px;margin-top:3px;">Reg No: ${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+          <div style="width:340px;height:510px;background:#fff;border-radius:20px;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
+            <div style="content:'';position:absolute;top:0;left:0;width:100%;height:6px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);z-index:10;"></div>
+            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:18px 15px;text-align:center;border-bottom:3px solid #fbbf24;box-sizing:border-box;">
+              <div style="color:#ffffff;font-size:16px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+              <div style="color:#cbd5e1;font-size:10px;margin-top:4px;font-weight:500;letter-spacing:0.3px;">Reg No: ${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:center;padding:18px 16px 14px;">
-              <div style="width:90px;height:90px;border-radius:50%;border:3px solid #064e3b;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.15);margin-bottom:12px;">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:15px;box-sizing:border-box;">
+              <div style="width:110px;height:110px;border-radius:50%;border:4px solid #ffffff;overflow:hidden;box-shadow:0 6px 15px rgba(0,0,0,0.15), 0 0 0 2px #059669;margin-bottom:10px;">
                 <img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />
               </div>
-              <div style="font-size:20px;font-weight:800;color:#1e293b;text-align:center;margin-bottom:2px;">${s.name}</div>
-              <div style="background:linear-gradient(135deg,#064e3b,#0f766e);color:#fff;padding:5px 18px;border-radius:20px;font-size:14px;font-weight:700;margin:6px 0;">${s.regno || s.regNo || ''}</div>
-              <div style="display:flex;gap:14px;margin-top:8px;font-size:12px;color:#475569;">
-                <span>📂 ${catObj ? catObj.name : 'N/A'}</span>
-                <span>🚩 ${teamObj ? teamObj.name : 'N/A'}</span>
-                <span>${s.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+              <div style="font-size:18px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.2px;">${s.name}</div>
+              <div style="font-size:13px;font-weight:700;color:#ffffff;background:linear-gradient(135deg,#022c22,#059669);padding:3px 12px;border-radius:9999px;margin-bottom:10px;letter-spacing:0.5px;">Reg No: ${s.regno || s.regNo || ''}</div>
+              
+              <div style="width:100%;display:flex;flex-direction:column;gap:5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:11px;color:#475569;font-weight:600;box-sizing:border-box;">
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:3px;">
+                  <span style="color:#64748b;font-weight:700;">Group:</span>
+                  <span style="color:#1e293b;">${teamObj ? teamObj.name : 'N/A'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:3px;">
+                  <span style="color:#64748b;font-weight:700;">Category:</span>
+                  <span style="color:#1e293b;">${catObj ? catObj.name : 'N/A'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding-bottom:1px;">
+                  <span style="color:#64748b;font-weight:700;">General:</span>
+                  <span style="color:#1e293b;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+                </div>
+              </div>
+              
+              <div style="margin-top:10px;text-align:center;">
+                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:65px;height:65px;display:block;margin:0 auto;" />` : ''}
               </div>
             </div>
-            <div style="background:#f8fafc;padding:8px;text-align:center;border-top:1px solid #e2e8f0;">
-              <span style="font-size:10px;color:#64748b;font-weight:600;">MILAD FEST • ID CARD</span>
+            <div style="background:#f1f5f9;padding:8px;text-align:center;border-top:1px solid #e2e8f0;box-sizing:border-box;">
+              <span style="font-size:8px;color:#64748b;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
             </div>
           </div>
         `;
@@ -2496,11 +2645,23 @@ function downloadAsImage() {
                             )}
                           </div>
                           <div className="id-card-name">{profileStudent.name}</div>
-                          <div className="id-card-regno">{profileStudent.regno || profileStudent.regNo || ''}</div>
-                          <div className="id-card-details">
-                            <span>📂 {(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
-                            <span>🚩 {(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>
-                            <span>{profileStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                          <div className="id-card-regno">Reg No: {profileStudent.regno || profileStudent.regNo || ''}</div>
+                          <div className="id-card-details-grid">
+                            <div className="id-card-detail-item">
+                              <span className="label">Group</span>
+                              <span className="value">{(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>
+                            </div>
+                            <div className="id-card-detail-item">
+                              <span className="label">Category</span>
+                              <span className="value">{(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
+                            </div>
+                            <div className="id-card-detail-item">
+                              <span className="label">General</span>
+                              <span className="value">{profileStudent.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+                            </div>
+                          </div>
+                          <div className="id-card-qr-container">
+                            <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={profileStudent.id} />
                           </div>
                         </div>
                         <div className="id-card-footer">
@@ -2687,11 +2848,23 @@ function downloadAsImage() {
                                             )}
                                           </div>
                                           <div className="id-card-name">{s.name}</div>
-                                          <div className="id-card-regno">{s.regno || s.regNo || ''}</div>
-                                          <div className="id-card-details">
-                                            <span>📂 {catObj ? catObj.name : 'N/A'}</span>
-                                            <span>🚩 {teamObj ? teamObj.name : 'N/A'}</span>
-                                            <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                          <div className="id-card-regno">Reg No: {s.regno || s.regNo || ''}</div>
+                                          <div className="id-card-details-grid">
+                                            <div className="id-card-detail-item">
+                                              <span className="label">Group</span>
+                                              <span className="value">{teamObj ? teamObj.name : 'N/A'}</span>
+                                            </div>
+                                            <div className="id-card-detail-item">
+                                              <span className="label">Category</span>
+                                              <span className="value">{catObj ? catObj.name : 'N/A'}</span>
+                                            </div>
+                                            <div className="id-card-detail-item">
+                                              <span className="label">General</span>
+                                              <span className="value">{s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+                                            </div>
+                                          </div>
+                                          <div className="id-card-qr-container">
+                                            <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} />
                                           </div>
                                         </div>
                                         <div className="id-card-footer">
@@ -3552,6 +3725,118 @@ function downloadAsImage() {
 
             </div>
           )}
+        </div>
+      )}
+
+      {/* 🔍 QR SCAN SCANNER/POSTER MODAL */}
+      {qrModalOpen && (
+        <div className="qr-modal-overlay">
+          <div className="qr-modal-container">
+            {qrModalLoading ? (
+              <div className="qr-modal-loading" style={{ textAlign: 'center', padding: '30px 0' }}>
+                <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid #cbd5e1', borderTopColor: '#059669', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 15px' }}></div>
+                <p style={{ color: '#475569', fontWeight: '600' }}>Loading student data...</p>
+              </div>
+            ) : qrModalData?.error ? (
+              <div className="qr-modal-error" style={{ textAlign: 'center', padding: '20px 0' }}>
+                <h3 style={{ color: '#ef4444', marginBottom: '10px' }}>⚠️ Error</h3>
+                <p style={{ color: '#64748b', marginBottom: '20px' }}>{qrModalData.error}</p>
+                <button onClick={() => setQrModalOpen(false)} className="btn-add-action" style={{ background: '#64748b' }}>Close</button>
+              </div>
+            ) : qrModalData?.student ? (
+              <div>
+                {/* Poster Element to download */}
+                <div id="qr-student-poster" className="qr-student-poster">
+                  <div className="poster-header">
+                    <h2 className="poster-madrasa-name">{qrModalData.madrasa?.name || 'Milad Festival'}</h2>
+                    <p className="poster-madrasa-info">Reg No: {qrModalData.madrasa?.regNumber || ''} | {qrModalData.madrasa?.place || ''}</p>
+                    <div className="poster-title-badge">MILAD FESTIVAL PARTICIPANT</div>
+                  </div>
+                  
+                  <div className="poster-body">
+                    <div className="poster-student-section">
+                      <div className="poster-photo-container">
+                        {qrModalData.student.photo_url ? (
+                          <img src={qrModalData.student.photo_url} alt={qrModalData.student.name} />
+                        ) : (
+                          <div className="poster-photo-placeholder">👤</div>
+                        )}
+                      </div>
+                      <div className="poster-student-details">
+                        <h3 className="poster-student-name">{qrModalData.student.name}</h3>
+                        <div className="poster-reg-badge">Reg No: {qrModalData.student.regno || qrModalData.student.regNo || ''}</div>
+                        
+                        <div className="poster-meta-grid">
+                          <div className="poster-meta-item">
+                            <span className="lbl">Group</span>
+                            <span className="val">{qrModalData.team?.name || 'N/A'}</span>
+                          </div>
+                          <div className="poster-meta-item">
+                            <span className="lbl">Category</span>
+                            <span className="val">{qrModalData.category?.name || 'N/A'}</span>
+                          </div>
+                          <div className="poster-meta-item">
+                            <span className="lbl">General</span>
+                            <span className="val">{qrModalData.student.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="poster-events-section">
+                      <h4 className="events-section-title">🏆 Registered Programs & Results</h4>
+                      {qrModalData.results && qrModalData.results.length > 0 ? (
+                        <div className="poster-events-table">
+                          <div className="events-table-header">
+                            <span>Program</span>
+                            <span style={{ textAlign: 'center' }}>Place</span>
+                            <span style={{ textAlign: 'center' }}>Grade</span>
+                          </div>
+                          {qrModalData.results.map((r, idx) => (
+                            <div key={idx} className="events-table-row">
+                              <span className="event-name">
+                                <b>{r.progname}</b> 
+                                <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '5px' }}>
+                                  ({(r.progtype || '').includes('GROUP') ? 'Group' : 'Single'})
+                                </span>
+                              </span>
+                              <span className={`event-place ${r.place === 'First' ? 'gold' : r.place === 'Second' ? 'silver' : r.place === 'Third' ? 'bronze' : ''}`}>
+                                {r.place === 'No Place' || !r.place ? '' : r.place}
+                              </span>
+                              <span className="event-grade">
+                                {r.grade === '-' || r.grade === 'No' || !r.grade ? '' : r.grade}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="no-events-text">No registered programs or results found for this student.</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="poster-footer">
+                    <p>MILAD FEST • OFFICIAL EVENT CARD</p>
+                  </div>
+                </div>
+
+                {/* Modal actions */}
+                <div className="qr-modal-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                  <button onClick={handleDownloadPoster} className="btn-add-action" style={{ background: 'linear-gradient(135deg, #059669, #047857)', flex: 1, margin: 0 }}>
+                    📥 Download Poster
+                  </button>
+                  <button onClick={() => setQrModalOpen(false)} className="btn-add-action" style={{ background: '#64748b', flex: 1, margin: 0 }}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="qr-modal-error" style={{ textAlign: 'center', padding: '20px 0' }}>
+                <h3 style={{ color: '#ef4444', marginBottom: '10px' }}>⚠️ Unknown State</h3>
+                <button onClick={() => setQrModalOpen(false)} className="btn-add-action" style={{ background: '#64748b' }}>Close</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

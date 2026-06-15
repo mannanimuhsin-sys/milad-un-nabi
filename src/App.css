@@ -1183,6 +1183,366 @@ tr:nth-child(even) {
     text-transform: uppercase;
 }
 
+/* Redesigned details grid for ID Card */
+.id-card-details-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 8px;
+    font-size: 11px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+}
+
+.id-card-detail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border-right: 1px solid #e2e8f0;
+    min-width: 0;
+}
+
+.id-card-detail-item:last-child {
+    border-right: none;
+}
+
+.id-card-detail-item .label {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 800;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+}
+
+.id-card-detail-item .value {
+    font-size: 10px;
+    color: #1e293b;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.id-card-qr-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto;
+    padding-bottom: 5px;
+}
+
+/* 🔍 QR MODAL OVERLAY & CONTAINER */
+.qr-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: qrFadeIn 0.3s ease-out;
+}
+
+@keyframes qrFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.qr-modal-container {
+    background: #ffffff;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    padding: 24px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    animation: qrScaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes qrScaleIn {
+    from { transform: scale(0.9) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* 🏆 QR STUDENT POSTER */
+.qr-student-poster {
+    width: 100%;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 3px solid #064e3b;
+    overflow: hidden;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    position: relative;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.qr-student-poster::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(90deg, #022c22, #fbbf24, #059669);
+    z-index: 10;
+}
+
+.poster-header {
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
+    padding: 24px 20px;
+    text-align: center;
+    color: #ffffff;
+    border-bottom: 4px solid #fbbf24;
+    box-sizing: border-box;
+}
+
+.poster-madrasa-name {
+    font-size: 18px;
+    font-weight: 850;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin: 0;
+}
+
+.poster-madrasa-info {
+    font-size: 11px;
+    color: #cbd5e1;
+    margin: 6px 0 0 0;
+    font-weight: 500;
+}
+
+.poster-title-badge {
+    display: inline-block;
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid #fbbf24;
+    color: #fbbf24;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-top: 10px;
+}
+
+.poster-body {
+    padding: 24px 20px;
+    box-sizing: border-box;
+}
+
+.poster-student-section {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    border-bottom: 2px dashed #e2e8f0;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.poster-photo-container {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), 0 0 0 2px #059669;
+    background: #f1f5f9;
+    flex-shrink: 0;
+}
+
+.poster-photo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.poster-photo-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: #cbd5e1;
+}
+
+.poster-student-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.poster-student-name {
+    font-size: 18px;
+    font-weight: 850;
+    color: #0f172a;
+    margin: 0;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+.poster-reg-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #022c22 0%, #059669 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+}
+
+.poster-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.poster-meta-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.poster-meta-item .lbl {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 800;
+}
+
+.poster-meta-item .val {
+    font-size: 11px;
+    color: #1e293b;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.poster-events-section {
+    width: 100%;
+}
+
+.events-section-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #064e3b;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.poster-events-table {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.events-table-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    background: #f8fafc;
+    padding: 8px 12px;
+    font-size: 9px;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.events-table-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    align-items: center;
+}
+
+.events-table-row:last-child {
+    border-bottom: none;
+}
+
+.events-table-row .event-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.events-table-row .event-place {
+    text-align: center;
+    font-weight: 800;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.events-table-row .event-place.gold {
+    color: #d97706;
+}
+
+.events-table-row .event-place.silver {
+    color: #475569;
+}
+
+.events-table-row .event-place.bronze {
+    color: #b45309;
+}
+
+.events-table-row .event-grade {
+    text-align: center;
+    font-weight: 800;
+    color: #059669;
+}
+
+.no-events-text {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+    font-style: italic;
+    margin: 15px 0;
+}
+
+.poster-footer {
+    background: #f8fafc;
+    padding: 12px;
+    text-align: center;
+    border-top: 1px solid #e2e8f0;
+}
+
+.poster-footer p {
+    margin: 0;
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* 🪪 ID CARD MINI / GALLERY STYLES */
 .id-card-grid {
     display: grid;
