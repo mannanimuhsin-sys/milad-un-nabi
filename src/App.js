@@ -2908,6 +2908,7 @@ function downloadAsImage() {
                     <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>🏆 Programs</button>
                     <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>📝 Mark Entry</button>
                     <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>⚙️ Point Structure</button>
+                    <button className={`sub-nav-item ${settingsSubTab === 'JUDGE_SHEET' ? 'active' : ''}`} onClick={() => setSettingsSubTab('JUDGE_SHEET')}>📋 Student List</button>
                   </div>
 
                   <div className="settings-content">
