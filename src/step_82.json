@@ -1,0 +1,17 @@
+[
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Replace gallery card rendering with StudentIdCard component inside id-card-mini.\"",
+      "EndLine": "3106",
+      "Instruction": "\"Replace raw gallery card HTML with StudentIdCard component.\"",
+      "ReplacementContent": "\"                                    <div key={s.id} className=\\\"id-card-gallery-item\\\">\\n                                      <div className=\\\"id-card-mini\\\">\\n                                        <StudentIdCard\\n                                          student={s}\\n                                          madrasa={loggedInMadrasa}\\n                                          teams={teams}\\n                                          categories={categories}\\n                                        />\\n                                      </div>\\n                                    </div>\"",
+      "StartLine": "3068",
+      "TargetContent": "\"                                    <div key={s.id} className=\\\"id-card-gallery-item\\\">\\n                                      <div className=\\\"id-card id-card-mini\\\">\\n                                        <div className=\\\"id-card-header\\\">\\n                                          <div className=\\\"id-card-madrasa-name\\\">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>\\n                                          <div className=\\\"id-card-madrasa-info\\\">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>\\n                                        </div>\\n                                        <div className=\\\"id-card-body\\\">\\n                                          <div className=\\\"id-card-photo\\\">\\n                                            {s.photo_url ? (\\n                                              <img src={s.photo_url} alt={s.name} crossOrigin=\\\"anonymous\\\" />\\n                                            ) : (\\n                                              <div className=\\\"id-card-photo-placeholder\\\">\ud83d\udc64</div>\\n                                            )}\\n                                          </div>\\n                                          <div className=\\\"id-card-name\\\">{s.name}</div>\\n                                          <div className=\\\"id-card-regno\\\">Reg No: {s.regno || s.regNo || ''}</div>\\n                                          <div className=\\\"id-card-details-grid\\\">\\n                                            <div className=\\\"id-card-detail-item\\\">\\n                                              <span className=\\\"label\\\">Group</span>\\n                                              <span className=\\\"value\\\">{teamObj ? teamObj.name : 'N/A'}</span>\\n                                            </div>\\n                                            <div className=\\\"id-card-detail-item\\\">\\n                                              <span className=\\\"label\\\">Category</span>\\n                                            \n<truncated 1106 bytes>",
+      "TargetFile": "\"d:\\\\MILAD UN NABI\\\\milad\\\\src\\\\App.js\"",
+      "toolAction": "\"Replacing gallery card in App.js\"",
+      "toolSummary": "\"Replacing gallery card in App.js\""
+    }
+  }
+]

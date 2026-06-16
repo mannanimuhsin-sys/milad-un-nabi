@@ -1,0 +1,49 @@
+The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.
+
+<SYSTEM_MESSAGE>
+[Message] timestamp=2026-06-15T10:10:31Z sender=3ee4dbb7-6dae-48d6-b555-368e4293c3cf/task-179 priority=MESSAGE_PRIORITY_HIGH content=Task id "3ee4dbb7-6dae-48d6-b555-368e4293c3cf/task-179" finished with result:
+
+				The command completed successfully.
+				Output:
+				
+> milad@0.1.0 build
+> react-scripts build
+
+(node:5652) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+Compiled with warnings.
+
+[eslint] 
+src\App.js
+  Line 3078:41:  'teamObj' is assigned a value but never used  no-unused-vars
+  Line 3079:41:  'catObj' is assigned a value but never used   no-unused-vars
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+File sizes after gzip:
+
+  327.28 kB  build\static\js\main.67302dd3.js
+  43.31 kB   build\static\js\455.f391929f.chunk.js
+  10.45 kB   build\static\js\977.2f02c6f8.chunk.js
+  6.01 kB    build\static\css\main.6654737d.css
+  1.76 kB    build\static\js\453.82d17812.chunk.js
+
+The project was built assuming it is hosted at /.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+You may serve it with a static server:
+
+  npm install -g serve
+  serve -s build
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+
+
+
+Log: file:///C:/Users/ccuse/.gemini/antigravity-ide/brain/3ee4dbb7-6dae-48d6-b555-368e4293c3cf/.system_generated/tasks/task-179.log
+</SYSTEM_MESSAGE>

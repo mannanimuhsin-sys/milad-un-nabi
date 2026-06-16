@@ -1,0 +1,36 @@
+Created At: 2026-06-15T10:09:45Z
+Completed At: 2026-06-15T10:09:45Z
+{"name":".git","isDir":true}
+{"name":".gitignore","sizeBytes":"391"}
+{"name":".gradle","isDir":true}
+{"name":".idea","isDir":true}
+{"name":".vscode","isDir":true}
+{"name":"README.md","sizeBytes":"3359"}
+{"name":"app","isDir":true}
+{"name":"app-release-bundle.aab","sizeBytes":"2332718"}
+{"name":"app-release-signed.apk","sizeBytes":"2216388"}
+{"name":"app-release-signed.apk.idsig","sizeBytes":"26069"}
+{"name":"app-release-unsigned-aligned.apk","sizeBytes":"2171987"}
+{"name":"build","isDir":true}
+{"name":"build.gradle","sizeBytes":"1131"}
+{"name":"capacitor.config.ts","sizeBytes":"190"}
+{"name":"check_buckets.js","sizeBytes":"798"}
+{"name":"gradle","isDir":true}
+{"name":"gradle.properties","sizeBytes":"723"}
+{"name":"gradlew","sizeBytes":"8706"}
+{"name":"gradlew.bat","sizeBytes":"2918"}
+{"name":"key0633","sizeBytes":"2730"}
+{"name":"key0633.bak","sizeBytes":"2666"}
+{"name":"local.properties","sizeBytes":"56"}
+{"name":"manifest-checksum.txt","sizeBytes":"40"}
+{"name":"node_modules","isDir":true}
+{"name":"package-lock.json","sizeBytes":"694543"}
+{"name":"package.json","sizeBytes":"1058"}
+{"name":"public","isDir":true}
+{"name":"remove_bg.py","sizeBytes":"655"}
+{"name":"settings.gradle","sizeBytes":"15"}
+{"name":"src","isDir":true}
+{"name":"store_icon.png","sizeBytes":"154402"}
+{"name":"twa-manifest.json","sizeBytes":"1435"}
+
+Summary: This directory contains 10 subdirectories and 22 files.

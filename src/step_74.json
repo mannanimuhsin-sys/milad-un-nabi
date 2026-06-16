@@ -1,0 +1,17 @@
+[
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Replace profile APPROVED card rendering with StudentIdCard component.\"",
+      "EndLine": "2933",
+      "Instruction": "\"Replace the raw card HTML in APPROVED profile view with StudentIdCard component.\"",
+      "ReplacementContent": "\"                  {profileStep === 'APPROVED' && profileStudent && (\\n                    <div>\\n                      {/* Professional ID Card */}\\n                      <StudentIdCard\\n                        student={profileStudent}\\n                        madrasa={loggedInMadrasa}\\n                        teams={teams}\\n                        categories={categories}\\n                        cardRef={idCardRef}\\n                      />\"",
+      "StartLine": "2893",
+      "TargetContent": "\"                  {profileStep === 'APPROVED' && profileStudent && (\\n                    <div>\\n                      {/* Professional ID Card */}\\n                      <div className=\\\"id-card\\\" ref={idCardRef}>\\n                        <div className=\\\"id-card-header\\\">\\n                          <div className=\\\"id-card-madrasa-name\\\">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>\\n                          <div className=\\\"id-card-madrasa-info\\\">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>\\n                        </div>\\n                        <div className=\\\"id-card-body\\\">\\n                          <div className=\\\"id-card-photo\\\">\\n                            {profileStudent.photo_url ? (\\n                              <img src={profileStudent.photo_url} alt={profileStudent.name} crossOrigin=\\\"anonymous\\\" />\\n                            ) : (\\n                              <div className=\\\"id-card-photo-placeholder\\\">\ud83d\udc64</div>\\n                            )}\\n                          </div>\\n                          <div className=\\\"id-card-name\\\">{profileStudent.name}</div>\\n                          <div className=\\\"id-card-regno\\\">Reg No: {profileStudent.regno || profileStudent.regNo || ''}</div>\\n                          <div className=\\\"id-card-details-grid\\\">\\n                            <div className=\\\"id-card-detail-item\\\">\\n                              <span className=\\\"label\\\">Group</span>\\n                              <span className=\\\"value\\\">{(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>\\n                            </div>\\n                            <div className=\\\"id-card-detail-item\\\">\\n                              <span className=\\\"label\\\">Category</span>\\n                              <span className=\\\"value\\\">{(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</sp\n<truncated 802 bytes>",
+      "TargetFile": "\"d:\\\\MILAD UN NABI\\\\milad\\\\src\\\\App.js\"",
+      "toolAction": "\"Replacing student APPROVED view card in App.js\"",
+      "toolSummary": "\"Replacing student view card in App.js\""
+    }
+  }
+]

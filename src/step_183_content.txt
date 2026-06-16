@@ -1,0 +1,39 @@
+Created At: 2026-06-15T10:10:33Z
+Completed At: 2026-06-15T10:10:33Z
+File Path: `file:///d:/MILAD%20UN%20NABI/milad/src/App.js`
+Total Lines: 4081
+Total Bytes: 225951
+Showing lines 3065 to 3095
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3065:                               style={{ marginBottom: '16px', background: 'linear-gradient(135deg, #7c3aed, #4c1d95)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+3066:                             >
+3067:                               {profilePdfGenerating ? '⏳ Generating PDF...' : `📄 Download PDF (${approvedFiltered.length} cards)`}
+3068:                             </button>
+3069: 
+3070:                             {/* ID Card Gallery Grid */}
+3071:                             <div className="id-card-grid" ref={idCardGalleryRef}>
+3072:                               {approvedFiltered.length === 0 ? (
+3073:                                 <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '30px 0', gridColumn: '1 / -1' }}>No approved ID cards found for the selected filters.</p>
+3074:                               ) : (
+3075:                                 approvedFiltered.map(s => {
+3076:                                   const sTeamId = s.teamid || s.teamId || '';
+3077:                                   const sCatId = s.catid || s.catId || '';
+3078:                                   const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+3079:                                   const catObj = categories.find(c => String(c.id) === String(sCatId));
+3080: 
+3081:                                   return (
+3082:                                     <div key={s.id} className="id-card-gallery-item">
+3083:                                       <div className="id-card-mini">
+3084:                                         <StudentIdCard
+3085:                                           student={s}
+3086:                                           madrasa={loggedInMadrasa}
+3087:                                           teams={teams}
+3088:                                           categories={categories}
+3089:                                         />
+3090:                                       </div>
+3091:                                     </div>
+3092:                                   );
+3093:                                 })
+3094:                               )}
+3095:                             </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

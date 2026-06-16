@@ -3035,6 +3035,244 @@ function downloadAsImage() {
                               return matchTeam && matchCat && matchGender;
                             });
 
+                            const generateStudentsPDF = (mode) => {
+                              const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                              const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                              const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+
+                              let pdfTitle = 'Registered Students List';
+                              let subtitleParts = [];
+
+                              if (studentFilterTeam !== 'ALL') {
+                                const tObj = teams.find(t => String(t.id) === String(studentFilterTeam));
+                                if (tObj) subtitleParts.push(`Team: ${tObj.name}`);
+                              }
+                              if (studentFilterCat !== 'ALL') {
+                                const cObj = categories.find(c => String(c.id) === String(studentFilterCat));
+                                if (cObj) subtitleParts.push(`Category: ${cObj.name}`);
+                              }
+                              if (studentFilterGender !== 'ALL') {
+                                subtitleParts.push(`Division: ${studentFilterGender === 'BOY' ? 'Boys' : 'Girls'}`);
+                              }
+
+                              const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' | ') : 'All Students';
+
+                              let contentHtml = '';
+
+                              if (mode === 'CATEGORIZED') {
+                                // Group by category
+                                const catsToShow = categories.filter(c => {
+                                  return filteredStudents.some(s => String(s.catid || s.catId || '') === String(c.id));
+                                });
+
+                                if (catsToShow.length === 0) {
+                                  contentHtml = '<p style="color:#94a3b8;text-align:center;padding:30px">No students found.</p>';
+                                } else {
+                                  contentHtml = catsToShow.map(cat => {
+                                    const catStudents = filteredStudents.filter(s => String(s.catid || s.catId || '') === String(cat.id));
+                                    const rows = catStudents.map((s, idx) => {
+                                      const sRegNo = s.regno || s.regNo || '';
+                                      const teamObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                                      const genderLabel = s.gender === 'BOY' ? 'Boy' : 'Girl';
+                                      return `<tr>
+                                        <td>${idx + 1}</td>
+                                        <td><strong>${sRegNo}</strong></td>
+                                        <td>${s.name}</td>
+                                        <td>${teamObj ? teamObj.name : 'N/A'}</td>
+                                        <td>${genderLabel}</td>
+                                      </tr>`;
+                                    }).join('');
+
+                                    return `
+                                      <div class="cat-section">
+                                        <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
+                                        <table>
+                                          <thead>
+                                            <tr>
+                                              <th style="width: 8%">Sl.No</th>
+                                              <th style="width: 20%">Reg. No</th>
+                                              <th>Student Name</th>
+                                              <th style="width: 25%">Team / Group</th>
+                                              <th style="width: 15%">Division</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>${rows}</tbody>
+                                        </table>
+                                      </div>`;
+                                  }).join('');
+                                }
+                              } else {
+                                // Simple list of currently filtered students
+                                const rows = filteredStudents.map((s, idx) => {
+                                  const sRegNo = s.regno || s.regNo || '';
+                                  const teamObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                                  const catObj = categories.find(c => String(c.id) === String(s.catid || s.catId || ''));
+                                  const genderLabel = s.gender === 'BOY' ? 'Boy' : 'Girl';
+                                  return `<tr>
+                                    <td>${idx + 1}</td>
+                                    <td><strong>${sRegNo}</strong></td>
+                                    <td>${s.name}</td>
+                                    <td>${teamObj ? teamObj.name : 'N/A'}</td>
+                                    <td>${catObj ? catObj.name : 'N/A'}</td>
+                                    <td>${genderLabel}</td>
+                                  </tr>`;
+                                }).join('');
+
+                                contentHtml = `
+                                  <table>
+                                    <thead>
+                                      <tr>
+                                        <th style="width: 8%">Sl.No</th>
+                                        <th style="width: 18%">Reg. No</th>
+                                        <th>Student Name</th>
+                                        <th style="width: 22%">Team / Group</th>
+                                        <th style="width: 22%">Category</th>
+                                        <th style="width: 12%">Division</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      ${rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px">No students found matching current filters.</td></tr>'}
+                                    </tbody>
+                                  </table>`;
+                              }
+
+                              const printWindow = window.open('', '_blank');
+                              printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>${pdfTitle} - ${madrasaName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Serif+Malayalam:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 20mm 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+  .notice-board {
+    border: 4px solid #1e3a5f;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .notice-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d6a4f 100%);
+    color: white;
+    text-align: center;
+    padding: 28px 20px 20px;
+    position: relative;
+  }
+  .notice-header::after {
+    content: '';
+    display: block;
+    width: 80px;
+    height: 3px;
+    background: #f59e0b;
+    margin: 12px auto 0;
+    border-radius: 2px;
+  }
+  .madrasa-name {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .madrasa-sub {
+    font-size: 13px;
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+  }
+  .notice-title-bar {
+    background: #f59e0b;
+    color: #78350f;
+    text-align: center;
+    padding: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .notice-body { padding: 20px 25px 30px; }
+  .cat-section { margin-bottom: 28px; }
+  .cat-heading {
+    background: linear-gradient(90deg, #1e3a5f, #2d6a4f);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cat-heading::before { content: '📂'; }
+  .cat-range { font-size: 11px; opacity: 0.8; font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th {
+    background: #f1f5f9;
+    color: #1e3a5f;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 2px solid #cbd5e1;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  td strong { color: #1e40af; }
+  .footer {
+    text-align: center;
+    padding: 15px;
+    font-size: 11px;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 10px;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+  }
+  .print-btn {
+    display: block;
+    margin: 20px auto;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #1e3a5f, #2d6a4f);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+  }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
+<div class="notice-board">
+  <div class="notice-header">
+    <div class="madrasa-name">${madrasaName}</div>
+    <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
+  </div>
+  <div class="notice-title-bar">🧑‍🎓 ${pdfTitle} — ${subtitle}</div>
+  <div class="notice-body">
+    ${contentHtml}
+  </div>
+  <div class="footer">Generated by Milad Fest App • Total Students: ${filteredStudents.length}</div>
+</div>
+</body></html>`);
+                              printWindow.document.close();
+                              printWindow.print();
+                            };
+
                             return (
                               <>
                                 <h3>📜 Registered Students</h3>
@@ -3109,6 +3347,22 @@ function downloadAsImage() {
                                       </div>
                                     </div>
                                   </div>
+                                </div>
+
+                                {/* PDF Download buttons for Students */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
+                                  <button
+                                    onClick={() => generateStudentsPDF('FILTERED')}
+                                    style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d6a4f)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                  >
+                                    📄 Download PDF (Current Filter)
+                                  </button>
+                                  <button
+                                    onClick={() => generateStudentsPDF('CATEGORIZED')}
+                                    style={{ background: 'linear-gradient(135deg, #0f766e, #0891b2)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                  >
+                                    📂 Download PDF by Categories
+                                  </button>
                                 </div>
 
                                 {/* 📜 Student List */}

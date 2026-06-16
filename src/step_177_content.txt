@@ -1,0 +1,66 @@
+Created At: 2026-06-15T10:09:54Z
+Completed At: 2026-06-15T10:10:04Z
+
+				The command completed successfully.
+				Output:
+				<truncated 335 lines>
++                <span style="color:#475569;text-align:left;">:&nbsp;${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+               </div>
+               
+-              <div style="margin-top:10px;text-align:center;">
++              <!-- QR Code -->
++              <div style="width:100%;display:flex;justify-content:center;align-items:center;margin-top:auto;padding-bottom:2px;box-sizing:border-box;">
+                 ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:65px;height:65px;display:block;margin:0 auto;" />` : ''}
+               </div>
+             </div>
+-            <div style="background:#f1f5f9;padding:8px;text-align:center;border-top:1px solid #e2e8f0;box-sizing:border-box;">
+-              <span style="font-size:8px;color:#64748b;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
++            
++            <!-- Footer -->
++            <div style="background:#f1f5f9;padding:10px 15px;text-align:center;font-size:9px;font-weight:800;color:#475569;letter-spacing:1.5px;border-top:1px solid #e2e8f0;text-transform:uppercase;width:100%;box-sizing:border-box;">
++              <span style="color:#064e3b;">MILAD FEST - ID CARD</span>
+             </div>
+           </div>
+         `;
+@@ -2631,43 +2907,13 @@ function downloadAsImage() {
+                   {profileStep === 'APPROVED' && profileStudent && (
+                     <div>
+                       {/* Professional ID Card */}
+-                      <div className="id-card" ref={idCardRef}>
+-                        <div className="id-card-header">
+-                          <div className="id-card-madrasa-name">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+-                          <div className="id-card-madrasa-info">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+-                        </div>
+
+<truncated 4200 bytes>
+v className="id-card-detail-item">
+-                                              <span className="label">Group</span>
+-                                              <span className="value">{teamObj ? teamObj.name : 'N/A'}</span>
+-                                            </div>
+-                                            <div className="id-card-detail-item">
+-                                              <span className="label">Category</span>
+-                                              <span className="value">{catObj ? catObj.name : 'N/A'}</span>
+-                                            </div>
+-                                            <div className="id-card-detail-item">
+-                                              <span className="label">General</span>
+-                                              <span className="value">{s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+-                                            </div>
+-                                          </div>
+-                                          <div className="id-card-qr-container">
+-                                            <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} />
+-                                          </div>
+-                                        </div>
+-                                        <div className="id-card-footer">
+-                                          <span>MILAD FEST • ID CARD</span>
+-                                        </div>
++                                      <div className="id-card-mini">
++                                        <StudentIdCard
++                                          student={s}
++                                          madrasa={loggedInMadrasa}
++                                          teams={teams}
++                                          categories={categories}
++                                        />
+                                       </div>
+                                     </div>
+                                   );
+

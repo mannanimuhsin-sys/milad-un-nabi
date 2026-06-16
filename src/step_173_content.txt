@@ -1,0 +1,56 @@
+Created At: 2026-06-15T10:09:47Z
+Completed At: 2026-06-15T10:09:47Z
+File Path: `file:///d:/MILAD%20UN%20NABI/milad/twa-manifest.json`
+Total Lines: 48
+Total Bytes: 1435
+Showing lines 1 to 48
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: {
+2:   "packageId": "com.miladfest.app",
+3:   "host": "milad-un-nabi.vercel.app",
+4:   "name": "milad fest",
+5:   "launcherName": "milad fest",
+6:   "display": "standalone",
+7:   "themeColor": "#FFFFFF",
+8:   "themeColorDark": "#000000",
+9:   "navigationColor": "#000000",
+10:   "navigationColorDark": "#000000",
+11:   "navigationDividerColor": "#000000",
+12:   "navigationDividerColorDark": "#000000",
+13:   "backgroundColor": "#FFFFFF",
+14:   "enableNotifications": true,
+15:   "startUrl": "/",
+16:   "iconUrl": "https://milad-un-nabi.vercel.app/logo512.png",
+17:   "maskableIconUrl": "https://milad-un-nabi.vercel.app/logo512.png",
+18:   "monochromeIconUrl": "https://milad-un-nabi.vercel.app/logo512.png",
+19:   "splashScreenFadeOutDuration": 300,
+20:   "signingKey": {
+21:     "path": "key0633",
+22:     "alias": "android"
+23:   },
+24:   "appVersionName": "2",
+25:   "appVersionCode": 2,
+26:   "shortcuts": [],
+27:   "generatorApp": "bubblewrap-cli",
+28:   "webManifestUrl": "https://milad-un-nabi.vercel.app/manifest.json",
+29:   "fallbackType": "customtabs",
+30:   "features": {},
+31:   "alphaDependencies": {
+32:     "enabled": false
+33:   },
+34:   "enableSiteSettingsShortcut": true,
+35:   "isChromeOSOnly": false,
+36:   "isMetaQuest": false,
+37:   "fullScopeUrl": "https://milad-un-nabi.vercel.app/",
+38:   "minSdkVersion": 21,
+39:   "orientation": "portrait",
+40:   "fingerprints": [],
+41:   "additionalTrustedOrigins": [],
+42:   "retainedBundles": [],
+43:   "protocolHandlers": [],
+44:   "fileHandlers": [],
+45:   "launchHandlerClientMode": "",
+46:   "displayOverride": [],
+47:   "appVersion": "2"
+48: }
+The above content shows the entire, complete file contents of the requested file.
