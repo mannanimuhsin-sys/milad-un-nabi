@@ -190,6 +190,79 @@ function App() {
   const idCardRef = useRef(null);
   const idCardGalleryRef = useRef(null);
 
+  // Helper to render student photo or gender silhouette
+  const renderStudentPhoto = (regNo, gender, size = '60px', borderRadius = '10px') => {
+    const student = students.find(s => String(s.regno || s.regNo || '') === String(regNo));
+    const hasPhoto = student && student.photo_url && student.photo_status && student.photo_status !== 'none';
+
+    if (hasPhoto) {
+      return (
+        <div style={{ width: size, height: size, minWidth: size, borderRadius: borderRadius, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.4)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', background: 'white' }}>
+          <img src={student.photo_url} alt="student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      );
+    }
+
+    const isBoy = String(gender).toUpperCase() === 'BOY' || String(gender).toUpperCase() === 'BOYS';
+    return (
+      <div style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: borderRadius,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: isBoy ? 'linear-gradient(135deg, #dbeafe, #93c5fd)' : 'linear-gradient(135deg, #fce7f3, #f9a8d4)',
+        border: '2px solid rgba(255,255,255,0.4)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        overflow: 'hidden'
+      }}>
+        {isBoy ? (
+          <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none" stroke="#1e40af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none" stroke="#be185d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+            <path d="M12 9c0.8 0 1.5-0.5 1.5-1.2S12.8 6.5 12 6.5s-1.5 0.5-1.5 1.2S11.2 9 12 9z" fill="#f9a8d4" />
+          </svg>
+        )}
+      </div>
+    );
+  };
+
+  const renderTablePhoto = (regNo, gender) => {
+    const student = students.find(s => String(s.regno || s.regNo || '') === String(regNo));
+    const hasPhoto = student && student.photo_url && student.photo_status && student.photo_status !== 'none';
+
+    if (hasPhoto) {
+      return (
+        <img src={student.photo_url} alt="" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', display: 'block', margin: '0 auto', border: '1px solid #cbd5e1' }} />
+      );
+    }
+
+    const isBoy = String(gender).toUpperCase() === 'BOY' || String(gender).toUpperCase() === 'BOYS';
+    return (
+      <div style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '6px',
+        background: isBoy ? '#dbeafe' : '#fce7f3',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto',
+        border: '1px solid #cbd5e1',
+        fontSize: '14px'
+      }}>
+        {isBoy ? '👦' : '👧'}
+      </div>
+    );
+  };
+
   // 🔄 Function to load real-time data from Supabase
   const fetchSupabaseData = async (rNum) => {
     try {
@@ -1906,20 +1979,46 @@ function App() {
                   const secondResults = progResults.filter(r => r.place === 'Second');
                   const thirdResults = progResults.filter(r => r.place === 'Third');
 
-                  const renderWinnerCard = (result, gradient, medal, borderColor) => {
+                   const renderWinnerCard = (result, gradient, medal, borderColor) => {
                     const sName = result.studentname || result.studentName || '';
                     const dashIdx = sName.indexOf(' - ');
                     const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
                     const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                    const genderVal = result.studentgender || result.studentGender || '';
                     return (
-                      <div key={result.id} style={{ background: gradient, borderRadius: '18px', padding: '20px', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', border: `3px solid ${borderColor}`, animation: 'fadeInTab 0.5s ease' }}>
-                        <div style={{ position: 'absolute', top: '-15px', right: '-15px', fontSize: '70px', opacity: 0.15 }}>{medal}</div>
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>{medal}</div>
-                        <div style={{ fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.8, marginBottom: '6px' }}>{result.place}</div>
-                        <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '4px 10px', display: 'inline-block', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>#{regPart}</div>
-                        <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.3 }}>{namePart}</div>
-                        <div style={{ fontSize: '12px', opacity: 0.85 }}>Team: <b>{result.teamname || result.teamName || '-'}</b></div>
-                        <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>{(result.studentgender || result.studentGender) === 'BOY' ? '👦 Boy' : '👧 Girl'}</div>
+                      <div key={result.id} style={{
+                        background: gradient,
+                        borderRadius: '20px',
+                        padding: '16px 20px',
+                        color: 'white',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                        border: `2px solid ${borderColor}`,
+                        animation: 'fadeInTab 0.5s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '15px'
+                      }}>
+                        <div style={{ flex: 1, zIndex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '28px' }}>{medal}</span>
+                            <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{result.place}</span>
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{regPart}</div>
+                          <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{namePart}</div>
+                          <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{result.teamname || result.teamName || '-'}</span></div>
+                          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
+                            {genderVal.toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
+                          </div>
+                        </div>
+                        {/* Photo frame */}
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          {renderStudentPhoto(regPart, genderVal, '85px', '12px')}
+                        </div>
+                        {/* Background subtle watermark medal */}
+                        <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '100px', opacity: 0.08, pointerEvents: 'none' }}>{medal}</div>
                       </div>
                     );
                   };
@@ -2261,17 +2360,39 @@ function downloadAsImage() {
                   return (
                     <div style={{ marginTop: '20px' }}>
                       {/* Student Info Card */}
-                      <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', borderRadius: '20px', padding: '24px', color: 'white', position: 'relative', overflow: 'hidden' }}>
-                        <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '100px', opacity: 0.08 }}>🏆</div>
-                        <div style={{ fontSize: '12px', fontWeight: '700', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Report & Certificate</div>
-                        <div style={{ fontSize: '24px', fontWeight: '900', marginTop: '8px' }}>{matchedStudent.name}</div>
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>Reg: {sRegNo}</span>
-                          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
-                          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>{catObj ? catObj.name : '' || '-'}</span>
-                          <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                      <div style={{
+                        background: 'linear-gradient(135deg, #1e1b4b, #3730a3)',
+                        borderRadius: '24px',
+                        padding: '24px',
+                        color: 'white',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: '20px',
+                        flexWrap: 'wrap'
+                      }}>
+                        {/* Profile Photo */}
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          {renderStudentPhoto(sRegNo, matchedStudent.gender, '100px', '16px')}
                         </div>
-                        <div style={{ fontSize: '36px', fontWeight: '900', color: '#fbbf24', marginTop: '12px' }}>{sResults.reduce((s, r) => s + r.points, 0)} <span style={{ fontSize: '16px', color: '#94a3b8' }}>Total Points</span></div>
+                        <div style={{ flex: 1, minWidth: '200px', zIndex: 1 }}>
+                          <div style={{ fontSize: '11px', fontWeight: '800', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Profile & Report</div>
+                          <div style={{ fontSize: '26px', fontWeight: '900', marginTop: '6px', letterSpacing: '0.5px' }}>{matchedStudent.name}</div>
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Reg: {sRegNo}</span>
+                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
+                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Category: {catObj ? catObj.name : '' || '-'}</span>
+                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                          </div>
+                          <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24', marginTop: '14px' }}>
+                            {sResults.reduce((s, r) => s + r.points, 0)}{' '}
+                            <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '600' }}>Total Points</span>
+                          </div>
+                        </div>
+                        <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '100px', opacity: 0.05, pointerEvents: 'none' }}>🏆</div>
                       </div>
 
                       {/* Results */}
@@ -2316,12 +2437,20 @@ function downloadAsImage() {
                     const dashIdx = sName.indexOf(' - ');
                     const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
                     const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                    
+                    const student = students.find(s => String(s.regno || s.regNo || '') === String(regPart));
+                    const hasPhoto = student && student.photo_url && student.photo_status && student.photo_status !== 'none';
+                    const photoHtml = hasPhoto 
+                      ? `<img src="${student.photo_url}" style="width:30px;height:30px;border-radius:4px;object-fit:cover;display:block;margin:0 auto;" />`
+                      : `<span style="font-size:16px;">${(r.studentgender || r.studentGender) === 'BOY' ? '👦' : '👧'}</span>`;
+                    
                     const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
                     const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
                     return `<tr>
                       <td>${r.progname || r.progName}</td>
                       <td>${String(r.progtype || r.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</td>
                       <td>${r.catname || r.catName}</td>
+                      <td>${photoHtml}</td>
                       <td>${regPart}</td>
                       <td>${namePart}</td>
                       <td>${(r.studentgender || r.studentGender) === 'BOY' ? 'Boy' : 'Girl'}</td>
@@ -2337,7 +2466,7 @@ function downloadAsImage() {
                     <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
                     <body>
                     <h1>🏆 Results History</h1>
-                    <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
+                    <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
                     </body></html>
                   `);
                   printWindow.document.close();
@@ -2350,11 +2479,11 @@ function downloadAsImage() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Program</th><th>Type</th><th>Category</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
+                        <th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {resultsList.length === 0 ? <tr><td colSpan="11">No results announced yet.</td></tr> :
+                      {resultsList.length === 0 ? <tr><td colSpan="12">No results announced yet.</td></tr> :
                         resultsList.map(r => {
                           const sName = r.studentname || r.studentName || '';
                           const dashIdx = sName.indexOf(' - ');
@@ -2367,6 +2496,7 @@ function downloadAsImage() {
                               <td>{r.progname || r.progName}</td>
                               <td><span style={{ background: String(r.progtype || r.progType).includes('GROUP') ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{String(r.progtype || r.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</span></td>
                               <td>{r.catname || r.catName}</td>
+                              <td>{renderTablePhoto(regPart, r.studentgender || r.studentGender)}</td>
                               <td><b style={{ color: '#1e40af' }}>{regPart}</b></td>
                               <td>{namePart}</td>
                               <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
@@ -2498,21 +2628,41 @@ function downloadAsImage() {
                         {displayStudents.map(student => {
                           const cfg = rankConfig[student.rank] || rankConfig[3];
                           return (
-                            <div key={student.key} style={{
-                              background: cfg.gradient, borderRadius: '20px', padding: '22px 20px',
-                              color: 'white', position: 'relative', overflow: 'hidden',
-                              boxShadow: '0 10px 35px rgba(0,0,0,0.25)',
+                             <div key={student.key} style={{
+                              background: cfg.gradient,
+                              borderRadius: '24px',
+                              padding: '20px',
+                              color: 'white',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
                               border: `3px solid ${cfg.border}`,
-                              animation: 'fadeInTab 0.5s ease'
+                              animation: 'fadeInTab 0.5s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '15px'
                             }}>
-                              <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '80px', opacity: 0.12 }}>{cfg.medal}</div>
-                              <div style={{ fontSize: '36px', marginBottom: '8px' }}>{cfg.medal}</div>
-                              <div style={{ fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.8, marginBottom: '6px' }}>{cfg.label}</div>
-                              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '3px 10px', display: 'inline-block', fontSize: '11px', fontWeight: '700', marginBottom: '8px' }}>#{student.regPart}</div>
-                              <div style={{ fontSize: '19px', fontWeight: '900', marginBottom: '6px', lineHeight: 1.3 }}>{student.namePart}</div>
-                              <div style={{ fontSize: '12px', opacity: 0.85 }}>Team: <b>{student.teamname}</b></div>
-                              <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>{student.studentgender === 'BOY' ? '👦 Boy' : '👧 Girl'}</div>
-                              <div style={{ marginTop: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '800', fontSize: '16px' }}>⭐ {student.totalPoints} Pts</div>
+                              <div style={{ flex: 1, zIndex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                  <span style={{ fontSize: '32px' }}>{cfg.medal}</span>
+                                  <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{cfg.label}</span>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{student.regPart}</div>
+                                <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{student.namePart}</div>
+                                <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{student.teamname}</span></div>
+                                <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
+                                  {(student.studentgender || '').toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
+                                </div>
+                                <div style={{ marginTop: '10px', background: 'rgba(255,255,255,0.25)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '900', fontSize: '16px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                                  ⭐ {student.totalPoints} Pts
+                                </div>
+                              </div>
+                              {/* Photo frame */}
+                              <div style={{ position: 'relative', zIndex: 1 }}>
+                                {renderStudentPhoto(student.regPart, student.studentgender, '95px', '14px')}
+                              </div>
+                              <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '110px', opacity: 0.07, pointerEvents: 'none' }}>{cfg.medal}</div>
                             </div>
                           );
                         })}
