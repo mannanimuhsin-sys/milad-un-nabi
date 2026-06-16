@@ -145,6 +145,11 @@ function App() {
   // Filter state for Programs list in Master Settings
   const [programFilterCat, setProgramFilterCat] = useState('ALL');
 
+  // Judge Sheet states
+  const [judgeSheetCat, setJudgeSheetCat] = useState('');
+  const [judgeSheetGender, setJudgeSheetGender] = useState('');
+  const [judgeSheetProg, setJudgeSheetProg] = useState('');
+
   // ── Profile Tab States ──
   const [profileRegNo, setProfileRegNo] = useState('');
   const [profileStudent, setProfileStudent] = useState(null);
@@ -3973,6 +3978,341 @@ function downloadAsImage() {
                         </div>
                       </div>
                     )}
+
+                    {/* JUDGE SHEET SUB-TAB */}
+                    {settingsSubTab === 'JUDGE_SHEET' && (() => {
+                      // Filter programs based on selected category and gender
+                      const judgePrograms = programs.filter(p => {
+                        if (!judgeSheetCat) return false;
+                        if (String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
+                        if (!judgeSheetGender) return true;
+                        if ((p.type || '').includes('COMMON')) return true;
+                        return (p.type || '').includes(judgeSheetGender);
+                      });
+
+                      const selectedProgObj = programs.find(p => String(p.id) === String(judgeSheetProg));
+                      const selectedCatObj = categories.find(c => String(c.id) === String(judgeSheetCat));
+
+                      // Students registered for this program: for general category, all students; otherwise by category+gender
+                      const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
+                      const judgeStudents = judgeSheetProg ? students.filter(s => {
+                        if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
+                        if (isGeneral) return true;
+                        return String(s.catid || s.catId || '') === String(judgeSheetCat);
+                      }).sort((a, b) => {
+                        const aReg = parseInt(a.regno || a.regNo || '0') || 0;
+                        const bReg = parseInt(b.regno || b.regNo || '0') || 0;
+                        return aReg - bReg;
+                      }) : [];
+
+                      const handleDownloadJudgeSheetPDF = () => {
+                        if (!judgeSheetProg) {
+                          alert('Please select a program first!');
+                          return;
+                        }
+                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                        const catName = selectedCatObj ? selectedCatObj.name : '';
+                        const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
+                        const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
+
+                        const rows = judgeStudents.map((s, idx) => {
+                          const sRegNo = s.regno || s.regNo || '';
+                          return `<tr>
+                            <td style="text-align:center;font-weight:700;font-size:13px">${sRegNo}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                          </tr>`;
+                        }).join('');
+
+                        const printWindow = window.open('', '_blank');
+                        printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Judge Sheet - ${progName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 landscape; margin: 15mm 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+  .sheet-wrapper { border: 3px solid #064e3b; border-radius: 10px; overflow: hidden; }
+  .sheet-header {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
+    color: white;
+    text-align: center;
+    padding: 18px 20px 14px;
+  }
+  .festival-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    margin-bottom: 4px;
+  }
+  .madrasa-name {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+  }
+  .madrasa-meta {
+    font-size: 11px;
+    opacity: 0.8;
+  }
+  .sheet-subtitle-bar {
+    background: #f59e0b;
+    padding: 8px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    flex-wrap: wrap;
+  }
+  .subtitle-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .subtitle-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #78350f;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .subtitle-value {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1c1917;
+  }
+  .sheet-body { padding: 14px 18px 18px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  thead tr {
+    background: linear-gradient(90deg, #064e3b, #0f766e);
+    color: white;
+  }
+  th {
+    padding: 9px 8px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255,255,255,0.2);
+    text-align: center;
+  }
+  td {
+    padding: 10px 8px;
+    border: 1.5px solid #cbd5e1;
+    min-height: 36px;
+    height: 36px;
+  }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover { background: #f0fdf4; }
+  .reg-no-cell {
+    text-align: center;
+    font-weight: 800;
+    font-size: 13px;
+    color: #064e3b;
+    background: #ecfdf5;
+    width: 100px;
+  }
+  .name-cell { width: 180px; }
+  .chance-cell { width: 90px; text-align: center; }
+  .marks-cell { width: 90px; text-align: center; }
+  .position-cell { width: 90px; text-align: center; }
+  .team-cell { width: 120px; }
+  .sheet-footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 10px;
+    font-size: 11px;
+    color: #64748b;
+  }
+  .signature-box {
+    text-align: center;
+    width: 200px;
+  }
+  .signature-line {
+    border-top: 1.5px solid #1e293b;
+    padding-top: 5px;
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="sheet-wrapper">
+  <div class="sheet-header">
+    <div class="festival-title">✦ Milad Fest ✦</div>
+    <div class="madrasa-name">${madrasaName}</div>
+    <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
+  </div>
+  <div class="sheet-subtitle-bar">
+    <div class="subtitle-item">
+      <span class="subtitle-label">Category:</span>
+      <span class="subtitle-value">${catName} (${genderLabel})</span>
+    </div>
+    <div class="subtitle-item">
+      <span class="subtitle-label">Program:</span>
+      <span class="subtitle-value">${progName}</span>
+    </div>
+    <div class="subtitle-item">
+      <span class="subtitle-label">Total Participants:</span>
+      <span class="subtitle-value">${judgeStudents.length}</span>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:100px">Reg. No</th>
+          <th style="width:180px">Student Name</th>
+          <th style="width:90px">Chance No</th>
+          <th style="width:90px">Marks</th>
+          <th style="width:90px">Position</th>
+          <th>Team Name</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px">No students registered.</td></tr>'}
+      </tbody>
+    </table>
+    <div class="sheet-footer">
+      <div class="signature-box">
+        <div style="height:40px"></div>
+        <div class="signature-line">Judge Signature</div>
+      </div>
+      <div style="text-align:center;color:#94a3b8">
+        <div style="font-size:10px">Milad Fest | ${catName} | ${progName}</div>
+        <div style="font-size:10px;margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+      </div>
+      <div class="signature-box">
+        <div style="height:40px"></div>
+        <div class="signature-line">Coordinator Signature</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>`);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(() => printWindow.print(), 600);
+                      };
+
+                      return (
+                        <div className="settings-card-container">
+                          <div className="settings-form-box">
+                            <h3>📋 Judge Evaluation Sheet</h3>
+                            <div className="settings-form">
+
+                              {/* Step 1: Category & Gender */}
+                              <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
+                                <select className="settings-input" value={judgeSheetCat && judgeSheetGender ? `${judgeSheetCat}_${judgeSheetGender}` : ''} onChange={e => {
+                                  const val = e.target.value;
+                                  if (!val) { setJudgeSheetCat(''); setJudgeSheetGender(''); }
+                                  else { const [cId, g] = val.split('_'); setJudgeSheetCat(cId); setJudgeSheetGender(g); }
+                                  setJudgeSheetProg('');
+                                }}>
+                                  <option value="">-- Select Category & Division --</option>
+                                  {categories.map(c => (
+                                    <React.Fragment key={c.id}>
+                                      <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                      <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                      <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                    </React.Fragment>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Step 2: Program */}
+                              <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Program</label>
+                                <select className="settings-input" value={judgeSheetProg} onChange={e => setJudgeSheetProg(e.target.value)} disabled={!judgeSheetCat}>
+                                  <option value="">{judgeSheetCat ? '-- Select Program --' : 'Select Category First'}</option>
+                                  {judgePrograms.map(p => {
+                                    const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                    const pGenderLabel = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
+                                    return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeLabel} {pGenderLabel})</option>;
+                                  })}
+                                </select>
+                              </div>
+
+                              {/* Preview info */}
+                              {judgeSheetProg && (
+                                <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '4px' }}>📊 Preview</div>
+                                  <div style={{ fontSize: '13px', color: '#1e293b' }}>
+                                    <strong>{judgeStudents.length}</strong> participants registered in{' '}
+                                    <strong>{selectedProgObj ? selectedProgObj.name : ''}</strong>
+                                  </div>
+                                </div>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={handleDownloadJudgeSheetPDF}
+                                disabled={!judgeSheetProg}
+                                className="btn-add-action"
+                                style={{ background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                              >
+                                📥 Download Judge Sheet PDF
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Preview list */}
+                          <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                            <h3>📋 {judgeSheetProg ? `Participants – ${selectedProgObj ? selectedProgObj.name : ''}` : 'Select a Program'}</h3>
+                            {!judgeSheetProg ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>Please select a category and program above.</p>
+                            ) : judgeStudents.length === 0 ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>No students registered in this category/division.</p>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                                  📌 {judgeStudents.length} participants will appear on the sheet, sorted by Reg. No.
+                                </div>
+                                {judgeStudents.map((s, idx) => {
+                                  const sRegNo = s.regno || s.regNo || '';
+                                  const teamObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                                  return (
+                                    <div key={s.id} style={{
+                                      display: 'flex', alignItems: 'center', gap: '10px',
+                                      padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
+                                      background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                    }}>
+                                      <span style={{
+                                        background: '#064e3b', color: 'white', borderRadius: '6px',
+                                        padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
+                                      }}>{sRegNo}</span>
+                                      <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
+                                      <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
+                                      <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
+                                      >{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
