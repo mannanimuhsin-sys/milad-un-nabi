@@ -3061,55 +3061,79 @@ function downloadAsImage() {
                 <div style={{ minHeight: '200px' }}></div>
               ) : (
                 <div>
-                  {/* Settings sub tab navigation – 2 rows of 4 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '4px' }}>
-                    <div className="sub-tab-nav">
-                      <button className={`sub-nav-item ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>🚩 Teams</button>
-                      <button className={`sub-nav-item ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>📂 Categories</button>
-                      <button className={`sub-nav-item ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>🧑‍🎓 Students</button>
-                      <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>🏆 Programs</button>
+                  {/* Settings sub tab navigation – Revamped grid of tiles */}
+                  <div className="executive-settings-nav-grid">
+                    <div className={`executive-nav-tile ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>
+                      <div className="tile-icon-wrapper">🚩</div>
+                      <div className="tile-label">Teams</div>
                     </div>
-                    <div className="sub-tab-nav">
-                      <button className={`sub-nav-item ${settingsSubTab === 'REGISTER' ? 'active' : ''}`} onClick={() => setSettingsSubTab('REGISTER')} style={{ background: settingsSubTab === 'REGISTER' ? '#16a34a' : '' }}>📋 Register</button>
-                      <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>📝 Mark Entry</button>
-                      <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>⚙️ Point Structure</button>
-                      <button className={`sub-nav-item ${settingsSubTab === 'JUDGE_SHEET' ? 'active' : ''}`} onClick={() => setSettingsSubTab('JUDGE_SHEET')}>📋 Student List</button>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>
+                      <div className="tile-icon-wrapper">📂</div>
+                      <div className="tile-label">Categories</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>
+                      <div className="tile-icon-wrapper">🧑‍🎓</div>
+                      <div className="tile-label">Students</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>
+                      <div className="tile-icon-wrapper">🏆</div>
+                      <div className="tile-label">Programs</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'REGISTER' ? 'active' : ''}`} onClick={() => setSettingsSubTab('REGISTER')}>
+                      <div className="tile-icon-wrapper">📋</div>
+                      <div className="tile-label">Register</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>
+                      <div className="tile-icon-wrapper">📝</div>
+                      <div className="tile-label">Mark Entry</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>
+                      <div className="tile-icon-wrapper">⚙️</div>
+                      <div className="tile-label">Point Structure</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'JUDGE_SHEET' ? 'active' : ''}`} onClick={() => setSettingsSubTab('JUDGE_SHEET')}>
+                      <div className="tile-icon-wrapper">👥</div>
+                      <div className="tile-label">Student List</div>
                     </div>
                   </div>
 
                   <div className="settings-content">
                     {/* TEAMS SUB-TAB */}
                     {settingsSubTab === 'TEAMS' && (
-                      <div className="settings-card-container">
-                        <div className="settings-form-box">
+                      <div className="settings-card-v2">
+                        <div className="settings-form-box-v2">
                           <h3>🚩 Add New Team</h3>
                           <form onSubmit={handleAddTeam} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="Team Name (eg: Team A)" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} required />
-                            <button type="submit" className="btn-add-action">Add Team</button>
+                            <input type="text" className="settings-input-v2" placeholder="Team Name (eg: Team A)" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} required />
+                            <button type="submit" className="btn-premium-action">Add Team</button>
                           </form>
                         </div>
-                        <div className="settings-list-box">
-                          <h3>📜 Existing Teams</h3>
+                        <div style={{ marginTop: '20px' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Existing Teams</h3>
                           {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No teams added.</p> : (
-                            teams.map(t => (
-                              <div key={t.id} className="settings-item-row">
-                                {editingTeamId === t.id ? (
-                                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                    <input type="text" className="settings-input" value={editingTeamName} onChange={e => setEditingTeamName(e.target.value)} />
-                                    <button onClick={handleSaveTeamEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
-                                    <button onClick={() => setEditingTeamId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <span>{t.name}</span>
-                                    <div>
-                                      <button onClick={() => { setEditingTeamId(t.id); setEditingTeamName(t.name); }} className="settings-action-btn" title="Edit">✏️</button>
-                                      <button onClick={() => handleDeleteTeam(t.id)} className="settings-action-btn" title="Delete">❌</button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {teams.map(t => (
+                                <div key={t.id} className={`settings-item-row-v2 ${editingTeamId === t.id ? 'editing' : ''}`}>
+                                  {editingTeamId === t.id ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                      <input type="text" className="settings-input-v2" value={editingTeamName} onChange={e => setEditingTeamName(e.target.value)} />
+                                      <div className="action-buttons-group">
+                                        <button onClick={handleSaveTeamEdit} className="btn-premium-action-small primary">Save</button>
+                                        <button onClick={() => setEditingTeamId(null)} className="btn-premium-action-small secondary">Cancel</button>
+                                      </div>
                                     </div>
-                                  </>
-                                )}
-                              </div>
-                            ))
+                                  ) : (
+                                    <>
+                                      <span style={{ fontWeight: '600', color: '#334155' }}>{t.name}</span>
+                                      <div>
+                                        <button onClick={() => { setEditingTeamId(t.id); setEditingTeamName(t.name); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                        <button onClick={() => handleDeleteTeam(t.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -3117,45 +3141,47 @@ function downloadAsImage() {
 
                     {/* CATEGORIES SUB-TAB */}
                     {settingsSubTab === 'CATEGORIES' && (
-                      <div className="settings-card-container">
-                        <div className="settings-form-box">
+                      <div className="settings-card-v2">
+                        <div className="settings-form-box-v2">
                           <h3>📂 Add New Category</h3>
                           <form onSubmit={handleAddCategory} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
-                            <input type="text" className="settings-input" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
-                            <button type="submit" className="btn-add-action">Add Category</button>
+                            <input type="text" className="settings-input-v2" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
+                            <input type="text" className="settings-input-v2" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
+                            <button type="submit" className="btn-premium-action">Add Category</button>
                           </form>
                         </div>
-                        <div className="settings-list-box">
-                          <h3>📜 Existing Categories</h3>
+                        <div style={{ marginTop: '20px' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Existing Categories</h3>
                           {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No categories added.</p> : (
-                            categories.map(c => (
-                              <div key={c.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
-                                {editingCatId === c.id ? (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                                    <input type="text" className="settings-input" value={editingCatName} onChange={e => setEditingCatName(e.target.value)} placeholder="Category Name" />
-                                    <input type="text" className="settings-input" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="Which classes? (eg: 1 to 4)" />
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                      <button onClick={handleSaveCatEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
-                                      <button onClick={() => setEditingCatId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {categories.map(c => (
+                                <div key={c.id} className={`settings-item-row-v2 ${editingCatId === c.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                                  {editingCatId === c.id ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                      <input type="text" className="settings-input-v2" value={editingCatName} onChange={e => setEditingCatName(e.target.value)} placeholder="Category Name" />
+                                      <input type="text" className="settings-input-v2" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="Which classes? (eg: 1 to 4)" />
+                                      <div className="action-buttons-group">
+                                        <button onClick={handleSaveCatEdit} className="btn-premium-action-small primary">Save</button>
+                                        <button onClick={() => setEditingCatId(null)} className="btn-premium-action-small secondary">Cancel</button>
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                    <div>
-                                      <span style={{ fontWeight: '600' }}>{c.name}</span>
-                                      {c.classrange && (
-                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>📚 Class: {c.classrange}</div>
-                                      )}
+                                  ) : (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                      <div>
+                                        <span style={{ fontWeight: '700', color: '#334155' }}>{c.name}</span>
+                                        {c.classrange && (
+                                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', background: '#eff6ff', display: 'inline-block', padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>📚 Class: {c.classrange}</div>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <button onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name); setEditingCatClassRange(c.classrange || ''); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                        <button onClick={() => handleDeleteCategory(c.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <button onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name); setEditingCatClassRange(c.classrange || ''); }} className="settings-action-btn" title="Edit">✏️</button>
-                                      <button onClick={() => handleDeleteCategory(c.id)} className="settings-action-btn" title="Delete">❌</button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -3163,19 +3189,19 @@ function downloadAsImage() {
 
                     {/* STUDENTS SUB-TAB */}
                     {settingsSubTab === 'STUDENTS' && (
-                      <div className="settings-card-container">
-                        <div className="settings-form-box">
+                      <div className="settings-card-v2">
+                        <div className="settings-form-box-v2">
                           <h3>🧑‍🎓 Add New Student</h3>
                           <form onSubmit={handleAddStudent} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="Student Name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} required />
-                            <input type="text" className="settings-input" placeholder="Register Number / Chest Number" value={studentRegNo} onChange={(e) => setStudentRegNo(e.target.value)} required />
+                            <input type="text" className="settings-input-v2" placeholder="Student Name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} required />
+                            <input type="text" className="settings-input-v2" placeholder="Register Number / Chest Number" value={studentRegNo} onChange={(e) => setStudentRegNo(e.target.value)} required />
 
-                            <select className="settings-input" value={selectedStudentTeam} onChange={(e) => setSelectedStudentTeam(e.target.value)} required>
+                            <select className="settings-input-v2" value={selectedStudentTeam} onChange={(e) => setSelectedStudentTeam(e.target.value)} required>
                               <option value="">Select Team</option>
                               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                             </select>
 
-                            <select className="settings-input" value={selectedStudentCat && studentGender ? `${selectedStudentCat}_${studentGender}` : ''} onChange={(e) => {
+                            <select className="settings-input-v2" value={selectedStudentCat && studentGender ? `${selectedStudentCat}_${studentGender}` : ''} onChange={(e) => {
                               const val = e.target.value;
                               if (!val) {
                                 setSelectedStudentCat('');
@@ -3195,10 +3221,10 @@ function downloadAsImage() {
                               ))}
                             </select>
 
-                            <button type="submit" className="btn-add-action">Add Student</button>
+                            <button type="submit" className="btn-premium-action">Add Student</button>
                           </form>
                         </div>
-                        <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                        <div style={{ marginTop: '20px' }}>
                           {(() => {
                             const filteredStudents = students.filter(s => {
                               const matchTeam = studentFilterTeam === 'ALL' || String(s.teamid || s.teamId || '') === String(studentFilterTeam);
@@ -3447,12 +3473,12 @@ function downloadAsImage() {
 
                             return (
                               <>
-                                <h3>📜 Registered Students</h3>
+                                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Registered Students ({filteredStudents.length})</h3>
                                 
                                 {/* 🔍 Interactive Filters */}
-                                <div className="student-filters-container">
+                                <div className="student-filters-container" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', background: '#f8fafc', padding: '14px', marginBottom: '16px' }}>
                                   {/* 1. Team Filter */}
-                                  <div>
+                                  <div style={{ marginBottom: '10px' }}>
                                     <div className="filter-section-title">🚩 Select Team</div>
                                     <div className="filter-chips-wrapper">
                                       <div 
@@ -3474,7 +3500,7 @@ function downloadAsImage() {
                                   </div>
 
                                   {/* 2. Category Filter */}
-                                  <div>
+                                  <div style={{ marginBottom: '10px' }}>
                                     <div className="filter-section-title">📂 Select Category</div>
                                     <div className="filter-chips-wrapper">
                                       <div 
@@ -3525,102 +3551,111 @@ function downloadAsImage() {
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
                                   <button
                                     onClick={() => generateStudentsPDF('FILTERED')}
-                                    style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d6a4f)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                    style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary-deep))', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
                                   >
                                     📄 Download PDF (Current Filter)
                                   </button>
                                   <button
                                     onClick={() => generateStudentsPDF('CATEGORIZED')}
-                                    style={{ background: 'linear-gradient(135deg, #0f766e, #0891b2)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                    style={{ background: 'linear-gradient(135deg, #022c22, #064e3b)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
                                   >
                                     📂 Download PDF by Categories
                                   </button>
                                 </div>
 
                                 {/* 📜 Student List */}
-                                <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+                                <div style={{ maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
                                   {students.length === 0 ? (
                                     <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students registered.</p>
                                   ) : filteredStudents.length === 0 ? (
                                     <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students found matching the selected filters.</p>
                                   ) : (
-                                    filteredStudents.map(s => {
-                                      const sRegNo = s.regno || s.regNo || '';
-                                      const sTeamId = s.teamid || s.teamId || '';
-                                      const sCatId = s.catid || s.catId || '';
-                                      const teamObj = teams.find(t => String(t.id) === String(sTeamId));
-                                      const catObj = categories.find(c => String(c.id) === String(sCatId));
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                      {filteredStudents.map(s => {
+                                        const sRegNo = s.regno || s.regNo || '';
+                                        const sTeamId = s.teamid || s.teamId || '';
+                                        const sCatId = s.catid || s.catId || '';
+                                        const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+                                        const catObj = categories.find(c => String(c.id) === String(sCatId));
 
-                                      return (
-                                        <div key={s.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                                          {editingStudentId === s.id ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                              <input type="text" className="settings-input" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="Name" />
-                                              <input type="text" className="settings-input" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="Register Number" />
+                                        return (
+                                          <div key={s.id} className={`settings-item-row-v2 ${editingStudentId === s.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                                            {editingStudentId === s.id ? (
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <input type="text" className="settings-input-v2" value={editingStudentData.name || ''} onChange={e => setEditingStudentData({ ...editingStudentData, name: e.target.value })} placeholder="Name" />
+                                                <input type="text" className="settings-input-v2" value={editingStudentData.regno || editingStudentData.regNo || ''} onChange={e => setEditingStudentData({ ...editingStudentData, regno: e.target.value, regNo: e.target.value })} placeholder="Register Number" />
 
-                                              <select className="settings-input" value={editingStudentData.teamid || editingStudentData.teamId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, teamid: e.target.value, teamId: e.target.value })}>
-                                                <option value="">Select Team</option>
-                                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                              </select>
+                                                <select className="settings-input-v2" value={editingStudentData.teamid || editingStudentData.teamId || ''} onChange={e => setEditingStudentData({ ...editingStudentData, teamid: e.target.value, teamId: e.target.value })}>
+                                                  <option value="">Select Team</option>
+                                                  {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                </select>
 
-                                              <select className="settings-input" value={editingStudentData.catid && editingStudentData.gender ? `${editingStudentData.catid || editingStudentData.catId}_${editingStudentData.gender}` : ''} onChange={e => {
-                                                const val = e.target.value;
-                                                if (val) {
-                                                  const [cId, g] = val.split('_');
-                                                  setEditingStudentData({ ...editingStudentData, catid: cId, catId: cId, gender: g });
-                                                }
-                                              }}>
-                                                <option value="">Select Category & Division</option>
-                                                {categories.map(c => (
-                                                  <React.Fragment key={c.id}>
-                                                    <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
-                                                    <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
-                                                  </React.Fragment>
-                                                ))}
-                                              </select>
+                                                <select className="settings-input-v2" value={editingStudentData.catid && editingStudentData.gender ? `${editingStudentData.catid || editingStudentData.catId}_${editingStudentData.gender}` : ''} onChange={e => {
+                                                  const val = e.target.value;
+                                                  if (val) {
+                                                    const [cId, g] = val.split('_');
+                                                    setEditingStudentData({ ...editingStudentData, catid: cId, catId: cId, gender: g });
+                                                  }
+                                                }}>
+                                                  <option value="">Select Category & Division</option>
+                                                  {categories.map(c => (
+                                                    <React.Fragment key={c.id}>
+                                                      <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
+                                                      <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
+                                                    </React.Fragment>
+                                                  ))}
+                                                </select>
 
-                                              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                                <button onClick={handleSaveStudentEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
-                                                <button onClick={() => setEditingStudentId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                              <div>
-                                                <strong>{sRegNo}</strong> - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'})
-                                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                                  Team: {teamObj ? teamObj.name : 'Unknown'} | Category: {catObj ? catObj.name : 'Unknown'}
+                                                <div className="action-buttons-group">
+                                                  <button onClick={handleSaveStudentEdit} className="btn-premium-action-small primary">Save</button>
+                                                  <button onClick={() => setEditingStudentId(null)} className="btn-premium-action-small secondary">Cancel</button>
                                                 </div>
                                               </div>
-                                              <div>
-                                                <button onClick={() => startEditStudent(s)} className="settings-action-btn" title="Edit">✏️</button>
-                                                <button onClick={() => handleDeleteStudent(s.id)} className="settings-action-btn" title="Delete">❌</button>
+                                            ) : (
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                  <span style={{
+                                                    background: s.gender === 'BOY' ? '#dbeafe' : '#fce7f3',
+                                                    color: s.gender === 'BOY' ? '#1e40af' : '#be185d',
+                                                    borderRadius: '8px', padding: '4px 10px', fontWeight: '800', fontSize: '13px',
+                                                    border: `1px solid ${s.gender === 'BOY' ? '#93c5fd' : '#f9a8d4'}`
+                                                  }}>{sRegNo}</span>
+                                                  <div>
+                                                    <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{s.name} {s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
+                                                      Group: {teamObj ? teamObj.name : 'Unknown'} | Cat: {catObj ? catObj.name : 'Unknown'}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <button onClick={() => startEditStudent(s)} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                                  <button onClick={() => handleDeleteStudent(s.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                                </div>
                                               </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   )}
                                 </div>
                               </>
                             );
                           })()}
                         </div>
-
                       </div>
                     )}
 
                     {/* PROGRAMS SUB-TAB */}
                     {settingsSubTab === 'PROGRAMS' && (
-                      <div className="settings-card-container">
-                        <div className="settings-form-box">
+                      <div className="settings-card-v2">
+                        <div className="settings-form-box-v2">
                           <h3>🏆 Add New Program</h3>
                           <form onSubmit={handleAddProgram} className="settings-form">
-                            <input type="text" className="settings-input" placeholder="Program Name (eg: Speech)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
-                            <input type="text" className="settings-input" placeholder="Program Code (eg: P101)" value={newProgCode} onChange={(e) => setNewProgCode(e.target.value)} required />
+                            <input type="text" className="settings-input-v2" placeholder="Program Name (eg: Speech)" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} required />
+                            <input type="text" className="settings-input-v2" placeholder="Program Code (eg: P101)" value={newProgCode} onChange={(e) => setNewProgCode(e.target.value)} required />
 
-                            <select className="settings-input" value={selectedProgCat && progGender ? `${selectedProgCat}_${progGender}` : ''} onChange={(e) => {
+                            <select className="settings-input-v2" value={selectedProgCat && progGender ? `${selectedProgCat}_${progGender}` : ''} onChange={(e) => {
                               const val = e.target.value;
                               if (val) {
                                 const [cId, g] = val.split('_');
@@ -3640,14 +3675,15 @@ function downloadAsImage() {
                               ))}
                             </select>
 
-                            <select className="settings-input" value={progType} onChange={(e) => setProgType(e.target.value)}>
+                            <select className="settings-input-v2" value={progType} onChange={(e) => setProgType(e.target.value)}>
                               <option value="SINGLE">SINGLE (Individual)</option>
                               <option value="GROUP">GROUP (Group Event)</option>
                             </select>
 
-                            <button type="submit" className="btn-add-action">Add Program</button>
+                            <button type="submit" className="btn-premium-action">Add Program</button>
                           </form>
                         </div>
+                        <div style={{ marginTop: '20px' }}>
                         <div className="settings-list-box" style={{ maxHeight: 'none' }}>
                           {(() => {
                             // Category filter chips
@@ -3822,10 +3858,10 @@ function downloadAsImage() {
 
                             return (
                               <>
-                                <h3>📜 Programs ({programs.length})</h3>
+                                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Programs ({programs.length})</h3>
 
                                 {/* Category filter chips */}
-                                <div className="student-filters-container" style={{ marginTop: '10px' }}>
+                                <div className="student-filters-container" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', background: '#f8fafc', padding: '14px', marginBottom: '16px' }}>
                                   <div>
                                     <div className="filter-section-title">📂 Filter by Category</div>
                                     <div className="filter-chips-wrapper">
@@ -3849,10 +3885,10 @@ function downloadAsImage() {
                                 </div>
 
                                 {/* PDF Download buttons */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '4px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
                                   <button
                                     onClick={() => generateProgramsPDF('ALL')}
-                                    style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d6a4f)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary-deep))', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
                                   >
                                     📄 All Programs PDF
                                   </button>
@@ -3863,7 +3899,7 @@ function downloadAsImage() {
                                       <button
                                         key={c.id}
                                         onClick={() => generateProgramsPDF(c.id)}
-                                        style={{ background: 'linear-gradient(135deg, #0f766e, #0891b2)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                        style={{ background: 'linear-gradient(135deg, #022c22, #064e3b)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
                                       >
                                         📄 {c.name}
                                       </button>
@@ -3872,97 +3908,110 @@ function downloadAsImage() {
                                 </div>
 
                                 {/* Programs grouped by category */}
-                                {programs.length === 0 ? (
-                                  <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs added.</p>
-                                ) : filteredPrograms.length === 0 ? (
-                                  <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs in this category.</p>
-                                ) : (() => {
-                                  // Group by category
-                                  const catsToShow = programFilterCat === 'ALL'
-                                    ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
-                                    : categories.filter(c => String(c.id) === String(programFilterCat));
+                                <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
+                                  {programs.length === 0 ? (
+                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs added.</p>
+                                  ) : filteredPrograms.length === 0 ? (
+                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs in this category.</p>
+                                  ) : (() => {
+                                    // Group by category
+                                    const catsToShow = programFilterCat === 'ALL'
+                                      ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
+                                      : categories.filter(c => String(c.id) === String(programFilterCat));
 
-                                  return catsToShow.map(cat => {
-                                    const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
-                                    if (catProgs.length === 0) return null;
-                                    return (
-                                      <div key={cat.id} style={{ marginTop: '16px' }}>
-                                        {/* Category heading */}
-                                        <div style={{
-                                          background: 'linear-gradient(90deg, #1e3a5f, #2d6a4f)',
-                                          color: 'white',
-                                          padding: '8px 14px',
-                                          borderRadius: '8px',
-                                          fontWeight: '700',
-                                          fontSize: '13px',
-                                          marginBottom: '8px',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '8px'
-                                        }}>
-                                          📂 {cat.name}
-                                          {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
-                                          <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
-                                        </div>
-                                        {/* Programs in this category */}
-                                        {catProgs.map(p => (
-                                          <div key={p.id} className="settings-item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px', marginBottom: '6px' }}>
-                                            {editingProgId === p.id ? (
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                <input type="text" className="settings-input" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
-                                                <input type="text" className="settings-input" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
-
-                                                <select className="settings-input" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
-                                                  const val = e.target.value;
-                                                  if (val) {
-                                                    const [cId, g] = val.split('_');
-                                                    const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
-                                                    setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
-                                                  }
-                                                }}>
-                                                  <option value="">Select Category & Division</option>
-                                                  {categories.map(c => (
-                                                    <React.Fragment key={c.id}>
-                                                      <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                                      <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                                      <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
-                                                    </React.Fragment>
-                                                  ))}
-                                                </select>
-
-                                                <select className="settings-input" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
-                                                  const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
-                                                  setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
-                                                }}>
-                                                  <option value="SINGLE">SINGLE</option>
-                                                  <option value="GROUP">GROUP</option>
-                                                </select>
-
-                                                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                                  <button onClick={handleSaveProgEdit} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'green' }}>Save</button>
-                                                  <button onClick={() => setEditingProgId(null)} className="btn-add-action" style={{ width: 'auto', padding: '8px 12px', background: 'gray' }}>Cancel</button>
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                <div>
-                                                  <strong>{p.code}</strong> - {p.name}
-                                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                                    Division: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
-                                                  </div>
-                                                </div>
-                                                <div>
-                                                  <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="settings-action-btn" title="Edit">✏️</button>
-                                                  <button onClick={() => handleDeleteProgram(p.id)} className="settings-action-btn" title="Delete">❌</button>
-                                                </div>
-                                              </div>
-                                            )}
+                                    return catsToShow.map(cat => {
+                                      const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                      if (catProgs.length === 0) return null;
+                                      return (
+                                        <div key={cat.id} style={{ marginTop: '16px' }}>
+                                          {/* Category heading */}
+                                          <div style={{
+                                            background: 'linear-gradient(90deg, var(--primary-deep), var(--primary-light))',
+                                            color: 'white',
+                                            padding: '10px 14px',
+                                            borderRadius: '8px',
+                                            fontWeight: '700',
+                                            fontSize: '13px',
+                                            marginBottom: '10px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            boxShadow: '0 2px 6px rgba(6, 78, 59, 0.12)'
+                                          }}>
+                                            📂 {cat.name}
+                                            {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
+                                            <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
                                           </div>
-                                        ))}
-                                      </div>
-                                    );
-                                  });
-                                })()}
+                                          {/* Programs in this category */}
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            {catProgs.map(p => (
+                                              <div key={p.id} className={`settings-item-row-v2 ${editingProgId === p.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                                                {editingProgId === p.id ? (
+                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <input type="text" className="settings-input-v2" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
+                                                    <input type="text" className="settings-input-v2" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
+
+                                                    <select className="settings-input-v2" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
+                                                      const val = e.target.value;
+                                                      if (val) {
+                                                        const [cId, g] = val.split('_');
+                                                        const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
+                                                        setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
+                                                      }
+                                                    }}>
+                                                      <option value="">Select Category & Division</option>
+                                                      {categories.map(c => (
+                                                        <React.Fragment key={c.id}>
+                                                          <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                                          <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                                          <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                                        </React.Fragment>
+                                                      ))}
+                                                    </select>
+
+                                                    <select className="settings-input-v2" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
+                                                      const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
+                                                      setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
+                                                    }}>
+                                                      <option value="SINGLE">SINGLE</option>
+                                                      <option value="GROUP">GROUP</option>
+                                                    </select>
+
+                                                    <div className="action-buttons-group">
+                                                      <button onClick={handleSaveProgEdit} className="btn-premium-action-small primary">Save</button>
+                                                      <button onClick={() => setEditingProgId(null)} className="btn-premium-action-small secondary">Cancel</button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                      <span style={{
+                                                        background: 'var(--dash-bg)',
+                                                        color: 'var(--primary-deep)',
+                                                        borderRadius: '8px', padding: '4px 10px', fontWeight: '800', fontSize: '13px',
+                                                        border: '1px solid #cbd5e1'
+                                                      }}>{p.code}</span>
+                                                      <div>
+                                                        <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
+                                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
+                                                          Division: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                    <div>
+                                                      <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                                      <button onClick={() => handleDeleteProgram(p.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                </div>
                               </>
                             );
                           })()}
@@ -4028,199 +4077,236 @@ function downloadAsImage() {
                       };
 
                       return (
-                        <div className="settings-card-container">
-                          {/* LEFT: Form */}
-                          <div className="settings-form-box">
-                            <h3>📋 Register Students for Programs</h3>
+                      return (
+                        <div className="settings-card-v2">
+                          {/* We can do a responsive split layout: Left is Form (with Stepper), Right is Live Summary */}
+                          <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                              
+                              {/* LEFT: Step Form */}
+                              <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                <h3>📋 Register Students for Programs</h3>
 
-                            {/* Step 1: Category */}
-                            <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe', marginBottom: '10px' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category</label>
-                              <select className="settings-input" value={regTabCat} onChange={e => {
-                                setRegTabCat(e.target.value);
-                                setRegTabStudent('');
-                                setRegTabCheckedProgs([]);
-                              }}>
-                                <option value="">-- Select Category --</option>
-                                {categories.map(c => (
-                                  <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                              </select>
-                            </div>
+                                <div className="stepper-timeline">
+                                  {/* Step 1: Category */}
+                                  <div className={`step-box ${regTabCat ? 'filled' : 'active'}`}>
+                                    <div className="step-header">
+                                      <div className="step-number">01</div>
+                                      <div className="step-title">Select Category</div>
+                                    </div>
+                                    <div className="step-content">
+                                      <select className="settings-input-v2" value={regTabCat} onChange={e => {
+                                        setRegTabCat(e.target.value);
+                                        setRegTabStudent('');
+                                        setRegTabCheckedProgs([]);
+                                      }}>
+                                        <option value="">-- Select Category --</option>
+                                        {categories.map(c => (
+                                          <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
 
-                            {/* Step 2: Division / Gender */}
-                            {regTabCat && (
-                              <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '10px' }}>
-                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Division</label>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                  {[
-                                    { val: 'BOY',    label: '👦 Boys' },
-                                    { val: 'GIRL',   label: '👧 Girls' },
-                                    { val: 'COMMON', label: '🚻 General / Common' }
-                                  ].map(opt => (
-                                    <button key={opt.val} type="button"
-                                      onClick={() => { setRegTabGender(opt.val); setRegTabStudent(''); setRegTabCheckedProgs([]); }}
-                                      style={{
-                                        padding: '8px 14px', borderRadius: '8px', border: 'none',
-                                        fontWeight: '700', fontSize: '13px', cursor: 'pointer',
-                                        background: regTabGender === opt.val
-                                          ? (opt.val === 'BOY' ? '#1e40af' : opt.val === 'GIRL' ? '#be185d' : '#0f766e')
-                                          : '#e2e8f0',
-                                        color: regTabGender === opt.val ? 'white' : '#475569'
-                                      }}
-                                    >{opt.label}</button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                                  {/* Step 2: Division / Gender */}
+                                  {regTabCat && (
+                                    <div className={`step-box ${regTabGender ? 'filled' : 'active'}`}>
+                                      <div className="step-header">
+                                        <div className="step-number">02</div>
+                                        <div className="step-title">Select Division</div>
+                                      </div>
+                                      <div className="step-content">
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                          {[
+                                            { val: 'BOY',    label: '👦 Boys' },
+                                            { val: 'GIRL',   label: '👧 Girls' },
+                                            { val: 'COMMON', label: '🚻 General' }
+                                          ].map(opt => (
+                                            <button key={opt.val} type="button"
+                                              onClick={() => { setRegTabGender(opt.val); setRegTabStudent(''); setRegTabCheckedProgs([]); }}
+                                              className="btn-premium-action-small"
+                                              style={{
+                                                padding: '10px 16px', borderRadius: '10px', border: 'none',
+                                                fontWeight: '800', fontSize: '13px', cursor: 'pointer',
+                                                background: regTabGender === opt.val
+                                                  ? (opt.val === 'BOY' ? '#2563eb' : opt.val === 'GIRL' ? '#db2777' : '#0f766e')
+                                                  : '#e2e8f0',
+                                                color: regTabGender === opt.val ? 'white' : '#475569',
+                                                boxShadow: regTabGender === opt.val ? '0 4px 10px rgba(0,0,0,0.1)' : 'none',
+                                                transition: 'all 0.2s'
+                                              }}
+                                            >{opt.label}</button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
 
-                            {/* Step 3: Select Student */}
-                            {regTabCat && (
-                              <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '10px' }}>
-                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', display: 'block', marginBottom: '6px' }}>③ Select Student</label>
-                                {regStudentsFiltered.length === 0 ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px', margin: 0 }}>No students in this category/division.</p>
-                                ) : (
-                                  <select className="settings-input" value={regTabStudent} onChange={e => {
-                                    const sid = e.target.value;
-                                    setRegTabStudent(sid);
-                                    const existing = programRegistrations
-                                      .filter(r => String(r.student_id) === String(sid))
-                                      .map(r => String(r.program_id));
-                                    setRegTabCheckedProgs(existing);
-                                  }}>
-                                    <option value="">-- Select Student --</option>
-                                    {regStudentsFiltered.map(s => {
-                                      const sRegNo = s.regno || s.regNo || '';
-                                      const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
-                                      return (
-                                        <option key={s.id} value={s.id}>
-                                          {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} programs]` : ''}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                )}
-                              </div>
-                            )}
+                                  {/* Step 3: Select Student */}
+                                  {regTabCat && (
+                                    <div className={`step-box ${regTabStudent ? 'filled' : 'active'}`}>
+                                      <div className="step-header">
+                                        <div className="step-number">03</div>
+                                        <div className="step-title">Select Student</div>
+                                      </div>
+                                      <div className="step-content">
+                                        {regStudentsFiltered.length === 0 ? (
+                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>No students in this category/division.</p>
+                                        ) : (
+                                          <select className="settings-input-v2" value={regTabStudent} onChange={e => {
+                                            const sid = e.target.value;
+                                            setRegTabStudent(sid);
+                                            const existing = programRegistrations
+                                              .filter(r => String(r.student_id) === String(sid))
+                                              .map(r => String(r.program_id));
+                                            setRegTabCheckedProgs(existing);
+                                          }}>
+                                            <option value="">-- Select Student --</option>
+                                            {regStudentsFiltered.map(s => {
+                                              const sRegNo = s.regno || s.regNo || '';
+                                              const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
+                                              return (
+                                                <option key={s.id} value={s.id}>
+                                                  {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} progs]` : ''}
+                                                </option>
+                                              );
+                                            })}
+                                          </select>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
 
-                            {/* Step 4: Program Checklist */}
-                            {regTabStudent && (
-                              <>
-                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
-                                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '8px' }}>
-                                    ④ Programs for <span style={{ color: '#1e293b' }}>{selectedStudentObj ? selectedStudentObj.name : ''}</span>
-                                  </label>
-                                  {regPrograms.length === 0 ? (
-                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>No programs in this category/division.</p>
-                                  ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
-                                      {/* Select All / Clear All */}
-                                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
-                                        <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
-                                          style={{ flex: 1, padding: '5px', fontSize: '11px', fontWeight: '700', border: 'none', borderRadius: '6px', background: '#dcfce7', color: '#166534', cursor: 'pointer' }}>
-                                          ✅ Select All
-                                        </button>
-                                        <button type="button" onClick={() => setRegTabCheckedProgs([])}
-                                          style={{ flex: 1, padding: '5px', fontSize: '11px', fontWeight: '700', border: 'none', borderRadius: '6px', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>
-                                          ❌ Clear All
+                                  {/* Step 4: Program Checklist */}
+                                  {regTabStudent && (
+                                    <div className="step-box active">
+                                      <div className="step-header">
+                                        <div className="step-number">04</div>
+                                        <div className="step-title">Select Programs for {selectedStudentObj ? selectedStudentObj.name : ''}</div>
+                                      </div>
+                                      <div className="step-content">
+                                        {regPrograms.length === 0 ? (
+                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>No programs in this category/division.</p>
+                                        ) : (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {/* Select All / Clear All */}
+                                            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                                              <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
+                                                className="btn-premium-action-small secondary" style={{ flex: 1, background: '#dcfce7', color: '#166534' }}>
+                                                Select All
+                                              </button>
+                                              <button type="button" onClick={() => setRegTabCheckedProgs([])}
+                                                className="btn-premium-action-small secondary" style={{ flex: 1, background: '#fee2e2', color: '#991b1b' }}>
+                                                Clear All
+                                              </button>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                                              {regPrograms.map(p => {
+                                                const isChecked = regTabCheckedProgs.includes(String(p.id));
+                                                const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                                return (
+                                                  <label key={p.id} style={{
+                                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                                    padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                                                    background: isChecked ? '#eff6ff' : '#ffffff',
+                                                    border: `1.5px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                    transition: 'all 0.15s'
+                                                  }}>
+                                                    <input type="checkbox" checked={isChecked}
+                                                      onChange={e => {
+                                                        if (e.target.checked) {
+                                                          setRegTabCheckedProgs(prev => [...prev, String(p.id)]);
+                                                        } else {
+                                                          setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id)));
+                                                        }
+                                                      }}
+                                                      style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                                    />
+                                                    <div style={{ flex: 1 }}>
+                                                      <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b' }}>{p.code} – {p.name}</div>
+                                                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>{pTypeLabel}</div>
+                                                    </div>
+                                                    {isChecked && <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>✓ Checked</span>}
+                                                  </label>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        <button type="button" onClick={handleSaveRegistrations} disabled={regTabSaving}
+                                          className="btn-premium-action"
+                                          style={{ marginTop: '16px' }}>
+                                          {regTabSaving ? '⏳ Saving...' : `💾 Save Registration (${regTabCheckedProgs.length} selected)`}
                                         </button>
                                       </div>
-                                      {regPrograms.map(p => {
-                                        const isChecked = regTabCheckedProgs.includes(String(p.id));
-                                        const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
-                                        return (
-                                          <label key={p.id} style={{
-                                            display: 'flex', alignItems: 'center', gap: '10px',
-                                            padding: '8px 10px', borderRadius: '6px', cursor: 'pointer',
-                                            background: isChecked ? '#dcfce7' : '#fff',
-                                            border: `1.5px solid ${isChecked ? '#86efac' : '#e2e8f0'}`,
-                                            transition: 'all 0.15s'
-                                          }}>
-                                            <input type="checkbox" checked={isChecked}
-                                              onChange={e => {
-                                                if (e.target.checked) {
-                                                  setRegTabCheckedProgs(prev => [...prev, String(p.id)]);
-                                                } else {
-                                                  setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id)));
-                                                }
-                                              }}
-                                              style={{ width: '18px', height: '18px', accentColor: '#16a34a', cursor: 'pointer' }}
-                                            />
-                                            <div style={{ flex: 1 }}>
-                                              <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b' }}>{p.code} – {p.name}</div>
-                                              <div style={{ fontSize: '11px', color: '#64748b' }}>{pTypeLabel}</div>
-                                            </div>
-                                            {isChecked && <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>✓ Registered</span>}
-                                          </label>
-                                        );
-                                      })}
                                     </div>
                                   )}
                                 </div>
-
-                                <button type="button" onClick={handleSaveRegistrations} disabled={regTabSaving}
-                                  className="btn-add-action"
-                                  style={{ background: regTabSaving ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #0f766e)', cursor: regTabSaving ? 'not-allowed' : 'pointer' }}>
-                                  {regTabSaving ? '⏳ Saving...' : `💾 Save Registration (${regTabCheckedProgs.length} selected)`}
-                                </button>
-                              </>
-                            )}
-                          </div>
-
-                          {/* RIGHT: Registration Summary */}
-                          <div className="settings-list-box" style={{ maxHeight: 'none' }}>
-                            <h3>📊 Registration Summary {regTabCat ? `– ${regCatObj?.name || ''}` : ''}</h3>
-                            {!regTabCat ? (
-                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Select a category to view registrations.</p>
-                            ) : regStudentsFiltered.length === 0 ? (
-                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students in this category/division.</p>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {regStudentsFiltered.map(s => {
-                                  const sRegNo = s.regno || s.regNo || '';
-                                  const sProgs = programRegistrations
-                                    .filter(r => String(r.student_id) === String(s.id))
-                                    .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
-                                    .filter(Boolean);
-                                  const isSelected = String(regTabStudent) === String(s.id);
-                                  return (
-                                    <div key={s.id}
-                                      style={{
-                                        padding: '10px', borderRadius: '8px', cursor: 'pointer',
-                                        background: isSelected ? '#eff6ff' : '#f8fafc',
-                                        border: `1.5px solid ${isSelected ? '#93c5fd' : '#e2e8f0'}`,
-                                        transition: 'all 0.15s'
-                                      }}
-                                      onClick={() => {
-                                        setRegTabStudent(String(s.id));
-                                        const existing = programRegistrations
-                                          .filter(r => String(r.student_id) === String(s.id))
-                                          .map(r => String(r.program_id));
-                                        setRegTabCheckedProgs(existing);
-                                      }}>
-                                      <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={{ background: '#1e40af', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '11px' }}>{sRegNo}</span>
-                                        {s.name}
-                                        <span style={{ color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}>{s.gender === 'BOY' ? '👦' : '👧'}</span>
-                                      </div>
-                                      {sProgs.length > 0 ? (
-                                        <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                          {sProgs.map(p => (
-                                            <span key={p.id} style={{
-                                              background: '#dcfce7', color: '#166534', borderRadius: '4px',
-                                              padding: '2px 7px', fontSize: '11px', fontWeight: '600'
-                                            }}>{p.code} – {p.name}</span>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>No programs registered yet</div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
                               </div>
-                            )}
+
+                              {/* RIGHT: Registration Summary */}
+                              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '14px', borderLeft: '4px solid var(--primary-light)', paddingLeft: '10px' }}>
+                                  📊 Registration Summary {regTabCat ? `– ${regCatObj?.name || ''}` : ''}
+                                </h3>
+                                {!regTabCat ? (
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Select a category to view registrations.</p>
+                                ) : regStudentsFiltered.length === 0 ? (
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students in this category/division.</p>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
+                                    {regStudentsFiltered.map(s => {
+                                      const sRegNo = s.regno || s.regNo || '';
+                                      const sProgs = programRegistrations
+                                        .filter(r => String(r.student_id) === String(s.id))
+                                        .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
+                                        .filter(Boolean);
+                                      const isSelected = String(regTabStudent) === String(s.id);
+                                      return (
+                                        <div key={s.id}
+                                          style={{
+                                            padding: '12px', borderRadius: '12px', cursor: 'pointer',
+                                            background: '#ffffff',
+                                            border: `1.5px solid ${isSelected ? 'var(--primary-light)' : '#e2e8f0'}`,
+                                            boxShadow: isSelected ? '0 4px 12px rgba(15, 118, 110, 0.08)' : 'none',
+                                            transition: 'all 0.15s'
+                                          }}
+                                          onClick={() => {
+                                            setRegTabStudent(String(s.id));
+                                            const existing = programRegistrations
+                                              .filter(r => String(r.student_id) === String(s.id))
+                                              .map(r => String(r.program_id));
+                                            setRegTabCheckedProgs(existing);
+                                          }}>
+                                          <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{
+                                              background: s.gender === 'BOY' ? '#dbeafe' : '#fce7f3',
+                                              color: s.gender === 'BOY' ? '#1e40af' : '#be185d',
+                                              borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800'
+                                            }}>{sRegNo}</span>
+                                            <span style={{ color: isSelected ? 'var(--primary-deep)' : '#1e293b' }}>{s.name}</span>
+                                            <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                          </div>
+                                          {sProgs.length > 0 ? (
+                                            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                              {sProgs.map(p => (
+                                                <span key={p.id} style={{
+                                                  background: '#e6f4ea', color: '#137333', borderRadius: '6px',
+                                                  padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #cbd5e1'
+                                                }}>{p.code} – {p.name}</span>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>No programs registered yet</div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
@@ -4228,183 +4314,245 @@ function downloadAsImage() {
 
                     {/* MARK_ENTRY SUB-TAB */}
                     {settingsSubTab === 'MARK_ENTRY' && (
-                      <div className="settings-card-container">
-                        <div className="settings-form-box">
+                      <div className="settings-card-v2">
+                        <div className="settings-form-box-v2">
                           <h3>📝 Mark Entry (Mark Entry System)</h3>
                           <form onSubmit={handleAddResult} className="settings-form">
+                            <div className="stepper-timeline">
+                              
+                              {/* Step 1: Category & Gender */}
+                              <div className={`step-box ${selectedResultCat ? 'filled' : 'active'}`}>
+                                <div className="step-header">
+                                  <div className="step-number">01</div>
+                                  <div className="step-title">Select Category & Division</div>
+                                </div>
+                                <div className="step-content">
+                                  <select className="settings-input-v2" value={selectedResultCat && selectedResultGender && selectedResultGender !== 'ALL' ? `${selectedResultCat}_${selectedResultGender}` : ''} onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (!val) {
+                                      setSelectedResultCat('');
+                                      setSelectedResultGender('ALL');
+                                    } else {
+                                      const [cId, g] = val.split('_');
+                                      setSelectedResultCat(cId);
+                                      setSelectedResultGender(g);
+                                    }
+                                    setSelectedResultProg('');
+                                    setSelectedResultStudent('');
+                                  }} required>
+                                    <option value="">-- Category & Division --</option>
+                                    {categories.map(c => (
+                                      <React.Fragment key={c.id}>
+                                        <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                        <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                      </React.Fragment>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
 
-                            {/* Step 1: Category & Gender */}
-                            <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
-                              <select className="settings-input" value={selectedResultCat && selectedResultGender && selectedResultGender !== 'ALL' ? `${selectedResultCat}_${selectedResultGender}` : ''} onChange={(e) => {
-                                const val = e.target.value;
-                                if (!val) {
-                                  setSelectedResultCat('');
-                                  setSelectedResultGender('ALL');
-                                } else {
-                                  const [cId, g] = val.split('_');
-                                  setSelectedResultCat(cId);
-                                  setSelectedResultGender(g);
-                                }
-                                setSelectedResultProg('');
-                                setSelectedResultStudent('');
-                              }} required>
-                                <option value="">-- Category & Division --</option>
-                                {categories.map(c => (
-                                  <React.Fragment key={c.id}>
-                                    <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                    <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                  </React.Fragment>
-                                ))}
-                              </select>
+                              {/* Step 2: Program (filtered by category and gender) */}
+                              <div className={`step-box ${selectedResultProg ? 'filled' : 'active'}`}>
+                                <div className="step-header">
+                                  <div className="step-number">02</div>
+                                  <div className="step-title">Select Program</div>
+                                </div>
+                                <div className="step-content">
+                                  <select className="settings-input-v2" value={selectedResultProg} onChange={(e) => {
+                                    setSelectedResultProg(e.target.value);
+                                    setSelectedResultStudent('');
+                                  }} required disabled={!selectedResultCat}>
+                                    <option value="">{selectedResultCat ? '-- Select Program --' : 'Select Category First'}</option>
+                                    {programs
+                                      .filter(p => {
+                                         if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
+                                         if (!p.type || !p.type.includes('_')) return true;
+                                         if (p.type.includes('COMMON')) return true;
+                                         if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
+                                         return true;
+                                      })
+                                      .map(p => {
+                                        const pTypeBase = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                        const pGender = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
+                                        return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeBase} {pGender})</option>;
+                                      })
+                                    }
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Step 3: Student (filtered by category & gender, supporting 'General') */}
+                              <div className={`step-box ${selectedResultStudent ? 'filled' : 'active'}`}>
+                                <div className="step-header">
+                                  <div className="step-number">03</div>
+                                  <div className="step-title">Select Student</div>
+                                </div>
+                                <div className="step-content">
+                                  <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
+                                    <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
+                                    {(() => {
+                                      const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
+                                      const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
+
+                                      // If a program is selected, filter by registered students only
+                                      const regStudentIds = selectedResultProg
+                                        ? new Set(programRegistrations
+                                            .filter(r => String(r.program_id) === String(selectedResultProg))
+                                            .map(r => String(r.student_id)))
+                                        : null;
+
+                                      return students
+                                        .filter(s => {
+                                          if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
+                                          if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
+                                          if (isGeneral) return true; // Show all students for General category!
+                                          return String(s.catid || s.catId || '') === String(selectedResultCat);
+                                        })
+                                        .map(s => {
+                                          const sRegNo = s.regno || s.regNo || '';
+                                          const sTeamId = s.teamid || s.teamId || '';
+                                          const teamName = (teams.find(t => String(t.id) === String(sTeamId)) || {}).name || '';
+                                          const catName = (categories.find(c => String(c.id) === String(s.catid || s.catId)) || {}).name || '';
+                                          return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{teamName}] {isGeneral ? `(${catName})` : ''}</option>;
+                                        });
+                                    })()}
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Step 4: Place & Grade (Segmented Controls) */}
+                              <div className="step-box active">
+                                <div className="step-header">
+                                  <div className="step-number">04</div>
+                                  <div className="step-title">Result Position & Grade</div>
+                                </div>
+                                <div className="step-content">
+                                  <div className="segmented-control-group">
+                                    <div className="segmented-control-label">🏆 Select Place</div>
+                                    <div className="segmented-control">
+                                      {[
+                                        { val: '1', label: '1st Place', className: 'place-1' },
+                                        { val: '2', label: '2nd Place', className: 'place-2' },
+                                        { val: '3', label: '3rd Place', className: 'place-3' },
+                                        { val: '0', label: 'No Place' }
+                                      ].map(opt => (
+                                        <button
+                                          key={opt.val}
+                                          type="button"
+                                          className={`segmented-option ${selectedPlace === opt.val ? `active ${opt.className || ''}` : ''}`}
+                                          onClick={() => setSelectedPlace(opt.val)}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div className="segmented-control-group" style={{ marginTop: '12px' }}>
+                                    <div className="segmented-control-label">🎖️ Select Grade</div>
+                                    <div className="segmented-control">
+                                      {[
+                                        { val: 'A', label: 'A Grade', className: 'grade-a' },
+                                        { val: 'B', label: 'B Grade', className: 'grade-b' },
+                                        { val: 'C', label: 'C Grade', className: 'grade-c' },
+                                        { val: 'No', label: 'No Grade' }
+                                      ].map(opt => (
+                                        <button
+                                          key={opt.val}
+                                          type="button"
+                                          className={`segmented-option ${selectedGrade === opt.val ? `active ${opt.className || ''}` : ''}`}
+                                          onClick={() => setSelectedGrade(opt.val)}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <button type="submit" className="btn-premium-action" style={{ marginTop: '16px', background: 'linear-gradient(135deg, #e21c34 0%, #9a0f20 100%)', boxShadow: '0 4px 12px rgba(226, 28, 52, 0.2)' }}>
+                                    💾 Save Result
+                                  </button>
+                                </div>
+                              </div>
+
                             </div>
-
-                            {/* Step 2: Program (filtered by category and gender) */}
-                            <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Program</label>
-                              <select className="settings-input" value={selectedResultProg} onChange={(e) => {
-                                setSelectedResultProg(e.target.value);
-                                setSelectedResultStudent('');
-                              }} required disabled={!selectedResultCat}>
-                                <option value="">{selectedResultCat ? '-- Select Program --' : 'Select Category First'}</option>
-                                {programs
-                                  .filter(p => {
-                                     if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
-                                     if (!p.type || !p.type.includes('_')) return true;
-                                     if (p.type.includes('COMMON')) return true;
-                                     if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
-                                     return true;
-                                  })
-                                  .map(p => {
-                                    const pTypeBase = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
-                                    const pGender = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
-                                    return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeBase} {pGender})</option>;
-                                  })
-                                }
-                              </select>
-                            </div>
-
-                            {/* Step 3: Student (filtered by category & gender, supporting 'General') */}
-                            <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', display: 'block', marginBottom: '6px' }}>③ Select Student</label>
-                              <select className="settings-input" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
-                                <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
-                                {(() => {
-                                  const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
-                                  const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
-
-                                  // If a program is selected, filter by registered students only
-                                  const regStudentIds = selectedResultProg
-                                    ? new Set(programRegistrations
-                                        .filter(r => String(r.program_id) === String(selectedResultProg))
-                                        .map(r => String(r.student_id)))
-                                    : null;
-
-                                  return students
-                                    .filter(s => {
-                                      if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
-                                      if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
-                                      if (isGeneral) return true; // Show all students for General category!
-                                      return String(s.catid || s.catId || '') === String(selectedResultCat);
-                                    })
-                                    .map(s => {
-                                      const sRegNo = s.regno || s.regNo || '';
-                                      const sTeamId = s.teamid || s.teamId || '';
-                                      const teamName = (teams.find(t => String(t.id) === String(sTeamId)) || {}).name || '';
-                                      const catName = (categories.find(c => String(c.id) === String(s.catid || s.catId)) || {}).name || '';
-                                      return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{teamName}] {isGeneral ? `(${catName})` : ''}</option>;
-                                    });
-                                })()}
-                              </select>
-                            </div>
-
-                            {/* Step 4: Place & Grade */}
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <select className="settings-input" value={selectedPlace} onChange={(e) => setSelectedPlace(e.target.value)}>
-                                <option value="1">First Place</option>
-                                <option value="2">Second Place</option>
-                                <option value="3">Third Place</option>
-                                <option value="0">No Place</option>
-                              </select>
-                              <select className="settings-input" value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
-                                <option value="A">A Grade</option>
-                                <option value="B">B Grade</option>
-                                <option value="C">C Grade</option>
-                                <option value="No">No Grade</option>
-                              </select>
-                            </div>
-                            <button type="submit" className="btn-add-action" style={{ background: '#e21c34' }}>💾 Save Result</button>                          </form>
+                          </form>
                         </div>
                       </div>
                     )}
 
                     {/* POINTS SETUP SUB-TAB */}
                     {settingsSubTab === 'POINTS' && (
-                      <div className="settings-card-container">
-                        <div className="settings-form-box">
+                      <div className="settings-card-v2">
+                        <div className="settings-form-box-v2">
                           <h3>⚙️ Design Point Structure</h3>
                           <form onSubmit={handleSavePoints} className="settings-form">
-                            <h5 style={{ margin: '5px 0', color: '#0f766e' }}>Single Events Points:</h5>
-                            <div className="points-grid-setup">
-                              <div className="points-setup-card">
-                                <label>First Place</label>
-                                <input type="number" className="settings-input" value={pointSystem.p1} onChange={e => setPointSystem({ ...pointSystem, p1: e.target.value })} required />
+                            
+                            <h4 style={{ margin: '10px 0 14px', color: 'var(--primary-light)', fontSize: '14px', fontWeight: '800', borderBottom: '2px solid #f1f5f9', paddingBottom: '6px' }}>
+                              👤 Single Events Points
+                            </h4>
+                            <div className="points-card-container-v2">
+                              <div className="points-card-v2">
+                                <label>🥇 First Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.p1} onChange={e => setPointSystem({ ...pointSystem, p1: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
-                                <label>Second Place</label>
-                                <input type="number" className="settings-input" value={pointSystem.p2} onChange={e => setPointSystem({ ...pointSystem, p2: e.target.value })} required />
+                              <div className="points-card-v2">
+                                <label>🥈 Second Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.p2} onChange={e => setPointSystem({ ...pointSystem, p2: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
-                                <label>Third Place</label>
-                                <input type="number" className="settings-input" value={pointSystem.p3} onChange={e => setPointSystem({ ...pointSystem, p3: e.target.value })} required />
+                              <div className="points-card-v2">
+                                <label>🥉 Third Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.p3} onChange={e => setPointSystem({ ...pointSystem, p3: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
                             </div>
-                            <div className="points-grid-setup">
-                              <div className="points-setup-card">
+                            <div className="points-card-container-v2">
+                              <div className="points-card-v2">
                                 <label>A Grade</label>
-                                <input type="number" className="settings-input" value={pointSystem.gA} onChange={e => setPointSystem({ ...pointSystem, gA: e.target.value })} required />
+                                <input type="number" className="settings-input-v2" value={pointSystem.gA} onChange={e => setPointSystem({ ...pointSystem, gA: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
+                              <div className="points-card-v2">
                                 <label>B Grade</label>
-                                <input type="number" className="settings-input" value={pointSystem.gB} onChange={e => setPointSystem({ ...pointSystem, gB: e.target.value })} required />
+                                <input type="number" className="settings-input-v2" value={pointSystem.gB} onChange={e => setPointSystem({ ...pointSystem, gB: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
+                              <div className="points-card-v2">
                                 <label>C Grade</label>
-                                <input type="number" className="settings-input" value={pointSystem.gC} onChange={e => setPointSystem({ ...pointSystem, gC: e.target.value })} required />
+                                <input type="number" className="settings-input-v2" value={pointSystem.gC} onChange={e => setPointSystem({ ...pointSystem, gC: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
                             </div>
 
-                            <h5 style={{ margin: '5px 0', color: '#ef4444' }}>Group Events Points:</h5>
-                            <div className="points-grid-setup">
-                              <div className="points-setup-card">
-                                <label>First Place</label>
-                                <input type="number" className="settings-input" value={pointSystem.gp1} onChange={e => setPointSystem({ ...pointSystem, gp1: e.target.value })} required />
+                            <h4 style={{ margin: '20px 0 14px', color: '#ef4444', fontSize: '14px', fontWeight: '800', borderBottom: '2px solid #f1f5f9', paddingBottom: '6px' }}>
+                              👥 Group Events Points
+                            </h4>
+                            <div className="points-card-container-v2">
+                              <div className="points-card-v2">
+                                <label>🥇 First Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.gp1} onChange={e => setPointSystem({ ...pointSystem, gp1: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
-                                <label>Second Place</label>
-                                <input type="number" className="settings-input" value={pointSystem.gp2} onChange={e => setPointSystem({ ...pointSystem, gp2: e.target.value })} required />
+                              <div className="points-card-v2">
+                                <label>🥈 Second Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.gp2} onChange={e => setPointSystem({ ...pointSystem, gp2: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
-                                <label>Third Place</label>
-                                <input type="number" className="settings-input" value={pointSystem.gp3} onChange={e => setPointSystem({ ...pointSystem, gp3: e.target.value })} required />
+                              <div className="points-card-v2">
+                                <label>🥉 Third Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.gp3} onChange={e => setPointSystem({ ...pointSystem, gp3: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
                             </div>
-                            <div className="points-grid-setup">
-                              <div className="points-setup-card">
+                            <div className="points-card-container-v2">
+                              <div className="points-card-v2">
                                 <label>A Grade</label>
-                                <input type="number" className="settings-input" value={pointSystem.gpA} onChange={e => setPointSystem({ ...pointSystem, gpA: e.target.value })} required />
+                                <input type="number" className="settings-input-v2" value={pointSystem.gpA} onChange={e => setPointSystem({ ...pointSystem, gpA: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
+                              <div className="points-card-v2">
                                 <label>B Grade</label>
-                                <input type="number" className="settings-input" value={pointSystem.gpB} onChange={e => setPointSystem({ ...pointSystem, gpB: e.target.value })} required />
+                                <input type="number" className="settings-input-v2" value={pointSystem.gpB} onChange={e => setPointSystem({ ...pointSystem, gpB: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
-                              <div className="points-setup-card">
+                              <div className="points-card-v2">
                                 <label>C Grade</label>
-                                <input type="number" className="settings-input" value={pointSystem.gpC} onChange={e => setPointSystem({ ...pointSystem, gpC: e.target.value })} required />
+                                <input type="number" className="settings-input-v2" value={pointSystem.gpC} onChange={e => setPointSystem({ ...pointSystem, gpC: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
                             </div>
 
-                            <button type="submit" className="btn-add-action" style={{ background: '#0f766e' }}>Save Points Structure</button>
+                            <button type="submit" className="btn-premium-action" style={{ marginTop: '10px' }}>Save Points Structure</button>
                           </form>
                         </div>
                       </div>
