@@ -78,6 +78,7 @@ function App() {
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
+  const [programRegistrations, setProgramRegistrations] = useState([]);
 
   // Dynamic Points system state
   const [pointSystem, setPointSystem] = useState({
@@ -149,6 +150,13 @@ function App() {
   const [judgeSheetCat, setJudgeSheetCat] = useState('');
   const [judgeSheetGender, setJudgeSheetGender] = useState('');
   const [judgeSheetProg, setJudgeSheetProg] = useState('');
+
+  // ── Register Tab States ──
+  const [regTabCat, setRegTabCat] = useState('');
+  const [regTabGender, setRegTabGender] = useState('BOY');
+  const [regTabStudent, setRegTabStudent] = useState('');
+  const [regTabCheckedProgs, setRegTabCheckedProgs] = useState([]);
+  const [regTabSaving, setRegTabSaving] = useState(false);
 
   // ── Profile Tab States ──
   const [profileRegNo, setProfileRegNo] = useState('');
@@ -271,13 +279,15 @@ function App() {
         { data: catsData },
         { data: studentsData },
         { data: programsData },
-        { data: resultsData }
+        { data: resultsData },
+        { data: regData }
       ] = await Promise.all([
         supabase.from('teams').select('*').eq('madrasa_id', rNum),
         supabase.from('categories').select('*').eq('madrasa_id', rNum),
         supabase.from('students').select('*').eq('madrasa_id', rNum),
         supabase.from('programs').select('*').eq('madrasa_id', rNum),
-        supabase.from('results').select('*').eq('madrasa_id', rNum)
+        supabase.from('results').select('*').eq('madrasa_id', rNum),
+        supabase.from('program_registrations').select('*').eq('madrasa_id', rNum)
       ]);
 
       if (teamsData) setTeams(teamsData);
@@ -285,6 +295,7 @@ function App() {
       if (studentsData) setStudents(studentsData);
       if (programsData) setPrograms(programsData);
       if (resultsData) setResultsList(resultsData);
+      if (regData) setProgramRegistrations(regData);
     } catch (err) {
       console.error("Data fetch error: ", err);
     }
@@ -3050,15 +3061,20 @@ function downloadAsImage() {
                 <div style={{ minHeight: '200px' }}></div>
               ) : (
                 <div>
-                  {/* Settings sub tab navigation */}
-                  <div className="sub-tab-nav">
-                    <button className={`sub-nav-item ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>🚩 Teams</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>📂 Categories</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>🧑‍🎓 Students</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>🏆 Programs</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>📝 Mark Entry</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>⚙️ Point Structure</button>
-                    <button className={`sub-nav-item ${settingsSubTab === 'JUDGE_SHEET' ? 'active' : ''}`} onClick={() => setSettingsSubTab('JUDGE_SHEET')}>📋 Student List</button>
+                  {/* Settings sub tab navigation – 2 rows of 4 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '4px' }}>
+                    <div className="sub-tab-nav">
+                      <button className={`sub-nav-item ${settingsSubTab === 'TEAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('TEAMS')}>🚩 Teams</button>
+                      <button className={`sub-nav-item ${settingsSubTab === 'CATEGORIES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CATEGORIES')}>📂 Categories</button>
+                      <button className={`sub-nav-item ${settingsSubTab === 'STUDENTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('STUDENTS')}>🧑‍🎓 Students</button>
+                      <button className={`sub-nav-item ${settingsSubTab === 'PROGRAMS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PROGRAMS')}>🏆 Programs</button>
+                    </div>
+                    <div className="sub-tab-nav">
+                      <button className={`sub-nav-item ${settingsSubTab === 'REGISTER' ? 'active' : ''}`} onClick={() => setSettingsSubTab('REGISTER')} style={{ background: settingsSubTab === 'REGISTER' ? '#16a34a' : '' }}>📋 Register</button>
+                      <button className={`sub-nav-item ${settingsSubTab === 'MARK_ENTRY' ? 'active' : ''}`} onClick={() => setSettingsSubTab('MARK_ENTRY')}>📝 Mark Entry</button>
+                      <button className={`sub-nav-item ${settingsSubTab === 'POINTS' ? 'active' : ''}`} onClick={() => setSettingsSubTab('POINTS')}>⚙️ Point Structure</button>
+                      <button className={`sub-nav-item ${settingsSubTab === 'JUDGE_SHEET' ? 'active' : ''}`} onClick={() => setSettingsSubTab('JUDGE_SHEET')}>📋 Student List</button>
+                    </div>
                   </div>
 
                   <div className="settings-content">
@@ -3954,6 +3970,262 @@ function downloadAsImage() {
                       </div>
                     )}
 
+                    {/* REGISTER SUB-TAB */}
+                    {settingsSubTab === 'REGISTER' && (() => {
+                      // Students filtered by selected category + gender
+                      const regCatObj = categories.find(c => String(c.id) === String(regTabCat));
+                      const isRegGeneral = regCatObj && regCatObj.name.toLowerCase().includes('general');
+
+                      const regStudentsFiltered = regTabCat ? students.filter(s => {
+                        if (regTabGender !== 'COMMON' && s.gender !== regTabGender) return false;
+                        if (isRegGeneral) return true;
+                        return String(s.catid || s.catId || '') === String(regTabCat);
+                      }) : [];
+
+                      // Programs for selected category + gender
+                      const regPrograms = regTabCat ? programs.filter(p => {
+                        if (String(p.catid || p.catId || '') !== String(regTabCat)) return false;
+                        const pt = p.type || '';
+                        if (regTabGender === 'COMMON') return true;
+                        if (pt.includes('COMMON')) return true;
+                        if (regTabGender === 'BOY' && pt.includes('BOY')) return true;
+                        if (regTabGender === 'GIRL' && pt.includes('GIRL')) return true;
+                        return false;
+                      }) : [];
+
+                      const selectedStudentObj = students.find(s => String(s.id) === String(regTabStudent));
+
+                      const handleSaveRegistrations = async () => {
+                        if (!regTabStudent) { alert('Please select a student!'); return; }
+                        setRegTabSaving(true);
+                        try {
+                          const madrasaId = loggedInMadrasa.regNumber;
+                          // Remove old registrations for this student
+                          await supabase.from('program_registrations')
+                            .delete()
+                            .eq('madrasa_id', madrasaId)
+                            .eq('student_id', regTabStudent);
+
+                          // Insert newly checked programs
+                          if (regTabCheckedProgs.length > 0) {
+                            const inserts = regTabCheckedProgs.map(pId => ({
+                              madrasa_id: madrasaId,
+                              student_id: regTabStudent,
+                              program_id: pId
+                            }));
+                            await supabase.from('program_registrations').insert(inserts);
+                          }
+
+                          // Refresh
+                          const { data: newRegs } = await supabase
+                            .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
+                          if (newRegs) setProgramRegistrations(newRegs);
+                          alert(`✅ Saved! ${regTabCheckedProgs.length} program(s) registered for ${selectedStudentObj?.name || ''}`);
+                        } catch (err) {
+                          alert('Error saving: ' + err.message);
+                        }
+                        setRegTabSaving(false);
+                      };
+
+                      return (
+                        <div className="settings-card-container">
+                          {/* LEFT: Form */}
+                          <div className="settings-form-box">
+                            <h3>📋 Register Students for Programs</h3>
+
+                            {/* Step 1: Category */}
+                            <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe', marginBottom: '10px' }}>
+                              <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category</label>
+                              <select className="settings-input" value={regTabCat} onChange={e => {
+                                setRegTabCat(e.target.value);
+                                setRegTabStudent('');
+                                setRegTabCheckedProgs([]);
+                              }}>
+                                <option value="">-- Select Category --</option>
+                                {categories.map(c => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Step 2: Division / Gender */}
+                            {regTabCat && (
+                              <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '10px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Division</label>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                  {[
+                                    { val: 'BOY',    label: '👦 Boys' },
+                                    { val: 'GIRL',   label: '👧 Girls' },
+                                    { val: 'COMMON', label: '🚻 General / Common' }
+                                  ].map(opt => (
+                                    <button key={opt.val} type="button"
+                                      onClick={() => { setRegTabGender(opt.val); setRegTabStudent(''); setRegTabCheckedProgs([]); }}
+                                      style={{
+                                        padding: '8px 14px', borderRadius: '8px', border: 'none',
+                                        fontWeight: '700', fontSize: '13px', cursor: 'pointer',
+                                        background: regTabGender === opt.val
+                                          ? (opt.val === 'BOY' ? '#1e40af' : opt.val === 'GIRL' ? '#be185d' : '#0f766e')
+                                          : '#e2e8f0',
+                                        color: regTabGender === opt.val ? 'white' : '#475569'
+                                      }}
+                                    >{opt.label}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Step 3: Select Student */}
+                            {regTabCat && (
+                              <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '10px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', display: 'block', marginBottom: '6px' }}>③ Select Student</label>
+                                {regStudentsFiltered.length === 0 ? (
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px', margin: 0 }}>No students in this category/division.</p>
+                                ) : (
+                                  <select className="settings-input" value={regTabStudent} onChange={e => {
+                                    const sid = e.target.value;
+                                    setRegTabStudent(sid);
+                                    const existing = programRegistrations
+                                      .filter(r => String(r.student_id) === String(sid))
+                                      .map(r => String(r.program_id));
+                                    setRegTabCheckedProgs(existing);
+                                  }}>
+                                    <option value="">-- Select Student --</option>
+                                    {regStudentsFiltered.map(s => {
+                                      const sRegNo = s.regno || s.regNo || '';
+                                      const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
+                                      return (
+                                        <option key={s.id} value={s.id}>
+                                          {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} programs]` : ''}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Step 4: Program Checklist */}
+                            {regTabStudent && (
+                              <>
+                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
+                                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '8px' }}>
+                                    ④ Programs for <span style={{ color: '#1e293b' }}>{selectedStudentObj ? selectedStudentObj.name : ''}</span>
+                                  </label>
+                                  {regPrograms.length === 0 ? (
+                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>No programs in this category/division.</p>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
+                                      {/* Select All / Clear All */}
+                                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
+                                        <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
+                                          style={{ flex: 1, padding: '5px', fontSize: '11px', fontWeight: '700', border: 'none', borderRadius: '6px', background: '#dcfce7', color: '#166534', cursor: 'pointer' }}>
+                                          ✅ Select All
+                                        </button>
+                                        <button type="button" onClick={() => setRegTabCheckedProgs([])}
+                                          style={{ flex: 1, padding: '5px', fontSize: '11px', fontWeight: '700', border: 'none', borderRadius: '6px', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>
+                                          ❌ Clear All
+                                        </button>
+                                      </div>
+                                      {regPrograms.map(p => {
+                                        const isChecked = regTabCheckedProgs.includes(String(p.id));
+                                        const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                        return (
+                                          <label key={p.id} style={{
+                                            display: 'flex', alignItems: 'center', gap: '10px',
+                                            padding: '8px 10px', borderRadius: '6px', cursor: 'pointer',
+                                            background: isChecked ? '#dcfce7' : '#fff',
+                                            border: `1.5px solid ${isChecked ? '#86efac' : '#e2e8f0'}`,
+                                            transition: 'all 0.15s'
+                                          }}>
+                                            <input type="checkbox" checked={isChecked}
+                                              onChange={e => {
+                                                if (e.target.checked) {
+                                                  setRegTabCheckedProgs(prev => [...prev, String(p.id)]);
+                                                } else {
+                                                  setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id)));
+                                                }
+                                              }}
+                                              style={{ width: '18px', height: '18px', accentColor: '#16a34a', cursor: 'pointer' }}
+                                            />
+                                            <div style={{ flex: 1 }}>
+                                              <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b' }}>{p.code} – {p.name}</div>
+                                              <div style={{ fontSize: '11px', color: '#64748b' }}>{pTypeLabel}</div>
+                                            </div>
+                                            {isChecked && <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>✓ Registered</span>}
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <button type="button" onClick={handleSaveRegistrations} disabled={regTabSaving}
+                                  className="btn-add-action"
+                                  style={{ background: regTabSaving ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #0f766e)', cursor: regTabSaving ? 'not-allowed' : 'pointer' }}>
+                                  {regTabSaving ? '⏳ Saving...' : `💾 Save Registration (${regTabCheckedProgs.length} selected)`}
+                                </button>
+                              </>
+                            )}
+                          </div>
+
+                          {/* RIGHT: Registration Summary */}
+                          <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                            <h3>📊 Registration Summary {regTabCat ? `– ${regCatObj?.name || ''}` : ''}</h3>
+                            {!regTabCat ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Select a category to view registrations.</p>
+                            ) : regStudentsFiltered.length === 0 ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students in this category/division.</p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {regStudentsFiltered.map(s => {
+                                  const sRegNo = s.regno || s.regNo || '';
+                                  const sProgs = programRegistrations
+                                    .filter(r => String(r.student_id) === String(s.id))
+                                    .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
+                                    .filter(Boolean);
+                                  const isSelected = String(regTabStudent) === String(s.id);
+                                  return (
+                                    <div key={s.id}
+                                      style={{
+                                        padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                                        background: isSelected ? '#eff6ff' : '#f8fafc',
+                                        border: `1.5px solid ${isSelected ? '#93c5fd' : '#e2e8f0'}`,
+                                        transition: 'all 0.15s'
+                                      }}
+                                      onClick={() => {
+                                        setRegTabStudent(String(s.id));
+                                        const existing = programRegistrations
+                                          .filter(r => String(r.student_id) === String(s.id))
+                                          .map(r => String(r.program_id));
+                                        setRegTabCheckedProgs(existing);
+                                      }}>
+                                      <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ background: '#1e40af', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '11px' }}>{sRegNo}</span>
+                                        {s.name}
+                                        <span style={{ color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}>{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                      </div>
+                                      {sProgs.length > 0 ? (
+                                        <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                          {sProgs.map(p => (
+                                            <span key={p.id} style={{
+                                              background: '#dcfce7', color: '#166534', borderRadius: '4px',
+                                              padding: '2px 7px', fontSize: '11px', fontWeight: '600'
+                                            }}>{p.code} – {p.name}</span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>No programs registered yet</div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* MARK_ENTRY SUB-TAB */}
                     {settingsSubTab === 'MARK_ENTRY' && (
                       <div className="settings-card-container">
@@ -4020,10 +4292,18 @@ function downloadAsImage() {
                                 {(() => {
                                   const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
                                   const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
-                                  
+
+                                  // If a program is selected, filter by registered students only
+                                  const regStudentIds = selectedResultProg
+                                    ? new Set(programRegistrations
+                                        .filter(r => String(r.program_id) === String(selectedResultProg))
+                                        .map(r => String(r.student_id)))
+                                    : null;
+
                                   return students
                                     .filter(s => {
                                       if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
+                                      if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
                                       if (isGeneral) return true; // Show all students for General category!
                                       return String(s.catid || s.catId || '') === String(selectedResultCat);
                                     })
@@ -4144,17 +4424,27 @@ function downloadAsImage() {
                       const selectedProgObj = programs.find(p => String(p.id) === String(judgeSheetProg));
                       const selectedCatObj = categories.find(c => String(c.id) === String(judgeSheetCat));
 
-                      // Students registered for this program: for general category, all students; otherwise by category+gender
+                      // Students registered for this program: prefer program_registrations, fall back to category+gender
                       const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
-                      const judgeStudents = judgeSheetProg ? students.filter(s => {
-                        if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
-                        if (isGeneral) return true;
-                        return String(s.catid || s.catId || '') === String(judgeSheetCat);
-                      }).sort((a, b) => {
-                        const aReg = parseInt(a.regno || a.regNo || '0') || 0;
-                        const bReg = parseInt(b.regno || b.regNo || '0') || 0;
-                        return aReg - bReg;
-                      }) : [];
+                      const judgeStudents = judgeSheetProg ? (() => {
+                        const regStudentIds = new Set(
+                          programRegistrations
+                            .filter(r => String(r.program_id) === String(judgeSheetProg))
+                            .map(r => String(r.student_id))
+                        );
+                        const baseStudents = regStudentIds.size > 0
+                          ? students.filter(s => regStudentIds.has(String(s.id)))
+                          : students.filter(s => {
+                              if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
+                              if (isGeneral) return true;
+                              return String(s.catid || s.catId || '') === String(judgeSheetCat);
+                            });
+                        return baseStudents.sort((a, b) => {
+                          const aReg = parseInt(a.regno || a.regNo || '0') || 0;
+                          const bReg = parseInt(b.regno || b.regNo || '0') || 0;
+                          return aReg - bReg;
+                        });
+                      })() : [];
 
                       const handleDownloadJudgeSheetPDF = () => {
                         if (!judgeSheetProg) {
