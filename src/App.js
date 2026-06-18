@@ -173,6 +173,7 @@ function App() {
   const [profileAdminTeamFilter, setProfileAdminTeamFilter] = useState('ALL');
   const [profileAdminGenderFilter, setProfileAdminGenderFilter] = useState('ALL');
   const [profilePdfGenerating, setProfilePdfGenerating] = useState(false);
+  const [pdfPaperSize, setPdfPaperSize] = useState('A4');
 
   // QR Code scan modal states
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -1161,30 +1162,42 @@ function App() {
     }
   };
 
-  // Generate PDF of multiple ID cards
-  const handleDownloadPDF = useCallback(async (filteredStudentsList) => {
+  // Generate PDF of multiple ID cards (landscape CR80: 3.375" × 2.125")
+  const handleDownloadPDF = useCallback(async (filteredStudentsList, paperSize = 'A4') => {
     if (filteredStudentsList.length === 0) { alert('No ID cards to export!'); return; }
     setProfilePdfGenerating(true);
     try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const cardW = 85;
-      const cardH = 130;
-      const marginX = 13;
-      const marginY = 10;
-      const cols = 2;
-      const gap = 7;
-      let x = marginX, y = marginY, cardIndex = 0;
+      // Standard CR80 ID card size in mm
+      const cardW = 85.725; // 3.375 inches × 25.4
+      const cardH = 53.975; // 2.125 inches × 25.4
+      const marginX = 10;   // page margin mm
+      const marginY = 10;   // page margin mm
+      const gap = 5;        // gap between cards mm (for cutting)
+
+      // Page dimensions
+      const pageW = paperSize === 'A3' ? 297 : 210;
+      const pageH = paperSize === 'A3' ? 420 : 297;
+
+      // Calculate grid
+      const cols = Math.floor((pageW - 2 * marginX + gap) / (cardW + gap));
+      const rows = Math.floor((pageH - 2 * marginY + gap) / (cardH + gap));
+      const cardsPerPage = cols * rows;
+
+      const pdf = new jsPDF('p', 'mm', paperSize.toLowerCase());
+      let cardIndex = 0;
 
       for (let i = 0; i < filteredStudentsList.length; i++) {
         const s = filteredStudentsList[i];
         if (!s.photo_url || s.photo_status !== 'approved') continue;
 
-        // Create a temporary ID card DOM
+        // Temp DOM element: 338px × 213px (≈ 3.375" × 2.125" at ~100px/in)
+        // scale:3 → canvas ≈ 1014×639px → ~300 DPI for print
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '0';
-        tempDiv.style.width = '340px';
+        tempDiv.style.width = '338px';
+        tempDiv.style.height = '213px';
         document.body.appendChild(tempDiv);
 
         const sTeamId = s.teamid || s.teamId || '';
@@ -1192,7 +1205,7 @@ function App() {
         const teamObj = teams.find(t => String(t.id) === String(sTeamId));
         const catObj = categories.find(c => String(c.id) === String(sCatId));
 
-        // Generate QR code data URL for this student
+        // Generate QR code
         const appUrl = window.location.origin;
         const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
         let qrDataUrl = '';
@@ -1202,66 +1215,80 @@ function App() {
           console.error(e);
         }
 
+        // Landscape card HTML — NO border-radius on outer card
         tempDiv.innerHTML = `
-          <div style="width:340px;height:510px;background:#fff;border-radius:20px;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
-            <div style="content:'';position:absolute;top:0;left:0;width:100%;height:6px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);z-index:10;"></div>
-            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:18px 15px;text-align:center;border-bottom:3px solid #fbbf24;box-sizing:border-box;">
-              <div style="color:#ffffff;font-size:16px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
-              <div style="color:#cbd5e1;font-size:10px;margin-top:4px;font-weight:500;letter-spacing:0.3px;">Reg No: ${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+          <div style="width:338px;height:213px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
+            <div style="height:4px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
+            <div style="flex:1;display:flex;flex-direction:row;overflow:hidden;">
+              <div style="width:118px;background:linear-gradient(135deg,#022c22,#064e3b);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 6px;box-sizing:border-box;flex-shrink:0;border-right:3px solid #fbbf24;">
+                <div style="font-size:8px;font-weight:800;color:#fbbf24;text-align:center;letter-spacing:0.4px;text-transform:uppercase;margin-bottom:5px;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+                <div style="font-size:6px;color:#cbd5e1;text-align:center;margin-bottom:8px;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+                <div style="width:70px;height:70px;border-radius:50%;border:3px solid #fbbf24;overflow:hidden;background:#f1f5f9;">
+                  <img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;padding:9px 10px 5px 11px;box-sizing:border-box;min-width:0;">
+                <div style="font-size:12px;font-weight:800;color:#0f172a;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
+                <div style="font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:2px 9px;border-radius:9999px;margin-bottom:7px;letter-spacing:0.4px;align-self:flex-start;">Reg No: ${s.regno || s.regNo || ''}</div>
+                <div style="display:flex;gap:4px;margin-bottom:0;">
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;padding:3px 6px;flex:1;min-width:0;">
+                    <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:1px;letter-spacing:0.3px;">Group</div>
+                    <div style="font-weight:700;color:#1e293b;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${teamObj ? teamObj.name : 'N/A'}</div>
+                  </div>
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;padding:3px 6px;flex:1;min-width:0;">
+                    <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:1px;letter-spacing:0.3px;">Category</div>
+                    <div style="font-weight:700;color:#1e293b;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${catObj ? catObj.name : 'N/A'}</div>
+                  </div>
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;padding:3px 6px;flex:1;min-width:0;">
+                    <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:1px;letter-spacing:0.3px;">Division</div>
+                    <div style="font-weight:700;color:#1e293b;font-size:8px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+                  </div>
+                </div>
+                <div style="margin-top:auto;display:flex;justify-content:flex-end;align-items:flex-end;">
+                  ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:48px;height:48px;display:block;" />` : ''}
+                </div>
+              </div>
             </div>
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:15px;box-sizing:border-box;">
-              <div style="width:110px;height:110px;border-radius:50%;border:4px solid #ffffff;overflow:hidden;box-shadow:0 6px 15px rgba(0,0,0,0.15), 0 0 0 2px #059669;margin-bottom:10px;">
-                <img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />
-              </div>
-              <div style="font-size:18px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.2px;">${s.name}</div>
-              <div style="font-size:13px;font-weight:700;color:#ffffff;background:linear-gradient(135deg,#022c22,#059669);padding:3px 12px;border-radius:9999px;margin-bottom:10px;letter-spacing:0.5px;">Reg No: ${s.regno || s.regNo || ''}</div>
-              
-              <div style="width:100%;display:flex;flex-direction:column;gap:5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:11px;color:#475569;font-weight:600;box-sizing:border-box;">
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:3px;">
-                  <span style="color:#64748b;font-weight:700;">Group:</span>
-                  <span style="color:#1e293b;">${teamObj ? teamObj.name : 'N/A'}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:3px;">
-                  <span style="color:#64748b;font-weight:700;">Category:</span>
-                  <span style="color:#1e293b;">${catObj ? catObj.name : 'N/A'}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding-bottom:1px;">
-                  <span style="color:#64748b;font-weight:700;">General:</span>
-                  <span style="color:#1e293b;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
-                </div>
-              </div>
-              
-              <div style="margin-top:10px;text-align:center;">
-                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:65px;height:65px;display:block;margin:0 auto;" />` : ''}
-              </div>
-            </div>
-            <div style="background:#f1f5f9;padding:8px;text-align:center;border-top:1px solid #e2e8f0;box-sizing:border-box;">
-              <span style="font-size:8px;color:#64748b;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
+            <div style="height:15px;background:#f1f5f9;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:6px;color:#64748b;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
             </div>
           </div>
         `;
 
-        const canvas = await html2canvas(tempDiv.firstElementChild, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+        // scale:3 on 338×213px DOM → ~1014×639px canvas → ≈300 DPI for 3.375"×2.125" card
+        const canvas = await html2canvas(tempDiv.firstElementChild, {
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        });
         document.body.removeChild(tempDiv);
 
         const imgData = canvas.toDataURL('image/png');
 
-        if (cardIndex > 0 && cardIndex % (cols * 2) === 0) {
+        // New page when needed
+        if (cardIndex > 0 && cardIndex % cardsPerPage === 0) {
           pdf.addPage();
-          y = marginY;
-          x = marginX;
         }
 
-        const col = cardIndex % cols;
-        const row = Math.floor(cardIndex % (cols * 2) / cols);
-        x = marginX + col * (cardW + gap);
-        y = marginY + row * (cardH + gap);
+        // Position on page
+        const posInPage = cardIndex % cardsPerPage;
+        const col = posInPage % cols;
+        const row = Math.floor(posInPage / cols);
+        const x = marginX + col * (cardW + gap);
+        const y = marginY + row * (cardH + gap);
 
         pdf.addImage(imgData, 'PNG', x, y, cardW, cardH);
         cardIndex++;
       }
 
-      pdf.save(`ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}.pdf`);
+      if (cardIndex === 0) {
+        alert('No approved photos found to export!');
+        setProfilePdfGenerating(false);
+        return;
+      }
+
+      pdf.save(`ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}_${paperSize}.pdf`);
     } catch (err) {
       alert('PDF generation failed: ' + err.message);
     }
@@ -2978,13 +3005,40 @@ function downloadAsImage() {
 
                         return (
                           <>
+                            {/* Paper Size Selector */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 14px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>🖨️ Paper Size:</span>
+                              <button
+                                onClick={() => setPdfPaperSize('A4')}
+                                style={{
+                                  padding: '6px 18px', borderRadius: '6px', border: '2px solid',
+                                  borderColor: pdfPaperSize === 'A4' ? '#7c3aed' : '#e2e8f0',
+                                  background: pdfPaperSize === 'A4' ? 'linear-gradient(135deg,#7c3aed,#4c1d95)' : '#ffffff',
+                                  color: pdfPaperSize === 'A4' ? '#ffffff' : '#475569',
+                                  fontWeight: '700', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                              >A4</button>
+                              <button
+                                onClick={() => setPdfPaperSize('A3')}
+                                style={{
+                                  padding: '6px 18px', borderRadius: '6px', border: '2px solid',
+                                  borderColor: pdfPaperSize === 'A3' ? '#7c3aed' : '#e2e8f0',
+                                  background: pdfPaperSize === 'A3' ? 'linear-gradient(135deg,#7c3aed,#4c1d95)' : '#ffffff',
+                                  color: pdfPaperSize === 'A3' ? '#ffffff' : '#475569',
+                                  fontWeight: '700', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                              >A3</button>
+                              <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
+                                {pdfPaperSize === 'A4' ? '8 cards/page' : '18 cards/page'} • 300 DPI • 3.375" × 2.125"
+                              </span>
+                            </div>
                             <button
-                              onClick={() => handleDownloadPDF(approvedFiltered)}
+                              onClick={() => handleDownloadPDF(approvedFiltered, pdfPaperSize)}
                               disabled={profilePdfGenerating || approvedFiltered.length === 0}
                               className="btn-add-action"
                               style={{ marginBottom: '16px', background: 'linear-gradient(135deg, #7c3aed, #4c1d95)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                             >
-                              {profilePdfGenerating ? '⏳ Generating PDF...' : `📄 Download PDF (${approvedFiltered.length} cards)`}
+                              {profilePdfGenerating ? '⏳ Generating PDF...' : `📄 Download ${pdfPaperSize} PDF (${approvedFiltered.length} cards)`}
                             </button>
 
                             {/* ID Card Gallery Grid */}
@@ -4017,6 +4071,7 @@ function downloadAsImage() {
                           })()}
                         </div>
                       </div>
+                    </div>
                     )}
 
                     {/* REGISTER SUB-TAB */}
@@ -4076,7 +4131,6 @@ function downloadAsImage() {
                         setRegTabSaving(false);
                       };
 
-                      return (
                       return (
                         <div className="settings-card-v2">
                           {/* We can do a responsive split layout: Left is Form (with Stepper), Right is Live Summary */}

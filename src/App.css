@@ -1041,7 +1041,7 @@ tr:nth-child(even) {
     width: 320px;
     height: 480px;
     background: #ffffff;
-    border-radius: 20px;
+    border-radius: 0;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
     margin: 20px auto;
     overflow: hidden;
