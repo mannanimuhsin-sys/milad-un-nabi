@@ -2215,6 +2215,18 @@ tr:nth-child(even) {
     box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);
 }
 
+@media (max-width: 480px) {
+    .segmented-control {
+        flex-wrap: wrap;
+    }
+    .segmented-option {
+        flex: 1 1 calc(50% - 4px);
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+}
+
+
 /* Point setup cards */
 .points-card-container-v2 {
     display: grid;

@@ -4104,25 +4104,37 @@ function downloadAsImage() {
                         setRegTabSaving(true);
                         try {
                           const madrasaId = loggedInMadrasa.regNumber;
+                          const studentIdInt = parseInt(regTabStudent, 10);
+                          
                           // Remove old registrations for this student
-                          await supabase.from('program_registrations')
+                          const { error: deleteError } = await supabase.from('program_registrations')
                             .delete()
                             .eq('madrasa_id', madrasaId)
-                            .eq('student_id', regTabStudent);
+                            .eq('student_id', studentIdInt);
+
+                          if (deleteError) {
+                            throw new Error(deleteError.message);
+                          }
 
                           // Insert newly checked programs
                           if (regTabCheckedProgs.length > 0) {
                             const inserts = regTabCheckedProgs.map(pId => ({
                               madrasa_id: madrasaId,
-                              student_id: regTabStudent,
-                              program_id: pId
+                              student_id: studentIdInt,
+                              program_id: parseInt(pId, 10)
                             }));
-                            await supabase.from('program_registrations').insert(inserts);
+                            const { error: insertError } = await supabase.from('program_registrations').insert(inserts);
+                            if (insertError) {
+                              throw new Error(insertError.message);
+                            }
                           }
 
                           // Refresh
-                          const { data: newRegs } = await supabase
+                          const { data: newRegs, error: fetchError } = await supabase
                             .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
+                          if (fetchError) {
+                            throw new Error(fetchError.message);
+                          }
                           if (newRegs) setProgramRegistrations(newRegs);
                           alert(`✅ Saved! ${regTabCheckedProgs.length} program(s) registered for ${selectedStudentObj?.name || ''}`);
                         } catch (err) {
@@ -4130,6 +4142,7 @@ function downloadAsImage() {
                         }
                         setRegTabSaving(false);
                       };
+
 
                       return (
                         <div className="settings-card-v2">
