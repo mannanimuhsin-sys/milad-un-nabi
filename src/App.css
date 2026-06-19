@@ -2837,3 +2837,24 @@ tr:nth-child(even) {
     50% { opacity: 0.6; }
     100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
 }
+
+/* 🕌 VERTICAL BUTTONS WRAPPER FOR DASHBOARD HEADER */
+.header-buttons-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+    flex-shrink: 0;
+    min-width: 95px;
+}
+
+.btn-logout-top.lang-btn-top {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.btn-logout-top.lang-btn-top:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.35);
+}

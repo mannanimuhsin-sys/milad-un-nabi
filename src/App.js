@@ -314,7 +314,13 @@ function App() {
       if (studentsData) setStudents(studentsData);
       if (programsData) setPrograms(programsData);
       if (resultsData) setResultsList(resultsData);
-      if (regData) setProgramRegistrations(regData);
+      if (regData) {
+        const mappedRegs = regData.map(r => ({
+          ...r,
+          program_id: r.program_name
+        }));
+        setProgramRegistrations(mappedRegs);
+      }
     } catch (err) {
       console.error("Data fetch error: ", err);
     }
@@ -510,7 +516,7 @@ function App() {
       setDeferredPrompt(null);
     } else {
       // Fallback if beforeinstallprompt hasn't fired
-      alert("ബ്രൗസർ മെനു (⋮) ടാപ്പ് ചെയ്ത് 'Install app' അല്ലെങ്കിൽ 'Add to Home screen' തിരഞ്ഞെടുക്കുക.");
+      alert(t('alertBrowserInstallPrompt'));
       setShowInstallPopup(false);
     }
   };
@@ -543,7 +549,7 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!loginRegNum.trim() || !loginPassword.trim()) {
-      alert('Please fill in all details!');
+      alert(t('alertPleaseFillDetails'));
       return;
     }
 
@@ -556,12 +562,12 @@ function App() {
         .maybeSingle();
 
       if (error) {
-        alert('Error occurred: ' + error.message);
+        alert(t('alertUnexpectedError') + error.message);
         return;
       }
 
       if (!madrasa) {
-        alert('Madrasa not found!');
+        alert(t('alertMadrasaNotFound'));
         return;
       }
 
@@ -574,7 +580,7 @@ function App() {
           setCurrentScreen('PENDING_APPROVAL');
           return;
         } else if (currentStatus === 'blocked') {
-          alert('Your madrasa is blocked! Please contact the admin.');
+          alert(t('alertMadrasaBlocked'));
           return;
         }
 
@@ -593,10 +599,10 @@ function App() {
         setLoginRegNum('');
         setLoginPassword('');
       } else {
-        alert('Incorrect password!');
+        alert(t('alertIncorrectPassword'));
       }
     } catch (err) {
-      alert('Error occurred: ' + err.message);
+      alert(t('alertUnexpectedError') + err.message);
     } finally {
       setIsLoggingIn(false);
     }
@@ -605,7 +611,7 @@ function App() {
   const handleRegisterMadrasa = async (e) => {
     e.preventDefault();
     if (!regName.trim() || !regNumber.trim() || !regPlace.trim() || !adminPassword.trim() || !viewPassword.trim()) {
-      alert('Please fill in all details!');
+      alert(t('alertPleaseFillDetails'));
       return;
     }
 
@@ -617,12 +623,12 @@ function App() {
         .eq('regNumber', regNumber);
 
       if (checkError) {
-        alert('Error occurred: ' + checkError.message);
+        alert(t('alertUnexpectedError') + checkError.message);
         return;
       }
 
       if (existing && existing.length > 0) {
-        alert('This register number already exists! Please use a different number.');
+        alert(t('alertRegNumberExists'));
         return;
       }
 
@@ -640,16 +646,16 @@ function App() {
         ]);
 
       if (error) {
-        alert('Registration failed: ' + error.message);
+        alert(t('alertUnexpectedError') + error.message);
       } else {
-        alert('Madrasa registration submitted! Waiting for Super Admin approval.');
+        alert(t('alertRegistrationSubmitted'));
         const tempMadrasa = { name: regName, regNumber, place: `${regPlace}|pending` };
         setPendingMadrasa(tempMadrasa);
         setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
         setCurrentScreen('PENDING_APPROVAL');
       }
     } catch (err) {
-      alert('Error occurred: ' + err.message);
+      alert(t('alertUnexpectedError') + err.message);
     }
   };
 
@@ -924,19 +930,19 @@ function App() {
   const handleSavePoints = (e) => {
     e.preventDefault();
     saveToStorage('points', pointSystem);
-    alert('Points structure updated successfully!');
+    alert(t('alertPointsUpdated'));
   };
 
   // 📝 6. MARK ENTRY ACTIONS (SUPABASE)
   const handleAddResult = async (e) => {
     e.preventDefault();
     if (!selectedResultProg || !selectedResultStudent || !loggedInMadrasa) {
-      alert('Please select a program and student!'); return;
+      alert(t('alertPleaseSelectProgStudent')); return;
     }
 
     const studentObj = students.find(s => String(s.id) === String(selectedResultStudent));
     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
-    if (!studentObj || !progObj) { alert('Data is invalid!'); return; }
+    if (!studentObj || !progObj) { alert(t('alertUnexpectedError') + 'Data is invalid'); return; }
 
     const isGroup = progObj.type === 'GROUP';
 
@@ -970,17 +976,17 @@ function App() {
       ]);
 
     if (error) {
-      alert('Error: ' + error.message);
+      alert(t('alertUnexpectedError') + error.message);
     } else {
-      alert('Result declared successfully!');
+      alert(t('alertResultDeclared'));
       fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
 
   const handleDeleteResult = async (id) => {
-    if (!window.confirm('Remove this result?')) return;
+    if (!window.confirm(lang === 'EN' ? 'Remove this result?' : 'ഈ ഫലം ഒഴിവാക്കണമെന്നുറപ്പാണോ?')) return;
     const { error } = await supabase.from('results').delete().eq('id', id);
-    if (error) alert(error.message);
+    if (error) alert(t('alertUnexpectedError') + error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
   };
 
@@ -994,9 +1000,9 @@ function App() {
 
   // Look up student by register number
   const handleProfileLookup = () => {
-    if (!profileRegNo.trim()) { alert('Please enter a register number!'); return; }
+    if (!profileRegNo.trim()) { alert(t('alertEnterRegNo')); return; }
     const found = students.find(s => String(s.regno || s.regNo || '') === String(profileRegNo.trim()));
-    if (!found) { alert('Student not found! Please check the register number.'); return; }
+    if (!found) { alert(t('alertStudentNotFound')); return; }
     setProfileStudent(found);
     const status = found.photo_status || 'none';
     if (status === 'approved') setProfileStep('APPROVED');
@@ -1099,9 +1105,9 @@ function App() {
 
   // Upload photo — stored as base64 directly in DB (no Storage bucket needed)
   const handleProfilePhotoUpload = async () => {
-    if (!profilePhotoFile) { alert('No photo selected!'); return; }
-    if (!profileStudent) { alert('No student selected!'); return; }
-    if (!loggedInMadrasa) { alert('Session expired. Please log in again.'); return; }
+    if (!profilePhotoFile) { alert(t('alertNoPhotoSelected')); return; }
+    if (!profileStudent) { alert(t('alertNoStudentSelected')); return; }
+    if (!loggedInMadrasa) { alert(t('alertSessionExpired')); return; }
     setProfileUploading(true);
     try {
       // Compress image to ≤200KB before storing as base64
@@ -1135,7 +1141,7 @@ function App() {
         photo_status: 'pending'
       }).eq('id', profileStudent.id);
 
-      if (updateError) { alert('Upload failed: ' + updateError.message); setProfileUploading(false); return; }
+      if (updateError) { alert(t('alertUploadFailed') + updateError.message); setProfileUploading(false); return; }
 
       setProfileStep('WAITING');
       setProfilePhotoFile(null);
@@ -1143,7 +1149,7 @@ function App() {
       setProfileCropMode(false);
       if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
     } catch (err) {
-      alert('Unexpected error: ' + err.message);
+      alert(t('alertUnexpectedError') + err.message);
     }
     setProfileUploading(false);
   };
@@ -1151,16 +1157,16 @@ function App() {
   // Admin: Approve photo
   const handleApprovePhoto = async (studentId) => {
     const { error } = await supabase.from('students').update({ photo_status: 'approved' }).eq('id', studentId);
-    if (error) alert('Error: ' + error.message);
+    if (error) alert(t('alertUnexpectedError') + error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
   };
 
   // Admin: Delete photo
   const handleDeletePhoto = async (student) => {
-    if (!window.confirm('Delete this student\'s photo?')) return;
+    if (!window.confirm(lang === 'EN' ? "Delete this student's photo?" : 'ഈ വിദ്യാർത്ഥിയുടെ ഫോട്ടോ ഇല്ലാതാക്കണമെന്നുറപ്പാണോ?')) return;
     // Photo stored as base64 in DB — just null it out
     const { error } = await supabase.from('students').update({ photo_url: null, photo_status: 'none' }).eq('id', student.id);
-    if (error) alert('Error: ' + error.message);
+    if (error) alert(t('alertUnexpectedError') + error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
   };
 
@@ -1177,7 +1183,7 @@ function App() {
         canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
         const base64DataUrl = canvas.toDataURL('image/jpeg', 0.85);
         const { error } = await supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'pending' }).eq('id', studentId);
-        if (error) alert('Error: ' + error.message);
+        if (error) alert(t('alertUnexpectedError') + error.message);
         else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
       };
       img.src = ev.target.result;
@@ -1194,7 +1200,7 @@ function App() {
       link.download = `ID_Card_${studentName.replace(/\s+/g, '_')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-    } catch (err) { alert('Download failed: ' + err.message); }
+    } catch (err) { alert(t('alertDownloadFailed') + err.message); }
   };
 
   // Download QR Scan Poster as image
@@ -1208,13 +1214,13 @@ function App() {
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
-      alert('Poster download failed: ' + err.message);
+      alert(t('alertDownloadFailed') + err.message);
     }
   };
 
   // Generate PDF of multiple ID cards (landscape CR80: 3.375" × 2.125")
   const handleDownloadPDF = useCallback(async (filteredStudentsList, paperSize = 'A4') => {
-    if (filteredStudentsList.length === 0) { alert('No ID cards to export!'); return; }
+    if (filteredStudentsList.length === 0) { alert(t('alertNoIdCards')); return; }
     setProfilePdfGenerating(true);
     try {
       // Standard CR80 ID card size in mm
@@ -1333,17 +1339,17 @@ function App() {
       }
 
       if (cardIndex === 0) {
-        alert('No approved photos found to export!');
+        alert(t('alertNoApprovedPhotos'));
         setProfilePdfGenerating(false);
         return;
       }
 
       pdf.save(`ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}_${paperSize}.pdf`);
     } catch (err) {
-      alert('PDF generation failed: ' + err.message);
+      alert(t('alertPDFGenerationFailed') + err.message);
     }
     setProfilePdfGenerating(false);
-  }, [teams, categories, loggedInMadrasa]);
+  }, [teams, categories, loggedInMadrasa, t]);
 
   return (
     <div className="main-container">
@@ -1907,15 +1913,18 @@ function App() {
         <div className="dashboard-container">
 
           <header className="dash-header">
-            <div>
-              <h1>{loggedInMadrasa ? loggedInMadrasa.name : ''}</h1>
-              <p>{t('regNo')} {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''} ({t(loginRole === 'ADMIN' ? 'adminMode' : 'viewMode')})</p>
+            <div style={{ flex: 1, minWidth: 0, marginRight: '12px' }}>
+              <h1 style={{ fontSize: '20px', fontWeight: '700', wordBreak: 'break-word', whiteSpace: 'normal', margin: 0 }}>
+                {loggedInMadrasa ? loggedInMadrasa.name : ''}
+              </h1>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.8 }}>
+                {t('regNo')} {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''} ({t(loginRole === 'ADMIN' ? 'adminMode' : 'viewMode')})
+              </p>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="header-buttons-wrapper">
               <button 
                 onClick={toggleLanguage} 
-                className="btn-logout-top"
-                style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: 'white' }}
+                className="btn-logout-top lang-btn-top"
               >
                 🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
               </button>
@@ -1925,7 +1934,7 @@ function App() {
                 setCurrentScreen('LOGIN');
                 setLoggedInMadrasa(null);
                 setLoginRole('');
-              }} className="btn-logout-top">{t('logoutBtn')}</button>
+              }} className="btn-logout-top logout-btn-top">{t('logoutBtn')}</button>
             </div>
           </header>
 
@@ -4218,7 +4227,7 @@ function downloadAsImage() {
                       const selectedStudentObj = students.find(s => String(s.id) === String(regTabStudent));
 
                       const handleSaveRegistrations = async () => {
-                        if (!regTabStudent) { alert('Please select a student!'); return; }
+                        if (!regTabStudent) { alert(t('alertPleaseSelectStudent')); return; }
                         setRegTabSaving(true);
                         try {
                           const madrasaId = loggedInMadrasa.regNumber;
@@ -4239,7 +4248,7 @@ function downloadAsImage() {
                             const inserts = regTabCheckedProgs.map(pId => ({
                               madrasa_id: madrasaId,
                               student_id: studentIdInt,
-                              program_id: parseInt(pId, 10)
+                              program_name: String(pId)
                             }));
                             const { error: insertError } = await supabase.from('program_registrations').insert(inserts);
                             if (insertError) {
@@ -4253,10 +4262,19 @@ function downloadAsImage() {
                           if (fetchError) {
                             throw new Error(fetchError.message);
                           }
-                          if (newRegs) setProgramRegistrations(newRegs);
-                          alert(`✅ Saved! ${regTabCheckedProgs.length} program(s) registered for ${selectedStudentObj?.name || ''}`);
+                          if (newRegs) {
+                            const mapped = newRegs.map(r => ({
+                              ...r,
+                              program_id: r.program_name
+                            }));
+                            setProgramRegistrations(mapped);
+                          }
+                          alert(t('alertSavedRegistrations')
+                            .replace('{count}', regTabCheckedProgs.length)
+                            .replace('{studentName}', selectedStudentObj?.name || '')
+                          );
                         } catch (err) {
-                          alert('Error saving: ' + err.message);
+                          alert(t('alertUploadFailed') + err.message);
                         }
                         setRegTabSaving(false);
                       };
@@ -4270,14 +4288,14 @@ function downloadAsImage() {
                               
                               {/* LEFT: Step Form */}
                               <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                <h3>📋 Register Students for Programs</h3>
+                                <h3>{t('registerStudentsTitle')}</h3>
 
                                 <div className="stepper-timeline">
                                   {/* Step 1: Category */}
                                   <div className={`step-box ${regTabCat ? 'filled' : 'active'}`}>
                                     <div className="step-header">
                                       <div className="step-number">01</div>
-                                      <div className="step-title">Select Category</div>
+                                      <div className="step-title">{t('selectCategoryStep')}</div>
                                     </div>
                                     <div className="step-content">
                                       <select className="settings-input-v2" value={regTabCat} onChange={e => {
@@ -4285,7 +4303,7 @@ function downloadAsImage() {
                                         setRegTabStudent('');
                                         setRegTabCheckedProgs([]);
                                       }}>
-                                        <option value="">-- Select Category --</option>
+                                        <option value="">{t('selectCategoryFirst')}</option>
                                         {categories.map(c => (
                                           <option key={c.id} value={c.id}>{c.name}</option>
                                         ))}
@@ -4298,14 +4316,14 @@ function downloadAsImage() {
                                     <div className={`step-box ${regTabGender ? 'filled' : 'active'}`}>
                                       <div className="step-header">
                                         <div className="step-number">02</div>
-                                        <div className="step-title">Select Division</div>
+                                        <div className="step-title">{t('selectDivisionStep')}</div>
                                       </div>
                                       <div className="step-content">
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                           {[
-                                            { val: 'BOY',    label: '👦 Boys' },
-                                            { val: 'GIRL',   label: '👧 Girls' },
-                                            { val: 'COMMON', label: '🚻 General' }
+                                            { val: 'BOY',    label: t('boys') },
+                                            { val: 'GIRL',   label: t('girls') },
+                                            { val: 'COMMON', label: t('allGenders') }
                                           ].map(opt => (
                                             <button key={opt.val} type="button"
                                               onClick={() => { setRegTabGender(opt.val); setRegTabStudent(''); setRegTabCheckedProgs([]); }}
@@ -4332,11 +4350,11 @@ function downloadAsImage() {
                                     <div className={`step-box ${regTabStudent ? 'filled' : 'active'}`}>
                                       <div className="step-header">
                                         <div className="step-number">03</div>
-                                        <div className="step-title">Select Student</div>
+                                        <div className="step-title">{t('selectStudentStep')}</div>
                                       </div>
                                       <div className="step-content">
                                         {regStudentsFiltered.length === 0 ? (
-                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>No students in this category/division.</p>
+                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
                                         ) : (
                                           <select className="settings-input-v2" value={regTabStudent} onChange={e => {
                                             const sid = e.target.value;
@@ -4346,13 +4364,13 @@ function downloadAsImage() {
                                               .map(r => String(r.program_id));
                                             setRegTabCheckedProgs(existing);
                                           }}>
-                                            <option value="">-- Select Student --</option>
+                                            <option value="">{t('selectStudentFirst')}</option>
                                             {regStudentsFiltered.map(s => {
                                               const sRegNo = s.regno || s.regNo || '';
                                               const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
                                               return (
                                                 <option key={s.id} value={s.id}>
-                                                  {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} progs]` : ''}
+                                                  {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} ${t('programsLabel')}]` : ''}
                                                 </option>
                                               );
                                             })}
@@ -4367,28 +4385,28 @@ function downloadAsImage() {
                                     <div className="step-box active">
                                       <div className="step-header">
                                         <div className="step-number">04</div>
-                                        <div className="step-title">Select Programs for {selectedStudentObj ? selectedStudentObj.name : ''}</div>
+                                        <div className="step-title">{lang === 'EN' ? `Select Programs for ${selectedStudentObj ? selectedStudentObj.name : ''}` : `${selectedStudentObj ? selectedStudentObj.name : ''} എന്ന വിദ്യാർത്ഥിക്ക് പ്രോഗ്രാമുകൾ തിരഞ്ഞെടുക്കുക`}</div>
                                       </div>
                                       <div className="step-content">
                                         {regPrograms.length === 0 ? (
-                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>No programs in this category/division.</p>
+                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>{t('noPrograms')}</p>
                                         ) : (
                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             {/* Select All / Clear All */}
                                             <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
                                               <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
                                                 className="btn-premium-action-small secondary" style={{ flex: 1, background: '#dcfce7', color: '#166534' }}>
-                                                Select All
+                                                {t('selectAll')}
                                               </button>
                                               <button type="button" onClick={() => setRegTabCheckedProgs([])}
                                                 className="btn-premium-action-small secondary" style={{ flex: 1, background: '#fee2e2', color: '#991b1b' }}>
-                                                Clear All
+                                                {t('clearAll')}
                                               </button>
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
                                               {regPrograms.map(p => {
                                                 const isChecked = regTabCheckedProgs.includes(String(p.id));
-                                                const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                                const pTypeLabel = (p.type || '').includes('GROUP') ? `${t('group')} 👥` : `${t('single')} 👤`;
                                                 return (
                                                   <label key={p.id} style={{
                                                     display: 'flex', alignItems: 'center', gap: '10px',
@@ -4411,7 +4429,7 @@ function downloadAsImage() {
                                                       <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b' }}>{p.code} – {p.name}</div>
                                                       <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>{pTypeLabel}</div>
                                                     </div>
-                                                    {isChecked && <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>✓ Checked</span>}
+                                                    {isChecked && <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>{lang === 'EN' ? '✓ Checked' : '✓ തിരഞ്ഞെടുത്തു'}</span>}
                                                   </label>
                                                 );
                                               })}
@@ -4422,7 +4440,7 @@ function downloadAsImage() {
                                         <button type="button" onClick={handleSaveRegistrations} disabled={regTabSaving}
                                           className="btn-premium-action"
                                           style={{ marginTop: '16px' }}>
-                                          {regTabSaving ? '⏳ Saving...' : `💾 Save Registration (${regTabCheckedProgs.length} selected)`}
+                                          {regTabSaving ? `⏳ ${t('saving')}` : `💾 ${t('saveRegistrationsBtn')} (${regTabCheckedProgs.length} ${lang === 'EN' ? 'selected' : 'തിരഞ്ഞെടുത്തു'})`}
                                         </button>
                                       </div>
                                     </div>
@@ -4433,12 +4451,12 @@ function downloadAsImage() {
                               {/* RIGHT: Registration Summary */}
                               <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px' }}>
                                 <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '14px', borderLeft: '4px solid var(--primary-light)', paddingLeft: '10px' }}>
-                                  📊 Registration Summary {regTabCat ? `– ${regCatObj?.name || ''}` : ''}
+                                  {lang === 'EN' ? '📊 Registration Summary' : '📊 രജിസ്ട്രേഷൻ സംഗ്രഹം'}{regTabCat ? ` – ${regCatObj?.name || ''}` : ''}
                                 </h3>
                                 {!regTabCat ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Select a category to view registrations.</p>
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'Select a category to view registrations.' : 'രജിസ്ട്രേഷനുകൾ കാണാൻ ഒരു വിഭാഗം തിരഞ്ഞെടുക്കുക.'}</p>
                                 ) : regStudentsFiltered.length === 0 ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No students in this category/division.</p>
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
                                 ) : (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
                                     {regStudentsFiltered.map(s => {
@@ -4483,7 +4501,7 @@ function downloadAsImage() {
                                               ))}
                                             </div>
                                           ) : (
-                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>No programs registered yet</div>
+                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>{lang === 'EN' ? 'No programs registered yet' : 'പ്രോഗ്രാമുകൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല'}</div>
                                           )}
                                         </div>
                                       );

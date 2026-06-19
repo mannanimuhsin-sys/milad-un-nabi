@@ -212,7 +212,36 @@ const translations = {
     judgeSheetTitle: '👥 Student List / Judge Sheet',
     generateSheet: '🖨️ Print List',
     selectCatAndGender: 'Select Category and Gender to generate list.',
+    selectAll: 'Select All',
+    clearAll: 'Clear All',
+    
+    // Alert Messages
+    alertPleaseFillDetails: 'Please fill in all details!',
+    alertMadrasaNotFound: 'Madrasa not found!',
+    alertMadrasaBlocked: 'Your madrasa is blocked! Please contact the admin.',
+    alertIncorrectPassword: 'Incorrect password!',
+    alertRegNumberExists: 'This register number already exists! Please use a different number.',
+    alertRegistrationSubmitted: 'Madrasa registration submitted! Waiting for Super Admin approval.',
+    alertSavedRegistrations: '✅ Saved! {count} program(s) registered for {studentName}',
+    alertPleaseSelectStudent: 'Please select a student!',
+    alertPleaseSelectProgStudent: 'Please select a program and student!',
+    alertPleaseSelectProgFirst: 'Please select a program first!',
+    alertResultDeclared: 'Result declared successfully!',
+    alertPointsUpdated: 'Points structure updated successfully!',
+    alertEnterRegNo: 'Please enter a register number!',
+    alertStudentNotFound: 'Student not found! Please check the register number.',
+    alertNoPhotoSelected: 'No photo selected!',
+    alertNoStudentSelected: 'No student selected!',
+    alertSessionExpired: 'Session expired. Please log in again.',
+    alertUploadFailed: 'Upload failed: ',
+    alertUnexpectedError: 'Unexpected error: ',
+    alertDownloadFailed: 'Download failed: ',
+    alertNoApprovedPhotos: 'No approved photos found to export!',
+    alertPDFGenerationFailed: 'PDF generation failed: ',
+    alertNoIdCards: 'No ID cards to export!',
+    alertBrowserInstallPrompt: "Tap browser menu (⋮) and select 'Install app' or 'Add to Home screen'."
   },
+
 
   ML: {
     // ── Login Screen ──
@@ -424,6 +453,34 @@ const translations = {
     judgeSheetTitle: '👥 വിദ്യാർത്ഥി ലിസ്റ്റ് / ജഡ്ജ് ഷീറ്റ്',
     generateSheet: '🖨️ ലിസ്റ്റ് പ്രിൻ്റ് ചെയ്യുക',
     selectCatAndGender: 'ലിസ്റ്റ് ജനറേറ്റ് ചെയ്യാൻ വിഭാഗവും ലിംഗവും തിരഞ്ഞെടുക്കുക.',
+    selectAll: 'എല്ലാം തിരഞ്ഞെടുക്കുക',
+    clearAll: 'എല്ലാം ഒഴിവാക്കുക',
+
+    // Alert Messages
+    alertPleaseFillDetails: 'ദയവായി എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!',
+    alertMadrasaNotFound: 'മദ്രസ കണ്ടെത്താനായില്ല!',
+    alertMadrasaBlocked: 'നിങ്ങളുടെ മദ്രസ ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു! ദയവായി അഡ്മിനുമായി ബന്ധപ്പെടുക.',
+    alertIncorrectPassword: 'തെറ്റായ പാസ്‌വേഡ്!',
+    alertRegNumberExists: 'ഈ രജിസ്റ്റർ നമ്പർ നിലവിലുണ്ട്! ദയവായി മറ്റൊരു നമ്പർ ഉപയോഗിക്കുക.',
+    alertRegistrationSubmitted: 'മദ്രസ രജിസ്ട്രേഷൻ സമർപ്പിച്ചു! സൂപ്പർ അഡ്മിൻ അംഗീകാരത്തിനായി കാത്തിരിക്കുന്നു.',
+    alertSavedRegistrations: '✅ വിജയകരമായി സേവ് ചെയ്തു! {studentName} എന്ന വിദ്യാർത്ഥിക്ക് {count} പ്രോഗ്രാമുകൾ രജിസ്റ്റർ ചെയ്തിരിക്കുന്നു.',
+    alertPleaseSelectStudent: 'ദയവായി ഒരു വിദ്യാർത്ഥിയെ തിരഞ്ഞെടുക്കുക!',
+    alertPleaseSelectProgStudent: 'ദയവായി പ്രോഗ്രാമും വിദ്യാർത്ഥിയും തിരഞ്ഞെടുക്കുക!',
+    alertPleaseSelectProgFirst: 'ദയവായി ആദ്യം ഒരു പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക!',
+    alertResultDeclared: 'ഫലം വിജയകരമായി പ്രഖ്യാപിച്ചു!',
+    alertPointsUpdated: 'പോയിന്റ് ഘടന വിജയകരമായി അപ്ഡേറ്റ് ചെയ്തു!',
+    alertEnterRegNo: 'ദയവായി രജിസ്റ്റർ നമ്പർ നൽകുക!',
+    alertStudentNotFound: 'വിദ്യാർത്ഥിയെ കണ്ടെത്താനായില്ല! ദയവായി രജിസ്റ്റർ നമ്പർ പരിശോധിക്കുക.',
+    alertNoPhotoSelected: 'ഫോട്ടോ തിരഞ്ഞെടുത്തിട്ടില്ല!',
+    alertNoStudentSelected: 'വിദ്യാർത്ഥിയെ തിരഞ്ഞെടുത്തിട്ടില്ല!',
+    alertSessionExpired: 'സെഷൻ കാലാവധി കഴിഞ്ഞു. ദയവായി വീണ്ടും ലോഗിൻ ചെയ്യുക.',
+    alertUploadFailed: 'അപ്‌ലോഡ് പരാജയപ്പെട്ടു: ',
+    alertUnexpectedError: 'പ്രതീക്ഷിക്കാത്ത പിശക്: ',
+    alertDownloadFailed: 'ഡൗൺലോഡ് പരാജയപ്പെട്ടു: ',
+    alertNoApprovedPhotos: 'അംഗീകൃത ഫോട്ടോകൾ ഒന്നും കണ്ടെത്തിയില്ല!',
+    alertPDFGenerationFailed: 'PDF ജനറേഷൻ പരാജയപ്പെട്ടു: ',
+    alertNoIdCards: 'കയറ്റുമതി ചെയ്യാൻ ഐഡി കാർഡുകൾ ഒന്നുമില്ല!',
+    alertBrowserInstallPrompt: 'ബ്രൗസർ മെനു (⋮) ടാപ്പ് ചെയ്ത് \'Install app\' അല്ലെങ്കിൽ \'Add to Home screen\' തിരഞ്ഞെടുക്കുക.'
   }
 };
 
