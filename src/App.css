@@ -2374,3 +2374,466 @@ tr:nth-child(even) {
 .btn-premium-action:active {
     transform: translateY(1px);
 }
+
+/* ==========================================================================
+   📺 14. LIVE RESULTS PROJECTOR MODE STYLING (FULL SCREEN)
+   ========================================================================== */
+
+.projector-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #090d16 0%, #03150f 100%);
+    color: #f8fafc;
+    z-index: 99999;
+    padding: 30px 40px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.projector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+.projector-header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.projector-title {
+    font-size: 26px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff 30%, var(--accent-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.projector-live-badge {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 1px;
+}
+
+.projector-live-dot {
+    width: 10px;
+    height: 10px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulseLive 1.5s infinite;
+}
+
+.projector-nav-pills {
+    display: flex;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.projector-nav-pill {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #94a3b8;
+}
+
+.projector-nav-pill.active {
+    background: var(--accent-gold);
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.projector-close-btn {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.projector-close-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.projector-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.projector-slide {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.projector-slide-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #94a3b8;
+    margin-bottom: 25px;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+/* Overall Standings grid */
+.projector-leaderboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 25px;
+    padding-bottom: 40px;
+}
+
+.projector-leaderboard-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    padding: 24px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s;
+}
+
+.projector-leaderboard-card.rank-1 {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.projector-leaderboard-card.rank-2 {
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+.projector-leaderboard-card.rank-3 {
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-color: rgba(234, 88, 12, 0.3);
+}
+
+.projector-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.projector-rank-badge {
+    font-size: 36px;
+    margin-right: 12px;
+}
+
+.projector-team-name {
+    font-size: 20px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 1;
+}
+
+.projector-team-score {
+    font-size: 32px;
+    font-weight: 900;
+    color: #fff;
+}
+
+.rank-1 .projector-team-score { color: #fbbf24; }
+.rank-2 .projector-team-score { color: #e2e8f0; }
+.rank-3 .projector-team-score { color: #f97316; }
+
+.projector-team-score .score-lbl {
+    font-size: 14px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-left: 2px;
+}
+
+.projector-bar-track {
+    width: 100%;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.projector-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    position: relative;
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.rank-1 .projector-bar-fill {
+    background: linear-gradient(90deg, #d97706, #fbbf24);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+}
+
+.rank-2 .projector-bar-fill {
+    background: linear-gradient(90deg, #475569, #94a3b8);
+    box-shadow: 0 0 15px rgba(148, 163, 184, 0.4);
+}
+
+.rank-3 .projector-bar-fill {
+    background: linear-gradient(90deg, #ea580c, #fb923c);
+    box-shadow: 0 0 15px rgba(234, 88, 12, 0.4);
+}
+
+.projector-bar-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+    animation: shimmerGlow 2.5s infinite linear;
+}
+
+/* Category grid */
+.projector-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 25px;
+    padding-bottom: 40px;
+}
+
+.projector-category-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.projector-category-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent-gold);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.projector-category-teams-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.projector-category-team-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.01);
+    border-radius: 8px;
+}
+
+.projector-category-team-row .team-rank-index {
+    color: #64748b;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.projector-category-team-row .team-title {
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.projector-category-team-row .team-pts {
+    font-size: 16px;
+    font-weight: 800;
+    color: #fff;
+}
+
+/* Winner Grid */
+.projector-winners-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+    padding-bottom: 40px;
+}
+
+.projector-winner-card {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.projector-winner-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f59e0b, #ec4899);
+}
+
+.projector-winner-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 12px;
+}
+
+.winner-prog-code {
+    background: var(--accent-gold);
+    color: #0f172a;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    align-self: flex-start;
+}
+
+.winner-prog-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    margin-top: 4px;
+}
+
+.winner-prog-cat {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.projector-winners-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.projector-winner-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.projector-winner-row.gold {
+    background: rgba(245, 158, 11, 0.06);
+    border-color: rgba(245, 158, 11, 0.15);
+}
+
+.projector-winner-row.silver {
+    background: rgba(148, 163, 184, 0.06);
+    border-color: rgba(148, 163, 184, 0.15);
+}
+
+.projector-winner-row.bronze {
+    background: rgba(234, 88, 12, 0.06);
+    border-color: rgba(234, 88, 12, 0.15);
+}
+
+.projector-winner-row .medal {
+    font-size: 24px;
+}
+
+.winner-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.winner-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.winner-team {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.winner-grade-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+/* Animations */
+.animate-projector-slide {
+    animation: slideInProjector 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInProjector {
+    0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.projector-empty {
+    text-align: center;
+    color: #64748b;
+    font-size: 18px;
+    font-style: italic;
+    padding: 50px 0;
+}
+
+/* Confetti particles keyframes and styling */
+.projector-confetti-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.projector-confetti {
+    position: absolute;
+    top: -20px;
+    pointer-events: none;
+    opacity: 0.8;
+    animation: fallConfetti infinite linear;
+}
+
+@keyframes fallConfetti {
+    0% { transform: translateY(-50px) rotate(0deg); opacity: 0.8; }
+    50% { opacity: 0.6; }
+    100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+}

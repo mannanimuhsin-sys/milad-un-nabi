@@ -27,9 +27,10 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"ਇਸ ਨਾਲ ਸਾਂਝਾ ਕਰੋ"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"<ns1:g id="APPLICATION_NAME">%s</ns1:g> ਨਾਲ ਸਾਂਝਾ ਕਰੋ"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"ਸਮੇਟੋ"</string>
+    <string name="android_browser_helper_app_name">Android Browser Helper</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"ਜਵਾਬ ਦਿਓ"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"ਵੀਡੀਓ"</string>
-    <string msgid="3229508546291798546" name="call_notification_decline_action">"ਅਸਵੀਕਾਰ ਕਰੋ"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"ਕਾਲ ਕੱਟੋ"</string>
     <string msgid="2659457946726154263" name="call_notification_hang_up_action">"ਸਮਾਪਤ ਕਰੋ"</string>
     <string msgid="6107532579223922871" name="call_notification_incoming_text">"ਇਨਕਮਿੰਗ ਕਾਲ"</string>
     <string msgid="8623827134497363134" name="call_notification_ongoing_text">"ਜਾਰੀ ਕਾਲ"</string>
@@ -38,6 +39,14 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"ਲਿੰਕ ਕਾਪੀ ਕਰੋ"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"ਲਿੰਕ ਸਾਂਝਾ ਕਰੋ"</string>
+    <string name="manage_space_no_data_toast">ਇਸ ਐਪ ਵਿੱਚ ਕੋਈ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟਾ ਨਹੀਂ ਹੈ।</string>
+    <string name="manage_space_not_supported_toast">ਇਸ ਐਪ ਦਾ ਡਾਟਾ %1$s ਵਿੱਚ ਸਟੋਰ ਕੀਤਾ ਜਾਂਦਾ ਹੈ।</string>
+    <string name="no_provider_toast">ਕਿਰਪਾ ਕਰਕੇ Chrome Stable 72 ਜਾਂ ਇਸ ਤੋਂ ਬਾਅਦ ਵਾਲਾ ਵਰਜਨ ਸਥਾਪਤ ਕਰੋ।</string>
+    <string name="provider_unavailable_button_ok">ਠੀਕ ਹੈ</string>
+    <string name="provider_unavailable_default_browser">Chrome</string>
+    <string name="provider_unavailable_message">ਇਹ ਐਪ ਉਪਲਬਧ ਨਹੀਂ ਹੈ, ਕਿਉਂਕਿ %1$s ਨੂੰ ਬਲਾਕ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ</string>
+    <string name="provider_unavailable_title">ਐਪ ਉਪਲਬਧ ਨਹੀਂ ਹੈ</string>
     <string msgid="6264217191555673260" name="search_menu_title">"ਖੋਜ"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string name="update_chrome_toast">ਕਿਰਪਾ ਕਰਕੇ Chrome Stable 72 ਜਾਂ ਇਸ ਤੋਂ ਬਾਅਦ ਵਾਲੇ ਵਰਜਨ \'ਤੇ ਅੱਪਡੇਟ ਕਰੋ।</string>
 </resources>

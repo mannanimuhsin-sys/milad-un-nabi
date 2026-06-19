@@ -22,12 +22,12 @@
      the abbreviated format.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="app.vercel.milad_un_nabi.twa"
-    android:versionCode="1"
-    android:versionName="1" >
+    package="com.miladfest.app"
+    android:versionCode="4"
+    android:versionName="4.0" >
 
     <uses-sdk
-        android:minSdkVersion="21"
+        android:minSdkVersion="23"
         android:targetSdkVersion="35" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -43,16 +43,16 @@
     </queries>
 
     <permission
-        android:name="app.vercel.milad_un_nabi.twa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:name="com.miladfest.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         android:protectionLevel="signature" />
 
-    <uses-permission android:name="app.vercel.milad_un_nabi.twa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+    <uses-permission android:name="com.miladfest.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
 
     <application
-        android:name="app.vercel.milad_un_nabi.twa.Application"
+        android:name="com.miladfest.app.Application"
         android:allowBackup="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-        android:extractNativeLibs="true"
+        android:extractNativeLibs="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/appName"
         android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
@@ -84,7 +84,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="app.vercel.milad_un_nabi.twa.LauncherActivity"
+            android:name="com.miladfest.app.LauncherActivity"
             android:alwaysRetainTaskState="true"
             android:exported="true"
             android:label="@string/launcherName" >
@@ -163,7 +163,7 @@
         </provider>
 
         <service
-            android:name="app.vercel.milad_un_nabi.twa.DelegationService"
+            android:name="com.miladfest.app.DelegationService"
             android:enabled="@bool/enableNotification"
             android:exported="@bool/enableNotification" >
             <meta-data
@@ -181,7 +181,7 @@
 
         <provider
             android:name="androidx.startup.InitializationProvider"
-            android:authorities="app.vercel.milad_un_nabi.twa.androidx-startup"
+            android:authorities="com.miladfest.app.androidx-startup"
             android:exported="false" >
             <meta-data
                 android:name="androidx.emoji2.text.EmojiCompatInitializer"

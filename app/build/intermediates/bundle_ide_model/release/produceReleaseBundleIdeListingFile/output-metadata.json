@@ -4,7 +4,7 @@
     "type": "BUNDLE",
     "kind": "RegularFile"
   },
-  "applicationId": "app.vercel.milad_un_nabi.twa",
+  "applicationId": "com.miladfest.app",
   "variantName": "release",
   "elements": [
     {

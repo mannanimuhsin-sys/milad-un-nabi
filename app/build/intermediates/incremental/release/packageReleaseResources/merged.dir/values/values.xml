@@ -3,7 +3,7 @@
     <bool name="enableNotification">true</bool>
     <bool name="enableSiteSettingsShortcut">true</bool>
     <color name="backgroundColor">#FFFFFF</color>
-    <color name="colorPrimary">#000000</color>
+    <color name="colorPrimary">#FFFFFF</color>
     <color name="colorPrimaryDark">#000000</color>
     <color name="navigationColor">#000000</color>
     <color name="navigationColorDark">#000000</color>
@@ -11,7 +11,7 @@
     <color name="navigationDividerColorDark">#000000</color>
     <color name="shortcut_background">#F5F5F5</color>
     <integer name="splashScreenFadeOutDuration">300</integer>
-    <string name="appName" translatable="false">Milad Fest</string>
+    <string name="appName" translatable="false">milad fest</string>
     <string name="assetStatements">
     [{
         \"relation\": [\"delegate_permission/common.handle_all_urls\"],
@@ -27,8 +27,8 @@
     <string name="generatorApp" translatable="false">bubblewrap-cli</string>
     <string name="hostName" translatable="false">milad-un-nabi.vercel.app</string>
     <string name="launchUrl" translatable="false">https://milad-un-nabi.vercel.app/</string>
-    <string name="launcherName" translatable="false">Milad Fest</string>
-    <string name="orientation" translatable="false">landscape-secondary</string>
-    <string name="providerAuthority" translatable="false">app.vercel.milad_un_nabi.twa.fileprovider</string>
+    <string name="launcherName" translatable="false">milad fest</string>
+    <string name="orientation" translatable="false">portrait</string>
+    <string name="providerAuthority" translatable="false">com.miladfest.app.fileprovider</string>
     <string name="webManifestUrl" translatable="false">https://milad-un-nabi.vercel.app/manifest.json</string>
 </resources>

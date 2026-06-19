@@ -27,6 +27,7 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"इससे शेयर करें:"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"<ns1:g id="APPLICATION_NAME">%s</ns1:g> से शेयर करें"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"छोटा करें"</string>
+    <string name="android_browser_helper_app_name">Android Browser Helper</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"जवाब दें"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"वीडियो"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"अस्वीकार करें"</string>
@@ -38,6 +39,14 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"लिंक कॉपी करें"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"ब्राउज़र में खोलें"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"लिंक शेयर करें"</string>
+    <string name="manage_space_no_data_toast">इस ऐप्लिकेशन में कोई ब्राउज़िंग डेटा नहीं है.</string>
+    <string name="manage_space_not_supported_toast">इस ऐप्लिकेशन का डेटा, %1$s में सेव किया जाता है.</string>
+    <string name="no_provider_toast">कृपया Chrome स्टेबल चैनल 72 या इसके बाद का वर्शन इंस्टॉल करें.</string>
+    <string name="provider_unavailable_button_ok">ठीक है</string>
+    <string name="provider_unavailable_default_browser">Chrome</string>
+    <string name="provider_unavailable_message">यह ऐप्लिकेशन उपलब्ध नहीं है, क्योंकि %1$s को ब्लॉक किया गया है</string>
+    <string name="provider_unavailable_title">ऐप्लिकेशन उपलब्ध नहीं है</string>
     <string msgid="6264217191555673260" name="search_menu_title">"खोजें"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string name="update_chrome_toast">कृपया Chrome स्टेबल चैनल 72 या इसके बाद के वर्शन पर अपडेट करें.</string>
 </resources>

@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import './App.css';
+import translations from './translations';
 
 // Inline component to generate and display QR code asynchronously
 function StudentQrCode({ madrasaReg, studentId }) {
@@ -36,6 +37,19 @@ function StudentQrCode({ madrasaReg, studentId }) {
 }
 
 function App() {
+  const [lang, setLang] = useState(() => localStorage.getItem('miladfest_lang') || 'EN');
+
+  const toggleLanguage = () => {
+    const nextLang = lang === 'EN' ? 'ML' : 'EN';
+    setLang(nextLang);
+    localStorage.setItem('miladfest_lang', nextLang);
+  };
+
+  const t = useCallback((key) => {
+    if (!translations[lang]) return key;
+    return translations[lang][key] || translations['EN'][key] || key;
+  }, [lang]);
+
   // ── Persistent session: restore from localStorage on first render ──
   const savedSession = (() => {
     try { return JSON.parse(localStorage.getItem('miladfest_session') || 'null'); } catch { return null; }
@@ -58,6 +72,10 @@ function App() {
   const [loginRegNum, setLoginRegNum] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Projector Mode States
+  const [isProjectorActive, setIsProjectorActive] = useState(false);
+  const [projectorSlide, setProjectorSlide] = useState(0); // 0: Overall, 1: Category, 2: Recent Winners
 
   // PWA Install states
   // eslint-disable-next-line no-unused-vars
@@ -331,6 +349,38 @@ function App() {
       checkAndInsertDefaultCategories(rNum);
     }
   }, [loggedInMadrasa]);
+
+  // 📺 Projector Mode Synchronization & Slide Rotation Effect
+  useEffect(() => {
+    if (!isProjectorActive || !loggedInMadrasa) return;
+
+    const rNum = loggedInMadrasa.regNumber;
+    
+    // Auto-refresh from Supabase every 30 seconds
+    const dataInterval = setInterval(() => {
+      console.log("Projector mode: auto-refreshing data...");
+      fetchSupabaseData(rNum);
+    }, 30000);
+
+    // Slide rotation every 10 seconds
+    const slideInterval = setInterval(() => {
+      setProjectorSlide(prev => (prev + 1) % 3);
+    }, 10000);
+
+    // ESC key support to exit projector mode
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsProjectorActive(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(slideInterval);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProjectorActive, loggedInMadrasa]);
 
   // ── QR Code URL Parameter Handler ──
   useEffect(() => {
@@ -1444,11 +1494,37 @@ function App() {
       {/* 🔐 LOGIN SCREEN */}
       {currentScreen === 'LOGIN' && (
         <div className="executive-login-container">
+          {/* Floating Language Toggle */}
+          <button 
+            onClick={toggleLanguage} 
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
+          </button>
+
           <div className="executive-login-card">
             <div className="login-brand-section">
               <img src="/logo192_black.png" alt="Milad Fest Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', marginBottom: '10px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
-              <h2>MILAD FEST</h2>
-              <p className="subtitle">Madrasa Login System</p>
+              <h2>{t('appName')}</h2>
+              <p className="subtitle">{t('loginSubtitle')}</p>
             </div>
 
             {/* 📲 PWA Install Popup - Custom Notification Popup shown before credential inputs */}
@@ -1457,8 +1533,8 @@ function App() {
                 <div className="pwa-popup-header">
                   <span className="pwa-popup-icon">📲</span>
                   <div className="pwa-popup-title-area">
-                    <h4>Milad Fest ഇൻസ്റ്റാൾ ചെയ്യാം</h4>
-                    <p>ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്താൽ വളരെ പെട്ടെന്ന് ഉപയോഗിക്കാം</p>
+                    <h4>{lang === 'EN' ? 'Install Milad Fest' : 'Milad Fest ഇൻസ്റ്റാൾ ചെയ്യാം'}</h4>
+                    <p>{lang === 'EN' ? 'Install app for a faster experience' : 'ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്താൽ വളരെ പെട്ടെന്ന് ഉപയോഗിക്കാം'}</p>
                   </div>
                 </div>
 
@@ -1466,7 +1542,7 @@ function App() {
                   /* Android UI */
                   <div className="pwa-popup-body">
                     <p className="pwa-popup-description">
-                      മീലാദ് ഫെസ്റ്റ് ആപ്ലിക്കേഷൻ നിങ്ങളുടെ മൊബൈലിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്യുക.
+                      {lang === 'EN' ? 'Install Milad Fest application on your mobile.' : 'മീലാദ് ഫെസ്റ്റ് ആപ്ലിക്കേഷൻ നിങ്ങളുടെ മൊബൈലിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്യുക.'}
                     </p>
                     <div className="pwa-popup-actions">
                       <button onClick={handleInstallApp} className="btn-popup-install">
@@ -1481,11 +1557,21 @@ function App() {
                   /* iOS UI (iPhone/iPad) */
                   <div className="pwa-popup-body">
                     <div className="ios-steps-container">
-                      <p className="ios-steps-title">ഇൻസ്റ്റാൾ ചെയ്യേണ്ട രൂപം:</p>
+                      <p className="ios-steps-title">{lang === 'EN' ? 'How to install:' : 'ഇൻസ്റ്റാൾ ചെയ്യേണ്ട രൂപം:'}</p>
                       <ol className="ios-steps-list">
-                        <li>സഫാരി ബ്രൗസറിലെ <strong>Share</strong> (⎙) ബട്ടൺ അമർത്തുക.</li>
-                        <li>താഴേക്ക് സ്ക്രോൾ ചെയ്ത് <strong>'Add to Home Screen'</strong> എന്നത് സെലക്ട് ചെയ്യുക.</li>
-                        <li>മുകളിൽ വലതുഭാഗത്തുള്ള <strong>'Add'</strong> ബട്ടൺ അമർത്തുക.</li>
+                        {lang === 'EN' ? (
+                          <>
+                            <li>Press the <strong>Share</strong> (⎙) button in Safari browser.</li>
+                            <li>Scroll down and select <strong>'Add to Home Screen'</strong>.</li>
+                            <li>Press the <strong>'Add'</strong> button in the top right.</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>സഫാരി ബ്രൗസറിലെ <strong>Share</strong> (⎙) ബട്ടൺ അമർത്തുക.</li>
+                            <li>താഴേക്ക് സ്ക്രോൾ ചെയ്ത് <strong>'Add to Home Screen'</strong> എന്നത് സെലക്ട് ചെയ്യുക.</li>
+                            <li>മുകളിൽ വലതുഭാഗത്തുള്ള <strong>'Add'</strong> ബട്ടൺ അമർത്തുക.</li>
+                          </>
+                        )}
                       </ol>
                     </div>
                     <div className="pwa-popup-actions">
@@ -1503,15 +1589,15 @@ function App() {
 
             <form onSubmit={handleLogin}>
               <div className="executive-form-group">
-                <label>Madrasa Register Number</label>
-                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Register Number" value={loginRegNum} onChange={(e) => setLoginRegNum(e.target.value)} required />
+                <label>{t('regNumberLabel')}</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('regNumberPlaceholder')} value={loginRegNum} onChange={(e) => setLoginRegNum(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <label>Password</label>
-                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+                <label>{t('passwordLabel')}</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('passwordPlaceholder')} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
               </div>
               <button type="submit" className="btn-executive-gold" disabled={isLoggingIn}>
-                {isLoggingIn ? 'Logging in...' : 'Login'}
+                {isLoggingIn ? t('loggingIn') : t('loginBtn')}
               </button>
             </form>
 
@@ -1520,12 +1606,12 @@ function App() {
                 setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
                 setCurrentScreen('REGISTER_FORM');
               }} style={{ color: '#94a3b8', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }} className="admin-premium-link">
-                📝 New Madrasa Registration
+                {t('newMadrasaReg')}
               </span>
             </div>
 
             <div className="admin-only-footer">
-              <span onClick={() => { setCurrentScreen('REGISTER_LOCK'); }} className="admin-premium-link">⚙️ Admin Control Panel</span>
+              <span onClick={() => { setCurrentScreen('REGISTER_LOCK'); }} className="admin-premium-link">{t('adminControlPanel')}</span>
             </div>
           </div>
         </div>
@@ -1823,33 +1909,65 @@ function App() {
           <header className="dash-header">
             <div>
               <h1>{loggedInMadrasa ? loggedInMadrasa.name : ''}</h1>
-              <p>Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''} ({loginRole} MODE)</p>
+              <p>{t('regNo')} {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''} ({t(loginRole === 'ADMIN' ? 'adminMode' : 'viewMode')})</p>
             </div>
-            <button onClick={() => {
-              // 🔓 Clear saved session on explicit logout
-              localStorage.removeItem('miladfest_session');
-              setCurrentScreen('LOGIN');
-              setLoggedInMadrasa(null);
-              setLoginRole('');
-            }} className="btn-logout-top">Logout</button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button 
+                onClick={toggleLanguage} 
+                className="btn-logout-top"
+                style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: 'white' }}
+              >
+                🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
+              </button>
+              <button onClick={() => {
+                // 🔓 Clear saved session on explicit logout
+                localStorage.removeItem('miladfest_session');
+                setCurrentScreen('LOGIN');
+                setLoggedInMadrasa(null);
+                setLoginRole('');
+              }} className="btn-logout-top">{t('logoutBtn')}</button>
+            </div>
           </header>
 
           {/* ---------------- 🎯 TAB 1: SCOREBOARD ---------------- */}
           {activeTab === 'SCOREBOARD' && (
             <div className="card animate-tab scoreboard-main-card">
               <div className="scoreboard-header">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
-                    <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>📊 Live Scoreboard</h2>
-                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Real-time Points Standing</p>
+                    <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>{t('liveScoreboard')}</h2>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{t('realTimePoints')}</p>
                   </div>
-                  <div className="live-badge">
-                    <span className="live-dot"></span> LIVE
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button 
+                      onClick={() => setIsProjectorActive(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #1e1b4b, #0f172a)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                        transition: 'all 0.2s'
+                      }}
+                      className="projector-trigger-btn"
+                    >
+                      📺 {lang === 'EN' ? 'Projector Mode' : 'പ്രൊജക്ടർ മോഡ്'}
+                    </button>
+                    <div className="live-badge">
+                      <span className="live-dot"></span> {t('liveBadge')}
+                    </div>
                   </div>
                 </div>
               </div>
               <div style={{ marginTop: '20px' }}>
-                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No teams added yet. Go to Master Settings to add teams.</p> :
+                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
                   <div className="live-leaderboard">
                     {(() => {
                       const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
@@ -1879,7 +1997,7 @@ function App() {
                                 <div className="leaderboard-content" style={{ flex: 1 }}>
                                   <div className="team-meta">
                                     <span className="team-name">{t.name}</span>
-                                    <span className="team-score-text">{totalPts} <span>Pts</span></span>
+                                    <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
                                   </div>
                                   <div className="progress-track">
                                     <div className="progress-fill" style={{ width: `${barWidth}%` }}>
@@ -5094,18 +5212,235 @@ function downloadAsImage() {
       {currentScreen === 'DASHBOARD' && (
         <nav className="bottom-nav-bar">
           <button className={`nav-tab-item ${activeTab === 'SCOREBOARD' ? 'active' : ''}`} onClick={() => setActiveTab('SCOREBOARD')}>
-            <span className="nav-icon">📊</span><span>Scoreboard</span>
+            <span className="nav-icon">📊</span><span>{t('navScoreboard')}</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'RECENT' ? 'active' : ''}`} onClick={() => setActiveTab('RECENT')}>
-            <span className="nav-icon">📜</span><span>Results</span>
+            <span className="nav-icon">📜</span><span>{t('navResults')}</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'PROFILE' ? 'active' : ''}`} onClick={() => setActiveTab('PROFILE')}>
-            <span className="nav-icon">👤</span><span>Profile</span>
+            <span className="nav-icon">👤</span><span>{t('navProfile')}</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'SETTINGS' ? 'active' : ''}`} onClick={() => setActiveTab('SETTINGS')}>
-            <span className="nav-icon">⚙️</span><span>Master Settings</span>
+            <span className="nav-icon">⚙️</span><span>{t('navSettings')}</span>
           </button>
         </nav>
+      )}
+
+      {/* 📺 LIVE RESULTS PROJECTOR OVERLAY */}
+      {isProjectorActive && (
+        <div className="projector-overlay">
+          {/* Confetti container (glowing particles) */}
+          <div className="projector-confetti-container">
+            {Array.from({ length: 40 }).map((_, i) => {
+              const left = Math.random() * 100;
+              const delay = Math.random() * 8;
+              const duration = 4 + Math.random() * 6;
+              const size = 6 + Math.random() * 10;
+              const color = ['#f59e0b', '#fbbf24', '#10b981', '#3b82f6', '#ec4899'][Math.floor(Math.random() * 5)];
+              return (
+                <div 
+                  key={i} 
+                  className="projector-confetti" 
+                  style={{
+                    left: `${left}%`,
+                    animationDelay: `${delay}s`,
+                    animationDuration: `${duration}s`,
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                    borderRadius: Math.random() > 0.5 ? '50%' : '2px'
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Top Header */}
+          <header className="projector-header">
+            <div className="projector-header-left">
+              <div className="projector-live-badge">
+                <span className="projector-live-dot"></span> LIVE
+              </div>
+              <h1 className="projector-title">{loggedInMadrasa ? loggedInMadrasa.name : 'MILAD FESTIVAL'}</h1>
+            </div>
+            <div className="projector-nav-pills">
+              <span className={`projector-nav-pill ${projectorSlide === 0 ? 'active' : ''}`} onClick={() => setProjectorSlide(0)}>
+                🏆 {lang === 'EN' ? 'Overall Standings' : 'ആകെ പോയിന്റ് നില'}
+              </span>
+              <span className={`projector-nav-pill ${projectorSlide === 1 ? 'active' : ''}`} onClick={() => setProjectorSlide(1)}>
+                📂 {lang === 'EN' ? 'Category Standings' : 'വിഭാഗം തിരിച്ച്'}
+              </span>
+              <span className={`projector-nav-pill ${projectorSlide === 2 ? 'active' : ''}`} onClick={() => setProjectorSlide(2)}>
+                🥇 {lang === 'EN' ? 'Recent Winners' : 'വിജയികൾ'}
+              </span>
+            </div>
+            <button className="projector-close-btn" onClick={() => setIsProjectorActive(false)}>
+              ✕ Exit
+            </button>
+          </header>
+
+          {/* Main Slide Viewer */}
+          <div className="projector-body">
+            
+            {/* SLIDE 0: OVERALL LEADERBOARD */}
+            {projectorSlide === 0 && (
+              <div className="projector-slide animate-projector-slide">
+                <h2 className="projector-slide-title">🏆 {lang === 'EN' ? 'OVERALL POINT STANDINGS' : 'ആകെ പോയിന്റ് നിലവാരം'}</h2>
+                {teams.length === 0 ? (
+                  <div className="projector-empty">{t('noTeamsMsg')}</div>
+                ) : (
+                  <div className="projector-leaderboard-grid">
+                    {(() => {
+                      const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
+                      const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
+                      const graphMax = maxPts > 0 ? maxPts : 10;
+                      
+                      let currentRank = 1;
+                      const teamRanks = sortedTeams.map((t, idx) => {
+                        if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
+                          currentRank = idx + 1;
+                        }
+                        return currentRank;
+                      });
+
+                      return sortedTeams.map((team, idx) => {
+                        const totalPts = getTeamTotalPoints(team.id);
+                        const barWidth = Math.max(5, (totalPts / graphMax) * 100);
+                        const rank = teamRanks[idx];
+                        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+                        const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
+
+                        return (
+                          <div key={team.id} className={`projector-leaderboard-card ${rankClass}`}>
+                            <div className="projector-card-header">
+                              <span className="projector-rank-badge">{badgeIcon}</span>
+                              <span className="projector-team-name">{team.name}</span>
+                              <span className="projector-team-score">{totalPts} <span className="score-lbl">{t('points')}</span></span>
+                            </div>
+                            <div className="projector-bar-track">
+                              <div className="projector-bar-fill" style={{ width: `${barWidth}%` }}>
+                                <div className="projector-bar-glow"></div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SLIDE 1: CATEGORY STANDINGS */}
+            {projectorSlide === 1 && (
+              <div className="projector-slide animate-projector-slide">
+                <h2 className="projector-slide-title">📂 {lang === 'EN' ? 'CATEGORY STANDINGS' : 'വിഭാഗം തിരിച്ചുള്ള പോയിന്റ് നിലവാരം'}</h2>
+                {categories.length === 0 ? (
+                  <div className="projector-empty">{lang === 'EN' ? 'No categories added.' : 'വിഭാഗങ്ങൾ ഒന്നും ചേർത്തിട്ടില്ല.'}</div>
+                ) : (
+                  <div className="projector-categories-grid">
+                    {categories.map(c => {
+                      // Get team points breakdown for this category
+                      const teamPointsList = teams.map(t => {
+                        const catResults = resultsList.filter(r => (String(r.teamId) === String(t.id) || String(r.teamid) === String(t.id)) && r.catname === c.name);
+                        const pts = catResults.reduce((sum, r) => sum + r.points, 0);
+                        return { team: t, points: pts };
+                      }).sort((a, b) => b.points - a.points);
+
+                      return (
+                        <div key={c.id} className="projector-category-card">
+                          <h3 className="projector-category-name">📁 {c.name}</h3>
+                          <div className="projector-category-teams-list">
+                            {teamPointsList.map((tp, idx) => (
+                              <div key={tp.team.id} className="projector-category-team-row">
+                                <span className="team-rank-index">{idx + 1}.</span>
+                                <span className="team-title">{tp.team.name}</span>
+                                <span className="team-pts">{tp.points} <span className="score-lbl">{t('points')}</span></span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SLIDE 2: RECENT WINNERS */}
+            {projectorSlide === 2 && (
+              <div className="projector-slide animate-projector-slide">
+                <h2 className="projector-slide-title">🏆 {lang === 'EN' ? 'RECENT WINNERS & ANNOUNCEMENTS' : 'സമീപകാല പ്രഖ്യാപിത ഫലങ്ങൾ'}</h2>
+                {resultsList.length === 0 ? (
+                  <div className="projector-empty">{t('noResultsAdded')}</div>
+                ) : (
+                  <div className="projector-winners-grid">
+                    {/* Get the 3 most unique program results declared recently */}
+                    {(() => {
+                      const recentProgs = Array.from(new Set(resultsList.map(r => r.progid || r.progId))).slice(0, 3);
+                      
+                      return recentProgs.map(progId => {
+                        const prog = programs.find(p => String(p.id) === String(progId));
+                        const progResults = resultsList.filter(r => String(r.progid || r.progId) === String(progId));
+                        
+                        if (!prog) return null;
+
+                        const firstW = progResults.find(r => r.place === 'First');
+                        const secondW = progResults.find(r => r.place === 'Second');
+                        const thirdW = progResults.find(r => r.place === 'Third');
+
+                        return (
+                          <div key={progId} className="projector-winner-card">
+                            <div className="projector-winner-card-header">
+                              <span className="winner-prog-code">{prog.code}</span>
+                              <span className="winner-prog-name">{prog.name}</span>
+                              <span className="winner-prog-cat">({prog.catname || 'Common'})</span>
+                            </div>
+                            <div className="projector-winners-list">
+                              {/* 1st Place */}
+                              {firstW && (
+                                <div className="projector-winner-row gold">
+                                  <span className="medal">🥇</span>
+                                  <div className="winner-info">
+                                    <span className="winner-name">{firstW.studentname}</span>
+                                    <span className="winner-team">{firstW.teamname || teams.find(t => String(t.id) === String(firstW.teamId || firstW.teamid))?.name || ''}</span>
+                                  </div>
+                                  <span className="winner-grade-badge">{firstW.grade === '-' || firstW.grade === 'No' ? '' : firstW.grade}</span>
+                                </div>
+                              )}
+                              {/* 2nd Place */}
+                              {secondW && (
+                                <div className="projector-winner-row silver">
+                                  <span className="medal">🥈</span>
+                                  <div className="winner-info">
+                                    <span className="winner-name">{secondW.studentname}</span>
+                                    <span className="winner-team">{secondW.teamname || teams.find(t => String(t.id) === String(secondW.teamId || secondW.teamid))?.name || ''}</span>
+                                  </div>
+                                  <span className="winner-grade-badge">{secondW.grade === '-' || secondW.grade === 'No' ? '' : secondW.grade}</span>
+                                </div>
+                              )}
+                              {/* 3rd Place */}
+                              {thirdW && (
+                                <div className="projector-winner-row bronze">
+                                  <span className="medal">🥉</span>
+                                  <div className="winner-info">
+                                    <span className="winner-name">{thirdW.studentname}</span>
+                                    <span className="winner-team">{thirdW.teamname || teams.find(t => String(t.id) === String(thirdW.teamId || thirdW.teamid))?.name || ''}</span>
+                                  </div>
+                                  <span className="winner-grade-badge">{thirdW.grade === '-' || thirdW.grade === 'No' ? '' : thirdW.grade}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "app.vercel.milad_un_nabi.twa.app-mergeReleaseResources-23:/values-hdpi-v4/values-hdpi-v4.xml",
+            "outputFile": "com.miladfest.app-mergeReleaseResources-25:/values-hdpi-v4/values-hdpi-v4.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\ccuse\\.gradle\\caches\\8.14\\transforms\\c2b4a15c3302d2f83a97c83645bb51ec\\transformed\\appcompat-1.7.0\\res\\values-hdpi-v4\\values-hdpi-v4.xml",
+                    "source": "C:\\Users\\ccuse\\.gradle\\caches\\8.14\\transforms\\85951a5dd4e1dc3e2ed736b040bfa2c7\\transformed\\appcompat-1.7.0\\res\\values-hdpi-v4\\values-hdpi-v4.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

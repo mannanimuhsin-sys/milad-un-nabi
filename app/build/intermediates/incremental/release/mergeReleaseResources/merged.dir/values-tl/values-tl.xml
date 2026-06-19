@@ -27,6 +27,7 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Ibahagi sa/kay"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Ibahagi gamit ang <ns1:g id="APPLICATION_NAME">%s</ns1:g>"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"I-collapse"</string>
+    <string name="android_browser_helper_app_name">Android Browser Helper</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"Sagutin"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"Tanggihan"</string>
@@ -38,6 +39,14 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"Kopyahin ang link"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"Buksan sa browser"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"Ibahagi ang link"</string>
+    <string name="manage_space_no_data_toast">Walang data mula sa pag-browse ang app na ito.</string>
+    <string name="manage_space_not_supported_toast">Sino-store ang data ng app na ito sa %1$s.</string>
+    <string name="no_provider_toast">Paki-install ang Chrome Stable 72 o mas bago.</string>
+    <string name="provider_unavailable_button_ok">OK</string>
+    <string name="provider_unavailable_default_browser">Chrome</string>
+    <string name="provider_unavailable_message">Hindi available ang app na ito dahil naka-block ang %1$s</string>
+    <string name="provider_unavailable_title">Hindi Available ang App</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Maghanap"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string name="update_chrome_toast">Paki-update sa Chrome Stable 72 o mas bago.</string>
 </resources>

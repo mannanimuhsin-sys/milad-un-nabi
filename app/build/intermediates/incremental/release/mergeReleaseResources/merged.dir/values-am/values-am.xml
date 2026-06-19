@@ -27,6 +27,7 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"አጋራ በ"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"ለ<ns1:g id="APPLICATION_NAME">%s</ns1:g> አጋራ"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"ሰብስብ"</string>
+    <string name="android_browser_helper_app_name">የAndroid አሳሽ አጋዥ</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"መልስ"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"ቪዲዮ"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"አትቀበል"</string>
@@ -38,6 +39,14 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"አገናኝ ቅዳ"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"በአሳሽ ውስጥ ክፈት"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"አገናኝ አጋራ"</string>
+    <string name="manage_space_no_data_toast">ይህ መተግበሪያ ምንም የአሰሳ ውሂብ አይዝም።</string>
+    <string name="manage_space_not_supported_toast">የዚህ መተግበሪያ ውሂብ በ%1$s ውስጥ ይከማቻል።</string>
+    <string name="no_provider_toast">እባክዎ Chrome Stable 72 ወይም ከዚያ በኋላ ይጫኑ።</string>
+    <string name="provider_unavailable_button_ok">እሺ</string>
+    <string name="provider_unavailable_default_browser">Chrome</string>
+    <string name="provider_unavailable_message">%1$s ስለታገደ ይህ መተግበሪያ አይገኝም</string>
+    <string name="provider_unavailable_title">መተግበሪያ አይገኝም</string>
     <string msgid="6264217191555673260" name="search_menu_title">"ፍለጋ"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string name="update_chrome_toast">እባክዎ ወደ የረጋ Chrome 72 ወይም ከዚያ በኋላ ያዘምኑ።</string>
 </resources>
