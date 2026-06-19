@@ -1983,20 +1983,20 @@ function App() {
                         return currentRank;
                       });
 
-                      return sortedTeams.map((t, idx) => {
-                        const totalPts = getTeamTotalPoints(t.id);
+                      return sortedTeams.map((team, idx) => {
+                        const totalPts = getTeamTotalPoints(team.id);
                         const barWidth = Math.max(8, (totalPts / graphMax) * 100);
                         const rank = teamRanks[idx];
                         const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
                         const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
                         
                         return (
-                          <div key={t.id} className={`leaderboard-item ${rankClass}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                          <div key={team.id} className={`leaderboard-item ${rankClass}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                             <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                 <div className="leaderboard-rank-badge">{badgeIcon}</div>
                                 <div className="leaderboard-content" style={{ flex: 1 }}>
                                   <div className="team-meta">
-                                    <span className="team-name">{t.name}</span>
+                                    <span className="team-name">{team.name}</span>
                                     <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
                                   </div>
                                   <div className="progress-track">
@@ -2011,7 +2011,7 @@ function App() {
                             <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                 {categories.map(c => {
                                     // Calculate points for this category and team
-                                    const catResults = resultsList.filter(r => (String(r.teamId) === String(t.id) || String(r.teamid) === String(t.id)) && r.catname === c.name);
+                                    const catResults = resultsList.filter(r => (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name);
                                     if (catResults.length === 0) return null;
                                     
                                     const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
