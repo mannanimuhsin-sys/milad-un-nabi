@@ -208,6 +208,7 @@ function App() {
   const [selectedResultStudent, setSelectedResultStudent] = useState('');
   const [selectedPlace, setSelectedPlace] = useState('1');
   const [selectedGrade, setSelectedGrade] = useState('A');
+  const [markEntrySection, setMarkEntrySection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
 
   // Editing states
   const [editingStudentId, setEditingStudentId] = useState(null);
@@ -4861,8 +4862,63 @@ function App() {
                     {/* MARK_ENTRY SUB-TAB */}
                     {settingsSubTab === 'MARK_ENTRY' && (
                       <div className="settings-card-v2">
+                        {/* Navigation Tabs for Single vs Group Mark Entry */}
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setMarkEntrySection('SINGLE');
+                              setSelectedResultCat('');
+                              setSelectedResultGender('ALL');
+                              setSelectedResultProg('');
+                              setSelectedResultStudent('');
+                            }} 
+                            style={{
+                              padding: '10px 20px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              fontWeight: '800',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              background: markEntrySection === 'SINGLE' ? 'var(--primary-light)' : 'transparent',
+                              color: markEntrySection === 'SINGLE' ? 'white' : '#475569',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            👤 {lang === 'EN' ? 'Single Entry' : 'സിംഗിൾ മാർക്ക് എൻട്രി'}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setMarkEntrySection('GROUP');
+                              setSelectedResultCat('');
+                              setSelectedResultGender('ALL');
+                              setSelectedResultProg('');
+                              setSelectedResultStudent('');
+                            }} 
+                            style={{
+                              padding: '10px 20px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              fontWeight: '800',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              background: markEntrySection === 'GROUP' ? 'var(--primary-light)' : 'transparent',
+                              color: markEntrySection === 'GROUP' ? 'white' : '#475569',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            👥 {lang === 'EN' ? 'Group Entry' : 'ഗ്രൂപ്പ് മാർക്ക് എൻട്രി'}
+                          </button>
+                        </div>
+
                         <div className="settings-form-box-v2">
-                          <h3>📝 Mark Entry (Mark Entry System)</h3>
+                          <h3>
+                            {markEntrySection === 'SINGLE' 
+                              ? (lang === 'EN' ? '📝 Single Event Mark Entry' : '📝 സിംഗിൾ മാർക്ക് എൻട്രി')
+                              : (lang === 'EN' ? '📝 Group Event Mark Entry' : '📝 ഗ്രൂപ്പ് മാർക്ക് എൻട്രി')
+                            }
+                          </h3>
                           <form onSubmit={handleAddResult} className="settings-form">
                             <div className="stepper-timeline">
                               
@@ -4897,7 +4953,7 @@ function App() {
                                 </div>
                               </div>
 
-                              {/* Step 2: Program (filtered by category and gender) */}
+                              {/* Step 2: Program (filtered by category, gender and single/group mode) */}
                               <div className={`step-box ${selectedResultProg ? 'filled' : 'active'}`}>
                                 <div className="step-header">
                                   <div className="step-number">02</div>
@@ -4912,6 +4968,8 @@ function App() {
                                     {programs
                                       .filter(p => {
                                          if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
+                                         if (markEntrySection === 'SINGLE' && (p.type || '').includes('GROUP')) return false;
+                                         if (markEntrySection === 'GROUP' && !(p.type || '').includes('GROUP')) return false;
                                          if (!p.type || !p.type.includes('_')) return true;
                                          if (p.type.includes('COMMON')) return true;
                                          if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
@@ -4932,11 +4990,7 @@ function App() {
                                 <div className="step-header">
                                   <div className="step-number">03</div>
                                   <div className="step-title">
-                                    {(() => {
-                                      const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
-                                      const isGroup = progObj && (progObj.type || '').includes('GROUP');
-                                      return isGroup ? "Select Group" : "Select Student";
-                                    })()}
+                                    {markEntrySection === 'GROUP' ? "Select Group" : "Select Student"}
                                   </div>
                                 </div>
                                 <div className="step-content">
