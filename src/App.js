@@ -6204,7 +6204,7 @@ function App() {
 </body>
 </html>
           `;
-          handleModalPrint();
+          printHtml(html);
         };
 
         return (
