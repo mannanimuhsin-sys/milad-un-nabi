@@ -1509,8 +1509,7 @@ function App() {
 
       for (let i = 0; i < filteredStudentsList.length; i++) {
         const s = filteredStudentsList[i];
-        if (!s.photo_url || s.photo_status !== 'approved') continue;
-
+        
         // Temp DOM element: 338px × 213px (≈ 3.375" × 2.125" at ~100px/in)
         // scale:3 → canvas ≈ 1014×639px → ~300 DPI for print
         const tempDiv = document.createElement('div');
@@ -1536,6 +1535,25 @@ function App() {
           console.error(e);
         }
 
+        // Render photo or SVG silhouette
+        const hasPhoto = s.photo_url && s.photo_status && s.photo_status === 'approved';
+        const isBoy = String(s.gender).toUpperCase() === 'BOY';
+        let photoHtml = '';
+        if (hasPhoto) {
+          photoHtml = `<img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />`;
+        } else {
+          const color = isBoy ? '#1e40af' : '#be185d';
+          const bg = isBoy ? 'linear-gradient(135deg,#dbeafe,#93c5fd)' : 'linear-gradient(135deg,#fce7f3,#f9a8d4)';
+          photoHtml = `
+            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${bg};">
+              <svg viewBox="0 0 24 24" style="width:60%;height:60%;fill:none;stroke:${color};stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+          `;
+        }
+
         // Landscape card HTML — NO border-radius on outer card
         tempDiv.innerHTML = `
           <div style="width:338px;height:213px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
@@ -1545,7 +1563,7 @@ function App() {
                 <div style="font-size:8px;font-weight:800;color:#fbbf24;text-align:center;letter-spacing:0.4px;text-transform:uppercase;margin-bottom:5px;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
                 <div style="font-size:6px;color:#cbd5e1;text-align:center;margin-bottom:8px;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
                 <div style="width:70px;height:70px;border-radius:50%;border:3px solid #fbbf24;overflow:hidden;background:#f1f5f9;">
-                  <img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />
+                  ${photoHtml}
                 </div>
               </div>
               <div style="flex:1;display:flex;flex-direction:column;padding:9px 10px 5px 11px;box-sizing:border-box;min-width:0;">
@@ -3149,7 +3167,6 @@ function App() {
                       {/* PDF Export Button */}
                       {(() => {
                         const approvedFiltered = students.filter(s => {
-                          if (s.photo_status !== 'approved') return false;
                           const matchCat = profileAdminCatFilter === 'ALL' || String(s.catid || s.catId || '') === String(profileAdminCatFilter);
                           const matchTeam = profileAdminTeamFilter === 'ALL' || String(s.teamid || s.teamId || '') === String(profileAdminTeamFilter);
                           const matchGender = profileAdminGenderFilter === 'ALL' || (s.gender || '') === profileAdminGenderFilter;
