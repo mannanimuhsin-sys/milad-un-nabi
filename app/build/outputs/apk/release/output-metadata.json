@@ -4,15 +4,15 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "app.vercel.milad_un_nabi.twa",
+  "applicationId": "com.miladfest.app",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 1,
-      "versionName": "1",
+      "versionCode": 3,
+      "versionName": "3",
       "outputFile": "app-release-unsigned.apk"
     }
   ],

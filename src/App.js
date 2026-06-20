@@ -36,6 +36,84 @@ function StudentQrCode({ madrasaReg, studentId }) {
   return <img src={qrUrl} alt="QR Code" style={{ width: '70px', height: '70px', display: 'block', margin: '0 auto' }} />;
 }
 
+// Universal download helper to handle web and native mobile sharing
+const downloadFile = async (dataUrlOrBlob, filename, mimeType = 'image/png') => {
+  try {
+    let blob;
+    if (typeof dataUrlOrBlob === 'string' && dataUrlOrBlob.startsWith('data:')) {
+      const arr = dataUrlOrBlob.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      blob = new Blob([u8arr], { type: mime });
+    } else {
+      blob = dataUrlOrBlob;
+    }
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile && navigator.share && navigator.canShare) {
+      const file = new File([blob], filename, { type: blob.type || mimeType });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: filename,
+          text: `Download ${filename}`
+        });
+        return;
+      }
+    }
+
+    // Fallback to traditional link download
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      console.error('Download/Share failed:', error);
+      alert('Failed to save file: ' + error.message);
+    }
+  }
+};
+
+// Hidden iframe-based printing helper to bypass popup blockers
+const printHtml = (htmlContent) => {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  iframe.style.opacity = '0';
+  iframe.style.zIndex = '-1000';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document || iframe.contentDocument;
+  doc.open();
+  doc.write(htmlContent);
+  doc.close();
+
+  const runPrint = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  };
+
+  // Give resources/styles/fonts a small delay to load inside the iframe
+  setTimeout(runPrint, 500);
+};
+
 function App() {
   const [lang, setLang] = useState(() => localStorage.getItem('miladfest_lang') || 'EN');
 
@@ -57,6 +135,7 @@ function App() {
 
   const [currentScreen, setCurrentScreen] = useState(savedSession ? 'DASHBOARD' : 'LOGIN');
   const [activeTab, setActiveTab] = useState('SCOREBOARD');
+  const [activeCertificate, setActiveCertificate] = useState(null);
   const [loginRole, setLoginRole] = useState(savedSession ? savedSession.role : '');
   const [secretKey, setSecretKey] = useState('');
 
@@ -1385,10 +1464,8 @@ function App() {
     if (!cardElement) return;
     try {
       const canvas = await html2canvas(cardElement, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
-      const link = document.createElement('a');
-      link.download = `ID_Card_${studentName.replace(/\s+/g, '_')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      const dataUrl = canvas.toDataURL('image/png');
+      await downloadFile(dataUrl, `ID_Card_${studentName.replace(/\s+/g, '_')}.png`, 'image/png');
     } catch (err) { alert(t('alertDownloadFailed') + err.message); }
   };
 
@@ -1398,10 +1475,8 @@ function App() {
     if (!element || !qrModalData?.student) return;
     try {
       const canvas = await html2canvas(element, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
-      const link = document.createElement('a');
-      link.download = `Poster_${qrModalData.student.name.replace(/\s+/g, '_')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      const dataUrl = canvas.toDataURL('image/png');
+      await downloadFile(dataUrl, `Poster_${qrModalData.student.name.replace(/\s+/g, '_')}.png`, 'image/png');
     } catch (err) {
       alert(t('alertDownloadFailed') + err.message);
     }
@@ -1533,7 +1608,8 @@ function App() {
         return;
       }
 
-      pdf.save(`ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}_${paperSize}.pdf`);
+      const pdfBlob = pdf.output('blob');
+      await downloadFile(pdfBlob, `ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}_${paperSize}.pdf`, 'application/pdf');
     } catch (err) {
       alert(t('alertPDFGenerationFailed') + err.message);
     }
@@ -2445,13 +2521,12 @@ function App() {
                   });
 
                   const printReport = () => {
-                    const printWindow = window.open('', '_blank');
                     const rows = sResults.map(r => {
                       let placeLabel = r.place || '-';
                       let gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
                       return `<tr><td>${r.progname || r.progName}</td><td>${r.catname || r.catName}</td><td>${placeLabel}</td><td>${gradeLabel}</td><td>${r.points} Pts</td></tr>`;
                     }).join('');
-                    printWindow.document.write(`
+                    const html = `
                     <html><head><title>${matchedStudent.name} - Report</title>
                     <style>body{font-family:Arial,sans-serif;padding:30px;background:#fff} h1{color:#1e1b4b} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:10px;border:1px solid #e2e8f0;text-align:center} .header{background:linear-gradient(135deg,#1e1b4b,#3730a3);color:white;padding:30px;border-radius:12px;margin-bottom:20px} .badge{display:inline-block;background:#f59e0b;color:#78350f;padding:4px 12px;border-radius:20px;font-weight:700;font-size:14px;margin-top:8px}</style></head>
                     <body>
@@ -2462,281 +2537,15 @@ function App() {
                     </div>
                     <table><thead><tr><th>Program</th><th>Category</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
                     <p style='margin-top:20px;color:#64748b;font-size:13px'>Total Points: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
-                    </body></html>`);
-                    printWindow.document.close();
-                    printWindow.print();
+                    </body></html>`;
+                    printHtml(html);
                   };
 
                   const generateCertificate = (result) => {
-                    const certWindow = window.open('', '_blank');
-                    const placeText = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : result.place === 'Third' ? '3rd Place' : result.place || 'Participation';
-                    const gradeText = (result.grade && result.grade !== '-' && result.grade !== 'No') ? result.grade : '';
-                    const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                    const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
-                    const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                    const logoUrl = window.location.origin + '/logo192.png';
-                    const signatureUrl = window.location.origin + '/signature.png';
-                    const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-                    
-                    certWindow.document.write(`
-<!DOCTYPE html>
-<html><head><title>Certificate - ${matchedStudent.name}</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<style>
-  @page { size: A4 landscape; margin: 0; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { 
-    font-family: 'Inter', sans-serif; 
-    display: flex; 
-    flex-direction: column;
-    justify-content: center; 
-    align-items: center; 
-    min-height: 100vh; 
-    background: #f0f0f0; 
-    padding: 20px;
-    gap: 16px;
-  }
-  .certificate-wrapper {
-    width: 1050px;
-    height: 740px;
-    position: relative;
-    background: #fffdf7;
-    overflow: hidden;
-    box-shadow: 0 25px 80px rgba(0,0,0,0.15);
-  }
-  .cert-border-outer {
-    position: absolute;
-    top: 12px; left: 12px; right: 12px; bottom: 12px;
-    border: 3px solid #1a5e3a;
-    border-radius: 4px;
-  }
-  .cert-border-inner {
-    position: absolute;
-    top: 20px; left: 20px; right: 20px; bottom: 20px;
-    border: 1.5px solid #c5a44e;
-    border-radius: 2px;
-  }
-  .corner-ornament {
-    position: absolute;
-    width: 70px;
-    height: 70px;
-    opacity: 0.15;
-  }
-  .corner-ornament.tl { top: 24px; left: 24px; border-top: 4px solid #1a5e3a; border-left: 4px solid #1a5e3a; }
-  .corner-ornament.tr { top: 24px; right: 24px; border-top: 4px solid #1a5e3a; border-right: 4px solid #1a5e3a; }
-  .corner-ornament.bl { bottom: 24px; left: 24px; border-bottom: 4px solid #1a5e3a; border-left: 4px solid #1a5e3a; }
-  .corner-ornament.br { bottom: 24px; right: 24px; border-bottom: 4px solid #1a5e3a; border-right: 4px solid #1a5e3a; }
-  
-  .cert-content {
-    position: relative;
-    z-index: 2;
-    padding: 45px 60px 35px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-  }
-  
-  .cert-header { text-align: center; width: 100%; }
-  .cert-logo {
-    width: 80px; height: 80px; border-radius: 16px; object-fit: cover;
-    margin-bottom: 8px; border: 2px solid #1a5e3a;
-    box-shadow: 0 4px 15px rgba(26,94,58,0.2);
-  }
-  .cert-org-name {
-    font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800;
-    color: #1a5e3a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 2px;
-  }
-  .cert-org-details { font-size: 11px; color: #666; letter-spacing: 1px; font-weight: 500; }
-  
-  .cert-divider {
-    width: 350px; height: 2px;
-    background: linear-gradient(90deg, transparent, #c5a44e, #1a5e3a, #c5a44e, transparent);
-    margin: 10px auto;
-  }
-  
-  .cert-title-wrapper { text-align: center; }
-  .cert-title {
-    font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 900;
-    color: #1a5e3a; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 4px;
-    text-shadow: 0 2px 4px rgba(26,94,58,0.1);
-  }
-  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 20px; color: #c5a44e; margin-bottom: 2px; }
-  
-  .cert-body { text-align: center; width: 100%; }
-  .cert-presented {
-    font-size: 14px; color: #555; letter-spacing: 2px;
-    text-transform: uppercase; font-weight: 500; margin-bottom: 10px;
-  }
-  .cert-student-name {
-    font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 800;
-    color: #1a3a5c; border-bottom: 3px solid #c5a44e; display: inline-block;
-    padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 1px;
-  }
-  .cert-details-grid { display: flex; justify-content: center; gap: 25px; margin-bottom: 14px; flex-wrap: wrap; }
-  .cert-detail-item {
-    background: linear-gradient(135deg, #f8f6f0, #f0ede4); border: 1px solid #e0dcc8;
-    border-radius: 10px; padding: 8px 20px; text-align: center; min-width: 120px;
-  }
-  .cert-detail-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; margin-bottom: 2px; }
-  .cert-detail-value { font-size: 14px; font-weight: 700; color: #1a3a5c; }
-  
-  .cert-achievement { text-align: center; margin: 5px 0; }
-  .cert-program-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: #1a5e3a; margin-bottom: 8px; }
-  .cert-place-badge {
-    display: inline-block; background: linear-gradient(135deg, #c5a44e, #a08530); color: white;
-    padding: 8px 32px; border-radius: 30px; font-size: 16px; font-weight: 800;
-    letter-spacing: 3px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(197,164,78,0.4);
-  }
-  .cert-grade-text { margin-top: 6px; font-size: 13px; color: #888; font-weight: 500; }
-  
-  .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
-  .cert-date-section { text-align: center; }
-  .cert-date-value { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-  .cert-date-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 140px; }
-  .cert-sign-section { text-align: center; }
-  .cert-signature-img { width: 150px; height: auto; margin-bottom: 2px; }
-  .cert-sign-line { border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 180px; }
-  .cert-sign-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; }
-  .cert-sign-role { font-size: 9px; color: #aaa; letter-spacing: 1px; }
-  
-  .cert-watermark {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 300px; height: 300px; opacity: 0.03; z-index: 0; pointer-events: none;
-  }
-  
-  /* Action buttons */
-  .cert-actions {
-    display: flex; gap: 12px; justify-content: center; margin-top: 4px;
-  }
-  .btn-download {
-    background: linear-gradient(135deg, #1a5e3a, #2d8659); color: white; border: none;
-    padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 700;
-    cursor: pointer; box-shadow: 0 6px 24px rgba(26,94,58,0.4);
-    display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
-  }
-  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(26,94,58,0.5); }
-  .btn-back {
-    background: linear-gradient(135deg, #64748b, #475569); color: white; border: none;
-    padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 700;
-    cursor: pointer; box-shadow: 0 6px 24px rgba(100,116,139,0.4);
-    display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
-  }
-  .btn-back:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(100,116,139,0.5); }
-  
-  @media print {
-    body { background: white; padding: 0; margin: 0; }
-    .certificate-wrapper { box-shadow: none; width: 100%; height: 100vh; }
-    .no-print { display: none !important; }
-  }
-</style>
-</head>
-<body>
-<div class="certificate-wrapper" id="certificateArea">
-  <div class="cert-border-outer"></div>
-  <div class="cert-border-inner"></div>
-  <div class="corner-ornament tl"></div>
-  <div class="corner-ornament tr"></div>
-  <div class="corner-ornament bl"></div>
-  <div class="corner-ornament br"></div>
-  
-  <img src="${logoUrl}" class="cert-watermark" alt="" />
-  
-  <div class="cert-content">
-    <div class="cert-header">
-      <img src="${logoUrl}" class="cert-logo" alt="Logo" />
-      <div class="cert-org-name">${madrasaName}</div>
-      <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
-    </div>
-    
-    <div class="cert-divider"></div>
-    
-    <div class="cert-title-wrapper">
-      <div class="cert-title">Certificate</div>
-      <div class="cert-subtitle">of Achievement</div>
-    </div>
-    
-    <div class="cert-body">
-      <div class="cert-presented">This is proudly presented to</div>
-      <div class="cert-student-name">${matchedStudent.name}</div>
-      
-      <div class="cert-details-grid">
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Register No</div>
-          <div class="cert-detail-value">${sRegNo}</div>
-        </div>
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Team</div>
-          <div class="cert-detail-value">${teamObj ? teamObj.name : '-'}</div>
-        </div>
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Category</div>
-          <div class="cert-detail-value">${catObj ? catObj.name : '-'}</div>
-        </div>
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Gender</div>
-          <div class="cert-detail-value">${matchedStudent.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="cert-achievement">
-      <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">For Outstanding Performance in</div>
-      <div class="cert-program-name">${result.progname || result.progName}</div>
-      <div class="cert-place-badge">${placeText}</div>
-      ${gradeText ? '<div class="cert-grade-text">Grade: <b>' + gradeText + '</b></div>' : ''}
-    </div>
-    
-    <div class="cert-footer">
-      <div class="cert-date-section">
-        <div class="cert-date-value">${resultDate}</div>
-        <div class="cert-date-label">Date</div>
-      </div>
-      <div class="cert-sign-section">
-        <img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />
-        <div class="cert-sign-line">
-          <div class="cert-sign-label">Programme Convener</div>
-          <div class="cert-sign-role">MILAD FEST Committee</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="cert-actions no-print">
-  <button class="btn-download" onclick="downloadAsImage()">📥 Download Image</button>
-  <button class="btn-back" onclick="window.close()">⬅️ Back</button>
-</div>
-
-<script>
-function downloadAsImage() {
-  var btn = document.querySelector('.btn-download');
-  btn.textContent = '⏳ Generating...';
-  btn.disabled = true;
-  html2canvas(document.getElementById('certificateArea'), {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#fffdf7',
-    width: 1050,
-    height: 740
-  }).then(function(canvas) {
-    var link = document.createElement('a');
-    link.download = 'Certificate_${matchedStudent.name.replace(/[^a-zA-Z0-9]/g, '_')}_${(result.progname || result.progName || '').replace(/[^a-zA-Z0-9]/g, '_')}.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    btn.innerHTML = '📥 Download Image';
-    btn.disabled = false;
-  }).catch(function(err) {
-    alert('Error generating image: ' + err.message);
-    btn.innerHTML = '📥 Download Image';
-    btn.disabled = false;
-  });
-}
-</script>
-</body></html>`);
-                    certWindow.document.close();
+                    setActiveCertificate({
+                      student: matchedStudent,
+                      result: result
+                    });
                   };
 
                   return (
@@ -2813,7 +2622,6 @@ function downloadAsImage() {
               {/* ── Section 3: Results History Table ── */}
               {resultsSubTab === 'RESULTS_HISTORY' && (() => {
                 const printResultsHistory = () => {
-                  const printWindow = window.open('', '_blank');
                   const rows = resultsList.map(r => {
                     const sName = r.studentname || r.studentName || '';
                     const dashIdx = sName.indexOf(' - ');
@@ -2843,16 +2651,15 @@ function downloadAsImage() {
                     </tr>`;
                   }).join('');
 
-                  printWindow.document.write(`
+                  const html = `
                     <html><head><title>Results History</title>
                     <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
                     <body>
                     <h1>🏆 Results History</h1>
                     <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
                     </body></html>
-                  `);
-                  printWindow.document.close();
-                  printWindow.print();
+                  `;
+                  printHtml(html);
                 };
 
                 return (
@@ -5388,8 +5195,7 @@ function downloadAsImage() {
                           </tr>`;
                         }).join('');
 
-                        const printWindow = window.open('', '_blank');
-                        printWindow.document.write(`
+                        const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -5566,10 +5372,8 @@ function downloadAsImage() {
   </div>
 </div>
 </body>
-</html>`);
-                        printWindow.document.close();
-                        printWindow.focus();
-                        setTimeout(() => printWindow.print(), 600);
+</html>`;
+                        printHtml(html);
                       };
 
                       return (
@@ -6162,6 +5966,395 @@ function downloadAsImage() {
           </div>
         </div>
       )}
+
+      {/* 📜 INLINE CERTIFICATE PREVIEW MODAL */}
+      {activeCertificate && (() => {
+        const { student, result } = activeCertificate;
+        const sRegNo = student.regno || student.regNo || '';
+        const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || ''));
+        const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || ''));
+        
+        const placeText = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : result.place === 'Third' ? '3rd Place' : result.place || 'Participation';
+        const gradeText = (result.grade && result.grade !== '-' && result.grade !== 'No') ? result.grade : '';
+        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+        
+        const logoUrl = window.location.origin + '/logo192.png';
+        const signatureUrl = window.location.origin + '/signature.png';
+        const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        const handleModalDownload = async () => {
+          const certArea = document.getElementById('modalCertificateArea');
+          if (!certArea) return;
+          try {
+            // Temporarily reset transform for rendering high-res image
+            const originalTransform = certArea.style.transform;
+            certArea.style.transform = 'none';
+            const canvas = await html2canvas(certArea, {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#fffdf7',
+              width: 1050,
+              height: 740
+            });
+            certArea.style.transform = originalTransform;
+            const dataUrl = canvas.toDataURL('image/png');
+            await downloadFile(dataUrl, `Certificate_${student.name.replace(/[^a-zA-Z0-9]/g, '_')}_${(result.progname || result.progName || '').replace(/[^a-zA-Z0-9]/g, '_')}.png`, 'image/png');
+          } catch (err) {
+            alert('Failed to save image: ' + err.message);
+          }
+        };
+
+        const handleModalPrint = () => {
+          const certArea = document.getElementById('modalCertificateArea');
+          if (!certArea) return;
+          // Generate same HTML template and print via printHtml
+          const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<title>Certificate - ${student.name}</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fff; }
+  .certificate-wrapper {
+    width: 1050px;
+    height: 740px;
+    position: relative;
+    background: #fffdf7;
+    overflow: hidden;
+  }
+  .cert-border-outer {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px; bottom: 12px;
+    border: 3px solid #1a5e3a;
+    border-radius: 4px;
+  }
+  .cert-border-inner {
+    position: absolute;
+    top: 20px; left: 20px; right: 20px; bottom: 20px;
+    border: 1.5px solid #c5a44e;
+    border-radius: 2px;
+  }
+  .corner-ornament {
+    position: absolute;
+    width: 70px;
+    height: 70px;
+    opacity: 0.15;
+  }
+  .corner-ornament.tl { top: 24px; left: 24px; border-top: 4px solid #1a5e3a; border-left: 4px solid #1a5e3a; }
+  .corner-ornament.tr { top: 24px; right: 24px; border-top: 4px solid #1a5e3a; border-right: 4px solid #1a5e3a; }
+  .corner-ornament.bl { bottom: 24px; left: 24px; border-bottom: 4px solid #1a5e3a; border-left: 4px solid #1a5e3a; }
+  .corner-ornament.br { bottom: 24px; right: 24px; border-bottom: 4px solid #1a5e3a; border-right: 4px solid #1a5e3a; }
+  
+  .cert-content {
+    position: relative;
+    z-index: 2;
+    padding: 45px 60px 35px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .cert-header { text-align: center; width: 100%; }
+  .cert-logo {
+    width: 80px; height: 80px; border-radius: 16px; object-fit: cover;
+    margin-bottom: 8px; border: 2px solid #1a5e3a;
+    box-shadow: 0 4px 15px rgba(26,94,58,0.2);
+  }
+  .cert-org-name {
+    font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800;
+    color: #1a5e3a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 2px;
+  }
+  .cert-org-details { font-size: 11px; color: #666; letter-spacing: 1px; font-weight: 500; }
+  
+  .cert-divider {
+    width: 350px; height: 2px;
+    background: linear-gradient(90deg, transparent, #c5a44e, #1a5e3a, #c5a44e, transparent);
+    margin: 10px auto;
+  }
+  
+  .cert-title-wrapper { text-align: center; }
+  .cert-title {
+    font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 900;
+    color: #1a5e3a; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 4px;
+    text-shadow: 0 2px 4px rgba(26,94,58,0.1);
+  }
+  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 20px; color: #c5a44e; margin-bottom: 2px; }
+  
+  .cert-body { text-align: center; width: 100%; }
+  .cert-presented {
+    font-size: 14px; color: #555; letter-spacing: 2px;
+    text-transform: uppercase; font-weight: 500; margin-bottom: 10px;
+  }
+  .cert-student-name {
+    font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 800;
+    color: #1a3a5c; border-bottom: 3px solid #c5a44e; display: inline-block;
+    padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 1px;
+  }
+  .cert-details-grid { display: flex; justify-content: center; gap: 25px; margin-bottom: 14px; flex-wrap: wrap; }
+  .cert-detail-item {
+    background: linear-gradient(135deg, #f8f6f0, #f0ede4); border: 1px solid #e0dcc8;
+    border-radius: 10px; padding: 8px 20px; text-align: center; min-width: 120px;
+  }
+  .cert-detail-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; margin-bottom: 2px; }
+  .cert-detail-value { font-size: 14px; font-weight: 700; color: #1a3a5c; }
+  
+  .cert-achievement { text-align: center; margin: 5px 0; }
+  .cert-program-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: #1a5e3a; margin-bottom: 8px; }
+  .cert-place-badge {
+    display: inline-block; background: linear-gradient(135deg, #c5a44e, #a08530); color: white;
+    padding: 8px 32px; border-radius: 30px; font-size: 16px; font-weight: 800;
+    letter-spacing: 3px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(197,164,78,0.4);
+  }
+  .cert-grade-text { margin-top: 6px; font-size: 13px; color: #888; font-weight: 500; }
+  
+  .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
+  .cert-date-section { text-align: center; }
+  .cert-date-value { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+  .cert-date-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 140px; }
+  .cert-sign-section { text-align: center; }
+  .cert-signature-img { width: 150px; height: auto; margin-bottom: 2px; }
+  .cert-sign-line { border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 180px; }
+  .cert-sign-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; }
+  .cert-sign-role { font-size: 9px; color: #aaa; letter-spacing: 1px; }
+  
+  .cert-watermark {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 300px; height: 300px; opacity: 0.03; z-index: 0; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="certificate-wrapper" id="certificateArea">
+  <div class="cert-border-outer"></div>
+  <div class="cert-border-inner"></div>
+  <div class="corner-ornament tl"></div>
+  <div class="corner-ornament tr"></div>
+  <div class="corner-ornament bl"></div>
+  <div class="corner-ornament br"></div>
+  
+  <img src="${logoUrl}" class="cert-watermark" alt="" />
+  
+  <div class="cert-content">
+    <div class="cert-header">
+      <img src="${logoUrl}" class="cert-logo" alt="Logo" />
+      <div class="cert-org-name">${madrasaName}</div>
+      <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
+    </div>
+    
+    <div class="cert-divider"></div>
+    
+    <div class="cert-title-wrapper">
+      <div class="cert-title">Certificate</div>
+      <div class="cert-subtitle">of Achievement</div>
+    </div>
+    
+    <div class="cert-body">
+      <div class="cert-presented">This is proudly presented to</div>
+      <div class="cert-student-name">${student.name}</div>
+      
+      <div class="cert-details-grid">
+        <div class="cert-detail-item">
+          <div class="cert-detail-label">Register No</div>
+          <div class="cert-detail-value">${sRegNo}</div>
+        </div>
+        <div class="cert-detail-item">
+          <div class="cert-detail-label">Team</div>
+          <div class="cert-detail-value">${teamObj ? teamObj.name : '-'}</div>
+        </div>
+        <div class="cert-detail-item">
+          <div class="cert-detail-label">Category</div>
+          <div class="cert-detail-value">${catObj ? catObj.name : '-'}</div>
+        </div>
+        <div class="cert-detail-item">
+          <div class="cert-detail-label">Gender</div>
+          <div class="cert-detail-value">${student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="cert-achievement">
+      <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">For Outstanding Performance in</div>
+      <div class="cert-program-name">${result.progname || result.progName}</div>
+      <div class="cert-place-badge">${placeText}</div>
+      ${gradeText ? `<div class="cert-grade-text">Grade: <b>${gradeText}</b></div>` : ''}
+    </div>
+    
+    <div class="cert-footer">
+      <div class="cert-date-section">
+        <div class="cert-date-value">${resultDate}</div>
+        <div class="cert-date-label">Date</div>
+      </div>
+      <div class="cert-sign-section">
+        <img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />
+        <div class="cert-sign-line">
+          <div class="cert-sign-label">Programme Convener</div>
+          <div class="cert-sign-role">MILAD FEST Committee</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+          `;
+          handleModalPrint();
+        };
+
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9990,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '20px'
+          }}>
+            {/* Modal header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1050px', marginBottom: '15px', color: 'white' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800' }}>📜 Certificate Preview</h3>
+              <button 
+                onClick={() => setActiveCertificate(null)}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700' }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Certificate viewport wrapper (scales the certificate on small screens) */}
+            <div style={{
+              width: '100%',
+              maxWidth: '1050px',
+              height: '740px',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#0f172a',
+              borderRadius: '20px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              position: 'relative'
+            }}>
+              <div 
+                id="modalCertificateArea"
+                style={{
+                  width: '1050px',
+                  height: '740px',
+                  position: 'absolute',
+                  background: '#fffdf7',
+                  overflow: 'hidden',
+                  transform: 'scale(calc(min(90vw, 1050px) / 1050))',
+                  transformOrigin: 'center center'
+                }}
+              >
+                <div style={{ position: 'absolute', top: '12px', left: '12px', right: '12px', bottom: '12px', border: '3px solid #1a5e3a', borderRadius: '4px' }}></div>
+                <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', border: '1.5px solid #c5a44e', borderRadius: '2px' }}></div>
+                
+                <div className="corner-ornament tl" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, top: '24px', left: '24px', borderTop: '4px solid #1a5e3a', borderLeft: '4px solid #1a5e3a' }}></div>
+                <div className="corner-ornament tr" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, top: '24px', right: '24px', borderTop: '4px solid #1a5e3a', borderRight: '4px solid #1a5e3a' }}></div>
+                <div className="corner-ornament bl" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, bottom: '24px', left: '24px', borderBottom: '4px solid #1a5e3a', borderLeft: '4px solid #1a5e3a' }}></div>
+                <div className="corner-ornament br" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, bottom: '24px', right: '24px', borderBottom: '4px solid #1a5e3a', borderRight: '4px solid #1a5e3a' }}></div>
+                
+                <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px', height: '300px', opacity: 0.03, zIndex: 0, pointerEvents: 'none' }} />
+                
+                <div style={{ position: 'relative', zIndex: 2, padding: '45px 60px 35px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
+                  <div style={{ textAlign: 'center', width: '100%' }}>
+                    <img src={logoUrl} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', marginBottom: '8px', border: '2px solid #1a5e3a', boxShadow: '0 4px 15px rgba(26,94,58,0.2)' }} />
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 800, color: '#1a5e3a', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
+                    <div style={{ fontSize: '11px', color: '#666', letterSpacing: '1px', fontWeight: 500 }}>Reg No: {madrasaRegNo} | {madrasaPlace}</div>
+                  </div>
+                  
+                  <div style={{ width: '350px', height: '2px', background: 'linear-gradient(90deg, transparent, #c5a44e, #1a5e3a, #c5a44e, transparent)', margin: '10px auto' }}></div>
+                  
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '42px', fontWeight: 900, color: '#1a5e3a', letterSpacing: '6px', textTransform: 'uppercase', marginBottom: '4px', textShadow: '0 2px 4px rgba(26,94,58,0.1)' }}>Certificate</div>
+                    <div style={{ fontFamily: "'Great Vibes', cursive", fontSize: '20px', color: '#c5a44e', marginBottom: '2px' }}>of Achievement</div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center', width: '100%' }}>
+                    <div style={{ fontSize: '14px', color: '#555', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '10px' }}>This is proudly presented to</div>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '36px', fontWeight: 800, color: '#1a3a5c', borderBottom: '3px solid #c5a44e', display: 'inline-block', paddingBottom: '6px', marginBottom: '12px', letterSpacing: '1px' }}>{student.name}</div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '25px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
+                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Register No</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{sRegNo}</div>
+                      </div>
+                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
+                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Team</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{teamObj ? teamObj.name : '-'}</div>
+                      </div>
+                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
+                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Category</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{catObj ? catObj.name : '-'}</div>
+                      </div>
+                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
+                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Gender</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center', margin: '5px 0' }}>
+                    <div style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>For Outstanding Performance in</div>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 700, color: '#1a5e3a', marginBottom: '8px' }}>{result.progname || result.progName}</div>
+                    <div style={{ display: 'inline-block', background: 'linear-gradient(135deg, #c5a44e, #a08530)', color: 'white', padding: '8px 32px', borderRadius: '30px', fontSize: '16px', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', boxShadow: '0 4px 15px rgba(197,164,78,0.4)' }}>{placeText}</div>
+                    {gradeText && <div style={{ marginTop: '6px', fontSize: '13px', color: '#888', fontWeight: 500 }}>Grade: <b>{gradeText}</b></div>}
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', padding: '0 30px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#333', marginBottom: '4px' }}>{resultDate}</div>
+                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', borderTop: '1.5px solid #ccc', paddingTop: '5px', minWidth: '140px' }}>Date</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <img src={signatureUrl} alt="Signature" style={{ width: '150px', height: 'auto', marginBottom: '2px' }} />
+                      <div style={{ borderTop: '1.5px solid #ccc', paddingTop: '5px', minWidth: '180px' }}>
+                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600 }}>Programme Convener</div>
+                        <div style={{ fontSize: '9px', color: '#aaa', letterSpacing: '1px' }}>MILAD FEST Committee</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button 
+                onClick={handleModalDownload}
+                style={{
+                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                  color: 'white', border: 'none', borderRadius: '12px',
+                  padding: '14px 28px', fontSize: '14px', fontWeight: '700',
+                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(22, 163, 74, 0.3)',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}
+              >
+                📥 Save Certificate Image
+              </button>
+              <button 
+                onClick={handleModalPrint}
+                style={{
+                  background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                  color: 'white', border: 'none', borderRadius: '12px',
+                  padding: '14px 28px', fontSize: '14px', fontWeight: '700',
+                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(2, 132, 199, 0.3)',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}
+              >
+                🖨️ Print Certificate
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   )
 }

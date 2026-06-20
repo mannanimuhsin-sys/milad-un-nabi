@@ -27,7 +27,6 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"共有"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"<ns1:g id="APPLICATION_NAME">%s</ns1:g>と共有"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"折りたたむ"</string>
-    <string name="android_browser_helper_app_name">Android Browser Helper</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"応答"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"ビデオ"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"拒否"</string>
@@ -39,14 +38,6 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"リンクをコピー"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"ブラウザで開く"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"リンクの共有"</string>
-    <string name="manage_space_no_data_toast">このアプリには閲覧データは保存されません。</string>
-    <string name="manage_space_not_supported_toast">このアプリのデータは %1$s に保存されています。</string>
-    <string name="no_provider_toast">Chrome Stable 72 以降をインストールしてください。</string>
-    <string name="provider_unavailable_button_ok">OK</string>
-    <string name="provider_unavailable_default_browser">Chrome</string>
-    <string name="provider_unavailable_message">%1$s がブロックされているため、このアプリは利用できません</string>
-    <string name="provider_unavailable_title">アプリを利用できません</string>
     <string msgid="6264217191555673260" name="search_menu_title">"検索"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
-    <string name="update_chrome_toast">Chrome Stable 72 以降に更新してください。</string>
 </resources>

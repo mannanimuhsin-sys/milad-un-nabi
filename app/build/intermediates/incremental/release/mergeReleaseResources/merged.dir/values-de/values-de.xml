@@ -27,7 +27,6 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Teilen mit"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Mit <ns1:g id="APPLICATION_NAME">%s</ns1:g> teilen"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Minimieren"</string>
-    <string name="android_browser_helper_app_name">Android Browser Helper</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"Annehmen"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"Ablehnen"</string>
@@ -39,14 +38,6 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"Link kopieren"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"Im Browser öffnen"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"Link teilen"</string>
-    <string name="manage_space_no_data_toast">Diese App enthält keine Browserdaten.</string>
-    <string name="manage_space_not_supported_toast">Die Daten dieser App werden in %1$s gespeichert.</string>
-    <string name="no_provider_toast">Installieren Sie Chrome (stabile Version 72) oder höher.</string>
-    <string name="provider_unavailable_button_ok">OK</string>
-    <string name="provider_unavailable_default_browser">Chrome</string>
-    <string name="provider_unavailable_message">Diese App ist nicht verfügbar, weil %1$s blockiert ist</string>
-    <string name="provider_unavailable_title">App nicht verfügbar</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Suche"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
-    <string name="update_chrome_toast">Führen Sie ein Update auf Chrome (stabile Version 72) oder höher durch.</string>
 </resources>

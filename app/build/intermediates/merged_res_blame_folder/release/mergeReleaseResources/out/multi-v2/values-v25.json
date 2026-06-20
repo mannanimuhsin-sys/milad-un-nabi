@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.miladfest.app-mergeReleaseResources-25:/values-v25/values-v25.xml",
+            "outputFile": "com.miladfest.app-mergeReleaseResources-23:/values-v25/values-v25.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\ccuse\\.gradle\\caches\\8.14\\transforms\\85951a5dd4e1dc3e2ed736b040bfa2c7\\transformed\\appcompat-1.7.0\\res\\values-v25\\values-v25.xml",
+                    "source": "C:\\Users\\ccuse\\.gradle\\caches\\8.11.1\\transforms\\183ebbc8ed821348f80a6d36d20b75e3\\transformed\\appcompat-1.7.0\\res\\values-v25\\values-v25.xml",
                     "from": {
                         "startLines": "2,3,4,6",
                         "startColumns": "4,4,4,4",

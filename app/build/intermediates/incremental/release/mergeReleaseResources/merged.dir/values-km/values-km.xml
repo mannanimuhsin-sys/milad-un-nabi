@@ -27,7 +27,6 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"ចែករំលែក​ជា​មួយ"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"ចែក​រំលែក​ជា​មួយ <ns1:g id="APPLICATION_NAME">%s</ns1:g>"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"បង្រួម"</string>
-    <string name="android_browser_helper_app_name">Android Browser Helper</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"ឆ្លើយ"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"វីដេអូ"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"បដិសេធ"</string>
@@ -39,14 +38,6 @@
     <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"ចម្លង​តំណ"</string>
     <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"បើក​នៅក្នុង​កម្មវិធី​រុករកតាម​អ៊ីនធឺណិត"</string>
     <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"តំណចែករំលែក"</string>
-    <string name="manage_space_no_data_toast">កម្មវិធីនេះ​មិនរក្សាទុក​ទិន្នន័យរុករក​ទេ។</string>
-    <string name="manage_space_not_supported_toast">ទិន្នន័យ​របស់​កម្មវិធីនេះ​ត្រូវបាន​រក្សាទុក​នៅក្នុង %1$s។</string>
-    <string name="no_provider_toast">សូម​ដំឡើង​កំណែមានស្ថិរភាព​របស់ Chrome 72 ឬខ្ពស់​ជាងនេះ។</string>
-    <string name="provider_unavailable_button_ok">យល់ព្រម</string>
-    <string name="provider_unavailable_default_browser">Chrome</string>
-    <string name="provider_unavailable_message">មិនអាចប្រើ​កម្មវិធីនេះ​បានទេ ដោយសារ %1$s ត្រូវបាន​ទប់ស្កាត់</string>
-    <string name="provider_unavailable_title">មិនអាចប្រើ​កម្មវិធី​បានទេ</string>
     <string msgid="6264217191555673260" name="search_menu_title">"ស្វែងរក"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
-    <string name="update_chrome_toast">សូម​ដំឡើង​ទៅ​កំណែមានស្ថិរភាព​របស់ Chrome 72 ឬខ្ពស់​ជាងនេះ។</string>
 </resources>
