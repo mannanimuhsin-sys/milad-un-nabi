@@ -2752,9 +2752,10 @@ function App() {
                   const selectedCatObj = categories.find(c => String(c.id) === String(champCat));
                   const catName = (selectedCatObj || {}).name || '';
 
-                  // Filter results for this category
+                  // Filter results for this category and exclude group events
                   const catResults = resultsList.filter(r =>
-                    (r.catname || r.catName || '') === catName
+                    (r.catname || r.catName || '') === catName &&
+                    !(r.progtype || '').includes('GROUP')
                   );
 
                   // Filter by gender division
