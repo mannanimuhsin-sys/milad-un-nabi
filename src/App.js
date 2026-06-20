@@ -175,6 +175,26 @@ function App() {
   const [regTabStudent, setRegTabStudent] = useState('');
   const [regTabCheckedProgs, setRegTabCheckedProgs] = useState([]);
   const [regTabSaving, setRegTabSaving] = useState(false);
+  const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
+
+  // ── Group Registration States ──
+  const [groupRegistrations, setGroupRegistrations] = useState([]);
+  const [groupRegCat, setGroupRegCat] = useState('');
+  const [groupRegGender, setGroupRegGender] = useState('BOY');
+  const [groupRegProgram, setGroupRegProgram] = useState('');
+  const [groupRegName, setGroupRegName] = useState('');
+  const [groupRegTeam, setGroupRegTeam] = useState('');
+  const [groupRegStudents, setGroupRegStudents] = useState([]); // array of student IDs
+  const [groupRegSaving, setGroupRegSaving] = useState(false);
+
+  // ── Visibility Control States (for VIEW role hide/show) ──
+  const [visibilityControls, setVisibilityControls] = useState({
+    scoreboard: true,
+    results_PROGRAM_WINNERS: true,
+    results_STUDENT_REPORT: true,
+    results_RESULTS_HISTORY: true,
+    results_CHAMPIONS: true,
+  });
 
   // ── Profile Tab States ──
   const [profileRegNo, setProfileRegNo] = useState('');
@@ -321,10 +341,22 @@ function App() {
         }));
         setProgramRegistrations(mappedRegs);
       }
+
+      // Fetch group registrations in a separate block so that a missing table won't block the rest of the application
+      try {
+        const { data: gRegData } = await supabase
+          .from('group_registrations')
+          .select('*')
+          .eq('madrasa_id', rNum);
+        if (gRegData) setGroupRegistrations(gRegData);
+      } catch (err) {
+        console.error("Group registrations fetch failed: ", err);
+      }
     } catch (err) {
       console.error("Data fetch error: ", err);
     }
   };
+
 
   useEffect(() => {
     if (loggedInMadrasa) {
@@ -349,6 +381,24 @@ function App() {
           p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
           gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
         });
+      }
+
+      // Load visibility controls from localStorage
+      try {
+        const storedControls = localStorage.getItem(`visibility_controls_${rNum}`);
+        if (storedControls) {
+          setVisibilityControls(JSON.parse(storedControls));
+        } else {
+          setVisibilityControls({
+            scoreboard: true,
+            results_PROGRAM_WINNERS: true,
+            results_STUDENT_REPORT: true,
+            results_RESULTS_HISTORY: true,
+            results_CHAMPIONS: true,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse stored visibility controls", e);
       }
 
       // Checker to set default categories on first login if database is empty
@@ -436,13 +486,48 @@ function App() {
         return rStudentName.includes(studentRegNo + ' -') || rStudentName.includes(studentRegNo + ' -');
       });
 
+      // Safe fetch of group registrations
+      let studentGroups = [];
+      try {
+        const { data: gRegs } = await supabase
+          .from('group_registrations')
+          .select('*')
+          .eq('madrasa_id', madrasaReg);
+        
+        if (gRegs) {
+          studentGroups = gRegs.filter(g => {
+            const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+            return memberIds.includes(String(studentId)) || memberIds.includes(Number(studentId));
+          });
+        }
+      } catch (err) {
+        console.warn("Error fetching group registrations in QR Scan: ", err);
+      }
+
+      // Resolve group results for this student
+      const resolvedGroupResults = studentGroups.map(g => {
+        const prog = progsData?.find(p => String(p.id) === String(g.program_id));
+        const result = (resultsData || []).find(r => String(r.progid) === String(g.program_id) && r.studentname === g.group_name);
+        return {
+          progid: g.program_id,
+          progname: prog ? prog.name : 'Unknown Program',
+          progtype: 'GROUP',
+          groupName: g.group_name,
+          place: result ? result.place : '-',
+          grade: result ? result.grade : '-',
+          isGroup: true
+        };
+      });
+
       setQrModalData({
         madrasa: madrasaData ? { ...madrasaData, place: actualPlace } : null,
         student: studentData,
         team: teamObj,
         category: catObj,
         results: studentResults,
-        programs: progsData || []
+        groupResults: resolvedGroupResults,
+        programs: progsData || [],
+        groupRegistrations: studentGroups
       });
     } catch (err) {
       setQrModalData({ error: 'Failed to load data: ' + err.message });
@@ -940,11 +1025,20 @@ function App() {
       alert(t('alertPleaseSelectProgStudent')); return;
     }
 
-    const studentObj = students.find(s => String(s.id) === String(selectedResultStudent));
     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
-    if (!studentObj || !progObj) { alert(t('alertUnexpectedError') + 'Data is invalid'); return; }
+    if (!progObj) { alert(t('alertUnexpectedError') + 'Program not found'); return; }
 
-    const isGroup = progObj.type === 'GROUP';
+    const isGroup = (progObj.type || '').includes('GROUP');
+    let studentObj = null;
+    let groupObj = null;
+
+    if (isGroup) {
+      groupObj = groupRegistrations.find(g => String(g.id) === String(selectedResultStudent));
+      if (!groupObj) { alert(t('alertUnexpectedError') + 'Group not found'); return; }
+    } else {
+      studentObj = students.find(s => String(s.id) === String(selectedResultStudent));
+      if (!studentObj) { alert(t('alertUnexpectedError') + 'Student not found'); return; }
+    }
 
     // Dynamic point calculation
     let pts = 0;
@@ -956,24 +1050,26 @@ function App() {
     else if (selectedGrade === 'B') pts += isGroup ? Number(pointSystem.gpB) : Number(pointSystem.gB);
     else if (selectedGrade === 'C') pts += isGroup ? Number(pointSystem.gpC) : Number(pointSystem.gC);
 
+    const resultRecord = {
+      progid: progObj.id,
+      progname: progObj.name,
+      progtype: progObj.type,
+      catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
+      studentname: isGroup ? groupObj.group_name : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`,
+      studentgender: isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : studentObj.gender,
+      teamid: isGroup ? groupObj.team_id : studentObj.teamid,
+      teamname: isGroup 
+        ? ((teams.find(t => String(t.id) === String(groupObj.team_id)) || {}).name || '')
+        : ((teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || ''),
+      place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
+      grade: selectedGrade === 'No' ? '-' : selectedGrade,
+      points: pts,
+      madrasa_id: loggedInMadrasa.regNumber
+    };
+
     const { error } = await supabase
       .from('results')
-      .insert([
-        {
-          progid: progObj.id,
-          progname: progObj.name,
-          progtype: progObj.type,
-          catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
-          studentname: `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`,
-          studentgender: studentObj.gender,
-          teamid: studentObj.teamid,
-          teamname: (teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || '',
-          place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
-          grade: selectedGrade === 'No' ? '-' : selectedGrade,
-          points: pts,
-          madrasa_id: loggedInMadrasa.regNumber
-        }
-      ]);
+      .insert([resultRecord]);
 
     if (error) {
       alert(t('alertUnexpectedError') + error.message);
@@ -989,6 +1085,99 @@ function App() {
     if (error) alert(t('alertUnexpectedError') + error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
   };
+
+  const handleSaveGroupRegistration = async () => {
+    if (!groupRegProgram) { alert(t('alertPleaseSelectProgStudent')); return; }
+    if (!groupRegName.trim()) { alert(lang === 'EN' ? 'Please enter a group name' : 'ഗ്രൂപ്പ് പേര് നൽകുക'); return; }
+    if (!groupRegTeam) { alert(lang === 'EN' ? 'Please select a team' : 'ടീം തിരഞ്ഞെടുക്കുക'); return; }
+    if (groupRegStudents.length === 0) { alert(lang === 'EN' ? 'Please select at least one student' : 'കുറഞ്ഞത് ഒരു വിദ്യാർത്ഥിയെയെങ്കിലും തിരഞ്ഞെടുക്കുക'); return; }
+
+    setGroupRegSaving(true);
+    try {
+      const madrasaId = loggedInMadrasa.regNumber;
+      
+      const insertData = {
+        madrasa_id: madrasaId,
+        program_id: String(groupRegProgram),
+        group_name: groupRegName.trim(),
+        team_id: String(groupRegTeam),
+        student_ids: groupRegStudents // JSON array of student IDs
+      };
+
+      const { error } = await supabase
+        .from('group_registrations')
+        .insert([insertData]);
+
+      if (error) {
+        if (error.code === 'PGRST205') {
+          alert((lang === 'EN' ? 'Database setup required!\nPlease run this SQL in your Supabase SQL Editor to create the group_registrations table:\n\n' : 'ഡാറ്റാബേസ് സെറ്റപ്പ് ആവശ്യമാണ്!\nSupabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\n') + 
+            `CREATE TABLE group_registrations (
+  id BIGSERIAL PRIMARY KEY,
+  madrasa_id TEXT NOT NULL,
+  program_id TEXT NOT NULL,
+  group_name TEXT NOT NULL,
+  team_id TEXT NOT NULL,
+  student_ids JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);`);
+        } else {
+          throw new Error(error.message);
+        }
+      } else {
+        alert(lang === 'EN' ? 'Group registration saved successfully!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ വിജയിച്ചു!');
+        setGroupRegName('');
+        setGroupRegStudents([]);
+        
+        // Refresh group registrations
+        const { data: gRegData } = await supabase
+          .from('group_registrations')
+          .select('*')
+          .eq('madrasa_id', madrasaId);
+        if (gRegData) setGroupRegistrations(gRegData);
+      }
+    } catch (err) {
+      alert(t('alertUploadFailed') + err.message);
+    }
+    setGroupRegSaving(false);
+  };
+
+  const handleDeleteGroupRegistration = async (id) => {
+    if (!window.confirm(lang === 'EN' ? 'Remove this group registration?' : 'ഈ ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ ഒഴിവാക്കണോ?')) return;
+    
+    // Optimistic delete
+    setGroupRegistrations(prev => prev.filter(g => g.id !== id));
+    
+    try {
+      const { error } = await supabase
+        .from('group_registrations')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        alert(error.message);
+        // Refresh to restore if error
+        const { data: gRegData } = await supabase
+          .from('group_registrations')
+          .select('*')
+          .eq('madrasa_id', loggedInMadrasa.regNumber);
+        if (gRegData) setGroupRegistrations(gRegData);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Redirect hidden resultsSubTab for VIEW role
+  useEffect(() => {
+    if (loginRole === 'VIEW' && visibilityControls) {
+      const visible = ['PROGRAM_WINNERS', 'STUDENT_REPORT', 'RESULTS_HISTORY', 'CHAMPIONS']
+        .filter(key => visibilityControls['results_' + key]);
+      if (visible.length > 0 && !visible.includes(resultsSubTab)) {
+        setResultsSubTab(visible[0]);
+      }
+    }
+  }, [visibilityControls, loginRole, resultsSubTab]);
+
 
   const getTeamTotalPoints = (teamId) => {
     return resultsList.filter(r => String(r.teamId) === String(teamId) || String(r.teamid) === String(teamId)).reduce((sum, r) => sum + r.points, 0);
@@ -1940,126 +2129,154 @@ function App() {
 
           {/* ---------------- 🎯 TAB 1: SCOREBOARD ---------------- */}
           {activeTab === 'SCOREBOARD' && (
-            <div className="card animate-tab scoreboard-main-card">
-              <div className="scoreboard-header">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <div>
-                    <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>{t('liveScoreboard')}</h2>
-                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{t('realTimePoints')}</p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button 
-                      onClick={() => setIsProjectorActive(true)}
-                      style={{
-                        background: 'linear-gradient(135deg, #1e1b4b, #0f172a)',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
-                        transition: 'all 0.2s'
-                      }}
-                      className="projector-trigger-btn"
-                    >
-                      📺 {lang === 'EN' ? 'Projector Mode' : 'പ്രൊജക്ടർ മോഡ്'}
-                    </button>
-                    <div className="live-badge">
-                      <span className="live-dot"></span> {t('liveBadge')}
+            loginRole === 'VIEW' && !visibilityControls.scoreboard ? (
+              <div className="card animate-tab" style={{ textAlign: 'center', padding: '50px 20px' }}>
+                <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔒</div>
+                <h2 style={{ color: '#0f766e', marginBottom: '10px' }}>
+                  {lang === 'EN' ? 'Results not yet published' : 'ഫലം പ്രസിദ്ധീകരിച്ചിട്ടില്ല'}
+                </h2>
+                <p style={{ color: '#64748b', fontSize: '15px' }}>
+                  {lang === 'EN' ? 'The scoreboard has been temporarily hidden by the administrator.' : 'സ്കോർബോർഡ് അഡ്മിനിസ്ട്രേറ്റർ താത്കാലികമായി മറച്ചു വെച്ചിരിക്കുകയാണ്.'}
+                </p>
+              </div>
+            ) : (
+              <div className="card animate-tab scoreboard-main-card">
+                <div className="scoreboard-header">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>{t('liveScoreboard')}</h2>
+                      <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{t('realTimePoints')}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <button 
+                        onClick={() => setIsProjectorActive(true)}
+                        style={{
+                          background: 'linear-gradient(135deg, #1e1b4b, #0f172a)',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                          transition: 'all 0.2s'
+                        }}
+                        className="projector-trigger-btn"
+                      >
+                        📺 {lang === 'EN' ? 'Projector Mode' : 'പ്രൊജക്ടർ മോഡ്'}
+                      </button>
+                      <div className="live-badge">
+                        <span className="live-dot"></span> {t('liveBadge')}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div style={{ marginTop: '20px' }}>
-                {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
-                  <div className="live-leaderboard">
-                    {(() => {
-                      const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
-                      const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
-                      const graphMax = maxPts > 0 ? maxPts : 10;
+                <div style={{ marginTop: '20px' }}>
+                  {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
+                    <div className="live-leaderboard">
+                      {(() => {
+                        const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
+                        const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
+                        const graphMax = maxPts > 0 ? maxPts : 10;
 
-                      // Build rank with tie-handling: equal points → same rank
-                      let currentRank = 1;
-                      const teamRanks = sortedTeams.map((t, idx) => {
-                        if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
-                          currentRank = idx + 1;
-                        }
-                        return currentRank;
-                      });
+                        // Build rank with tie-handling: equal points → same rank
+                        let currentRank = 1;
+                        const teamRanks = sortedTeams.map((t, idx) => {
+                          if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
+                            currentRank = idx + 1;
+                          }
+                          return currentRank;
+                        });
 
-                      return sortedTeams.map((team, idx) => {
-                        const totalPts = getTeamTotalPoints(team.id);
-                        const barWidth = Math.max(8, (totalPts / graphMax) * 100);
-                        const rank = teamRanks[idx];
-                        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
-                        const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
-                        
-                        return (
-                          <div key={team.id} className={`leaderboard-item ${rankClass}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                <div className="leaderboard-rank-badge">{badgeIcon}</div>
-                                <div className="leaderboard-content" style={{ flex: 1 }}>
-                                  <div className="team-meta">
-                                    <span className="team-name">{team.name}</span>
-                                    <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
-                                  </div>
-                                  <div className="progress-track">
-                                    <div className="progress-fill" style={{ width: `${barWidth}%` }}>
-                                       <div className="progress-glow"></div>
+                        return sortedTeams.map((team, idx) => {
+                          const totalPts = getTeamTotalPoints(team.id);
+                          const barWidth = Math.max(8, (totalPts / graphMax) * 100);
+                          const rank = teamRanks[idx];
+                          const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+                          const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
+                          
+                          return (
+                            <div key={team.id} className={`leaderboard-item ${rankClass}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                  <div className="leaderboard-rank-badge">{badgeIcon}</div>
+                                  <div className="leaderboard-content" style={{ flex: 1 }}>
+                                    <div className="team-meta">
+                                      <span className="team-name">{team.name}</span>
+                                      <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
+                                    </div>
+                                    <div className="progress-track">
+                                      <div className="progress-fill" style={{ width: `${barWidth}%` }}>
+                                         <div className="progress-glow"></div>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
+                              </div>
+                              
+                              {/* Category Breakdown for this Team */}
+                              <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                  {categories.map(c => {
+                                      // Calculate points for this category and team
+                                      const catResults = resultsList.filter(r => (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name);
+                                      if (catResults.length === 0) return null;
+                                      
+                                      const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
+                                      const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + r.points, 0);
+                                      
+                                      return (
+                                          <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', minWidth: '110px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                              <strong style={{ color: '#1e293b', display: 'block', marginBottom: '4px' }}>{c.name}</strong>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                                  <span>👦 <b style={{ color: '#3b82f6' }}>{boyPts}</b></span>
+                                                  <span>👧 <b style={{ color: '#ec4899' }}>{girlPts}</b></span>
+                                              </div>
+                                          </div>
+                                      );
+                                  })}
+                              </div>
                             </div>
-                            
-                            {/* Category Breakdown for this Team */}
-                            <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {categories.map(c => {
-                                    // Calculate points for this category and team
-                                    const catResults = resultsList.filter(r => (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name);
-                                    if (catResults.length === 0) return null;
-                                    
-                                    const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
-                                    const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + r.points, 0);
-                                    
-                                    return (
-                                        <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', minWidth: '110px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                            <strong style={{ color: '#1e293b', display: 'block', marginBottom: '4px' }}>{c.name}</strong>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
-                                                <span>👦 <b style={{ color: '#3b82f6' }}>{boyPts}</b></span>
-                                                <span>👧 <b style={{ color: '#ec4899' }}>{girlPts}</b></span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                }
+                          );
+                        });
+                      })()}
+                    </div>
+                  }
+                </div>
               </div>
-            </div>
+            )
           )}
 
           {/* ---------------- 🎯 TAB 2: RECENT RESULTS + PROGRAM WINNERS + STUDENT SEARCH ---------------- */}
           {activeTab === 'RECENT' && (
-            <div className="card animate-tab">
-              <h2 style={{ marginBottom: '18px' }}>🏆 Results</h2>
+            loginRole === 'VIEW' && !['PROGRAM_WINNERS', 'STUDENT_REPORT', 'RESULTS_HISTORY', 'CHAMPIONS'].some(key => visibilityControls['results_' + key]) ? (
+              <div className="card animate-tab" style={{ textAlign: 'center', padding: '50px 20px' }}>
+                <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔒</div>
+                <h2 style={{ color: '#0f766e', marginBottom: '10px' }}>
+                  {lang === 'EN' ? 'Results not yet published' : 'ഫലം പ്രസിദ്ധീകരിച്ചിട്ടില്ല'}
+                </h2>
+                <p style={{ color: '#64748b', fontSize: '15px' }}>
+                  {lang === 'EN' ? 'Results have been temporarily hidden by the administrator.' : 'ഫലങ്ങൾ അഡ്മിനിസ്ട്രേറ്റർ താത്കാലികമായി മറച്ചു വെച്ചിരിക്കുകയാണ്.'}
+                </p>
+              </div>
+            ) : (
+              <div className="card animate-tab">
+                <h2 style={{ marginBottom: '18px' }}>🏆 Results</h2>
 
-              {/* Results Card Grid Navigation */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                {[
-                  { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
-                  { key: 'STUDENT_REPORT',  icon: '🔍📜', label: 'Student Report & Certificate', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
-                  { key: 'RESULTS_HISTORY', icon: '🗂', label: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
-                  { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
-                ].map(tab => {
+                {/* Results Card Grid Navigation */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                  {[
+                    { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
+                    { key: 'STUDENT_REPORT',  icon: '🔍📜', label: 'Student Report & Certificate', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
+                    { key: 'RESULTS_HISTORY', icon: '🗂', label: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
+                    { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
+                  ].filter(tab => {
+                    if (loginRole === 'VIEW') {
+                      return visibilityControls['results_' + tab.key];
+                    }
+                    return true;
+                  }).map(tab => {
                   const isActive = resultsSubTab === tab.key;
                   return (
                     <button
@@ -2837,9 +3054,9 @@ function downloadAsImage() {
                 })()}
               </div>
               )}
-
               </div>
             </div>
+            )
           )}
 
           {/* ---------------- 🎯 TAB 2.5: PROFILE ---------------- */}
@@ -3231,7 +3448,8 @@ function downloadAsImage() {
                 </div>
               )}
             </div>
-          )}
+          )
+        }
 
           {/* ---------------- 🎯 TAB 3: MASTER SETTINGS ---------------- */}
           {activeTab === 'SETTINGS' && (
@@ -3275,6 +3493,10 @@ function downloadAsImage() {
                     <div className={`executive-nav-tile ${settingsSubTab === 'JUDGE_SHEET' ? 'active' : ''}`} onClick={() => setSettingsSubTab('JUDGE_SHEET')}>
                       <div className="tile-icon-wrapper">👥</div>
                       <div className="tile-label">Student List</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'CONTROL' ? 'active' : ''}`} onClick={() => setSettingsSubTab('CONTROL')}>
+                      <div className="tile-icon-wrapper">🔏</div>
+                      <div className="tile-label">Control</div>
                     </div>
                   </div>
 
@@ -4203,7 +4425,7 @@ function downloadAsImage() {
 
                     {/* REGISTER SUB-TAB */}
                     {settingsSubTab === 'REGISTER' && (() => {
-                      // Students filtered by selected category + gender
+                      // ── Single Registration Data Filters ──
                       const regCatObj = categories.find(c => String(c.id) === String(regTabCat));
                       const isRegGeneral = regCatObj && regCatObj.name.toLowerCase().includes('general');
 
@@ -4213,10 +4435,11 @@ function downloadAsImage() {
                         return String(s.catid || s.catId || '') === String(regTabCat);
                       }) : [];
 
-                      // Programs for selected category + gender
+                      // Only show SINGLE programs in Single Registration mode
                       const regPrograms = regTabCat ? programs.filter(p => {
                         if (String(p.catid || p.catId || '') !== String(regTabCat)) return false;
                         const pt = p.type || '';
+                        if (pt.includes('GROUP')) return false;
                         if (regTabGender === 'COMMON') return true;
                         if (pt.includes('COMMON')) return true;
                         if (regTabGender === 'BOY' && pt.includes('BOY')) return true;
@@ -4233,7 +4456,6 @@ function downloadAsImage() {
                           const madrasaId = loggedInMadrasa.regNumber;
                           const studentIdInt = parseInt(regTabStudent, 10);
                           
-                          // Remove old registrations for this student
                           const { error: deleteError } = await supabase.from('program_registrations')
                             .delete()
                             .eq('madrasa_id', madrasaId)
@@ -4243,7 +4465,6 @@ function downloadAsImage() {
                             throw new Error(deleteError.message);
                           }
 
-                          // Insert newly checked programs
                           if (regTabCheckedProgs.length > 0) {
                             const inserts = regTabCheckedProgs.map(pId => ({
                               madrasa_id: madrasaId,
@@ -4256,7 +4477,6 @@ function downloadAsImage() {
                             }
                           }
 
-                          // Refresh
                           const { data: newRegs, error: fetchError } = await supabase
                             .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
                           if (fetchError) {
@@ -4279,241 +4499,557 @@ function downloadAsImage() {
                         setRegTabSaving(false);
                       };
 
-
                       return (
                         <div className="settings-card-v2">
-                          {/* We can do a responsive split layout: Left is Form (with Stepper), Right is Live Summary */}
-                          <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
-                              
-                              {/* LEFT: Step Form */}
-                              <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                <h3>{t('registerStudentsTitle')}</h3>
+                          {/* Navigation Tabs for Single vs Group Registration */}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+                            <button 
+                              type="button"
+                              onClick={() => setRegTabSection('SINGLE')} 
+                              style={{
+                                padding: '10px 20px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                fontWeight: '800',
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                background: regTabSection === 'SINGLE' ? 'var(--primary-light)' : 'transparent',
+                                color: regTabSection === 'SINGLE' ? 'white' : '#475569',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              👤 {lang === 'EN' ? 'Single Registration' : 'സിംഗിൾ രജിസ്ട്രേഷൻ'}
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setRegTabSection('GROUP')} 
+                              style={{
+                                padding: '10px 20px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                fontWeight: '800',
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                background: regTabSection === 'GROUP' ? 'var(--primary-light)' : 'transparent',
+                                color: regTabSection === 'GROUP' ? 'white' : '#475569',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              👥 {lang === 'EN' ? 'Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ'}
+                            </button>
+                          </div>
 
-                                <div className="stepper-timeline">
-                                  {/* Step 1: Category */}
-                                  <div className={`step-box ${regTabCat ? 'filled' : 'active'}`}>
-                                    <div className="step-header">
-                                      <div className="step-number">01</div>
-                                      <div className="step-title">{t('selectCategoryStep')}</div>
-                                    </div>
-                                    <div className="step-content">
-                                      <select className="settings-input-v2" value={regTabCat} onChange={e => {
-                                        setRegTabCat(e.target.value);
-                                        setRegTabStudent('');
-                                        setRegTabCheckedProgs([]);
-                                      }}>
-                                        <option value="">{t('selectCategoryFirst')}</option>
-                                        {categories.map(c => (
-                                          <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                  </div>
+                          {regTabSection === 'SINGLE' ? (
+                            // ── SINGLE REGISTRATION VIEW ──
+                            <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                                
+                                {/* LEFT: Step Form */}
+                                <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                  <h3>{t('registerStudentsTitle')}</h3>
 
-                                  {/* Step 2: Division / Gender */}
-                                  {regTabCat && (
-                                    <div className={`step-box ${regTabGender ? 'filled' : 'active'}`}>
+                                  <div className="stepper-timeline">
+                                    {/* Step 1: Category */}
+                                    <div className={`step-box ${regTabCat ? 'filled' : 'active'}`}>
                                       <div className="step-header">
-                                        <div className="step-number">02</div>
-                                        <div className="step-title">{t('selectDivisionStep')}</div>
+                                        <div className="step-number">01</div>
+                                        <div className="step-title">{t('selectCategoryStep')}</div>
                                       </div>
                                       <div className="step-content">
-                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                          {[
-                                            { val: 'BOY',    label: t('boys') },
-                                            { val: 'GIRL',   label: t('girls') },
-                                            { val: 'COMMON', label: t('allGenders') }
-                                          ].map(opt => (
-                                            <button key={opt.val} type="button"
-                                              onClick={() => { setRegTabGender(opt.val); setRegTabStudent(''); setRegTabCheckedProgs([]); }}
-                                              className="btn-premium-action-small"
-                                              style={{
-                                                padding: '10px 16px', borderRadius: '10px', border: 'none',
-                                                fontWeight: '800', fontSize: '13px', cursor: 'pointer',
-                                                background: regTabGender === opt.val
-                                                  ? (opt.val === 'BOY' ? '#2563eb' : opt.val === 'GIRL' ? '#db2777' : '#0f766e')
-                                                  : '#e2e8f0',
-                                                color: regTabGender === opt.val ? 'white' : '#475569',
-                                                boxShadow: regTabGender === opt.val ? '0 4px 10px rgba(0,0,0,0.1)' : 'none',
-                                                transition: 'all 0.2s'
-                                              }}
-                                            >{opt.label}</button>
+                                        <select className="settings-input-v2" value={regTabCat} onChange={e => {
+                                          setRegTabCat(e.target.value);
+                                          setRegTabStudent('');
+                                          setRegTabCheckedProgs([]);
+                                        }}>
+                                          <option value="">{t('selectCategoryFirst')}</option>
+                                          {categories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
                                           ))}
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    {/* Step 2: Division / Gender */}
+                                    {regTabCat && (
+                                      <div className={`step-box ${regTabGender ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">02</div>
+                                          <div className="step-title">{t('selectDivisionStep')}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {[
+                                              { val: 'BOY',    label: t('boys') },
+                                              { val: 'GIRL',   label: t('girls') },
+                                              { val: 'COMMON', label: t('allGenders') }
+                                            ].map(opt => (
+                                              <button key={opt.val} type="button"
+                                                onClick={() => { setRegTabGender(opt.val); setRegTabStudent(''); setRegTabCheckedProgs([]); }}
+                                                className="btn-premium-action-small"
+                                                style={{
+                                                  padding: '10px 16px', borderRadius: '10px', border: 'none',
+                                                  fontWeight: '800', fontSize: '13px', cursor: 'pointer',
+                                                  background: regTabGender === opt.val
+                                                    ? (opt.val === 'BOY' ? '#2563eb' : opt.val === 'GIRL' ? '#db2777' : '#0f766e')
+                                                    : '#e2e8f0',
+                                                  color: regTabGender === opt.val ? 'white' : '#475569',
+                                                  boxShadow: regTabGender === opt.val ? '0 4px 10px rgba(0,0,0,0.1)' : 'none',
+                                                  transition: 'all 0.2s'
+                                                }}
+                                              >{opt.label}</button>
+                                            ))}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
 
-                                  {/* Step 3: Select Student */}
-                                  {regTabCat && (
-                                    <div className={`step-box ${regTabStudent ? 'filled' : 'active'}`}>
-                                      <div className="step-header">
-                                        <div className="step-number">03</div>
-                                        <div className="step-title">{t('selectStudentStep')}</div>
-                                      </div>
-                                      <div className="step-content">
-                                        {regStudentsFiltered.length === 0 ? (
-                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
-                                        ) : (
-                                          <select className="settings-input-v2" value={regTabStudent} onChange={e => {
-                                            const sid = e.target.value;
-                                            setRegTabStudent(sid);
-                                            const existing = programRegistrations
-                                              .filter(r => String(r.student_id) === String(sid))
-                                              .map(r => String(r.program_id));
-                                            setRegTabCheckedProgs(existing);
-                                          }}>
-                                            <option value="">{t('selectStudentFirst')}</option>
-                                            {regStudentsFiltered.map(s => {
-                                              const sRegNo = s.regno || s.regNo || '';
-                                              const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
-                                              return (
-                                                <option key={s.id} value={s.id}>
-                                                  {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} ${t('programsLabel')}]` : ''}
-                                                </option>
-                                              );
-                                            })}
-                                          </select>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Step 4: Program Checklist */}
-                                  {regTabStudent && (
-                                    <div className="step-box active">
-                                      <div className="step-header">
-                                        <div className="step-number">04</div>
-                                        <div className="step-title">{lang === 'EN' ? `Select Programs for ${selectedStudentObj ? selectedStudentObj.name : ''}` : `${selectedStudentObj ? selectedStudentObj.name : ''} എന്ന വിദ്യാർത്ഥിക്ക് പ്രോഗ്രാമുകൾ തിരഞ്ഞെടുക്കുക`}</div>
-                                      </div>
-                                      <div className="step-content">
-                                        {regPrograms.length === 0 ? (
-                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>{t('noPrograms')}</p>
-                                        ) : (
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {/* Select All / Clear All */}
-                                            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-                                              <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
-                                                className="btn-premium-action-small secondary" style={{ flex: 1, background: '#dcfce7', color: '#166534' }}>
-                                                {t('selectAll')}
-                                              </button>
-                                              <button type="button" onClick={() => setRegTabCheckedProgs([])}
-                                                className="btn-premium-action-small secondary" style={{ flex: 1, background: '#fee2e2', color: '#991b1b' }}>
-                                                {t('clearAll')}
-                                              </button>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
-                                              {regPrograms.map(p => {
-                                                const isChecked = regTabCheckedProgs.includes(String(p.id));
-                                                const pTypeLabel = (p.type || '').includes('GROUP') ? `${t('group')} 👥` : `${t('single')} 👤`;
+                                    {/* Step 3: Select Student */}
+                                    {regTabCat && (
+                                      <div className={`step-box ${regTabStudent ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">03</div>
+                                          <div className="step-title">{t('selectStudentStep')}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          {regStudentsFiltered.length === 0 ? (
+                                            <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
+                                          ) : (
+                                            <select className="settings-input-v2" value={regTabStudent} onChange={e => {
+                                              const sid = e.target.value;
+                                              setRegTabStudent(sid);
+                                              const existing = programRegistrations
+                                                .filter(r => String(r.student_id) === String(sid))
+                                                .map(r => String(r.program_id));
+                                              setRegTabCheckedProgs(existing);
+                                            }}>
+                                              <option value="">{t('selectStudentFirst')}</option>
+                                              {regStudentsFiltered.map(s => {
+                                                const sRegNo = s.regno || s.regNo || '';
+                                                const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
                                                 return (
-                                                  <label key={p.id} style={{
-                                                    display: 'flex', alignItems: 'center', gap: '10px',
-                                                    padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
-                                                    background: isChecked ? '#eff6ff' : '#ffffff',
-                                                    border: `1.5px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
-                                                    transition: 'all 0.15s'
-                                                  }}>
-                                                    <input type="checkbox" checked={isChecked}
-                                                      onChange={e => {
-                                                        if (e.target.checked) {
-                                                          setRegTabCheckedProgs(prev => [...prev, String(p.id)]);
-                                                        } else {
-                                                          setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id)));
-                                                        }
-                                                      }}
-                                                      style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
-                                                    />
-                                                    <div style={{ flex: 1 }}>
-                                                      <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b' }}>{p.code} – {p.name}</div>
-                                                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>{pTypeLabel}</div>
-                                                    </div>
-                                                    {isChecked && <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>{lang === 'EN' ? '✓ Checked' : '✓ തിരഞ്ഞെടുത്തു'}</span>}
-                                                  </label>
+                                                  <option key={s.id} value={s.id}>
+                                                    {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} ${t('programsLabel')}]` : ''}
+                                                  </option>
                                                 );
                                               })}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        <button type="button" onClick={handleSaveRegistrations} disabled={regTabSaving}
-                                          className="btn-premium-action"
-                                          style={{ marginTop: '16px' }}>
-                                          {regTabSaving ? `⏳ ${t('saving')}` : `💾 ${t('saveRegistrationsBtn')} (${regTabCheckedProgs.length} ${lang === 'EN' ? 'selected' : 'തിരഞ്ഞെടുത്തു'})`}
-                                        </button>
+                                            </select>
+                                          )}
+                                        </div>
                                       </div>
+                                    )}
+
+                                    {/* Step 4: Program Checklist */}
+                                    {regTabStudent && (
+                                      <div className="step-box active">
+                                        <div className="step-header">
+                                          <div className="step-number">04</div>
+                                          <div className="step-title">{lang === 'EN' ? `Select Programs for ${selectedStudentObj ? selectedStudentObj.name : ''}` : `${selectedStudentObj ? selectedStudentObj.name : ''} എന്ന വിദ്യാർത്ഥിക്ക് പ്രോഗ്രാമുകൾ തിരഞ്ഞെടുക്കുക`}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          {regPrograms.length === 0 ? (
+                                            <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0', margin: 0 }}>{t('noPrograms')}</p>
+                                          ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                              {/* Select All / Clear All */}
+                                              <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                                                <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
+                                                  className="btn-premium-action-small secondary" style={{ flex: 1, background: '#dcfce7', color: '#166534' }}>
+                                                  {t('selectAll')}
+                                                </button>
+                                                <button type="button" onClick={() => setRegTabCheckedProgs([])}
+                                                  className="btn-premium-action-small secondary" style={{ flex: 1, background: '#fee2e2', color: '#991b1b' }}>
+                                                  {t('clearAll')}
+                                                </button>
+                                              </div>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                                                {regPrograms.map(p => {
+                                                  const isChecked = regTabCheckedProgs.includes(String(p.id));
+                                                  const pTypeLabel = (p.type || '').includes('GROUP') ? `${t('group')} 👥` : `${t('single')} 👤`;
+                                                  return (
+                                                    <label key={p.id} style={{
+                                                      display: 'flex', alignItems: 'center', gap: '10px',
+                                                      padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                                                      background: isChecked ? '#eff6ff' : '#ffffff',
+                                                      border: `1.5px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                      transition: 'all 0.15s'
+                                                    }}>
+                                                      <input type="checkbox" checked={isChecked}
+                                                        onChange={e => {
+                                                          if (e.target.checked) {
+                                                            setRegTabCheckedProgs(prev => [...prev, String(p.id)]);
+                                                          } else {
+                                                            setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id)));
+                                                          }
+                                                        }}
+                                                        style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                                      />
+                                                      <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b' }}>{p.code} – {p.name}</div>
+                                                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>{pTypeLabel}</div>
+                                                      </div>
+                                                      {isChecked && <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap' }}>{lang === 'EN' ? '✓ Checked' : '✓ തിരഞ്ഞെടുത്തു'}</span>}
+                                                    </label>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          <button type="button" onClick={handleSaveRegistrations} disabled={regTabSaving}
+                                            className="btn-premium-action"
+                                            style={{ marginTop: '16px' }}>
+                                            {regTabSaving ? `⏳ ${t('saving')}` : `💾 ${t('saveRegistrationsBtn')} (${regTabCheckedProgs.length} ${lang === 'EN' ? 'selected' : 'തിരഞ്ഞെടുത്തു'})`}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* RIGHT: Registration Summary */}
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px' }}>
+                                  <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '14px', borderLeft: '4px solid var(--primary-light)', paddingLeft: '10px' }}>
+                                    {lang === 'EN' ? '📊 Registration Summary' : '📊 രജിസ്ട്രേഷൻ സംഗ്രഹം'}{regTabCat ? ` – ${regCatObj?.name || ''}` : ''}
+                                  </h3>
+                                  {!regTabCat ? (
+                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'Select a category to view registrations.' : 'രജിസ്ട്രേഷനുകൾ കാണാൻ ഒരു വിഭാഗം തിരഞ്ഞെടുക്കുക.'}</p>
+                                  ) : regStudentsFiltered.length === 0 ? (
+                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
+                                      {regStudentsFiltered.map(s => {
+                                        const sRegNo = s.regno || s.regNo || '';
+                                        const sProgs = programRegistrations
+                                          .filter(r => String(r.student_id) === String(s.id))
+                                          .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
+                                          .filter(Boolean);
+                                        const isSelected = String(regTabStudent) === String(s.id);
+                                        return (
+                                          <div key={s.id}
+                                            style={{
+                                              padding: '12px', borderRadius: '12px', cursor: 'pointer',
+                                              background: '#ffffff',
+                                              border: `1.5px solid ${isSelected ? 'var(--primary-light)' : '#e2e8f0'}`,
+                                              boxShadow: isSelected ? '0 4px 12px rgba(15, 118, 110, 0.08)' : 'none',
+                                              transition: 'all 0.15s'
+                                            }}
+                                            onClick={() => {
+                                              setRegTabStudent(String(s.id));
+                                              const existing = programRegistrations
+                                                .filter(r => String(r.student_id) === String(s.id))
+                                                .map(r => String(r.program_id));
+                                              setRegTabCheckedProgs(existing);
+                                            }}>
+                                            <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                              <span style={{
+                                                background: s.gender === 'BOY' ? '#dbeafe' : '#fce7f3',
+                                                color: s.gender === 'BOY' ? '#1e40af' : '#be185d',
+                                                borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800'
+                                              }}>{sRegNo}</span>
+                                              <span style={{ color: isSelected ? 'var(--primary-deep)' : '#1e293b' }}>{s.name}</span>
+                                              <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                            </div>
+                                            {sProgs.length > 0 ? (
+                                              <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                {sProgs.map(p => (
+                                                  <span key={p.id} style={{
+                                                    background: '#e6f4ea', color: '#137333', borderRadius: '6px',
+                                                    padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #cbd5e1'
+                                                  }}>{p.code} – {p.name}</span>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>{lang === 'EN' ? 'No programs registered yet' : 'പ്രോഗ്രാമുകൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല'}</div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
                               </div>
+                            </div>
+                          ) : (
+                            // ── GROUP REGISTRATION VIEW ──
+                            <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                                
+                                {/* LEFT: Group Step Form */}
+                                <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                  <h3>{lang === 'EN' ? 'Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ'}</h3>
 
-                              {/* RIGHT: Registration Summary */}
-                              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px' }}>
-                                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '14px', borderLeft: '4px solid var(--primary-light)', paddingLeft: '10px' }}>
-                                  {lang === 'EN' ? '📊 Registration Summary' : '📊 രജിസ്ട്രേഷൻ സംഗ്രഹം'}{regTabCat ? ` – ${regCatObj?.name || ''}` : ''}
-                                </h3>
-                                {!regTabCat ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'Select a category to view registrations.' : 'രജിസ്ട്രേഷനുകൾ കാണാൻ ഒരു വിഭാഗം തിരഞ്ഞെടുക്കുക.'}</p>
-                                ) : regStudentsFiltered.length === 0 ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
-                                ) : (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
-                                    {regStudentsFiltered.map(s => {
-                                      const sRegNo = s.regno || s.regNo || '';
-                                      const sProgs = programRegistrations
-                                        .filter(r => String(r.student_id) === String(s.id))
-                                        .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
-                                        .filter(Boolean);
-                                      const isSelected = String(regTabStudent) === String(s.id);
-                                      return (
-                                        <div key={s.id}
-                                          style={{
-                                            padding: '12px', borderRadius: '12px', cursor: 'pointer',
-                                            background: '#ffffff',
-                                            border: `1.5px solid ${isSelected ? 'var(--primary-light)' : '#e2e8f0'}`,
-                                            boxShadow: isSelected ? '0 4px 12px rgba(15, 118, 110, 0.08)' : 'none',
-                                            transition: 'all 0.15s'
-                                          }}
-                                          onClick={() => {
-                                            setRegTabStudent(String(s.id));
-                                            const existing = programRegistrations
-                                              .filter(r => String(r.student_id) === String(s.id))
-                                              .map(r => String(r.program_id));
-                                            setRegTabCheckedProgs(existing);
-                                          }}>
-                                          <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{
-                                              background: s.gender === 'BOY' ? '#dbeafe' : '#fce7f3',
-                                              color: s.gender === 'BOY' ? '#1e40af' : '#be185d',
-                                              borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800'
-                                            }}>{sRegNo}</span>
-                                            <span style={{ color: isSelected ? 'var(--primary-deep)' : '#1e293b' }}>{s.name}</span>
-                                            <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
-                                          </div>
-                                          {sProgs.length > 0 ? (
-                                            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                              {sProgs.map(p => (
-                                                <span key={p.id} style={{
-                                                  background: '#e6f4ea', color: '#137333', borderRadius: '6px',
-                                                  padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #cbd5e1'
-                                                }}>{p.code} – {p.name}</span>
-                                              ))}
-                                            </div>
-                                          ) : (
-                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>{lang === 'EN' ? 'No programs registered yet' : 'പ്രോഗ്രാമുകൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല'}</div>
-                                          )}
+                                  <div className="stepper-timeline">
+                                    {/* Step 1: Category */}
+                                    <div className={`step-box ${groupRegCat ? 'filled' : 'active'}`}>
+                                      <div className="step-header">
+                                        <div className="step-number">01</div>
+                                        <div className="step-title">{t('selectCategoryStep')}</div>
+                                      </div>
+                                      <div className="step-content">
+                                        <select className="settings-input-v2" value={groupRegCat} onChange={e => {
+                                          setGroupRegCat(e.target.value);
+                                          setGroupRegProgram('');
+                                          setGroupRegStudents([]);
+                                        }}>
+                                          <option value="">{t('selectCategoryFirst')}</option>
+                                          {categories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    {/* Step 2: Division / Gender */}
+                                    {groupRegCat && (
+                                      <div className={`step-box ${groupRegGender ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">02</div>
+                                          <div className="step-title">{t('selectDivisionStep')}</div>
                                         </div>
-                                      );
-                                    })}
+                                        <div className="step-content">
+                                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {[
+                                              { val: 'BOY',    label: t('boys') },
+                                              { val: 'GIRL',   label: t('girls') },
+                                              { val: 'COMMON', label: t('allGenders') }
+                                            ].map(opt => (
+                                              <button key={opt.val} type="button"
+                                                onClick={() => { setGroupRegGender(opt.val); setGroupRegProgram(''); setGroupRegStudents([]); }}
+                                                className="btn-premium-action-small"
+                                                style={{
+                                                  padding: '10px 16px', borderRadius: '10px', border: 'none',
+                                                  fontWeight: '800', fontSize: '13px', cursor: 'pointer',
+                                                  background: groupRegGender === opt.val
+                                                    ? (opt.val === 'BOY' ? '#2563eb' : opt.val === 'GIRL' ? '#db2777' : '#0f766e')
+                                                    : '#e2e8f0',
+                                                  color: groupRegGender === opt.val ? 'white' : '#475569',
+                                                  boxShadow: groupRegGender === opt.val ? '0 4px 10px rgba(0,0,0,0.1)' : 'none',
+                                                  transition: 'all 0.2s'
+                                                }}
+                                              >{opt.label}</button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Step 3: Select Program */}
+                                    {groupRegCat && (
+                                      <div className={`step-box ${groupRegProgram ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">03</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Select Group Program' : 'ഗ്രൂപ്പ് പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          {(() => {
+                                            const groupProgs = programs.filter(p => {
+                                              if (String(p.catid || p.catId || '') !== String(groupRegCat)) return false;
+                                              const pt = p.type || '';
+                                              if (!pt.includes('GROUP')) return false;
+                                              if (groupRegGender === 'COMMON') return true;
+                                              if (pt.includes('COMMON')) return true;
+                                              if (groupRegGender === 'BOY' && pt.includes('BOY')) return true;
+                                              if (groupRegGender === 'GIRL' && pt.includes('GIRL')) return true;
+                                              return false;
+                                            });
+
+                                            return groupProgs.length === 0 ? (
+                                              <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>
+                                                {lang === 'EN' ? 'No group programs in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ ഗ്രൂപ്പ് പ്രോഗ്രാമുകൾ ഇല്ല.'}
+                                              </p>
+                                            ) : (
+                                              <select className="settings-input-v2" value={groupRegProgram} onChange={e => {
+                                                setGroupRegProgram(e.target.value);
+                                                setGroupRegStudents([]);
+                                              }}>
+                                                <option value="">-- {lang === 'EN' ? 'Select Program' : 'പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'} --</option>
+                                                {groupProgs.map(p => (
+                                                  <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
+                                                ))}
+                                              </select>
+                                            );
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Step 4: Group Name & Team */}
+                                    {groupRegProgram && (
+                                      <div className={`step-box ${(groupRegName.trim() && groupRegTeam) ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">04</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Group Name & Competing Team' : 'ഗ്രൂപ്പ് പേരും മത്സരിക്കുന്ന ടീമും'}</div>
+                                        </div>
+                                        <div className="step-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                          <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
+                                              {lang === 'EN' ? 'Group / Batch Name' : 'ഗ്രൂപ്പ് പേര്'}
+                                            </label>
+                                            <input 
+                                              type="text" 
+                                              className="settings-input-v2" 
+                                              placeholder={lang === 'EN' ? 'e.g. Sanghaganam Group A' : 'ഉദാ: സംഘഗാനം ഗ്രൂപ്പ് എ'} 
+                                              value={groupRegName} 
+                                              onChange={e => setGroupRegName(e.target.value)} 
+                                            />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
+                                              {lang === 'EN' ? 'Competing Team (Points go here)' : 'മത്സരിക്കുന്ന ടീം (പോയിന്റുകൾ ഇവിടെ ലഭിക്കും)'}
+                                            </label>
+                                            <select className="settings-input-v2" value={groupRegTeam} onChange={e => setGroupRegTeam(e.target.value)}>
+                                              <option value="">-- {lang === 'EN' ? 'Select Team' : 'ടീം തിരഞ്ഞെടുക്കുക'} --</option>
+                                              {teams.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Step 5: Select Members */}
+                                    {groupRegProgram && (
+                                      <div className="step-box active">
+                                        <div className="step-header">
+                                          <div className="step-number">05</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Select Member Students' : 'അംഗങ്ങളായ വിദ്യാർത്ഥികളെ തിരഞ്ഞെടുക്കുക'}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          {(() => {
+                                            const catObj = categories.find(c => String(c.id) === String(groupRegCat));
+                                            const isGeneral = catObj && catObj.name.toLowerCase().includes('general');
+                                            const groupStudentsFiltered = groupRegCat ? students.filter(s => {
+                                              if (groupRegGender !== 'COMMON' && s.gender !== groupRegGender) return false;
+                                              if (isGeneral) return true;
+                                              return String(s.catid || s.catId || '') === String(groupRegCat);
+                                            }) : [];
+
+                                            return groupStudentsFiltered.length === 0 ? (
+                                              <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>
+                                                {lang === 'EN' ? 'No students available.' : 'വിദ്യാർത്ഥികൾ ലഭ്യമല്ല.'}
+                                              </p>
+                                            ) : (
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
+                                                  {lang === 'EN' ? 'Selected: ' : 'തിരഞ്ഞെടുത്തവർ: '} <b>{groupRegStudents.length}</b> {lang === 'EN' ? 'students' : 'വിദ്യാർത്ഥികൾ'}
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '250px', overflowY: 'auto', paddingRight: '2px', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '10px', background: '#fff' }}>
+                                                  {groupStudentsFiltered.map(s => {
+                                                    const sRegNo = s.regno || s.regNo || '';
+                                                    const isChecked = groupRegStudents.includes(String(s.id));
+                                                    const teamName = (teams.find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || '';
+                                                    
+                                                    return (
+                                                      <label key={s.id} style={{
+                                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                                        padding: '6px 8px', borderRadius: '6px', cursor: 'pointer',
+                                                        background: isChecked ? '#eff6ff' : 'transparent',
+                                                        transition: 'all 0.15s'
+                                                      }}>
+                                                        <input type="checkbox" checked={isChecked}
+                                                          onChange={e => {
+                                                            if (e.target.checked) {
+                                                              setGroupRegStudents(prev => [...prev, String(s.id)]);
+                                                            } else {
+                                                              setGroupRegStudents(prev => prev.filter(id => id !== String(s.id)));
+                                                            }
+                                                          }}
+                                                          style={{ width: '16px', height: '16px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                                        />
+                                                        <div style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>
+                                                          <b>{sRegNo}</b> - {s.name} <span style={{ fontSize: '11px', color: '#64748b' }}>({teamName})</span>
+                                                        </div>
+                                                      </label>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
+
+                                          <button type="button" onClick={handleSaveGroupRegistration} disabled={groupRegSaving}
+                                            className="btn-premium-action"
+                                            style={{ marginTop: '16px' }}>
+                                            {groupRegSaving ? `⏳ ${t('saving')}` : `💾 ${lang === 'EN' ? 'Save Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ സേവ് ചെയ്യുക'}`}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+                                </div>
+
+                                {/* RIGHT: Group Registration Summary */}
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px' }}>
+                                  <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '14px', borderLeft: '4px solid var(--primary-light)', paddingLeft: '10px' }}>
+                                    {lang === 'EN' ? '📊 Group Registrations' : '📊 ഗ്രൂപ്പ് രജിസ്ട്രേഷനുകൾ'}{groupRegCat ? ` – ${(categories.find(c => String(c.id) === String(groupRegCat)) || {}).name || ''}` : ''}
+                                  </h3>
+                                  {!groupRegCat ? (
+                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
+                                      {lang === 'EN' ? 'Select a category to view registrations.' : 'രജിസ്ട്രേഷനുകൾ കാണാൻ ഒരു വിഭാഗം തിരഞ്ഞെടുക്കുക.'}
+                                    </p>
+                                  ) : (() => {
+                                    const activeGroupRegs = groupRegistrations.filter(g => {
+                                      const prog = programs.find(p => String(p.id) === String(g.program_id));
+                                      return prog && String(prog.catid || prog.catId || '') === String(groupRegCat);
+                                    });
+
+                                    return activeGroupRegs.length === 0 ? (
+                                      <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
+                                        {lang === 'EN' ? 'No group registrations in this category yet.' : 'ഈ വിഭാഗത്തിൽ ഗ്രൂപ്പ് രജിസ്ട്രേഷനുകൾ ഒന്നും ചെയ്തിട്ടില്ല.'}
+                                      </p>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
+                                        {activeGroupRegs.map(g => {
+                                          const prog = programs.find(p => String(p.id) === String(g.program_id));
+                                          const team = teams.find(t => String(t.id) === String(g.team_id));
+                                          
+                                          // Resolve member student names
+                                          const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                          const memberNames = memberIds.map(id => {
+                                            const studentObj = students.find(s => String(s.id) === String(id));
+                                            return studentObj ? `${studentObj.regno || studentObj.regNo || ''} ${studentObj.name}` : '';
+                                          }).filter(Boolean);
+
+                                          return (
+                                            <div key={g.id}
+                                              style={{
+                                                padding: '12px', borderRadius: '12px',
+                                                background: '#ffffff',
+                                                border: '1.5px solid #e2e8f0',
+                                                boxShadow: 'none',
+                                                transition: 'all 0.15s',
+                                                position: 'relative'
+                                              }}
+                                            >
+                                              <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                                <button onClick={() => handleDeleteGroupRegistration(g.id)}
+                                                  className="btn-row-action-v2 delete" style={{ padding: '4px', fontSize: '12px' }} title="Delete">❌</button>
+                                              </div>
+                                              <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', paddingRight: '25px' }}>
+                                                {g.group_name} <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 5px', fontWeight: '800', marginLeft: '6px' }}>{team?.name}</span>
+                                              </div>
+                                              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginTop: '4px' }}>
+                                                📚 {prog?.code} – {prog?.name}
+                                              </div>
+                                              <div style={{ marginTop: '8px', fontSize: '11px', color: '#1e293b' }}>
+                                                <span style={{ fontWeight: '700', color: '#475569' }}>{lang === 'EN' ? 'Members: ' : 'അംഗങ്ങൾ: '}</span>
+                                                {memberNames.join(', ') || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>None</span>}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })()}
+
 
                     {/* MARK_ENTRY SUB-TAB */}
                     {settingsSubTab === 'MARK_ENTRY' && (
@@ -4584,16 +5120,41 @@ function downloadAsImage() {
                                 </div>
                               </div>
 
-                              {/* Step 3: Student (filtered by category & gender, supporting 'General') */}
+                              {/* Step 3: Student or Group Selector (filtered by category & gender, supporting 'General') */}
                               <div className={`step-box ${selectedResultStudent ? 'filled' : 'active'}`}>
                                 <div className="step-header">
                                   <div className="step-number">03</div>
-                                  <div className="step-title">Select Student</div>
+                                  <div className="step-title">
+                                    {(() => {
+                                      const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
+                                      const isGroup = progObj && (progObj.type || '').includes('GROUP');
+                                      return isGroup ? "Select Group" : "Select Student";
+                                    })()}
+                                  </div>
                                 </div>
                                 <div className="step-content">
-                                  <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
-                                    <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
-                                    {(() => {
+                                  {(() => {
+                                    const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
+                                    const isGroup = progObj && (progObj.type || '').includes('GROUP');
+
+                                    if (isGroup) {
+                                      // Render Group Selector
+                                      const filteredGroups = groupRegistrations.filter(g => String(g.program_id) === String(selectedResultProg));
+                                      return (
+                                        <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
+                                          <option value="">-- Select Group --</option>
+                                          {filteredGroups.map(g => {
+                                            const teamObj = teams.find(t => String(t.id) === String(g.team_id));
+                                            return (
+                                              <option key={g.id} value={g.id}>
+                                                {g.group_name} [{teamObj ? teamObj.name : 'No Team'}]
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      );
+                                    } else {
+                                      // Render Student Selector (original logic)
                                       const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
                                       const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
 
@@ -4604,22 +5165,28 @@ function downloadAsImage() {
                                             .map(r => String(r.student_id)))
                                         : null;
 
-                                      return students
-                                        .filter(s => {
-                                          if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
-                                          if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
-                                          if (isGeneral) return true; // Show all students for General category!
-                                          return String(s.catid || s.catId || '') === String(selectedResultCat);
-                                        })
-                                        .map(s => {
-                                          const sRegNo = s.regno || s.regNo || '';
-                                          const sTeamId = s.teamid || s.teamId || '';
-                                          const teamName = (teams.find(t => String(t.id) === String(sTeamId)) || {}).name || '';
-                                          const catName = (categories.find(c => String(c.id) === String(s.catid || s.catId)) || {}).name || '';
-                                          return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{teamName}] {isGeneral ? `(${catName})` : ''}</option>;
-                                        });
-                                    })()}
-                                  </select>
+                                      return (
+                                        <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
+                                          <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
+                                          {students
+                                            .filter(s => {
+                                              if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
+                                              if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
+                                              if (isGeneral) return true; // Show all students for General category!
+                                              return String(s.catid || s.catId || '') === String(selectedResultCat);
+                                            })
+                                            .map(s => {
+                                              const sRegNo = s.regno || s.regNo || '';
+                                              const sTeamId = s.teamid || s.teamId || '';
+                                              const teamName = (teams.find(t => String(t.id) === String(sTeamId)) || {}).name || '';
+                                              const catName = (categories.find(c => String(c.id) === String(s.catid || s.catId)) || {}).name || '';
+                                              return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{teamName}] {isGeneral ? `(${catName})` : ''}</option>;
+                                            })
+                                          }
+                                        </select>
+                                      );
+                                    }
+                                  })()}
                                 </div>
                               </div>
 
@@ -5105,6 +5672,113 @@ function downloadAsImage() {
                         </div>
                       );
                     })()}
+
+                    {/* CONTROL SUB-TAB */}
+                    {settingsSubTab === 'CONTROL' && (() => {
+                      const handleToggleVisibility = (key) => {
+                        const newControls = {
+                          ...visibilityControls,
+                          [key]: !visibilityControls[key]
+                        };
+                        setVisibilityControls(newControls);
+                        localStorage.setItem(`visibility_controls_${loggedInMadrasa.regNumber}`, JSON.stringify(newControls));
+                      };
+
+                      return (
+                        <div className="settings-card-v2">
+                          <div className="settings-form-box-v2" style={{ maxWidth: '600px' }}>
+                            <h3>👁️ {lang === 'EN' ? 'Visibility Control Panel' : 'കാഴ്ച നിയന്ത്രണ പാനൽ'}</h3>
+                            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
+                              {lang === 'EN' 
+                                ? 'Toggle which sections are visible to parents/viewers (VIEW role). Admin always sees everything.' 
+                                : 'രക്ഷിതാക്കൾക്ക് (VIEW റോൾ) ഏതൊക്കെ বিভাগങ്ങൾ കാണാമെന്ന് നിയന്ത്രിക്കുക. അഡ്മിന് എപ്പോഴും എല്ലാം കാണാം.'}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              {/* Scoreboard Toggle */}
+                              <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '14px 16px', background: '#f8fafc', border: '1px solid #e2e8f0',
+                                borderRadius: '12px'
+                              }}>
+                                <div>
+                                  <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>
+                                    {lang === 'EN' ? 'Live Scoreboard' : 'ലൈവ് സ്കോർബോർഡ്'}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                    {lang === 'EN' ? 'Show overall team rankings and leaderboard' : 'ടീമുകളുടെ റാങ്കിംഗും പോയിന്റുകളും കാണിക്കുക'}
+                                  </div>
+                                </div>
+                                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={visibilityControls.scoreboard} 
+                                    onChange={() => handleToggleVisibility('scoreboard')}
+                                    style={{ opacity: 0, width: 0, height: 0 }}
+                                  />
+                                  <span style={{
+                                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                                    backgroundColor: visibilityControls.scoreboard ? 'var(--primary-light)' : '#cbd5e1',
+                                    transition: '.3s', borderRadius: '24px'
+                                  }}>
+                                    <span style={{
+                                      position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px',
+                                      backgroundColor: 'white', transition: '.3s', borderRadius: '50%',
+                                      transform: visibilityControls.scoreboard ? 'translateX(24px)' : 'none'
+                                    }}></span>
+                                  </span>
+                                </label>
+                              </div>
+
+                              <div style={{ fontWeight: '800', fontSize: '13px', color: '#475569', marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                {lang === 'EN' ? 'Results Sub-Sections' : 'ഫലം বিভাগങ്ങൾ'}
+                              </div>
+
+                              {[
+                                { key: 'results_PROGRAM_WINNERS', label: lang === 'EN' ? 'Program Winners' : 'വിജയികളുടെ പട്ടിക', desc: lang === 'EN' ? 'Show winners for each individual program' : 'ഓരോ പ്രോഗ്രാമിന്റെയും വിജയികളെ കാണിക്കുക' },
+                                { key: 'results_STUDENT_REPORT', label: lang === 'EN' ? 'Student Report & Certificate' : 'വിദ്യാർത്ഥി റിപ്പോർട്ടും സർട്ടിഫിക്കറ്റും', desc: lang === 'EN' ? 'Allow parents to search student details & download ID cards/posters' : 'വിദ്യാർത്ഥികളുടെ ഫലങ്ങൾ തിരയാനും കാർഡുകൾ ഡൗൺലോഡ് ചെയ്യാനും അനുവദിക്കുക' },
+                                { key: 'results_RESULTS_HISTORY', label: lang === 'EN' ? 'Results History' : 'ഫലങ്ങളുടെ ഹിസ്റ്ററി', desc: lang === 'EN' ? 'Show chronological timeline of declared results' : 'പ്രഖ്യാപിച്ച ഫലങ്ങൾ സമയക്രമത്തിൽ കാണിക്കുക' },
+                                { key: 'results_CHAMPIONS', label: lang === 'EN' ? 'Individual Champions' : 'വ്യക്തിഗത ചാമ്പ്യന്മാർ', desc: lang === 'EN' ? 'Show category-wise individual championship leaders' : 'ഓരോ വിഭാഗത്തിലെയും വ്യക്തിഗത ചാമ്പ്യന്മാരെ കാണിക്കുക' }
+                              ].map(item => (
+                                <div key={item.key} style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                  padding: '14px 16px', background: '#f8fafc', border: '1px solid #e2e8f0',
+                                  borderRadius: '12px'
+                                }}>
+                                  <div>
+                                    <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>
+                                      {item.label}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                      {item.desc}
+                                    </div>
+                                  </div>
+                                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={visibilityControls[item.key]} 
+                                      onChange={() => handleToggleVisibility(item.key)}
+                                      style={{ opacity: 0, width: 0, height: 0 }}
+                                    />
+                                    <span style={{
+                                      position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                                      backgroundColor: visibilityControls[item.key] ? 'var(--primary-light)' : '#cbd5e1',
+                                      transition: '.3s', borderRadius: '24px'
+                                    }}>
+                                      <span style={{
+                                        position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px',
+                                        backgroundColor: 'white', transition: '.3s', borderRadius: '50%',
+                                        transform: visibilityControls[item.key] ? 'translateX(24px)' : 'none'
+                                      }}></span>
+                                    </span>
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -5171,33 +5845,61 @@ function downloadAsImage() {
 
                     <div className="poster-events-section">
                       <h4 className="events-section-title">🏆 Registered Programs & Results</h4>
-                      {qrModalData.results && qrModalData.results.length > 0 ? (
-                        <div className="poster-events-table">
-                          <div className="events-table-header">
-                            <span>Program</span>
-                            <span style={{ textAlign: 'center' }}>Place</span>
-                            <span style={{ textAlign: 'center' }}>Grade</span>
-                          </div>
-                          {qrModalData.results.map((r, idx) => (
-                            <div key={idx} className="events-table-row">
-                              <span className="event-name">
-                                <b>{r.progname}</b> 
-                                <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '5px' }}>
-                                  ({(r.progtype || '').includes('GROUP') ? 'Group' : 'Single'})
-                                </span>
-                              </span>
-                              <span className={`event-place ${r.place === 'First' ? 'gold' : r.place === 'Second' ? 'silver' : r.place === 'Third' ? 'bronze' : ''}`}>
-                                {r.place === 'No Place' || !r.place ? '' : r.place}
-                              </span>
-                              <span className="event-grade">
-                                {r.grade === '-' || r.grade === 'No' || !r.grade ? '' : r.grade}
-                              </span>
+                      {(() => {
+                        const individualList = qrModalData.results || [];
+                        const groupList = qrModalData.groupResults || [];
+                        const hasEvents = individualList.length > 0 || groupList.length > 0;
+
+                        if (!hasEvents) {
+                          return <p className="no-events-text">No registered programs or results found for this student.</p>;
+                        }
+
+                        return (
+                          <div className="poster-events-table">
+                            <div className="events-table-header">
+                              <span>Program</span>
+                              <span style={{ textAlign: 'center' }}>Place</span>
+                              <span style={{ textAlign: 'center' }}>Grade</span>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="no-events-text">No registered programs or results found for this student.</p>
-                      )}
+                            
+                            {/* Individual Events */}
+                            {individualList.map((r, idx) => (
+                              <div key={`ind_${idx}`} className="events-table-row">
+                                <span className="event-name">
+                                  <b>{r.progname}</b> 
+                                  <span style={{ fontSize: '10px', color: '#2563eb', marginLeft: '5px', background: '#dbeafe', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
+                                    Single 👤
+                                  </span>
+                                </span>
+                                <span className={`event-place ${r.place === 'First' ? 'gold' : r.place === 'Second' ? 'silver' : r.place === 'Third' ? 'bronze' : ''}`}>
+                                  {r.place === 'No Place' || !r.place ? '' : r.place}
+                                </span>
+                                <span className="event-grade">
+                                  {r.grade === '-' || r.grade === 'No' || !r.grade ? '' : r.grade}
+                                </span>
+                              </div>
+                            ))}
+
+                            {/* Group Events */}
+                            {groupList.map((g, idx) => (
+                              <div key={`grp_${idx}`} className="events-table-row">
+                                <span className="event-name">
+                                  <b>{g.progname}</b> 
+                                  <span style={{ fontSize: '10px', color: '#d97706', marginLeft: '5px', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
+                                    Group 👥 ({g.groupName})
+                                  </span>
+                                </span>
+                                <span className={`event-place ${g.place === 'First' ? 'gold' : g.place === 'Second' ? 'silver' : g.place === 'Third' ? 'bronze' : ''}`}>
+                                  {g.place === 'No Place' || g.place === '-' || !g.place ? '-' : g.place}
+                                </span>
+                                <span className="event-grade">
+                                  {g.grade === '-' || g.grade === 'No' || !g.grade ? '-' : g.grade}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   
