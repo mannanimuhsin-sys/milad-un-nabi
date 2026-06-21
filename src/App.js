@@ -985,8 +985,25 @@ function App() {
       .from('categories')
       .insert([{ name: savedName, classrange: savedRange, madrasa_id: loggedInMadrasa.regNumber }]);
     if (error) {
-      alert('Error: ' + error.message);
-      setCategories(prev => prev.filter(c => c.id !== tempId));
+      if (error.message.includes('classrange') || error.code === 'PGRST204') {
+        alert(
+          lang === 'EN' 
+            ? "To enable the 'Class Range' feature, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nSaving category without class range for now..."
+            : "കാറ്റഗറിയിൽ 'Class Range' ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nഇപ്പോൾ ക്ലാസ്സ് റേഞ്ച് ഇല്ലാതെ കാറ്റഗറി സേവ് ചെയ്യുന്നു..."
+        );
+        const { error: retryError } = await supabase
+          .from('categories')
+          .insert([{ name: savedName, madrasa_id: loggedInMadrasa.regNumber }]);
+        if (retryError) {
+          alert('Error: ' + retryError.message);
+          setCategories(prev => prev.filter(c => c.id !== tempId));
+        } else {
+          fetchSupabaseData(loggedInMadrasa.regNumber);
+        }
+      } else {
+        alert('Error: ' + error.message);
+        setCategories(prev => prev.filter(c => c.id !== tempId));
+      }
     } else {
       fetchSupabaseData(loggedInMadrasa.regNumber);
     }
@@ -1002,9 +1019,27 @@ function App() {
   const handleSaveCatEdit = async () => {
     if (!editingCatName.trim()) return;
     setCategories(prev => prev.map(c => c.id === editingCatId ? { ...c, name: editingCatName, classrange: editingCatClassRange } : c));
+    const savedName = editingCatName;
+    const savedRange = editingCatClassRange;
+    const targetId = editingCatId;
     setEditingCatId(null);
-    const { error } = await supabase.from('categories').update({ name: editingCatName, classrange: editingCatClassRange }).eq('id', editingCatId);
-    if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    const { error } = await supabase.from('categories').update({ name: savedName, classrange: savedRange }).eq('id', targetId);
+    if (error) {
+      if (error.message.includes('classrange') || error.code === 'PGRST204') {
+        alert(
+          lang === 'EN' 
+            ? "To enable the 'Class Range' feature, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nUpdating category without class range for now..."
+            : "കാറ്റഗറിയിൽ 'Class Range' ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nഇപ്പോൾ ക്ലാസ്സ് റേഞ്ച് ഇല്ലാതെ കാറ്റഗറി അപ്‌ഡേറ്റ് ചെയ്യുന്നു..."
+        );
+        const { error: retryError } = await supabase.from('categories').update({ name: savedName }).eq('id', targetId);
+        if (retryError) {
+          alert('Error: ' + retryError.message);
+        }
+      } else {
+        alert('Error: ' + error.message);
+      }
+      fetchSupabaseData(loggedInMadrasa.regNumber);
+    }
   };
 
   // 🧑‍🎓 3. STUDENT ACTIONS (DB uses lowercase: regno, teamid, catid)
