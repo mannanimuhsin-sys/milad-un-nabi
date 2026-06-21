@@ -172,6 +172,7 @@ function App() {
   // Master data states (Supabase online database)
   const [teams, setTeams] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [dbHasClassRange, setDbHasClassRange] = useState(false);
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
@@ -437,10 +438,29 @@ function App() {
     }
   };
 
+  // Check if classrange column exists in categories table
+  const checkClassRangeColumn = async () => {
+    try {
+      const { error } = await supabase.from('categories').select('classrange').limit(1);
+      if (error) {
+        if (error.message && (error.message.includes('classrange') || error.code === 'PGRST204')) {
+          setDbHasClassRange(false);
+          return;
+        }
+      }
+      setDbHasClassRange(true);
+    } catch (e) {
+      setDbHasClassRange(false);
+    }
+  };
+
 
   useEffect(() => {
     if (loggedInMadrasa) {
       const rNum = loggedInMadrasa.regNumber;
+
+      // Check schema column availability
+      checkClassRangeColumn();
 
       // Fetch data from online database
       fetchSupabaseData(rNum);
@@ -976,34 +996,23 @@ function App() {
     e.preventDefault();
     if (!newCatName.trim() || !loggedInMadrasa) return;
     const tempId = 'temp_' + Date.now();
-    setCategories(prev => [...prev, { id: tempId, name: newCatName, classrange: newCatClassRange, madrasa_id: loggedInMadrasa.regNumber }]);
+    setCategories(prev => [...prev, { id: tempId, name: newCatName, classrange: dbHasClassRange ? newCatClassRange : '', madrasa_id: loggedInMadrasa.regNumber }]);
     const savedName = newCatName;
     const savedRange = newCatClassRange;
     setNewCatName('');
     setNewCatClassRange('');
+
+    const insertPayload = { name: savedName, madrasa_id: loggedInMadrasa.regNumber };
+    if (dbHasClassRange) {
+      insertPayload.classrange = savedRange;
+    }
+
     const { error } = await supabase
       .from('categories')
-      .insert([{ name: savedName, classrange: savedRange, madrasa_id: loggedInMadrasa.regNumber }]);
+      .insert([insertPayload]);
     if (error) {
-      if (error.message.includes('classrange') || error.code === 'PGRST204') {
-        alert(
-          lang === 'EN' 
-            ? "To enable the 'Class Range' feature, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nSaving category without class range for now..."
-            : "കാറ്റഗറിയിൽ 'Class Range' ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nഇപ്പോൾ ക്ലാസ്സ് റേഞ്ച് ഇല്ലാതെ കാറ്റഗറി സേവ് ചെയ്യുന്നു..."
-        );
-        const { error: retryError } = await supabase
-          .from('categories')
-          .insert([{ name: savedName, madrasa_id: loggedInMadrasa.regNumber }]);
-        if (retryError) {
-          alert('Error: ' + retryError.message);
-          setCategories(prev => prev.filter(c => c.id !== tempId));
-        } else {
-          fetchSupabaseData(loggedInMadrasa.regNumber);
-        }
-      } else {
-        alert('Error: ' + error.message);
-        setCategories(prev => prev.filter(c => c.id !== tempId));
-      }
+      alert('Error: ' + error.message);
+      setCategories(prev => prev.filter(c => c.id !== tempId));
     } else {
       fetchSupabaseData(loggedInMadrasa.regNumber);
     }
@@ -1018,26 +1027,22 @@ function App() {
 
   const handleSaveCatEdit = async () => {
     if (!editingCatName.trim()) return;
-    setCategories(prev => prev.map(c => c.id === editingCatId ? { ...c, name: editingCatName, classrange: editingCatClassRange } : c));
+    setCategories(prev => prev.map(c => c.id === editingCatId ? { ...c, name: editingCatName, classrange: dbHasClassRange ? editingCatClassRange : '' } : c));
     const savedName = editingCatName;
     const savedRange = editingCatClassRange;
     const targetId = editingCatId;
     setEditingCatId(null);
-    const { error } = await supabase.from('categories').update({ name: savedName, classrange: savedRange }).eq('id', targetId);
+
+    const updatePayload = { name: savedName };
+    if (dbHasClassRange) {
+      updatePayload.classrange = savedRange;
+    }
+
+    const { error } = await supabase.from('categories').update(updatePayload).eq('id', targetId);
     if (error) {
-      if (error.message.includes('classrange') || error.code === 'PGRST204') {
-        alert(
-          lang === 'EN' 
-            ? "To enable the 'Class Range' feature, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nUpdating category without class range for now..."
-            : "കാറ്റഗറിയിൽ 'Class Range' ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;\n\nഇപ്പോൾ ക്ലാസ്സ് റേഞ്ച് ഇല്ലാതെ കാറ്റഗറി അപ്‌ഡേറ്റ് ചെയ്യുന്നു..."
-        );
-        const { error: retryError } = await supabase.from('categories').update({ name: savedName }).eq('id', targetId);
-        if (retryError) {
-          alert('Error: ' + retryError.message);
-        }
-      } else {
-        alert('Error: ' + error.message);
-      }
+      alert('Error: ' + error.message);
+      fetchSupabaseData(loggedInMadrasa.regNumber);
+    } else {
       fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
@@ -3411,6 +3416,11 @@ function App() {
                           <form onSubmit={handleAddCategory} className="settings-form">
                             <input type="text" className="settings-input-v2" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
                             <input type="text" className="settings-input-v2" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
+                            {!dbHasClassRange && (
+                              <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '-4px', marginBottom: '8px', background: '#fffbeb', padding: '8px 12px', borderRadius: '8px', border: '1px solid #fde68a', lineHeight: '1.4' }}>
+                                ⚠️ {lang === 'EN' ? "To enable 'Which classes?' (Class Range) saving, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;" : "ക്ലാസ്സ് റേഞ്ച് (Which classes?) ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;"}
+                              </div>
+                            )}
                             <button type="submit" className="btn-premium-action">Add Category</button>
                           </form>
                         </div>
