@@ -1681,39 +1681,39 @@ function App() {
             <!-- Top gradient stripe -->
             <div style="height:5px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
             <!-- Header -->
-            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:8px 10px 6px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
+            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:7px 10px 5px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
               <div style="font-size:10px;font-weight:900;color:#fbbf24;text-align:center;letter-spacing:0.5px;text-transform:uppercase;line-height:1.3;margin-bottom:2px;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
               <div style="font-size:7px;color:#94a3b8;text-align:center;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
             </div>
             <!-- Photo -->
-            <div style="flex-shrink:0;display:flex;justify-content:center;align-items:center;padding:12px 0 8px;background:#f8fafc;border-bottom:2px solid #fbbf24;">
-              <div style="width:100px;height:110px;border-radius:6px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
+            <div style="flex-shrink:0;display:flex;justify-content:center;align-items:center;padding:8px 0 6px;background:#f8fafc;border-bottom:2px solid #fbbf24;">
+              <div style="width:85px;height:90px;border-radius:6px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
                 ${photoHtml}
               </div>
             </div>
             <!-- Details -->
-            <div style="flex:1;display:flex;flex-direction:column;padding:10px 12px 8px;box-sizing:border-box;min-height:0;">
-              <div style="font-size:13px;font-weight:900;color:#0f172a;text-align:center;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
-              <div style="text-align:center;margin-bottom:8px;">
-                <span style="font-size:11px;font-weight:900;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:3px 14px;border-radius:9999px;letter-spacing:0.6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);">Reg No: ${s.regno || s.regNo || ''}</span>
+            <div style="flex:1;display:flex;flex-direction:column;padding:7px 12px 6px;box-sizing:border-box;min-height:0;overflow:hidden;">
+              <div style="font-size:12px;font-weight:900;color:#0f172a;text-align:center;text-transform:uppercase;margin-bottom:3px;letter-spacing:0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
+              <div style="text-align:center;margin-bottom:5px;">
+                <span style="font-size:10px;font-weight:900;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:3px 12px;border-radius:9999px;letter-spacing:0.6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);">Reg No: ${s.regno || s.regNo || ''}</span>
               </div>
-              <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
+              <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:5px;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;display:flex;justify-content:space-between;align-items:center;">
                   <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Group</span>
                   <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${teamObj ? teamObj.name : 'N/A'}</span>
                 </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;display:flex;justify-content:space-between;align-items:center;">
                   <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Category</span>
                   <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${catObj ? catObj.name : 'N/A'}</span>
                 </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;display:flex;justify-content:space-between;align-items:center;">
                   <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Gender</span>
                   <span style="font-weight:700;color:#1e293b;font-size:9px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                 </div>
               </div>
-              <!-- QR Code centred with space above footer -->
-              <div style="margin:6px 0 10px 0;display:flex;justify-content:center;align-items:center;">
-                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:62px;height:62px;display:block;" />` : ''}
+              <!-- QR Code - properly spaced above footer -->
+              <div style="display:flex;justify-content:center;align-items:center;padding-bottom:4px;">
+                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:50px;height:50px;display:block;" />` : ''}
               </div>
             </div>
             <!-- Footer -->
