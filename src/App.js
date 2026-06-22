@@ -1596,14 +1596,14 @@ function App() {
     }
   };
 
-  // Generate PDF of multiple ID cards — Portrait 7.7cm × 10cm (fits plastic sleeve)
+  // Generate PDF of multiple ID cards — Portrait 7.5cm × 10cm (fits plastic sleeve)
   const handleDownloadPDF = useCallback(async (filteredStudentsList, paperSize = 'A4') => {
     if (filteredStudentsList.length === 0) { alert(t('alertNoIdCards')); return; }
     setProfilePdfGenerating(true);
     try {
-      // Portrait ID card size: 7.7cm × 10cm (fits standard plastic sleeve)
-      const cardW = 77;   // mm
-      const cardH = 100;  // mm
+      // Portrait ID card size: 7.5cm × 10cm (exact physical size when printed at 100% scale)
+      const cardW = 75;   // mm — exactly 7.5cm
+      const cardH = 100;  // mm — exactly 10cm
       const gap = 4;      // gap between cards mm (for cutting)
 
       const isA3 = paperSize === 'A3';
@@ -1631,13 +1631,14 @@ function App() {
       for (let i = 0; i < filteredStudentsList.length; i++) {
         const s = filteredStudentsList[i];
 
-        // DOM element: 291px × 378px (≈ 7.7cm × 10cm at 96px/in ≈ 37.8px/cm)
-        // scale:3 → canvas ≈ 873×1134px → ~300 DPI for print
+        // DOM element: 283px × 378px (≈ 7.5cm × 10cm at 96px/in = 37.795px/cm)
+        // 7.5cm × 37.795 = 283.46px ≈ 283px; 10cm × 37.795 = 377.95px ≈ 378px
+        // scale:3 → canvas ≈ 850×1134px → ~300 DPI for print
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '0';
-        tempDiv.style.width = '291px';
+        tempDiv.style.width = '283px';
         tempDiv.style.height = '378px';
         document.body.appendChild(tempDiv);
 
@@ -1675,9 +1676,9 @@ function App() {
           `;
         }
 
-        // Portrait card HTML — 291×378px, vertical layout matching plastic sleeve
+        // Portrait card HTML — 283×378px = exactly 7.5cm×10cm at 96dpi (37.795px/cm)
         tempDiv.innerHTML = `
-          <div style="width:291px;height:378px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
+          <div style="width:283px;height:378px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
             <!-- Top gradient stripe -->
             <div style="height:5px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
             <!-- Header -->
@@ -1712,8 +1713,8 @@ function App() {
                 </div>
               </div>
               <!-- QR Code - properly spaced above footer -->
-              <div style="display:flex;justify-content:center;align-items:center;padding-bottom:4px;">
-                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:50px;height:50px;display:block;" />` : ''}
+              <div style="display:flex;justify-content:center;align-items:center;padding:4px 0;">
+                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:80px;height:80px;display:block;" />` : ''}
               </div>
             </div>
             <!-- Footer -->
@@ -1723,7 +1724,7 @@ function App() {
           </div>
         `;
 
-        // scale:3 on 291×378px DOM → ~873×1134px canvas → ≈300 DPI for 7.7cm×10cm card
+        // scale:3 on 283×378px DOM → ~850×1134px canvas → ≈300 DPI for 7.5cm×10cm card
         const canvas = await html2canvas(tempDiv.firstElementChild, {
           scale: 3,
           useCORS: true,
@@ -3328,7 +3329,7 @@ function App() {
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '4 cards/page (2×2)' : '10 cards/page (5×2)'} • 300 DPI • 7.7cm × 10cm
+                                {pdfPaperSize === 'A4' ? '4 cards/page (2×2)' : '10 cards/page (5×2)'} • 300 DPI • 7.5cm × 10cm
                               </span>
                             </div>
                             <button
