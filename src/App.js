@@ -1677,45 +1677,46 @@ function App() {
         }
 
         // Portrait card HTML — 283×378px = exactly 7.5cm×10cm at 96dpi (37.795px/cm)
+        // Layout: Header → [Photo LEFT | Name+RegNo RIGHT] → Details → QR Code → Footer
         tempDiv.innerHTML = `
           <div style="width:283px;height:378px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
             <!-- Top gradient stripe -->
             <div style="height:5px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
-            <!-- Header -->
-            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:7px 10px 5px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
+            <!-- Header: Madrasa name + RegNo + Place -->
+            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:6px 10px 5px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
               <div style="font-size:10px;font-weight:900;color:#fbbf24;text-align:center;letter-spacing:0.5px;text-transform:uppercase;line-height:1.3;margin-bottom:2px;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
               <div style="font-size:7px;color:#94a3b8;text-align:center;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
             </div>
-            <!-- Photo -->
-            <div style="flex-shrink:0;display:flex;justify-content:center;align-items:center;padding:8px 0 6px;background:#f8fafc;border-bottom:2px solid #fbbf24;">
-              <div style="width:85px;height:90px;border-radius:6px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
+            <!-- Photo LEFT + Student Name & RegNo RIGHT -->
+            <div style="flex-shrink:0;display:flex;flex-direction:row;align-items:center;padding:8px 10px 8px 10px;background:#f8fafc;border-bottom:2px solid #fbbf24;gap:10px;">
+              <!-- Photo -->
+              <div style="flex-shrink:0;width:78px;height:88px;border-radius:8px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
                 ${photoHtml}
               </div>
+              <!-- Name + RegNo -->
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:6px;min-width:0;">
+                <div style="font-size:11px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;word-break:break-word;">${s.name}</div>
+                <span style="font-size:9px;font-weight:900;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:3px 10px;border-radius:9999px;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.15);white-space:nowrap;">Reg No: ${s.regno || s.regNo || ''}</span>
+              </div>
             </div>
-            <!-- Details -->
-            <div style="flex:1;display:flex;flex-direction:column;padding:7px 12px 6px;box-sizing:border-box;min-height:0;overflow:hidden;">
-              <div style="font-size:12px;font-weight:900;color:#0f172a;text-align:center;text-transform:uppercase;margin-bottom:3px;letter-spacing:0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
-              <div style="text-align:center;margin-bottom:5px;">
-                <span style="font-size:10px;font-weight:900;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:3px 12px;border-radius:9999px;letter-spacing:0.6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);">Reg No: ${s.regno || s.regNo || ''}</span>
+            <!-- Details: Group / Category / Gender -->
+            <div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;padding:8px 12px 6px;box-sizing:border-box;">
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:7.5px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Group</span>
+                <span style="font-weight:700;color:#1e293b;font-size:9.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${teamObj ? teamObj.name : 'N/A'}</span>
               </div>
-              <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:5px;">
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;display:flex;justify-content:space-between;align-items:center;">
-                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Group</span>
-                  <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${teamObj ? teamObj.name : 'N/A'}</span>
-                </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;display:flex;justify-content:space-between;align-items:center;">
-                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Category</span>
-                  <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${catObj ? catObj.name : 'N/A'}</span>
-                </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:3px 8px;display:flex;justify-content:space-between;align-items:center;">
-                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Gender</span>
-                  <span style="font-weight:700;color:#1e293b;font-size:9px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
-                </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:7.5px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Category</span>
+                <span style="font-weight:700;color:#1e293b;font-size:9.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${catObj ? catObj.name : 'N/A'}</span>
               </div>
-              <!-- QR Code - properly spaced above footer -->
-              <div style="display:flex;justify-content:center;align-items:center;padding:4px 0;">
-                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:80px;height:80px;display:block;" />` : ''}
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:7.5px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Gender</span>
+                <span style="font-weight:700;color:#1e293b;font-size:9.5px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
               </div>
+            </div>
+            <!-- QR Code — centered, large -->
+            <div style="flex:1;display:flex;justify-content:center;align-items:center;padding:6px 0 4px;">
+              ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:90px;height:90px;display:block;" />` : ''}
             </div>
             <!-- Footer -->
             <div style="height:16px;background:linear-gradient(135deg,#022c22,#064e3b);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
