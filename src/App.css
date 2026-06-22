@@ -1152,15 +1152,15 @@ tr:nth-child(even) {
 }
 
 .id-card-regno {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 900;
     color: #ffffff;
     background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-light) 100%);
-    padding: 4px 14px;
+    padding: 6px 18px;
     border-radius: 9999px;
     margin-bottom: 15px;
-    box-shadow: 0 4px 10px rgba(6, 78, 59, 0.2);
-    letter-spacing: 1px;
+    box-shadow: 0 4px 12px rgba(6, 78, 59, 0.25);
+    letter-spacing: 1.2px;
 }
 
 .id-card-details {
@@ -1184,14 +1184,14 @@ tr:nth-child(even) {
 }
 
 .id-card-footer {
-    background: #f1f5f9;
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
     padding: 10px;
     text-align: center;
     font-size: 9px;
     font-weight: 700;
-    color: #64748b;
+    color: #fbbf24;
     letter-spacing: 1.5px;
-    border-top: 1px solid #e2e8f0;
+    border-top: none;
     text-transform: uppercase;
 }
 
@@ -1247,8 +1247,8 @@ tr:nth-child(even) {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: auto;
-    padding-bottom: 5px;
+    margin: auto 0;
+    padding: 5px 0;
 }
 
 /* 🔍 QR MODAL OVERLAY & CONTAINER */

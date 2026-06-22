@@ -579,12 +579,55 @@ function App() {
       const teamObj = teamsData?.find(t => String(t.id) === String(studentData.teamid || studentData.teamId || ''));
       const catObj = catsData?.find(c => String(c.id) === String(studentData.catid || studentData.catId || ''));
 
-      // Find programs this student is registered in (from results)
+      // --- Find individual programs via program_registrations (most reliable) ---
+      let individualProgIds = [];
+      try {
+        const { data: regData } = await supabase
+          .from('program_registrations')
+          .select('*')
+          .eq('madrasa_id', madrasaReg)
+          .eq('student_id', parseInt(studentId, 10));
+        if (regData && regData.length > 0) {
+          individualProgIds = regData.map(r => String(r.program_name || r.program_id || ''));
+        }
+      } catch (e) {
+        console.warn('program_registrations fetch failed:', e);
+      }
+
+      // Match results: by program_id from registrations OR by studentname field (fallback)
       const studentRegNo = studentData.regno || studentData.regNo || '';
       const studentResults = (resultsData || []).filter(r => {
         const rStudentName = r.studentname || '';
-        return rStudentName.includes(studentRegNo + ' -') || rStudentName.includes(studentRegNo + ' -');
+        const matchByRegNo = studentRegNo && (
+          rStudentName.startsWith(studentRegNo + ' -') ||
+          rStudentName.startsWith(studentRegNo + '-')
+        );
+        const matchByProgId = individualProgIds.length > 0 && individualProgIds.includes(String(r.progid));
+        return matchByRegNo || matchByProgId;
+      }).map(r => {
+        const prog = progsData?.find(p => String(p.id) === String(r.progid));
+        return {
+          ...r,
+          progname: r.progname || (prog ? prog.name : 'Unknown Program'),
+        };
       });
+
+      // If we have registered prog IDs but no results yet, show those programs with pending result
+      const resultProgIds = studentResults.map(r => String(r.progid));
+      const registeredWithNoResult = individualProgIds
+        .filter(pid => !resultProgIds.includes(pid))
+        .map(pid => {
+          const prog = progsData?.find(p => String(p.id) === pid);
+          return {
+            progid: pid,
+            progname: prog ? prog.name : 'Program #' + pid,
+            place: null,
+            grade: null,
+            pending: true
+          };
+        });
+
+      const allIndividualResults = [...studentResults, ...registeredWithNoResult];
 
       // Safe fetch of group registrations
       let studentGroups = [];
@@ -613,8 +656,8 @@ function App() {
           progname: prog ? prog.name : 'Unknown Program',
           progtype: 'GROUP',
           groupName: g.group_name,
-          place: result ? result.place : '-',
-          grade: result ? result.grade : '-',
+          place: result ? result.place : null,
+          grade: result ? result.grade : null,
           isGroup: true
         };
       });
@@ -624,7 +667,7 @@ function App() {
         student: studentData,
         team: teamObj,
         category: catObj,
-        results: studentResults,
+        results: allIndividualResults,
         groupResults: resolvedGroupResults,
         programs: progsData || [],
         groupRegistrations: studentGroups
@@ -1523,6 +1566,36 @@ function App() {
     }
   };
 
+  // Download QR Scan Poster as PDF
+  const handleDownloadPosterPdf = async () => {
+    const element = document.getElementById('qr-student-poster');
+    if (!element || !qrModalData?.student) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 190; // A4 is 210mm wide (10mm margins on left/right)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let finalW = imgWidth;
+      let finalH = imgHeight;
+      if (finalH > 277) { // A4 is 297mm high (10mm margins on top/bottom)
+        finalH = 277;
+        finalW = (canvas.width * finalH) / canvas.height;
+      }
+      
+      const x = (210 - finalW) / 2;
+      const y = (297 - finalH) / 2;
+      
+      pdf.addImage(imgData, 'PNG', x, y, finalW, finalH);
+      const pdfBlob = pdf.output('blob');
+      await downloadFile(pdfBlob, `Poster_${qrModalData.student.name.replace(/\s+/g, '_')}.pdf`, 'application/pdf');
+    } catch (err) {
+      alert(t('alertPDFGenerationFailed') + err.message);
+    }
+  };
+
   // Generate PDF of multiple ID cards — Portrait 7.5cm × 10cm (fits plastic sleeve)
   const handleDownloadPDF = useCallback(async (filteredStudentsList, paperSize = 'A4') => {
     if (filteredStudentsList.length === 0) { alert(t('alertNoIdCards')); return; }
@@ -1531,20 +1604,28 @@ function App() {
       // Portrait ID card size: 7.5cm × 10cm (fits standard plastic sleeve)
       const cardW = 75;   // mm
       const cardH = 100;  // mm
-      const marginX = 8;  // page margin mm
-      const marginY = 8;  // page margin mm
       const gap = 4;      // gap between cards mm (for cutting)
 
-      // Page dimensions (portrait)
-      const pageW = paperSize === 'A3' ? 297 : 210;
-      const pageH = paperSize === 'A3' ? 420 : 297;
+      const isA3 = paperSize === 'A3';
+      // Page dimensions
+      // For A3, we use landscape orientation to layout 5 columns and 2 rows (10 cards)
+      // For A4, we use portrait orientation to layout 2 columns and 2 rows (4 cards)
+      const pageW = isA3 ? 420 : 210;
+      const pageH = isA3 ? 297 : 297;
+      const orientation = isA3 ? 'l' : 'p';
 
-      // Calculate grid  A4→2×2=4, A3→3×3=9
-      const cols = Math.floor((pageW - 2 * marginX + gap) / (cardW + gap));
-      const rows = Math.floor((pageH - 2 * marginY + gap) / (cardH + gap));
+      // Grid definition
+      const cols = isA3 ? 5 : 2;
+      const rows = isA3 ? 2 : 2;
       const cardsPerPage = cols * rows;
 
-      const pdf = new jsPDF('p', 'mm', paperSize.toLowerCase());
+      // Calculate dynamic margins to center the cards on the page
+      const gridW = cols * cardW + (cols - 1) * gap;
+      const gridH = rows * cardH + (rows - 1) * gap;
+      const marginX = (pageW - gridW) / 2;
+      const marginY = (pageH - gridH) / 2;
+
+      const pdf = new jsPDF(orientation, 'mm', paperSize.toLowerCase());
       let cardIndex = 0;
 
       for (let i = 0; i < filteredStudentsList.length; i++) {
@@ -1614,7 +1695,7 @@ function App() {
             <div style="flex:1;display:flex;flex-direction:column;padding:10px 12px 8px;box-sizing:border-box;min-height:0;">
               <div style="font-size:13px;font-weight:900;color:#0f172a;text-align:center;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
               <div style="text-align:center;margin-bottom:8px;">
-                <span style="font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:2px 10px;border-radius:9999px;letter-spacing:0.4px;">Reg No: ${s.regno || s.regNo || ''}</span>
+                <span style="font-size:11px;font-weight:900;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:3px 14px;border-radius:9999px;letter-spacing:0.6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);">Reg No: ${s.regno || s.regNo || ''}</span>
               </div>
               <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
@@ -1626,12 +1707,12 @@ function App() {
                   <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${catObj ? catObj.name : 'N/A'}</span>
                 </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
-                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Division</span>
+                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Gender</span>
                   <span style="font-weight:700;color:#1e293b;font-size:9px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                 </div>
               </div>
-              <!-- QR Code centred at bottom -->
-              <div style="margin-top:auto;display:flex;justify-content:center;">
+              <!-- QR Code centred in the remaining vertical space -->
+              <div style="margin:auto 0;display:flex;justify-content:center;align-items:center;">
                 ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:62px;height:62px;display:block;" />` : ''}
               </div>
             </div>
@@ -3068,7 +3149,7 @@ function App() {
                               <span className="value">{(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
                             </div>
                             <div className="id-card-detail-item">
-                              <span className="label">General</span>
+                              <span className="label">Gender</span>
                               <span className="value">{profileStudent.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                             </div>
                           </div>
@@ -3247,7 +3328,7 @@ function App() {
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '4 cards/page (2×2)' : '9 cards/page (3×3)'} • 300 DPI • 7.5cm × 10cm
+                                {pdfPaperSize === 'A4' ? '4 cards/page (2×2)' : '10 cards/page (5×2)'} • 300 DPI • 7.5cm × 10cm
                               </span>
                             </div>
                             <button
@@ -3297,7 +3378,7 @@ function App() {
                                               <span className="value">{catObj ? catObj.name : 'N/A'}</span>
                                             </div>
                                             <div className="id-card-detail-item">
-                                              <span className="label">General</span>
+                                              <span className="label">Gender</span>
                                               <span className="value">{s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                                             </div>
                                           </div>
@@ -5765,7 +5846,7 @@ function App() {
                             <span className="val">{qrModalData.category?.name || 'N/A'}</span>
                           </div>
                           <div className="poster-meta-item">
-                            <span className="lbl">General</span>
+                            <span className="lbl">Gender</span>
                             <span className="val">{qrModalData.student.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                           </div>
                         </div>
@@ -5838,11 +5919,14 @@ function App() {
                 </div>
 
                 {/* Modal actions */}
-                <div className="qr-modal-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                  <button onClick={handleDownloadPoster} className="btn-add-action" style={{ background: 'linear-gradient(135deg, #059669, #047857)', flex: 1, margin: 0 }}>
-                    📥 Download Poster
+                <div className="qr-modal-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px', flexWrap: 'wrap' }}>
+                  <button onClick={handleDownloadPoster} className="btn-add-action" style={{ background: 'linear-gradient(135deg, #059669, #047857)', flex: 1, minWidth: '120px', margin: 0 }}>
+                    🖼️ Download Image
                   </button>
-                  <button onClick={() => setQrModalOpen(false)} className="btn-add-action" style={{ background: '#64748b', flex: 1, margin: 0 }}>
+                  <button onClick={handleDownloadPosterPdf} className="btn-add-action" style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', flex: 1, minWidth: '120px', margin: 0 }}>
+                    📄 Download PDF
+                  </button>
+                  <button onClick={() => setQrModalOpen(false)} className="btn-add-action" style={{ background: '#64748b', flex: 1, minWidth: '120px', margin: 0 }}>
                     Close
                   </button>
                 </div>
