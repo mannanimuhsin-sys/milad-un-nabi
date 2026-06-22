@@ -1247,7 +1247,7 @@ tr:nth-child(even) {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: auto 0;
+    margin: 8px 0 14px 0;
     padding: 5px 0;
 }
 

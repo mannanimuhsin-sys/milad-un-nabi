@@ -1711,8 +1711,8 @@ function App() {
                   <span style="font-weight:700;color:#1e293b;font-size:9px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                 </div>
               </div>
-              <!-- QR Code centred in the remaining vertical space -->
-              <div style="margin:auto 0;display:flex;justify-content:center;align-items:center;">
+              <!-- QR Code centred with space above footer -->
+              <div style="margin:6px 0 10px 0;display:flex;justify-content:center;align-items:center;">
                 ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:62px;height:62px;display:block;" />` : ''}
               </div>
             </div>
