@@ -7,7 +7,7 @@ import './App.css';
 import translations from './translations';
 
 // Inline component to generate and display QR code asynchronously
-function StudentQrCode({ madrasaReg, studentId }) {
+function StudentQrCode({ madrasaReg, studentId, size = 70 }) {
   const [qrUrl, setQrUrl] = useState('');
 
   useEffect(() => {
@@ -17,7 +17,7 @@ function StudentQrCode({ madrasaReg, studentId }) {
       const scanUrl = `${appUrl}/?qr=${madrasaReg}_${studentId}`;
       try {
         const url = await QRCode.toDataURL(scanUrl, {
-          width: 150,
+          width: size * 2,
           margin: 1,
           color: { dark: '#064e3b', light: '#ffffff' }
         });
@@ -30,10 +30,132 @@ function StudentQrCode({ madrasaReg, studentId }) {
       generate();
     }
     return () => { active = false; };
-  }, [madrasaReg, studentId]);
+  }, [madrasaReg, studentId, size]);
 
-  if (!qrUrl) return <div className="qr-placeholder" style={{ width: '70px', height: '70px', background: '#f1f5f9', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#94a3b8' }}>Generating...</div>;
-  return <img src={qrUrl} alt="QR Code" style={{ width: '70px', height: '70px', display: 'block', margin: '0 auto' }} />;
+  if (!qrUrl) return <div className="qr-placeholder" style={{ width: `${size}px`, height: `${size}px`, background: '#f1f5f9', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#94a3b8' }}>Generating...</div>;
+  return <img src={qrUrl} alt="QR Code" style={{ width: `${size}px`, height: `${size}px`, display: 'block', margin: '0 auto' }} />;
+}
+
+// Reusable ID Card Component (Exact printed width 7.5cm × height 10cm at 96dpi)
+function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, className = '' }) {
+  const s = student;
+  const sTeamId = s.teamid || s.teamId || '';
+  const sCatId = s.catid || s.catId || '';
+  const teamObj = teams.find(t => String(t.id) === String(sTeamId));
+  const catObj = categories.find(c => String(c.id) === String(sCatId));
+
+  const hasPhoto = s.photo_url && s.photo_status && s.photo_status === 'approved';
+  const isBoy = String(s.gender).toUpperCase() === 'BOY';
+
+  let photoContent;
+  if (hasPhoto) {
+    photoContent = <img src={s.photo_url} crossOrigin="anonymous" alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+  } else {
+    const color = isBoy ? '#1e40af' : '#be185d';
+    const bg = isBoy ? 'linear-gradient(135deg,#dbeafe,#93c5fd)' : 'linear-gradient(135deg,#fce7f3,#f9a8d4)';
+    photoContent = (
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
+        <svg viewBox="0 0 24 24" style={{ width: '55%', height: '55%', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      className={`id-card ${className}`}
+      style={{
+        width: '283px',
+        height: '378px',
+        background: '#fff',
+        borderRadius: '0',
+        overflow: 'hidden',
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        border: '2px solid #064e3b',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        margin: '0 auto',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+        backgroundImage: 'none'
+      }}
+    >
+      {/* Top gradient stripe */}
+      <div style={{ height: '5px', background: 'linear-gradient(90deg,#022c22,#fbbf24,#059669)', flexShrink: 0 }} />
+
+      {/* Header: Madrasa name + RegNo + Place */}
+      <div style={{ background: 'linear-gradient(135deg,#022c22,#064e3b)', padding: '6px 10px 5px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ fontSize: '10px', fontWeight: '900', color: '#fbbf24', textAlign: 'center', letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px' }}>
+          {loggedInMadrasa ? loggedInMadrasa.name : ''}
+        </div>
+        <div style={{ fontSize: '7px', color: '#94a3b8', textAlign: 'center', lineHeight: 1.3 }}>
+          {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}
+        </div>
+      </div>
+
+      {/* Photo LEFT + Student Name & RegNo RIGHT */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '8px 10px', background: '#f8fafc', borderBottom: '2px solid #fbbf24', gap: '10px' }}>
+        {/* Photo */}
+        <div style={{ flexShrink: 0, width: '78px', height: '88px', borderRadius: '8px', border: '3px solid #064e3b', overflow: 'hidden', background: '#f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.18)' }}>
+          {photoContent}
+        </div>
+
+        {/* Name + RegNo — fills the space beside photo */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'stretch', gap: '6px', minWidth: 0 }}>
+          <div style={{ fontSize: '15px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.4px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', marginBottom: '2px' }}>
+            {s.name}
+          </div>
+          {/* Big highlighted Reg No badge */}
+          <div style={{ background: 'linear-gradient(135deg,#022c22,#059669)', borderRadius: '8px', padding: '6px 8px', boxShadow: '0 3px 8px rgba(6,78,59,0.35)', width: '100%', boxSizing: 'border-box', textAlign: 'center' }}>
+            <div style={{ fontSize: '8px', fontWeight: '800', color: '#86efac', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>
+              Register No.
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#fbbf24', letterSpacing: '1px', lineHeight: 1 }}>
+              {s.regno || s.regNo || ''}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Details: Group / Category / Gender */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px 6px', boxSizing: 'border-box' }}>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '4px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '7.5px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.3px' }}>Group</span>
+          <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '9.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+            {teamObj ? teamObj.name : 'N/A'}
+          </span>
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '4px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '7.5px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.3px' }}>Category</span>
+          <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '9.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+            {catObj ? catObj.name : 'N/A'}
+          </span>
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '4px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '7.5px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.3px' }}>Gender</span>
+          <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '9.5px' }}>
+            {s.gender === 'BOY' ? 'Boy' : 'Girl'}
+          </span>
+        </div>
+      </div>
+
+      {/* QR Code — centered, large */}
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px 0 4px' }}>
+        <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={90} />
+      </div>
+
+      {/* Footer */}
+      <div style={{ background: 'linear-gradient(135deg,#022c22,#064e3b)', padding: '8px', textAlign: 'center', flexShrink: 0 }}>
+        <span style={{ fontSize: '6px', color: '#fbbf24', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+          MILAD FEST • ID CARD
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // Universal download helper to handle web and native mobile sharing
@@ -1693,10 +1815,14 @@ function App() {
               <div style="flex-shrink:0;width:78px;height:88px;border-radius:8px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
                 ${photoHtml}
               </div>
-              <!-- Name + RegNo -->
-              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:6px;min-width:0;">
-                <div style="font-size:11px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;word-break:break-word;">${s.name}</div>
-                <span style="font-size:9px;font-weight:900;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:3px 10px;border-radius:9999px;letter-spacing:0.5px;box-shadow:0 2px 4px rgba(0,0,0,0.15);white-space:nowrap;">Reg No: ${s.regno || s.regNo || ''}</span>
+              <!-- Name + RegNo — fills the space beside photo -->
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:6px;min-width:0;">
+                <div style="font-size:15px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.4px;line-height:1.2;word-break:break-word;text-align:center;margin-bottom:2px;">${s.name}</div>
+                <!-- Big highlighted Reg No badge -->
+                <div style="background:linear-gradient(135deg,#022c22,#059669);border-radius:8px;padding:6px 8px;box-shadow:0 3px 8px rgba(6,78,59,0.35);width:100%;box-sizing:border-box;text-align:center;">
+                  <div style="font-size:8px;font-weight:800;color:#86efac;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Register No.</div>
+                  <div style="font-size:22px;font-weight:900;color:#fbbf24;letter-spacing:1px;line-height:1;">${s.regno || s.regNo || ''}</div>
+                </div>
               </div>
             </div>
             <!-- Details: Group / Category / Gender -->
@@ -3126,43 +3252,13 @@ function App() {
                   {profileStep === 'APPROVED' && profileStudent && (
                     <div>
                       {/* Professional ID Card */}
-                      <div className="id-card" ref={idCardRef}>
-                        <div className="id-card-header">
-                          <div className="id-card-madrasa-name">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
-                          <div className="id-card-madrasa-info">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
-                        </div>
-                        <div className="id-card-body">
-                          <div className="id-card-photo">
-                            {profileStudent.photo_url ? (
-                              <img src={profileStudent.photo_url} alt={profileStudent.name} crossOrigin="anonymous" />
-                            ) : (
-                              <div className="id-card-photo-placeholder">👤</div>
-                            )}
-                          </div>
-                          <div className="id-card-name">{profileStudent.name}</div>
-                          <div className="id-card-regno">Reg No: {profileStudent.regno || profileStudent.regNo || ''}</div>
-                          <div className="id-card-details-grid">
-                            <div className="id-card-detail-item">
-                              <span className="label">Group</span>
-                              <span className="value">{(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>
-                            </div>
-                            <div className="id-card-detail-item">
-                              <span className="label">Category</span>
-                              <span className="value">{(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
-                            </div>
-                            <div className="id-card-detail-item">
-                              <span className="label">Gender</span>
-                              <span className="value">{profileStudent.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
-                            </div>
-                          </div>
-                          <div className="id-card-qr-container">
-                            <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={profileStudent.id} />
-                          </div>
-                        </div>
-                        <div className="id-card-footer">
-                          <span>MILAD FEST • ID CARD</span>
-                        </div>
-                      </div>
+                      <StudentIdCard
+                        student={profileStudent}
+                        loggedInMadrasa={loggedInMadrasa}
+                        teams={teams}
+                        categories={categories}
+                        cardRef={idCardRef}
+                      />
 
                       {/* Download Button */}
                       <button
@@ -3348,50 +3444,15 @@ function App() {
                                 <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '30px 0', gridColumn: '1 / -1' }}>No approved ID cards found for the selected filters.</p>
                               ) : (
                                 approvedFiltered.map(s => {
-                                  const sTeamId = s.teamid || s.teamId || '';
-                                  const sCatId = s.catid || s.catId || '';
-                                  const teamObj = teams.find(t => String(t.id) === String(sTeamId));
-                                  const catObj = categories.find(c => String(c.id) === String(sCatId));
-
                                   return (
                                     <div key={s.id} className="id-card-gallery-item">
-                                      <div className="id-card id-card-mini">
-                                        <div className="id-card-header">
-                                          <div className="id-card-madrasa-name">{loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
-                                          <div className="id-card-madrasa-info">Reg No: {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
-                                        </div>
-                                        <div className="id-card-body">
-                                          <div className="id-card-photo">
-                                            {s.photo_url ? (
-                                              <img src={s.photo_url} alt={s.name} crossOrigin="anonymous" />
-                                            ) : (
-                                              <div className="id-card-photo-placeholder">👤</div>
-                                            )}
-                                          </div>
-                                          <div className="id-card-name">{s.name}</div>
-                                          <div className="id-card-regno">Reg No: {s.regno || s.regNo || ''}</div>
-                                          <div className="id-card-details-grid">
-                                            <div className="id-card-detail-item">
-                                              <span className="label">Group</span>
-                                              <span className="value">{teamObj ? teamObj.name : 'N/A'}</span>
-                                            </div>
-                                            <div className="id-card-detail-item">
-                                              <span className="label">Category</span>
-                                              <span className="value">{catObj ? catObj.name : 'N/A'}</span>
-                                            </div>
-                                            <div className="id-card-detail-item">
-                                              <span className="label">Gender</span>
-                                              <span className="value">{s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
-                                            </div>
-                                          </div>
-                                          <div className="id-card-qr-container">
-                                            <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} />
-                                          </div>
-                                        </div>
-                                        <div className="id-card-footer">
-                                          <span>MILAD FEST • ID CARD</span>
-                                        </div>
-                                      </div>
+                                      <StudentIdCard
+                                        student={s}
+                                        loggedInMadrasa={loggedInMadrasa}
+                                        teams={teams}
+                                        categories={categories}
+                                        className="id-card-mini"
+                                      />
                                     </div>
                                   );
                                 })
