@@ -1523,23 +1523,23 @@ function App() {
     }
   };
 
-  // Generate PDF of multiple ID cards (landscape CR80: 3.375" × 2.125")
+  // Generate PDF of multiple ID cards — Portrait 7.5cm × 10cm (fits plastic sleeve)
   const handleDownloadPDF = useCallback(async (filteredStudentsList, paperSize = 'A4') => {
     if (filteredStudentsList.length === 0) { alert(t('alertNoIdCards')); return; }
     setProfilePdfGenerating(true);
     try {
-      // Standard CR80 ID card size in mm
-      const cardW = 85.725; // 3.375 inches × 25.4
-      const cardH = 53.975; // 2.125 inches × 25.4
-      const marginX = 10;   // page margin mm
-      const marginY = 10;   // page margin mm
-      const gap = 5;        // gap between cards mm (for cutting)
+      // Portrait ID card size: 7.5cm × 10cm (fits standard plastic sleeve)
+      const cardW = 75;   // mm
+      const cardH = 100;  // mm
+      const marginX = 8;  // page margin mm
+      const marginY = 8;  // page margin mm
+      const gap = 4;      // gap between cards mm (for cutting)
 
-      // Page dimensions
+      // Page dimensions (portrait)
       const pageW = paperSize === 'A3' ? 297 : 210;
       const pageH = paperSize === 'A3' ? 420 : 297;
 
-      // Calculate grid
+      // Calculate grid  A4→2×2=4, A3→3×3=9
       const cols = Math.floor((pageW - 2 * marginX + gap) / (cardW + gap));
       const rows = Math.floor((pageH - 2 * marginY + gap) / (cardH + gap));
       const cardsPerPage = cols * rows;
@@ -1549,15 +1549,15 @@ function App() {
 
       for (let i = 0; i < filteredStudentsList.length; i++) {
         const s = filteredStudentsList[i];
-        
-        // Temp DOM element: 338px × 213px (≈ 3.375" × 2.125" at ~100px/in)
-        // scale:3 → canvas ≈ 1014×639px → ~300 DPI for print
+
+        // DOM element: 283px × 378px (≈ 7.5cm × 10cm at 96px/in ≈ 37.8px/cm)
+        // scale:3 → canvas ≈ 849×1134px → ~300 DPI for print
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '0';
-        tempDiv.style.width = '338px';
-        tempDiv.style.height = '213px';
+        tempDiv.style.width = '283px';
+        tempDiv.style.height = '378px';
         document.body.appendChild(tempDiv);
 
         const sTeamId = s.teamid || s.teamId || '';
@@ -1570,7 +1570,7 @@ function App() {
         const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
         let qrDataUrl = '';
         try {
-          qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 150, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+          qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 200, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
         } catch (e) {
           console.error(e);
         }
@@ -1586,7 +1586,7 @@ function App() {
           const bg = isBoy ? 'linear-gradient(135deg,#dbeafe,#93c5fd)' : 'linear-gradient(135deg,#fce7f3,#f9a8d4)';
           photoHtml = `
             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${bg};">
-              <svg viewBox="0 0 24 24" style="width:60%;height:60%;fill:none;stroke:${color};stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;">
+              <svg viewBox="0 0 24 24" style="width:55%;height:55%;fill:none;stroke:${color};stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
@@ -1594,47 +1594,55 @@ function App() {
           `;
         }
 
-        // Landscape card HTML — NO border-radius on outer card
+        // Portrait card HTML — 283×378px, vertical layout matching plastic sleeve
         tempDiv.innerHTML = `
-          <div style="width:338px;height:213px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
-            <div style="height:4px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
-            <div style="flex:1;display:flex;flex-direction:row;overflow:hidden;">
-              <div style="width:118px;background:linear-gradient(135deg,#022c22,#064e3b);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 6px;box-sizing:border-box;flex-shrink:0;border-right:3px solid #fbbf24;">
-                <div style="font-size:8px;font-weight:800;color:#fbbf24;text-align:center;letter-spacing:0.4px;text-transform:uppercase;margin-bottom:5px;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
-                <div style="font-size:6px;color:#cbd5e1;text-align:center;margin-bottom:8px;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
-                <div style="width:70px;height:70px;border-radius:50%;border:3px solid #fbbf24;overflow:hidden;background:#f1f5f9;">
-                  ${photoHtml}
-                </div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;padding:9px 10px 5px 11px;box-sizing:border-box;min-width:0;">
-                <div style="font-size:12px;font-weight:800;color:#0f172a;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
-                <div style="font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:2px 9px;border-radius:9999px;margin-bottom:7px;letter-spacing:0.4px;align-self:flex-start;">Reg No: ${s.regno || s.regNo || ''}</div>
-                <div style="display:flex;gap:4px;margin-bottom:0;">
-                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;padding:3px 6px;flex:1;min-width:0;">
-                    <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:1px;letter-spacing:0.3px;">Group</div>
-                    <div style="font-weight:700;color:#1e293b;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${teamObj ? teamObj.name : 'N/A'}</div>
-                  </div>
-                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;padding:3px 6px;flex:1;min-width:0;">
-                    <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:1px;letter-spacing:0.3px;">Category</div>
-                    <div style="font-weight:700;color:#1e293b;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${catObj ? catObj.name : 'N/A'}</div>
-                  </div>
-                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;padding:3px 6px;flex:1;min-width:0;">
-                    <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:1px;letter-spacing:0.3px;">Division</div>
-                    <div style="font-weight:700;color:#1e293b;font-size:8px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
-                  </div>
-                </div>
-                <div style="margin-top:auto;display:flex;justify-content:flex-end;align-items:flex-end;">
-                  ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:48px;height:48px;display:block;" />` : ''}
-                </div>
+          <div style="width:283px;height:378px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
+            <!-- Top gradient stripe -->
+            <div style="height:5px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:8px 10px 6px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
+              <div style="font-size:10px;font-weight:900;color:#fbbf24;text-align:center;letter-spacing:0.5px;text-transform:uppercase;line-height:1.3;margin-bottom:2px;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+              <div style="font-size:7px;color:#94a3b8;text-align:center;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+            </div>
+            <!-- Photo -->
+            <div style="flex-shrink:0;display:flex;justify-content:center;align-items:center;padding:12px 0 8px;background:#f8fafc;border-bottom:2px solid #fbbf24;">
+              <div style="width:100px;height:110px;border-radius:6px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
+                ${photoHtml}
               </div>
             </div>
-            <div style="height:15px;background:#f1f5f9;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <span style="font-size:6px;color:#64748b;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
+            <!-- Details -->
+            <div style="flex:1;display:flex;flex-direction:column;padding:10px 12px 8px;box-sizing:border-box;min-height:0;">
+              <div style="font-size:13px;font-weight:900;color:#0f172a;text-align:center;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
+              <div style="text-align:center;margin-bottom:8px;">
+                <span style="font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,#022c22,#059669);display:inline-block;padding:2px 10px;border-radius:9999px;letter-spacing:0.4px;">Reg No: ${s.regno || s.regNo || ''}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Group</span>
+                  <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${teamObj ? teamObj.name : 'N/A'}</span>
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Category</span>
+                  <span style="font-weight:700;color:#1e293b;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${catObj ? catObj.name : 'N/A'}</span>
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:7px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Division</span>
+                  <span style="font-weight:700;color:#1e293b;font-size:9px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
+                </div>
+              </div>
+              <!-- QR Code centred at bottom -->
+              <div style="margin-top:auto;display:flex;justify-content:center;">
+                ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:62px;height:62px;display:block;" />` : ''}
+              </div>
+            </div>
+            <!-- Footer -->
+            <div style="height:16px;background:linear-gradient(135deg,#022c22,#064e3b);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:6px;color:#fbbf24;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
             </div>
           </div>
         `;
 
-        // scale:3 on 338×213px DOM → ~1014×639px canvas → ≈300 DPI for 3.375"×2.125" card
+        // scale:3 on 283×378px DOM → ~849×1134px canvas → ≈300 DPI for 7.5cm×10cm card
         const canvas = await html2canvas(tempDiv.firstElementChild, {
           scale: 3,
           useCORS: true,
@@ -3239,7 +3247,7 @@ function App() {
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '8 cards/page' : '18 cards/page'} • 300 DPI • 3.375" × 2.125"
+                                {pdfPaperSize === 'A4' ? '4 cards/page (2×2)' : '9 cards/page (3×3)'} • 300 DPI • 7.5cm × 10cm
                               </span>
                             </div>
                             <button
