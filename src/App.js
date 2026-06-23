@@ -143,7 +143,7 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
         </div>
       </div>
 
-      {/* QR Code — centered, smaller */}
+      {/* QR Code — centered, smaller */}ccd
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0 2px' }}>
         <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={70} />
       </div>
@@ -255,47 +255,77 @@ const getTrollReaction = (rank, teamName, lang, offset = 0) => {
 
   if (rank === 1) {
     const reactions = lang === 'ML' ? [
-      { emoji: '😎', text: 'കൂടുതൽ നോക്കണ്ട, ഈ കപ്പ് ഞങ്ങൾ കൊണ്ടുപോയി! 🏆' },
-      { emoji: '😂', text: 'അണ്ണാ പതുക്കെ വാ... ഞങ്ങൾ ചായ കുടിച്ചു കാത്തിരിക്കാം! ☕😜' },
-      { emoji: '😏', text: 'ഞങ്ങളെ കാണാൻ ബൈനോക്കുലർ വേണ്ടി വരും മക്കളെ! 🔭' },
-      { emoji: '🤪', text: 'ഒന്നാം സ്ഥാനം ഞങ്ങൾ ഇങ്ങ് എടുക്കുവാട്ടോ! ആർക്കെങ്കിലും വേണോ? 🏆' },
-      { emoji: '🤩', text: 'തൊടാൻ പറ്റുമെങ്കിൽ തൊട്ടോ! ഞങ്ങൾ വളരെ മുന്നിലാണ്! 🚀' }
+      { emoji: '🏆', text: 'ബിരിയാണി ചെമ്പ് തുറക്കാൻ റെഡിയായിക്കോളൂ, ഞങ്ങൾ കപ്പും കൊണ്ടേ വരൂ! 🥘' },
+      { emoji: '☕', text: 'ഒരു കവിൾ സുലൈമാനി കുടിച്ച് ഞങ്ങൾ ഒന്നാം സ്ഥാനത്ത് തന്നെയുണ്ട്! 😎' },
+      { emoji: '⛵', text: 'കാറ്റും കോലും വകവെക്കാതെ ഞങ്ങളുടെ യാത്ര മുന്നോട്ട് തന്നെയാണ്! 🏆' },
+      { emoji: '🚀', text: 'ഞങ്ങളുടെ വേഗത കൂട്ടാൻ ഇനി വേറെ ഗിയർ നോക്കേണ്ടി വരും! ✨' },
+      { emoji: '🏡', text: 'ആരും പേടിക്കണ്ട, കപ്പ് ഞങ്ങൾ സൂക്ഷിച്ചു വീട്ടിൽ എത്തിച്ചോളാം! 🏆' },
+      { emoji: '🤩', text: 'മുന്നിൽ നിൽക്കുന്നതിന്റെ ആ ഒരു സന്തോഷം അനുഭവിച്ചു തന്നെ അറിയണം! ✨' },
+      { emoji: '☕', text: 'ഞങ്ങളെ പിന്തുടരുന്ന സുഹൃത്തുക്കൾക്ക് ചായ കുടിക്കാൻ വേണമെങ്കിൽ സമയം തരാം! 😜' },
+      { emoji: '📈', text: 'ക്ഷമയോടെ കാത്തിരിക്കൂ, ഞങ്ങളുടെ സ്കോർ ബോർഡ് ഇനിയും ഉയരും! 🔥' },
+      { emoji: '🛣️', text: 'വിജയത്തിന്റെ നല്ലൊരു പാതയിൽ ഞങ്ങൾ യാത്ര തുടങ്ങിക്കഴിഞ്ഞു! 🚀' },
+      { emoji: '🛌', text: 'എല്ലാവരും ഒപ്പം വരാൻ നോക്കൂ, ഞങ്ങൾ ചെറുതായൊന്ന് വിശ്രമിക്കാം! 🏁' }
     ] : [
-      { emoji: '😎', text: 'No looking back, we are taking the cup! 🏆' },
-      { emoji: '😂', text: 'Go slow bro, we are waiting for you over tea! ☕😜' },
-      { emoji: '😏', text: 'You might need binoculars to spot us! 🔭' },
-      { emoji: '🤪', text: 'First place is ours! Anyone wants to try? 🏆' },
-      { emoji: '🤩', text: 'Catch us if you can! We are far ahead! 🚀' }
+      { emoji: '🥘', text: 'Get the Biryani ready, we are coming home with the cup! 🏆' },
+      { emoji: '☕', text: 'Sipping our Sulaimani, relaxed right here at the first spot! 😎' },
+      { emoji: '🏆', text: 'Unstoppable! We are sailing strong to the finish line! ⛵' },
+      { emoji: '🚀', text: 'We might need to find a higher gear to go any faster! ✨' },
+      { emoji: '🏆', text: 'Do not worry, we will deliver the cup safely to our cabinet! 🏡' },
+      { emoji: '✨', text: 'Leading the board is a joy you have to experience to believe! 🤩' },
+      { emoji: '😜', text: 'We can pause for a tea break if our friends behind need to catch up! ☕' },
+      { emoji: '🔥', text: 'Stay tuned, our scoreboard is only going higher! 📈' },
+      { emoji: '🚀', text: 'We are well on our way to a beautiful victory! 🛣️' },
+      { emoji: '🏁', text: 'Try to catch up, everyone, we are taking a little breather! 🛌' }
     ];
     return reactions[index % reactions.length];
   } else if (rank === 2 || rank === 3) {
     const reactions = lang === 'ML' ? [
-      { emoji: '😤', text: 'തൊട്ടുപിന്നിലുണ്ട്, അഹങ്കരിക്കാൻ വരട്ടെ! 🏃‍♂️⚡' },
-      { emoji: '🔥', text: 'ഒരു മത്സരം കൂടി കഴിഞ്ഞോട്ടെ, കളി മാറും! 💥' },
-      { emoji: '👀', text: 'അത്രക്ക് അഹങ്കരിക്കേണ്ട മോനേ, ദാ ഞങ്ങൾ വരുന്നു! 👀' },
-      { emoji: '⚡', text: 'ലീഡ് കണ്ട് സന്തോഷിക്കേണ്ട, ഞങ്ങൾ തൊട്ടു പിന്നിലുണ്ട്! 🚀' },
-      { emoji: '😏', text: 'നോക്കിക്കോ, അവസാന ചിരി ഞങ്ങളുടേതായിരിക്കും! 🏆' }
+      { emoji: '👀', text: 'മുന്നിലുള്ളവർ ഒന്ന് തിരിഞ്ഞു നോക്കിക്കോളൂ, ദാ തൊട്ടുപുറകിലുണ്ട്! 🏃‍♂️' },
+      { emoji: '⚡', text: 'ലീഡ് കണ്ട് സന്തോഷിക്കേണ്ട, കളി ഇനിയും ബാക്കിയുണ്ട് കൂട്ടുകാരേ! ⏳' },
+      { emoji: '🎯', text: 'പതുക്കെയാണെങ്കിലും ലക്ഷ്യത്തിലേക്ക് തന്നെയാണ് ഞങ്ങളുടെ യാത്ര! 🚶‍♂️' },
+      { emoji: '🔥', text: 'ഒരു ചെറിയ ഇടവേളക്ക് ശേഷം ഞങ്ങൾ ഇതാ വീണ്ടും വരുന്നു! 🚀' },
+      { emoji: '💪', text: 'വിജയം അത്ര എളുപ്പത്തിൽ വിട്ടുകൊടുക്കാൻ ഞങ്ങൾക്ക് മനസ്സില്ല! 🏆' },
+      { emoji: '💥', text: 'മത്സരം അവസാന നിമിഷം വരെ ആവേശകരമാക്കാൻ ഞങ്ങൾ റെഡിയാണ്! 🏁' },
+      { emoji: '⏳', text: 'നിങ്ങളുടെ ഒന്നാം സ്ഥാനം താത്കാലികം മാത്രമാണ് സുഹൃത്തുക്കളെ! 😎' },
+      { emoji: '🔥', text: 'തളരില്ല ഞങ്ങൾ, അവസാന നിമിഷം വരെ പോരാടും! 💪' },
+      { emoji: '🏆', text: 'ദാ എത്തിക്കഴിഞ്ഞു! ഇനി കപ്പിനായുള്ള ഫൈനൽ പോരാട്ടമാണ്! ⚡' },
+      { emoji: '🏃‍♂️', text: 'മുന്നിലുള്ളവരുടെ നെഞ്ചിടിപ്പ് കൂട്ടാൻ ഞങ്ങൾ വേഗത കൂട്ടുന്നു! 💓' }
     ] : [
-      { emoji: '😤', text: 'Right behind you! Don\'t be too proud! 🏃‍♂️⚡' },
-      { emoji: '🔥', text: 'Just one more event and the tables will turn! 💥' },
-      { emoji: '👀', text: 'Don\'t celebrate early, we are coming! 👀' },
-      { emoji: '⚡', text: 'Enjoy the lead while it lasts, we are close! 🚀' },
-      { emoji: '😏', text: 'Watch out, we will have the last laugh! 🏆' }
+      { emoji: '🏃‍♂️', text: 'Those in front, look back! We are right on your heels! 👀' },
+      { emoji: '⏳', text: 'Do not celebrate the lead yet, the game is far from over! ⚡' },
+      { emoji: '🚶‍♂️', text: 'Slowly but surely, our steps are headed straight for the target! 🎯' },
+      { emoji: '🚀', text: 'After a quick pause, we are building up speed again! 🔥' },
+      { emoji: '🏆', text: 'We are not going to hand over the trophy that easily! 💪' },
+      { emoji: '🏁', text: 'We are ready to keep this exciting right down to the final second! 💥' },
+      { emoji: '😎', text: 'Your first place is only temporary, dear friends! ⏳' },
+      { emoji: '💪', text: 'We never give up, we will fight until the last event! 🔥' },
+      { emoji: '⚡', text: 'We have arrived! The battle for the cup starts now! 🏆' },
+      { emoji: '💓', text: 'We are speeding up to make those in front a little nervous! 🏃‍♂️' }
     ];
     return reactions[index % reactions.length];
   } else {
     const reactions = lang === 'ML' ? [
-      { emoji: '😭', text: 'അണ്ണാ പതുക്കെ പോകൂ... സ്പീഡ് ലിമിറ്റ് ഉണ്ട്! 🐢⚠️' },
-      { emoji: '🤫', text: 'എല്ലാം തന്ത്രപരമായ നീക്കങ്ങളാണ്, അവസാനം കാണാം! 🧠🍿' },
-      { emoji: '🥺', text: 'ആരെങ്കിലും ഞങ്ങൾക്ക് കുറച്ചു പോയിന്റ് തരുമോ... 🥺' },
-      { emoji: '😴', text: 'ഞങ്ങൾ പതുക്കെ കേറി വരാം, നിങ്ങളൊന്ന് ഉറങ്ങിക്കോ! 💤' },
-      { emoji: '🐢', text: 'ഇതൊരു തന്ത്രപരമായ മെല്ലെപ്പോക്കാണ്, സിംഹം ഒന്നിടറിയതാ! 🦁' }
+      { emoji: '🧠', text: 'ഞങ്ങൾ തോൽക്കാൻ തയ്യാറല്ല, കളി ഇനിയും പഠിപ്പിച്ചു തരാം! 📖' },
+      { emoji: '🥘', text: 'ബിരിയാണിക്കുള്ള അരി ഇപ്പോൾ തന്നെ അടുപ്പത്ത് വെച്ചോളൂ! 🔥' },
+      { emoji: '🙌', text: 'പോയിന്റുകൾ കുറവാണെങ്കിലും ഞങ്ങളുടെ ആവേശത്തിന് ഒട്ടും കുറവില്ല! 💥' },
+      { emoji: '🍿', text: 'കളിയിലെ വലിയ ട്വിസ്റ്റുകൾ ഇനിയും വരാനിരിക്കുന്നതേയുള്ളൂ! ⏳' },
+      { emoji: '🚶‍♂️', text: 'എല്ലാവരും ഒന്ന് മുന്നോട്ട് പൊയ്ക്കോളൂ, ഞങ്ങൾ വഴി തടസ്സപ്പെടുത്തില്ല! 🛣️' },
+      { emoji: '🗺️', text: 'പതുക്കെപ്പോയാൽ വഴിയിലെ ഭംഗിയുള്ള കാഴ്ചകൾ നന്നായി ആസ്വദിക്കാം! 🚶‍♂️' },
+      { emoji: '🤫', text: 'ഇത് ഞങ്ങളുടെ തന്ത്രപരമായ മുന്നൊരുക്കമാണ്, അവസാനം കാണാം! ⚡' },
+      { emoji: '✨', text: 'സ്കോർ ബോർഡിൽ അത്ഭുതങ്ങൾ സംഭവിക്കാൻ ഒരു നിമിഷം മതി! 📈' },
+      { emoji: '🧗‍♂️', text: 'വിഷമിക്കേണ്ട കൂട്ടുകാരേ, താഴെനിന്നുള്ള കയറ്റത്തിന് ഒരു പ്രത്യേക ഭംഗിയുണ്ട്! 🏔️' },
+      { emoji: '☕', text: 'ഞങ്ങൾ വരുന്നുണ്ട്, ചായക്കടയിൽ ഞങ്ങൾക്കായി ഒരു സീറ്റ് മാറ്റിവെക്കണേ! 👋' }
     ] : [
-      { emoji: '😭', text: 'Go slow big brother... there is a speed limit! 🐢⚠️' },
-      { emoji: '🤫', text: 'It\'s all part of our master plan, wait for the end! 🧠🍿' },
-      { emoji: '🥺', text: 'Can someone donate some points to us please... 🥺' },
-      { emoji: '😴', text: 'We are slowly catching up, you guys go ahead and sleep! 💤' },
-      { emoji: '🐢', text: 'This is a strategic slow run, the lion just slipped! 🦁' }
+      { emoji: '📖', text: 'We are not giving up, there is still time to show our best! 🧠' },
+      { emoji: '🔥', text: 'You can start boiling the rice for the Biryani now! 🥘' },
+      { emoji: '💥', text: 'Points might be low, but our energy is touching the sky! 🙌' },
+      { emoji: '⏳', text: 'The biggest twists of the tournament are yet to come! 🍿' },
+      { emoji: '🛣️', text: 'Go ahead, everyone! We promise not to block the way! 🚶‍♂️' },
+      { emoji: '🚶‍♂️', text: 'Going slow lets us enjoy the scenic views along the journey! 🗺️' },
+      { emoji: '⚡', text: 'This is just a strategic buildup, wait for the finale! 🤫' },
+      { emoji: '📈', text: 'It only takes one moment for a miracle on the scoreboard! ✨' },
+      { emoji: '🏔️', text: 'No worries! Climbing up from the bottom is the best journey! 🧗‍♂️' },
+      { emoji: '👋', text: 'We are on our way, save a cup of tea for us at the counter! ☕' }
     ];
     return reactions[index % reactions.length];
   }
@@ -345,6 +375,7 @@ function App() {
 
   // Troll Mode States
   const [trollMode, setTrollMode] = useState(false);
+  const [trollLang, setTrollLang] = useState('ML');
   const [trollOffsets, setTrollOffsets] = useState({});
 
   // PWA Install states
@@ -614,8 +645,9 @@ function App() {
       if (programsData) setPrograms(programsData);
       if (resultsData) setResultsList(resultsData);
       if (madrasaData) {
-        const [, , trollStatus] = (madrasaData.place || '').split('|');
+        const [, , trollStatus, dbTrollLang] = (madrasaData.place || '').split('|');
         setTrollMode(trollStatus === 'troll_on');
+        setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
       }
       if (regData) {
         const mappedRegs = regData.map(r => ({
@@ -1013,7 +1045,7 @@ function App() {
       }
 
       if (loginPassword === madrasa.adminPassword || loginPassword === madrasa.viewPassword) {
-        const [actualPlace, status, trollStatus] = (madrasa.place || '').split('|');
+        const [actualPlace, status, trollStatus, dbTrollLang] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
         if (currentStatus === 'pending') {
@@ -1035,6 +1067,7 @@ function App() {
 
         // 🎭 Sync troll mode from database
         setTrollMode(trollStatus === 'troll_on');
+        setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
 
         // 💾 Save session to localStorage for auto-login
         localStorage.setItem('miladfest_session', JSON.stringify({ madrasa: sanitizedMadrasa, role }));
@@ -1229,8 +1262,9 @@ function App() {
           .maybeSingle();
 
         const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
-        const [actualPlace, status] = (fullPlace || '').split('|');
-        const updatedPlace = `${actualPlace || ''}|${status || 'approved'}|${newTrollMode ? 'troll_on' : 'troll_off'}`;
+        const [actualPlace, status, , currentTrollLang] = (fullPlace || '').split('|');
+        const activeTrollLang = currentTrollLang === 'EN' ? 'EN' : 'ML';
+        const updatedPlace = `${actualPlace || ''}|${status || 'approved'}|${newTrollMode ? 'troll_on' : 'troll_off'}|${activeTrollLang}`;
 
         await supabase
           .from('madrasas')
@@ -1238,6 +1272,33 @@ function App() {
           .eq('regNumber', loggedInMadrasa.regNumber);
       } catch (err) {
         console.error("Failed to sync troll mode to DB:", err);
+      }
+    }
+  };
+
+  const handleToggleTrollLang = async () => {
+    const newTrollLang = trollLang === 'EN' ? 'ML' : 'EN';
+    setTrollLang(newTrollLang);
+    
+    if (loggedInMadrasa) {
+      try {
+        const { data: madrasaData } = await supabase
+          .from('madrasas')
+          .select('place')
+          .eq('regNumber', loggedInMadrasa.regNumber)
+          .maybeSingle();
+
+        const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
+        const [actualPlace, status, currentTrollStatus] = (fullPlace || '').split('|');
+        const activeTrollStatus = currentTrollStatus || (trollMode ? 'troll_on' : 'troll_off');
+        const updatedPlace = `${actualPlace || ''}|${status || 'approved'}|${activeTrollStatus}|${newTrollLang}`;
+
+        await supabase
+          .from('madrasas')
+          .update({ place: updatedPlace })
+          .eq('regNumber', loggedInMadrasa.regNumber);
+      } catch (err) {
+        console.error("Failed to sync troll lang to DB:", err);
       }
     }
   };
@@ -2696,27 +2757,52 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       {loginRole === 'ADMIN' && (
-                        <button 
-                          onClick={handleToggleTrollMode}
-                          style={{
-                            background: trollMode ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #059669, #047857)',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '8px 16px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
-                            transition: 'all 0.2s'
-                          }}
-                          className="troll-mode-toggle-btn"
-                        >
-                          {trollMode ? (lang === 'EN' ? '😎 Troll Mode: Active' : '😎 ട്രോൾ മോഡ്: ഓൺ') : (lang === 'EN' ? '😜 Troll Mode: Off' : '😜 ട്രോൾ മോഡ്: ഓഫ്')}
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button 
+                            onClick={handleToggleTrollMode}
+                            style={{
+                              background: trollMode ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #059669, #047857)',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 16px',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '700',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                              transition: 'all 0.2s'
+                            }}
+                            className="troll-mode-toggle-btn"
+                          >
+                            {trollMode ? (lang === 'EN' ? '😎 Troll Mode: Active' : '😎 ട്രോൾ മോഡ്: ഓൺ') : (lang === 'EN' ? '😜 Troll Mode: Off' : '😜 ട്രോൾ മോഡ്: ഓഫ്')}
+                          </button>
+                          {trollMode && (
+                            <button
+                              onClick={handleToggleTrollLang}
+                              style={{
+                                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                                transition: 'all 0.2s'
+                              }}
+                              className="troll-lang-toggle-btn"
+                            >
+                              🗣️ {lang === 'EN' ? `Trolls: ${trollLang === 'ML' ? 'Malayalam' : 'English'}` : `ട്രോൾ: ${trollLang === 'ML' ? 'മലയാളം' : 'English'}`}
+                            </button>
+                          )}
+                        </div>
                       )}
                       <button 
                         onClick={() => setIsProjectorActive(true)}
@@ -2778,7 +2864,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                         <span className="team-name">{team.name}</span>
                                         {trollMode && (() => {
-                                          const reaction = getTrollReaction(rank, team.name, lang, trollOffsets[team.id] || 0);
+                                          const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
                                           return (
                                             <div 
                                               className="troll-badge-container" 
@@ -6874,7 +6960,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                               <span className="projector-team-name" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                 <span>{team.name}</span>
                                 {trollMode && (() => {
-                                  const reaction = getTrollReaction(rank, team.name, lang, trollOffsets[team.id] || 0);
+                                  const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
                                   return (
                                     <span 
                                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
