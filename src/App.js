@@ -143,14 +143,14 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
         </div>
       </div>
 
-      {/* QR Code — centered, large */}
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px 0 4px' }}>
-        <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={90} />
+      {/* QR Code — centered, smaller */}
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0 2px' }}>
+        <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={70} />
       </div>
 
       {/* Footer */}
-      <div style={{ background: 'linear-gradient(135deg,#022c22,#064e3b)', padding: '8px', textAlign: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: '6px', color: '#fbbf24', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+      <div style={{ background: 'linear-gradient(135deg,#022c22,#064e3b)', padding: '10px 8px', textAlign: 'center', flexShrink: 0 }}>
+        <span style={{ fontSize: '9px', color: '#fbbf24', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
           MILAD FEST • ID CARD
         </span>
       </div>
@@ -1840,13 +1840,13 @@ function App() {
                 <span style="font-weight:700;color:#1e293b;font-size:9.5px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
               </div>
             </div>
-            <!-- QR Code — centered, large -->
-            <div style="flex:1;display:flex;justify-content:center;align-items:center;padding:6px 0 4px;">
-              ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:90px;height:90px;display:block;" />` : ''}
+            <!-- QR Code — centered, smaller -->
+            <div style="flex:1;display:flex;justify-content:center;align-items:center;padding:4px 0 2px;">
+              ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:70px;height:70px;display:block;" />` : ''}
             </div>
             <!-- Footer -->
-            <div style="height:16px;background:linear-gradient(135deg,#022c22,#064e3b);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <span style="font-size:6px;color:#fbbf24;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
+            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:10px 8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:9px;color:#fbbf24;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
             </div>
           </div>
         `;
