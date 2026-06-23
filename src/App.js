@@ -331,6 +331,18 @@ const getTrollReaction = (rank, teamName, lang, offset = 0) => {
   }
 };
 
+const compareRegNo = (a, b) => {
+  const regA = a.regno || a.regNo || '';
+  const regB = b.regno || b.regNo || '';
+  return String(regA).localeCompare(String(regB), undefined, { numeric: true, sensitivity: 'base' });
+};
+
+const compareProgCode = (a, b) => {
+  const codeA = a.code || '';
+  const codeB = b.code || '';
+  return String(codeA).localeCompare(String(codeB), undefined, { numeric: true, sensitivity: 'base' });
+};
+
 function App() {
   const [lang, setLang] = useState(() => localStorage.getItem('miladfest_lang') || 'EN');
 
@@ -641,8 +653,8 @@ function App() {
 
       if (teamsData) setTeams(teamsData);
       if (catsData) setCategories(catsData);
-      if (studentsData) setStudents(studentsData);
-      if (programsData) setPrograms(programsData);
+      if (studentsData) setStudents([...studentsData].sort(compareRegNo));
+      if (programsData) setPrograms([...programsData].sort(compareProgCode));
       if (resultsData) setResultsList(resultsData);
       if (madrasaData) {
         const [, , trollStatus, dbTrollLang] = (madrasaData.place || '').split('|');
@@ -1402,7 +1414,7 @@ function App() {
     }
     const tempId = 'temp_' + Date.now();
     const tempStudent = { id: tempId, name: newStudentName, regno: studentRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
-    setStudents(prev => [...prev, tempStudent]);
+    setStudents(prev => [...prev, tempStudent].sort(compareRegNo));
     setNewStudentName(''); setStudentRegNo('');
     const { error } = await supabase.from('students').insert([{
       name: tempStudent.name, regno: tempStudent.regno, teamid: tempStudent.teamid,
@@ -1422,7 +1434,7 @@ function App() {
   };
 
   const handleSaveStudentEdit = async () => {
-    setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData } : s));
+    setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData } : s).sort(compareRegNo));
     setEditingStudentId(null);
     const { error } = await supabase.from('students').update({
       name: editingStudentData.name,
@@ -1447,7 +1459,7 @@ function App() {
     if (!newProgName.trim() || !newProgCode.trim() || !selectedProgCat || !loggedInMadrasa) return;
     const tempId = 'temp_' + Date.now();
     const tempProg = { id: tempId, name: newProgName, code: newProgCode, catid: selectedProgCat, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
-    setPrograms(prev => [...prev, tempProg]);
+    setPrograms(prev => [...prev, tempProg].sort(compareProgCode));
     const savedName = newProgName; const savedCode = newProgCode;
     setNewProgName(''); setNewProgCode('');
     const { error } = await supabase.from('programs').insert([{
@@ -1469,7 +1481,7 @@ function App() {
   };
 
   const handleSaveProgEdit = async () => {
-    setPrograms(prev => prev.map(p => p.id === editingProgId ? { ...p, ...editingProgData } : p));
+    setPrograms(prev => prev.map(p => p.id === editingProgId ? { ...p, ...editingProgData } : p).sort(compareProgCode));
     setEditingProgId(null);
     const { error } = await supabase.from('programs').update({
       name: editingProgData.name, code: editingProgData.code,
