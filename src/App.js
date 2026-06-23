@@ -3572,13 +3572,133 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                   >
                     {timetableView === 'GRID' ? '📝 List View' : '🎴 Grid View'}
                   </button>
-                  <button 
-                    onClick={() => window.print()} 
-                    className="btn-add-action" 
-                    style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
-                  >
-                    🖨️ {t('printTimetable')}
-                  </button>
+                  {loginRole === 'ADMIN' && (
+                    <button 
+                      onClick={() => {
+                        // Build scheduled programs for print
+                        const scheduledItems = programs
+                          .map(p => {
+                            const entry = timetable.find(tt => String(tt.program_id) === String(p.id));
+                            const cat = categories.find(c => String(c.id) === String(p.catid));
+                            return { program: p, scheduled_time: entry?.scheduled_time || null, venue: entry?.venue || '', category: cat };
+                          })
+                          .filter(item => item.scheduled_time)
+                          .sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+
+                        const formatDT = (iso) => {
+                          if (!iso) return '-';
+                          return new Date(iso).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+                        };
+
+                        const appUrl = window.location.origin;
+                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(appUrl)}`;
+                        const madrasaName = loggedInMadrasa?.name || 'MILAD FEST';
+                        const regNum = loggedInMadrasa?.regNumber || '';
+                        const place = loggedInMadrasa?.place || '';
+
+                        const rowsHtml = scheduledItems.length === 0
+                          ? `<tr><td colspan="5" style="text-align:center;padding:30px;color:#64748b;font-style:italic;">No programs scheduled yet.</td></tr>`
+                          : scheduledItems.map((item, idx) => {
+                              const now = new Date();
+                              const dt = new Date(item.scheduled_time);
+                              const diff = dt - now;
+                              let badge = '';
+                              if (diff > 0) badge = `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;">UPCOMING</span>`;
+                              else if (diff <= 0 && diff > -3600000) badge = `<span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;">NOW</span>`;
+                              else badge = `<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;">DONE</span>`;
+                              return `
+                                <tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
+                                  <td style="padding:10px 14px;font-weight:bold;color:#475569;font-size:13px;">${item.program.code}</td>
+                                  <td style="padding:10px 14px;font-weight:bold;color:#1e293b;">${item.program.name}</td>
+                                  <td style="padding:10px 14px;"><span style="font-size:11px;font-weight:bold;background:#0f766e20;color:#0f766e;padding:3px 8px;border-radius:6px;">${item.category?.name || 'Common'}</span></td>
+                                  <td style="padding:10px 14px;color:#0f766e;font-weight:bold;">${formatDT(item.scheduled_time)}</td>
+                                  <td style="padding:10px 14px;">${item.venue ? `📍 ${item.venue}` : '-'} ${badge}</td>
+                                </tr>`;
+                            }).join('');
+
+                        const printHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${madrasaName} – Program Timetable</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; }
+    .page { padding:30px 36px; max-width:900px; margin:0 auto; }
+    .header { display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:3px solid #0f766e; margin-bottom:24px; }
+    .header-left { flex:1; }
+    .header-left .fest-label { font-size:11px; font-weight:700; letter-spacing:2px; color:#0f766e; text-transform:uppercase; margin-bottom:4px; }
+    .header-left h1 { font-size:26px; font-weight:800; color:#0f172a; line-height:1.2; }
+    .header-left .sub { font-size:13px; color:#64748b; margin-top:6px; }
+    .header-left .timetable-title { font-size:17px; font-weight:700; color:#0f766e; margin-top:10px; display:flex; align-items:center; gap:6px; }
+    .qr-box { text-align:center; }
+    .qr-box img { width:110px; height:110px; border:3px solid #e2e8f0; border-radius:10px; padding:4px; }
+    .qr-box .qr-label { font-size:10px; color:#94a3b8; margin-top:4px; font-weight:600; }
+    .table-wrap { border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    thead tr { background:linear-gradient(135deg,#064e3b,#0f766e); color:#fff; }
+    thead th { padding:12px 14px; text-align:left; font-size:12px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody td { border-bottom:1px solid #f1f5f9; }
+    .footer { margin-top:28px; text-align:center; font-size:11px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:14px; }
+    .footer strong { color:#0f766e; }
+    @media print {
+      body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .page { padding:20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="header-left">
+        <div class="fest-label">🕌 MILAD FEST – Official Schedule</div>
+        <h1>${madrasaName}</h1>
+        <div class="sub">Register No: <strong>${regNum}</strong>${place ? ` &nbsp;|&nbsp; ${place}` : ''}</div>
+        <div class="timetable-title">📅 Program Timetable</div>
+      </div>
+      <div class="qr-box">
+        <img src="${qrUrl}" alt="App QR Code" />
+        <div class="qr-label">Scan for Live App</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Program Name</th>
+            <th>Category</th>
+            <th>⏰ Time</th>
+            <th>📍 Venue / Status</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div class="footer">
+      Printed from <strong>MILAD FEST App</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+    </div>
+  </div>
+  <script>window.onload = function(){ window.print(); };<\/script>
+</body>
+</html>`;
+
+                        const printWin = window.open('', '_blank', 'width=960,height=700');
+                        if (printWin) {
+                          printWin.document.write(printHtml);
+                          printWin.document.close();
+                        } else {
+                          alert('Pop-up blocked! Please allow pop-ups for this site to print.');
+                        }
+                      }}
+                      className="btn-add-action" 
+                      style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
+                    >
+                      🖨️ {t('printTimetable')}
+                    </button>
+                  )}
                 </div>
               </div>
 
