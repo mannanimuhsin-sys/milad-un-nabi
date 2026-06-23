@@ -246,6 +246,61 @@ const printHtml = (htmlContent) => {
   setTimeout(runPrint, 1000);
 };
 
+const getTrollReaction = (rank, teamName, lang, offset = 0) => {
+  let hash = 0;
+  for (let i = 0; i < teamName.length; i++) {
+    hash = teamName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) + offset;
+
+  if (rank === 1) {
+    const reactions = lang === 'ML' ? [
+      { emoji: '😎', text: 'കൂടുതൽ നോക്കണ്ട, ഈ കപ്പ് ഞങ്ങൾ കൊണ്ടുപോയി! 🏆' },
+      { emoji: '😂', text: 'അണ്ണാ പതുക്കെ വാ... ഞങ്ങൾ ചായ കുടിച്ചു കാത്തിരിക്കാം! ☕😜' },
+      { emoji: '😏', text: 'ഞങ്ങളെ കാണാൻ ബൈനോക്കുലർ വേണ്ടി വരും മക്കളെ! 🔭' },
+      { emoji: '🤪', text: 'ഒന്നാം സ്ഥാനം ഞങ്ങൾ ഇങ്ങ് എടുക്കുവാട്ടോ! ആർക്കെങ്കിലും വേണോ? 🏆' },
+      { emoji: '🤩', text: 'തൊടാൻ പറ്റുമെങ്കിൽ തൊട്ടോ! ഞങ്ങൾ വളരെ മുന്നിലാണ്! 🚀' }
+    ] : [
+      { emoji: '😎', text: 'No looking back, we are taking the cup! 🏆' },
+      { emoji: '😂', text: 'Go slow bro, we are waiting for you over tea! ☕😜' },
+      { emoji: '😏', text: 'You might need binoculars to spot us! 🔭' },
+      { emoji: '🤪', text: 'First place is ours! Anyone wants to try? 🏆' },
+      { emoji: '🤩', text: 'Catch us if you can! We are far ahead! 🚀' }
+    ];
+    return reactions[index % reactions.length];
+  } else if (rank === 2 || rank === 3) {
+    const reactions = lang === 'ML' ? [
+      { emoji: '😤', text: 'തൊട്ടുപിന്നിലുണ്ട്, അഹങ്കരിക്കാൻ വരട്ടെ! 🏃‍♂️⚡' },
+      { emoji: '🔥', text: 'ഒരു മത്സരം കൂടി കഴിഞ്ഞോട്ടെ, കളി മാറും! 💥' },
+      { emoji: '👀', text: 'അത്രക്ക് അഹങ്കരിക്കേണ്ട മോനേ, ദാ ഞങ്ങൾ വരുന്നു! 👀' },
+      { emoji: '⚡', text: 'ലീഡ് കണ്ട് സന്തോഷിക്കേണ്ട, ഞങ്ങൾ തൊട്ടു പിന്നിലുണ്ട്! 🚀' },
+      { emoji: '😏', text: 'നോക്കിക്കോ, അവസാന ചിരി ഞങ്ങളുടേതായിരിക്കും! 🏆' }
+    ] : [
+      { emoji: '😤', text: 'Right behind you! Don\'t be too proud! 🏃‍♂️⚡' },
+      { emoji: '🔥', text: 'Just one more event and the tables will turn! 💥' },
+      { emoji: '👀', text: 'Don\'t celebrate early, we are coming! 👀' },
+      { emoji: '⚡', text: 'Enjoy the lead while it lasts, we are close! 🚀' },
+      { emoji: '😏', text: 'Watch out, we will have the last laugh! 🏆' }
+    ];
+    return reactions[index % reactions.length];
+  } else {
+    const reactions = lang === 'ML' ? [
+      { emoji: '😭', text: 'അണ്ണാ പതുക്കെ പോകൂ... സ്പീഡ് ലിമിറ്റ് ഉണ്ട്! 🐢⚠️' },
+      { emoji: '🤫', text: 'എല്ലാം തന്ത്രപരമായ നീക്കങ്ങളാണ്, അവസാനം കാണാം! 🧠🍿' },
+      { emoji: '🥺', text: 'ആരെങ്കിലും ഞങ്ങൾക്ക് കുറച്ചു പോയിന്റ് തരുമോ... 🥺' },
+      { emoji: '😴', text: 'ഞങ്ങൾ പതുക്കെ കേറി വരാം, നിങ്ങളൊന്ന് ഉറങ്ങിക്കോ! 💤' },
+      { emoji: '🐢', text: 'ഇതൊരു തന്ത്രപരമായ മെല്ലെപ്പോക്കാണ്, സിംഹം ഒന്നിടറിയതാ! 🦁' }
+    ] : [
+      { emoji: '😭', text: 'Go slow big brother... there is a speed limit! 🐢⚠️' },
+      { emoji: '🤫', text: 'It\'s all part of our master plan, wait for the end! 🧠🍿' },
+      { emoji: '🥺', text: 'Can someone donate some points to us please... 🥺' },
+      { emoji: '😴', text: 'We are slowly catching up, you guys go ahead and sleep! 💤' },
+      { emoji: '🐢', text: 'This is a strategic slow run, the lion just slipped! 🦁' }
+    ];
+    return reactions[index % reactions.length];
+  }
+};
+
 function App() {
   const [lang, setLang] = useState(() => localStorage.getItem('miladfest_lang') || 'EN');
 
@@ -287,6 +342,10 @@ function App() {
   // Projector Mode States
   const [isProjectorActive, setIsProjectorActive] = useState(false);
   const [projectorSlide, setProjectorSlide] = useState(0); // 0: Overall, 1: Category, 2: Recent Winners
+
+  // Troll Mode States
+  const [trollMode, setTrollMode] = useState(false);
+  const [trollOffsets, setTrollOffsets] = useState({});
 
   // PWA Install states
   // eslint-disable-next-line no-unused-vars
@@ -537,14 +596,16 @@ function App() {
         { data: studentsData },
         { data: programsData },
         { data: resultsData },
-        { data: regData }
+        { data: regData },
+        { data: madrasaData }
       ] = await Promise.all([
         supabase.from('teams').select('*').eq('madrasa_id', rNum),
         supabase.from('categories').select('*').eq('madrasa_id', rNum),
         supabase.from('students').select('*').eq('madrasa_id', rNum),
         supabase.from('programs').select('*').eq('madrasa_id', rNum),
         supabase.from('results').select('*').eq('madrasa_id', rNum),
-        supabase.from('program_registrations').select('*').eq('madrasa_id', rNum)
+        supabase.from('program_registrations').select('*').eq('madrasa_id', rNum),
+        supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle()
       ]);
 
       if (teamsData) setTeams(teamsData);
@@ -552,6 +613,10 @@ function App() {
       if (studentsData) setStudents(studentsData);
       if (programsData) setPrograms(programsData);
       if (resultsData) setResultsList(resultsData);
+      if (madrasaData) {
+        const [, , trollStatus] = (madrasaData.place || '').split('|');
+        setTrollMode(trollStatus === 'troll_on');
+      }
       if (regData) {
         const mappedRegs = regData.map(r => ({
           ...r,
@@ -948,7 +1013,7 @@ function App() {
       }
 
       if (loginPassword === madrasa.adminPassword || loginPassword === madrasa.viewPassword) {
-        const [actualPlace, status] = (madrasa.place || '').split('|');
+        const [actualPlace, status, trollStatus] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
         if (currentStatus === 'pending') {
@@ -967,6 +1032,9 @@ function App() {
         setLoginRole(role);
         setCurrentScreen('DASHBOARD');
         setActiveTab('SCOREBOARD');
+
+        // 🎭 Sync troll mode from database
+        setTrollMode(trollStatus === 'troll_on');
 
         // 💾 Save session to localStorage for auto-login
         localStorage.setItem('miladfest_session', JSON.stringify({ madrasa: sanitizedMadrasa, role }));
@@ -1144,6 +1212,33 @@ function App() {
       alert('Madrasa details updated successfully!');
       setEditingMadrasaId(null);
       fetchMadrasas();
+    }
+  };
+
+  const handleToggleTrollMode = async () => {
+    const newTrollMode = !trollMode;
+    setTrollMode(newTrollMode);
+    
+    if (loggedInMadrasa) {
+      try {
+        // Fetch current place from Supabase to preserve location name and status
+        const { data: madrasaData } = await supabase
+          .from('madrasas')
+          .select('place')
+          .eq('regNumber', loggedInMadrasa.regNumber)
+          .maybeSingle();
+
+        const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
+        const [actualPlace, status] = (fullPlace || '').split('|');
+        const updatedPlace = `${actualPlace || ''}|${status || 'approved'}|${newTrollMode ? 'troll_on' : 'troll_off'}`;
+
+        await supabase
+          .from('madrasas')
+          .update({ place: updatedPlace })
+          .eq('regNumber', loggedInMadrasa.regNumber);
+      } catch (err) {
+        console.error("Failed to sync troll mode to DB:", err);
+      }
     }
   };
 
@@ -2599,7 +2694,30 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                       <h2 style={{ fontSize: '22px', margin: '0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>{t('liveScoreboard')}</h2>
                       <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{t('realTimePoints')}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      {loginRole === 'ADMIN' && (
+                        <button 
+                          onClick={handleToggleTrollMode}
+                          style={{
+                            background: trollMode ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #059669, #047857)',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                            transition: 'all 0.2s'
+                          }}
+                          className="troll-mode-toggle-btn"
+                        >
+                          {trollMode ? (lang === 'EN' ? '😎 Troll Mode: Active' : '😎 ട്രോൾ മോഡ്: ഓൺ') : (lang === 'EN' ? '😜 Troll Mode: Off' : '😜 ട്രോൾ മോഡ്: ഓഫ്')}
+                        </button>
+                      )}
                       <button 
                         onClick={() => setIsProjectorActive(true)}
                         style={{
@@ -2656,8 +2774,31 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                   <div className="leaderboard-rank-badge">{badgeIcon}</div>
                                   <div className="leaderboard-content" style={{ flex: 1 }}>
-                                    <div className="team-meta">
-                                      <span className="team-name">{team.name}</span>
+                                    <div className="team-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <span className="team-name">{team.name}</span>
+                                        {trollMode && (() => {
+                                          const reaction = getTrollReaction(rank, team.name, lang, trollOffsets[team.id] || 0);
+                                          return (
+                                            <div 
+                                              className="troll-badge-container" 
+                                              style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
+                                              }}
+                                              title={lang === 'EN' ? 'Click to change reaction!' : 'മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക!'}
+                                            >
+                                              <span className="troll-emoji-avatar animate-troll-emoji" style={{ fontSize: '22px' }}>
+                                                {reaction.emoji}
+                                              </span>
+                                              <div className="troll-speech-bubble">
+                                                {reaction.text}
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
                                       <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
                                     </div>
                                     <div className="progress-track">
@@ -6730,7 +6871,24 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                           <div key={team.id} className={`projector-leaderboard-card ${rankClass}`}>
                             <div className="projector-card-header">
                               <span className="projector-rank-badge">{badgeIcon}</span>
-                              <span className="projector-team-name">{team.name}</span>
+                              <span className="projector-team-name" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <span>{team.name}</span>
+                                {trollMode && (() => {
+                                  const reaction = getTrollReaction(rank, team.name, lang, trollOffsets[team.id] || 0);
+                                  return (
+                                    <span 
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
+                                      }}
+                                    >
+                                      <span className="animate-troll-emoji" style={{ fontSize: '26px' }}>{reaction.emoji}</span>
+                                      <span className="projector-troll-bubble">{reaction.text}</span>
+                                    </span>
+                                  );
+                                })()}
+                              </span>
                               <span className="projector-team-score">{totalPts} <span className="score-lbl">{t('points')}</span></span>
                             </div>
                             <div className="projector-bar-track">

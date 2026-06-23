@@ -2952,4 +2952,133 @@ tr:nth-child(even) {
     .timetable-list-layout table td {
         border-bottom: 1px solid #cbd5e1 !important;
     }
-}
+}
+
+/* ==========================================================================
+   😜 TROLL / THUG MODE STYLES
+   ========================================================================== */
+
+.troll-speech-bubble {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    position: relative;
+    max-width: 250px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 8px;
+    animation: trollBubbleFloat 3s ease-in-out infinite alternate;
+}
+
+/* Arrow for the bubble */
+.troll-speech-bubble::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: #ffffff;
+    border-left: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+/* Rank specific background color for bubble to blend nicely */
+.leaderboard-item.rank-1 .troll-speech-bubble {
+    background: #fffbeb;
+    border-color: #fcd34d;
+}
+.leaderboard-item.rank-1 .troll-speech-bubble::before {
+    background: #fffbeb;
+    border-left-color: #fcd34d;
+    border-bottom-color: #fcd34d;
+}
+
+.leaderboard-item.rank-2 .troll-speech-bubble {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+.leaderboard-item.rank-2 .troll-speech-bubble::before {
+    background: #f8fafc;
+    border-left-color: #cbd5e1;
+    border-bottom-color: #cbd5e1;
+}
+
+.leaderboard-item.rank-3 .troll-speech-bubble {
+    background: #fff7ed;
+    border-color: #fdba74;
+}
+.leaderboard-item.rank-3 .troll-speech-bubble::before {
+    background: #fff7ed;
+    border-left-color: #fdba74;
+    border-bottom-color: #fdba74;
+}
+
+/* Troll emoji animation */
+.animate-troll-emoji {
+    display: inline-block;
+    animation: trollEmojiJump 1s ease-in-out infinite alternate;
+}
+
+/* Projector Troll Bubble Styles */
+.projector-troll-bubble {
+    background: rgba(15, 23, 42, 0.85);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    max-width: 380px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 10px;
+    position: relative;
+    text-transform: none; /* Keep text casing normal */
+    letter-spacing: normal;
+    animation: trollBubbleFloat 3s ease-in-out infinite alternate;
+}
+
+.projector-troll-bubble::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.projector-leaderboard-card.rank-1 .projector-troll-bubble {
+    background: #f59e0b;
+    color: #064e3b;
+    border-color: #fbbf24;
+}
+.projector-leaderboard-card.rank-1 .projector-troll-bubble::before {
+    background: #f59e0b;
+    border-left-color: #fbbf24;
+    border-bottom-color: #fbbf24;
+}
+
+/* Keyframes */
+@keyframes trollEmojiJump {
+    0% { transform: translateY(0) scale(1); }
+    100% { transform: translateY(-5px) scale(1.15); }
+}
+
+@keyframes trollBubbleFloat {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-3px); }
+}
+
