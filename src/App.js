@@ -210,13 +210,11 @@ const downloadFile = async (dataUrlOrBlob, filename, mimeType = 'image/png') => 
 const printHtml = (htmlContent) => {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.width = '1024px';
+  iframe.style.height = '768px';
   iframe.style.border = 'none';
-  iframe.style.opacity = '0';
-  iframe.style.zIndex = '-1000';
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow.document || iframe.contentDocument;
@@ -224,16 +222,28 @@ const printHtml = (htmlContent) => {
   doc.write(htmlContent);
   doc.close();
 
+  let printed = false;
   const runPrint = () => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
+    if (printed) return;
+    printed = true;
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (e) {
+      console.error('Print failed:', e);
+    }
     setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 2000);
   };
 
-  // Give resources/styles/fonts a small delay to load inside the iframe
-  setTimeout(runPrint, 500);
+  // Wait for resources to load, or fallback after 1000ms
+  iframe.contentWindow.addEventListener('load', () => {
+    setTimeout(runPrint, 400);
+  });
+  setTimeout(runPrint, 1000);
 };
 
 function App() {
@@ -3616,14 +3626,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                 </tr>`;
                             }).join('');
 
-                        const printHtml = `<!DOCTYPE html>
+                        const timetablePrintHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <title>${madrasaName} – Program Timetable</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-    * { margin:0; padding:0; box-sizing:border-box; }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; }
     .page { padding:30px 36px; max-width:900px; margin:0 auto; }
     .header { display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:3px solid #0f766e; margin-bottom:24px; }
@@ -3681,17 +3691,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       Printed from <strong>MILAD FEST App</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
     </div>
   </div>
-  <script>window.onload = function(){ window.print(); };<\/script>
 </body>
 </html>`;
 
-                        const printWin = window.open('', '_blank', 'width=960,height=700');
-                        if (printWin) {
-                          printWin.document.write(printHtml);
-                          printWin.document.close();
-                        } else {
-                          alert('Pop-up blocked! Please allow pop-ups for this site to print.');
-                        }
+                        // Use the iframe-based printHtml helper for reliable printing (no popup blocker issues)
+                        printHtml(timetablePrintHtml);
                       }}
                       className="btn-add-action" 
                       style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
