@@ -295,6 +295,11 @@ function App() {
   const [teams, setTeams] = useState([]);
   const [categories, setCategories] = useState([]);
   const [dbHasClassRange, setDbHasClassRange] = useState(false);
+  const [timetable, setTimetable] = useState([]);
+  const [timetableFilterCat, setTimetableFilterCat] = useState('ALL');
+  const [timetableView, setTimetableView] = useState('GRID'); // 'GRID' | 'LIST'
+  const [editingTimetableId, setEditingTimetableId] = useState(null);
+  const [timetableFormData, setTimetableFormData] = useState({ scheduled_time: '', venue: '' });
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
@@ -554,6 +559,17 @@ function App() {
         if (gRegData) setGroupRegistrations(gRegData);
       } catch (err) {
         console.error("Group registrations fetch failed: ", err);
+      }
+
+      // Fetch timetable in a separate block so that a missing table won't block the rest of the application
+      try {
+        const { data: ttData } = await supabase
+          .from('timetable')
+          .select('*')
+          .eq('madrasa_id', rNum);
+        if (ttData) setTimetable(ttData);
+      } catch (err) {
+        console.error("Timetable fetch failed: ", err);
       }
     } catch (err) {
       console.error("Data fetch error: ", err);
@@ -1294,6 +1310,80 @@ function App() {
       catid: editingProgData.catid, type: editingProgData.type
     }).eq('id', editingProgId);
     if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+  };
+
+  const handleSaveTimetableEntry = async (programId) => {
+    if (!loggedInMadrasa) return;
+    const madrasaId = loggedInMadrasa.regNumber;
+    const { scheduled_time, venue } = timetableFormData;
+
+    // Optimistic update
+    const updatedEntry = {
+      madrasa_id: madrasaId,
+      program_id: String(programId),
+      scheduled_time: scheduled_time ? new Date(scheduled_time).toISOString() : null,
+      venue: venue.trim()
+    };
+
+    setTimetable(prev => {
+      const exists = prev.some(t => String(t.program_id) === String(programId));
+      if (exists) {
+        return prev.map(t => String(t.program_id) === String(programId) ? { ...t, ...updatedEntry } : t);
+      } else {
+        return [...prev, updatedEntry];
+      }
+    });
+
+    setEditingTimetableId(null);
+
+    // Save to Supabase
+    const { error } = await supabase
+      .from('timetable')
+      .upsert([updatedEntry], { onConflict: 'madrasa_id,program_id' });
+
+    if (error) {
+      if (error.code === 'PGRST204' || (error.message && error.message.includes('timetable'))) {
+        // Table not found error
+        alert((lang === 'EN' ? 'Database setup required!\nPlease run this SQL in your Supabase SQL Editor to create the timetable table:\n\n' : 'ഡാറ്റാബേസ് സെറ്റപ്പ് ആവശ്യമാണ്!\nSupabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\n') + 
+          `CREATE TABLE timetable (
+  id BIGSERIAL PRIMARY KEY,
+  madrasa_id TEXT NOT NULL,
+  program_id TEXT NOT NULL,
+  scheduled_time TIMESTAMPTZ,
+  venue TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT timetable_madrasa_program_unique UNIQUE (madrasa_id, program_id)
+);
+
+-- Enable RLS
+ALTER TABLE timetable ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read" ON timetable FOR SELECT USING (true);
+CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
+      } else {
+        alert('Error saving timetable: ' + error.message);
+      }
+      // Re-fetch to sync
+      fetchSupabaseData(madrasaId);
+    }
+  };
+
+  const handleClearTimetableEntry = async (programId) => {
+    if (!window.confirm(lang === 'EN' ? 'Clear timetable for this program?' : 'ഈ പ്രോഗ്രാമിന്റെ ടൈംടേബിൾ ഒഴിവാക്കണോ?')) return;
+    if (!loggedInMadrasa) return;
+    const madrasaId = loggedInMadrasa.regNumber;
+
+    setTimetable(prev => prev.filter(t => String(t.program_id) !== String(programId)));
+
+    const { error } = await supabase
+      .from('timetable')
+      .delete()
+      .eq('madrasa_id', madrasaId)
+      .eq('program_id', String(programId));
+
+    if (error) {
+      alert('Error clearing timetable: ' + error.message);
+      fetchSupabaseData(madrasaId);
+    }
   };
 
   // ⚙️ 5. CUSTOM MARK SYSTEM SAVE
@@ -3468,6 +3558,409 @@ function App() {
             </div>
           )
         }
+
+          {/* ---------------- 📅 TAB: TIMETABLE ---------------- */}
+          {activeTab === 'TIMETABLE' && (
+            <div className="card animate-tab">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0 }}>📅 {t('timetableTitle')}</h2>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button 
+                    onClick={() => setTimetableView(prev => prev === 'GRID' ? 'LIST' : 'GRID')} 
+                    className="btn-add-action" 
+                    style={{ background: '#0f766e', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
+                  >
+                    {timetableView === 'GRID' ? '📝 List View' : '🎴 Grid View'}
+                  </button>
+                  <button 
+                    onClick={() => window.print()} 
+                    className="btn-add-action" 
+                    style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
+                  >
+                    🖨️ {t('printTimetable')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Category Filter Chips */}
+              <div className="category-chips-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '20px' }}>
+                <button 
+                  onClick={() => setTimetableFilterCat('ALL')}
+                  className={`category-chip ${timetableFilterCat === 'ALL' ? 'active' : ''}`}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: timetableFilterCat === 'ALL' ? '#0f766e' : '#f1f5f9',
+                    color: timetableFilterCat === 'ALL' ? '#fff' : '#475569',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {t('allCategories')}
+                </button>
+                {categories.map(cat => (
+                  <button 
+                    key={cat.id}
+                    onClick={() => setTimetableFilterCat(cat.id)}
+                    className={`category-chip ${String(timetableFilterCat) === String(cat.id) ? 'active' : ''}`}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      border: 'none',
+                      background: String(timetableFilterCat) === String(cat.id) ? '#0f766e' : '#f1f5f9',
+                      color: String(timetableFilterCat) === String(cat.id) ? '#fff' : '#475569',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Print Only Header */}
+              <div className="timetable-print-only-header" style={{ display: 'none', textAlign: 'center', marginBottom: '20px' }}>
+                <h1 style={{ color: '#0f766e', margin: '0 0 5px 0' }}>{loggedInMadrasa?.name || 'MILAD FEST'}</h1>
+                <p style={{ margin: 0, color: '#64748b', fontWeight: 'bold' }}>📅 {t('timetableTitle')}</p>
+                <div style={{ borderBottom: '2px solid #0f766e', margin: '15px 0' }}></div>
+              </div>
+
+              {/* Timetable List / Grid */}
+              {(() => {
+                const mappedTimetable = programs.map(p => {
+                  const entry = timetable.find(t => String(t.program_id) === String(p.id));
+                  return {
+                    program: p,
+                    scheduled_time: entry?.scheduled_time || null,
+                    venue: entry?.venue || '',
+                    category: categories.find(c => String(c.id) === String(p.catid))
+                  };
+                });
+
+                // Filter by category
+                const filteredTimetable = mappedTimetable.filter(item => {
+                  if (timetableFilterCat === 'ALL') return true;
+                  return String(item.program.catid) === String(timetableFilterCat);
+                });
+
+                // In view mode, we hide unscheduled programs from visitors to keep the schedule tidy
+                // but always show all programs for admins so they can schedule them.
+                const displayedTimetable = loginRole === 'ADMIN' 
+                  ? filteredTimetable 
+                  : filteredTimetable.filter(item => item.scheduled_time);
+
+                // Sort: Scheduled first (time asc), then unscheduled
+                const sortedTimetable = [...displayedTimetable].sort((a, b) => {
+                  if (a.scheduled_time && b.scheduled_time) {
+                    return new Date(a.scheduled_time) - new Date(b.scheduled_time);
+                  }
+                  if (a.scheduled_time) return -1;
+                  if (b.scheduled_time) return 1;
+                  return a.program.code.localeCompare(b.program.code);
+                });
+
+                if (sortedTimetable.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '10px' }}>📅</div>
+                      <p>{t('noTimetable')}</p>
+                    </div>
+                  );
+                }
+
+                // Function to format date & time nicely
+                const formatDateTime = (isoString) => {
+                  if (!isoString) return '';
+                  const date = new Date(isoString);
+                  return date.toLocaleString(lang === 'EN' ? 'en-US' : 'ml-IN', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  });
+                };
+
+                // Helper to get relative time badge
+                const getStatusBadge = (isoString) => {
+                  if (!isoString) return null;
+                  const date = new Date(isoString);
+                  const now = new Date();
+                  const diffMs = date - now;
+                  
+                  if (diffMs > 0) {
+                    return <span className="status-badge upcoming" style={{ background: '#dbeafe', color: '#1e40af', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{t('upcomingBadge')}</span>;
+                  } else if (diffMs <= 0 && diffMs > -3600000) { // 1 hour duration assumption
+                    return <span className="status-badge now-live" style={{ background: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>{t('ongoingBadge')}</span>;
+                  } else {
+                    return <span className="status-badge done" style={{ background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{t('doneBadge')}</span>;
+                  }
+                };
+
+                return (
+                  <div>
+                    {timetableView === 'GRID' ? (
+                      /* GRID VIEW */
+                      <div className="timetable-grid-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                        {sortedTimetable.map(item => {
+                          const isEditing = editingTimetableId === item.program.id;
+                          const hasTime = !!item.scheduled_time;
+                          const categoryColor = item.category?.color || '#0f766e';
+
+                          return (
+                            <div 
+                              key={item.program.id} 
+                              className={`timetable-card-item ${hasTime ? 'scheduled' : 'unscheduled'}`}
+                              style={{
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '12px',
+                                padding: '16px',
+                                background: '#fff',
+                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                position: 'relative',
+                                borderLeft: `5px solid ${categoryColor}`,
+                                transition: 'transform 0.2s, box-shadow 0.2s'
+                              }}
+                            >
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px' }}>
+                                    {item.category?.name || 'Common'}
+                                  </span>
+                                  {getStatusBadge(item.scheduled_time)}
+                                </div>
+
+                                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1e293b' }}>
+                                  {item.program.name} 
+                                  <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px', fontWeight: 'normal' }}>
+                                    ({item.program.code})
+                                  </span>
+                                </h3>
+
+                                {isEditing ? (
+                                  /* Admin Editing Form */
+                                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div>
+                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>⏰ {t('setTime')}</label>
+                                      <input 
+                                        type="datetime-local" 
+                                        value={timetableFormData.scheduled_time}
+                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
+                                        style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>📍 {t('setVenue')}</label>
+                                      <input 
+                                        type="text" 
+                                        placeholder={t('venuePlaceholder')}
+                                        value={timetableFormData.venue}
+                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
+                                        style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                                      <button 
+                                        onClick={() => handleSaveTimetableEntry(item.program.id)}
+                                        className="btn-add-action"
+                                        style={{ padding: '4px 8px', fontSize: '12px', flex: 1, background: '#10b981' }}
+                                      >
+                                        💾 Save
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingTimetableId(null)}
+                                        className="btn-add-action"
+                                        style={{ padding: '4px 8px', fontSize: '12px', flex: 1, background: '#64748b' }}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Display Info */
+                                  <div style={{ marginTop: '12px', fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}>
+                                      <span>⏰</span>
+                                      <strong>{hasTime ? formatDateTime(item.scheduled_time) : <span style={{ color: '#94a3b8', fontWeight: 'normal', fontStyle: 'italic' }}>{t('noTimetable')}</span>}</strong>
+                                    </div>
+                                    {item.venue && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}>
+                                        <span>📍</span>
+                                        <strong>{item.venue}</strong>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {loginRole === 'ADMIN' && !isEditing && (
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                                  <button 
+                                    onClick={() => {
+                                      setEditingTimetableId(item.program.id);
+                                      let localDateTime = '';
+                                      if (item.scheduled_time) {
+                                        const d = new Date(item.scheduled_time);
+                                        const tzoffset = d.getTimezoneOffset() * 60000;
+                                        localDateTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
+                                      }
+                                      setTimetableFormData({
+                                        scheduled_time: localDateTime,
+                                        venue: item.venue
+                                      });
+                                    }}
+                                    className="btn-add-action"
+                                    style={{ flex: 1, padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                                  >
+                                    ✏️ Edit
+                                  </button>
+                                  {hasTime && (
+                                    <button 
+                                      onClick={() => handleClearTimetableEntry(item.program.id)}
+                                      className="btn-add-action"
+                                      style={{ padding: '4px 8px', fontSize: '12px', background: '#ef4444' }}
+                                    >
+                                      🗑️ Clear
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* LIST / TABLE VIEW */
+                      <div className="timetable-list-layout" style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Code</th>
+                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Program</th>
+                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Category</th>
+                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Time</th>
+                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Venue</th>
+                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Status</th>
+                              {loginRole === 'ADMIN' && <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold', width: '120px' }}>Actions</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortedTimetable.map(item => {
+                              const isEditing = editingTimetableId === item.program.id;
+                              const hasTime = !!item.scheduled_time;
+                              const categoryColor = item.category?.color || '#0f766e';
+
+                              return (
+                                <tr key={item.program.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                                  <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#475569' }}>{item.program.code}</td>
+                                  <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#1e293b' }}>{item.program.name}</td>
+                                  <td style={{ padding: '12px 16px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px' }}>
+                                      {item.category?.name || 'Common'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '12px 16px', color: '#1e293b' }}>
+                                    {isEditing ? (
+                                      <input 
+                                        type="datetime-local" 
+                                        value={timetableFormData.scheduled_time}
+                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
+                                        style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                      />
+                                    ) : hasTime ? (
+                                      formatDateTime(item.scheduled_time)
+                                    ) : (
+                                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('noTimetable')}</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#334155' }}>
+                                    {isEditing ? (
+                                      <input 
+                                        type="text" 
+                                        placeholder={t('venuePlaceholder')}
+                                        value={timetableFormData.venue}
+                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
+                                        style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '120px' }}
+                                      />
+                                    ) : (
+                                      item.venue || '-'
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(item.scheduled_time)}</td>
+                                  {loginRole === 'ADMIN' && (
+                                    <td style={{ padding: '12px 16px' }}>
+                                      {isEditing ? (
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                          <button 
+                                            onClick={() => handleSaveTimetableEntry(item.program.id)}
+                                            className="btn-add-action"
+                                            style={{ padding: '3px 6px', fontSize: '11px', background: '#10b981' }}
+                                          >
+                                            Save
+                                          </button>
+                                          <button 
+                                            onClick={() => setEditingTimetableId(null)}
+                                            className="btn-add-action"
+                                            style={{ padding: '3px 6px', fontSize: '11px', background: '#64748b' }}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                          <button 
+                                            onClick={() => {
+                                              setEditingTimetableId(item.program.id);
+                                              let localDateTime = '';
+                                              if (item.scheduled_time) {
+                                                const d = new Date(item.scheduled_time);
+                                                const tzoffset = d.getTimezoneOffset() * 60000;
+                                                localDateTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
+                                              }
+                                              setTimetableFormData({
+                                                scheduled_time: localDateTime,
+                                                venue: item.venue
+                                              });
+                                            }}
+                                            className="btn-add-action"
+                                            style={{ padding: '3px 6px', fontSize: '11px' }}
+                                          >
+                                            Edit
+                                          </button>
+                                          {hasTime && (
+                                            <button 
+                                              onClick={() => handleClearTimetableEntry(item.program.id)}
+                                              className="btn-add-action"
+                                              style={{ padding: '3px 6px', fontSize: '11px', background: '#ef4444' }}
+                                            >
+                                              Clear
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* ---------------- 🎯 TAB 3: MASTER SETTINGS ---------------- */}
           {activeTab === 'SETTINGS' && (
@@ -6012,6 +6505,9 @@ function App() {
           </button>
           <button className={`nav-tab-item ${activeTab === 'RECENT' ? 'active' : ''}`} onClick={() => setActiveTab('RECENT')}>
             <span className="nav-icon">📜</span><span>{t('navResults')}</span>
+          </button>
+          <button className={`nav-tab-item ${activeTab === 'TIMETABLE' ? 'active' : ''}`} onClick={() => setActiveTab('TIMETABLE')}>
+            <span className="nav-icon">📅</span><span>{t('navTimetable')}</span>
           </button>
           <button className={`nav-tab-item ${activeTab === 'PROFILE' ? 'active' : ''}`} onClick={() => setActiveTab('PROFILE')}>
             <span className="nav-icon">👤</span><span>{t('navProfile')}</span>

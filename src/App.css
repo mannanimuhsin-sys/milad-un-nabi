@@ -2858,4 +2858,98 @@ tr:nth-child(even) {
 .btn-logout-top.lang-btn-top:hover {
     background: rgba(255, 255, 255, 0.25);
     border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ==========================================================================
+   📅 TIMETABLE CUSTOM STYLES
+   ========================================================================== */
+
+/* Keyframe for NOW live pulse animation */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.timetable-card-item {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.timetable-card-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.category-chip {
+    outline: none;
+}
+
+.category-chip:hover {
+    background: #e2e8f0 !important;
+}
+
+.category-chip.active:hover {
+    background: #0f766e !important;
+}
+
+/* Print CSS */
+@media print {
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    /* Hide everything except the print header and timetable */
+    #root > *:not(.dashboard-container),
+    .bottom-nav-bar,
+    .dashboard-header,
+    .header-buttons-wrapper,
+    .category-chips-container,
+    .btn-add-action,
+    .status-badge.upcoming,
+    .status-badge.done,
+    .status-badge.now-live,
+    button {
+        display: none !important;
+    }
+    
+    /* Ensure the main container has full width and no background */
+    .dashboard-container, .card.animate-tab {
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .timetable-print-only-header {
+        display: block !important;
+    }
+    
+    /* Adjust grid layout for print to be clean */
+    .timetable-grid-layout {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+        page-break-inside: avoid;
+    }
+    
+    .timetable-card-item {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid;
+    }
+
+    .timetable-list-layout {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+    }
+
+    .timetable-list-layout table th, 
+    .timetable-list-layout table td {
+        border-bottom: 1px solid #cbd5e1 !important;
+    }
 }

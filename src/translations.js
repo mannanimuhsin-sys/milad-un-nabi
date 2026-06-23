@@ -239,7 +239,17 @@ const translations = {
     alertNoApprovedPhotos: 'No approved photos found to export!',
     alertPDFGenerationFailed: 'PDF generation failed: ',
     alertNoIdCards: 'No ID cards to export!',
-    alertBrowserInstallPrompt: "Tap browser menu (⋮) and select 'Install app' or 'Add to Home screen'."
+    alertBrowserInstallPrompt: "Tap browser menu (⋮) and select 'Install app' or 'Add to Home screen'.",
+    navTimetable: 'Timetable',
+    timetableTitle: '📅 Program Timetable',
+    setTime: 'Set Time',
+    setVenue: 'Set Venue',
+    venuePlaceholder: 'Stage / Venue Name',
+    noTimetable: 'Timetable not set yet.',
+    printTimetable: '🖨️ Print Timetable',
+    upcomingBadge: 'UPCOMING',
+    ongoingBadge: 'NOW',
+    doneBadge: 'DONE'
   },
 
 
@@ -480,7 +490,17 @@ const translations = {
     alertNoApprovedPhotos: 'അംഗീകൃത ഫോട്ടോകൾ ഒന്നും കണ്ടെത്തിയില്ല!',
     alertPDFGenerationFailed: 'PDF ജനറേഷൻ പരാജയപ്പെട്ടു: ',
     alertNoIdCards: 'കയറ്റുമതി ചെയ്യാൻ ഐഡി കാർഡുകൾ ഒന്നുമില്ല!',
-    alertBrowserInstallPrompt: 'ബ്രൗസർ മെനു (⋮) ടാപ്പ് ചെയ്ത് \'Install app\' അല്ലെങ്കിൽ \'Add to Home screen\' തിരഞ്ഞെടുക്കുക.'
+    alertBrowserInstallPrompt: 'ബ്രൗസർ മെനു (⋮) ടാപ്പ് ചെയ്ത് \'Install app\' അല്ലെങ്കിൽ \'Add to Home screen\' തിരഞ്ഞെടുക്കുക.',
+    navTimetable: 'ടൈംടേബിൾ',
+    timetableTitle: '📅 പ്രോഗ്രാം ടൈംടേബിൾ',
+    setTime: 'സമയം നൽകുക',
+    setVenue: 'വേദി നൽകുക',
+    venuePlaceholder: 'സ്റ്റേജ് / വേദിയുടെ പേര്',
+    noTimetable: 'ടൈംടേബിൾ സെറ്റ് ചെയ്തിട്ടില്ല.',
+    printTimetable: '🖨️ ടൈംടേബിൾ പ്രിന്റ് ചെയ്യുക',
+    upcomingBadge: 'വരാനിരിക്കുന്നത്',
+    ongoingBadge: 'തുടരുന്നവ',
+    doneBadge: 'കഴിഞ്ഞവ'
   }
 };
 
