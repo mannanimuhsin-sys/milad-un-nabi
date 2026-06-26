@@ -7162,7 +7162,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 <html>
 <head>
 <title>Certificate - ${student.name}</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -7171,36 +7171,48 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     width: 1050px;
     height: 740px;
     position: relative;
-    background: #fffdf7;
+    background: radial-gradient(circle, #ffffff 0%, #faf8f2 100%);
     overflow: hidden;
   }
   .cert-border-outer {
     position: absolute;
-    top: 12px; left: 12px; right: 12px; bottom: 12px;
-    border: 3px solid #1a5e3a;
+    top: 16px; left: 16px; right: 16px; bottom: 16px;
+    border: 4px solid #1b5e20;
     border-radius: 4px;
   }
   .cert-border-inner {
     position: absolute;
-    top: 20px; left: 20px; right: 20px; bottom: 20px;
+    top: 26px; left: 26px; right: 26px; bottom: 26px;
     border: 1.5px solid #c5a44e;
     border-radius: 2px;
   }
-  .corner-ornament {
+  
+  .corner-ornament-outer {
     position: absolute;
-    width: 70px;
-    height: 70px;
-    opacity: 0.15;
+    width: 50px;
+    height: 50px;
+    z-index: 10;
   }
-  .corner-ornament.tl { top: 24px; left: 24px; border-top: 4px solid #1a5e3a; border-left: 4px solid #1a5e3a; }
-  .corner-ornament.tr { top: 24px; right: 24px; border-top: 4px solid #1a5e3a; border-right: 4px solid #1a5e3a; }
-  .corner-ornament.bl { bottom: 24px; left: 24px; border-bottom: 4px solid #1a5e3a; border-left: 4px solid #1a5e3a; }
-  .corner-ornament.br { bottom: 24px; right: 24px; border-bottom: 4px solid #1a5e3a; border-right: 4px solid #1a5e3a; }
+  .corner-ornament-outer.tl { top: 26px; left: 26px; border-top: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
+  .corner-ornament-outer.tr { top: 26px; right: 26px; border-top: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
+  .corner-ornament-outer.bl { bottom: 26px; left: 26px; border-bottom: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
+  .corner-ornament-outer.br { bottom: 26px; right: 26px; border-bottom: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
+
+  .corner-ornament-inner {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    z-index: 10;
+  }
+  .corner-ornament-inner.tl { top: 34px; left: 34px; border-top: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
+  .corner-ornament-inner.tr { top: 34px; right: 34px; border-top: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
+  .corner-ornament-inner.bl { bottom: 34px; left: 34px; border-bottom: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
+  .corner-ornament-inner.br { bottom: 34px; right: 34px; border-bottom: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
   
   .cert-content {
     position: relative;
     z-index: 2;
-    padding: 45px 60px 35px;
+    padding: 55px 75px 45px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -7210,70 +7222,149 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   
   .cert-header { text-align: center; width: 100%; }
   .cert-logo {
-    width: 80px; height: 80px; border-radius: 16px; object-fit: cover;
-    margin-bottom: 8px; border: 2px solid #1a5e3a;
-    box-shadow: 0 4px 15px rgba(26,94,58,0.2);
+    width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+    margin-bottom: 8px; border: 2.5px solid #c5a44e;
+    box-shadow: 0 4px 12px rgba(27,94,32,0.15);
   }
   .cert-org-name {
-    font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800;
-    color: #1a5e3a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 2px;
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 26px; font-weight: 800;
+    color: #1b5e20; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 2px;
   }
-  .cert-org-details { font-size: 11px; color: #666; letter-spacing: 1px; font-weight: 500; }
+  .cert-org-details { font-family: 'Inter', sans-serif; font-size: 11px; color: #555; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
   
-  .cert-divider {
-    width: 350px; height: 2px;
-    background: linear-gradient(90deg, transparent, #c5a44e, #1a5e3a, #c5a44e, transparent);
+  .cert-diamond-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin: 10px auto;
+    width: 400px;
+  }
+  .cert-diamond-line-left {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #c5a44e);
+  }
+  .cert-diamond-line-right {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to left, transparent, #c5a44e);
+  }
+  .cert-diamond-center {
+    width: 8px;
+    height: 8px;
+    background-color: #1b5e20;
+    transform: rotate(45deg);
+    margin: 0 10px;
+    border: 1.5px solid #c5a44e;
   }
   
   .cert-title-wrapper { text-align: center; }
   .cert-title {
-    font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 900;
-    color: #1a5e3a; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 4px;
-    text-shadow: 0 2px 4px rgba(26,94,58,0.1);
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 46px; font-weight: 900;
+    color: #1b5e20; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 2px;
+    text-shadow: 0 2px 4px rgba(27,94,32,0.06);
   }
-  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 20px; color: #c5a44e; margin-bottom: 2px; }
+  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 24px; color: #b8860b; margin-bottom: 2px; }
   
   .cert-body { text-align: center; width: 100%; }
   .cert-presented {
-    font-size: 14px; color: #555; letter-spacing: 2px;
-    text-transform: uppercase; font-weight: 500; margin-bottom: 10px;
+    font-family: 'Inter', sans-serif; font-size: 13px; color: #555; letter-spacing: 2px;
+    text-transform: uppercase; font-weight: 500; margin-bottom: 12px;
   }
   .cert-student-name {
-    font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 800;
-    color: #1a3a5c; border-bottom: 3px solid #c5a44e; display: inline-block;
-    padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 1px;
+    font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 800;
+    color: #111111; border-bottom: 2px solid #c5a44e; display: inline-block;
+    padding-bottom: 4px; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
   }
-  .cert-details-grid { display: flex; justify-content: center; gap: 25px; margin-bottom: 14px; flex-wrap: wrap; }
-  .cert-detail-item {
-    background: linear-gradient(135deg, #f8f6f0, #f0ede4); border: 1px solid #e0dcc8;
-    border-radius: 10px; padding: 8px 20px; text-align: center; min-width: 120px;
+  .cert-details-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    margin: 15px 0;
+    font-family: 'Inter', sans-serif;
   }
-  .cert-detail-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; margin-bottom: 2px; }
-  .cert-detail-value { font-size: 14px; font-weight: 700; color: #1a3a5c; }
+  .cert-detail-col {
+    text-align: center;
+  }
+  .cert-detail-lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    display: block;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .cert-detail-val {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1b5e20;
+  }
+  .cert-detail-divider {
+    width: 1px;
+    height: 24px;
+    background-color: #c5a44e;
+  }
   
   .cert-achievement { text-align: center; margin: 5px 0; }
-  .cert-program-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: #1a5e3a; margin-bottom: 8px; }
-  .cert-place-badge {
-    display: inline-block; background: linear-gradient(135deg, #c5a44e, #a08530); color: white;
-    padding: 8px 32px; border-radius: 30px; font-size: 16px; font-weight: 800;
-    letter-spacing: 3px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(197,164,78,0.4);
+  .cert-achievement-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #555;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-bottom: 6px;
   }
-  .cert-grade-text { margin-top: 6px; font-size: 13px; color: #888; font-weight: 500; }
+  .cert-program-name {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 24px; font-weight: 700;
+    color: #1b5e20; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;
+  }
+  .cert-award-ribbon {
+    display: inline-block;
+    background: linear-gradient(135deg, #1b5e20 0%, #124016 100%);
+    border: 2px solid #c5a44e;
+    padding: 8px 24px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(27,94,32,0.15);
+  }
+  .cert-award-place {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .cert-award-grade {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #c5a44e;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255,255,255,0.3);
+  }
   
   .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
-  .cert-date-section { text-align: center; }
-  .cert-date-value { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-  .cert-date-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 140px; }
-  .cert-sign-section { text-align: center; }
-  .cert-signature-img { width: 150px; height: auto; margin-bottom: 2px; }
-  .cert-sign-line { border-top: 1.5px solid #ccc; padding-top: 5px; min-width: 180px; }
-  .cert-sign-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; font-weight: 600; }
-  .cert-sign-role { font-size: 9px; color: #aaa; letter-spacing: 1px; }
+  .cert-date-section { text-align: left; min-width: 150px; }
+  .cert-date-value { font-size: 14px; font-weight: 600; color: #333; font-family: 'Inter', sans-serif; }
+  .cert-date-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888;
+    border-top: 1px solid #ccc; padding-top: 4px; margin-top: 4px; font-weight: 600;
+  }
+  .cert-sign-section { text-align: center; min-width: 180px; }
+  .cert-signature-img { width: 120px; height: 40px; object-fit: contain; margin-bottom: 2px; }
+  .cert-sign-line { border-top: 1px solid #ccc; padding-top: 4px; }
+  .cert-sign-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #111; font-weight: 700; }
+  .cert-sign-role { font-size: 9px; color: #777; letter-spacing: 0.5px; margin-top: 2px; }
   
   .cert-watermark {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 300px; height: 300px; opacity: 0.03; z-index: 0; pointer-events: none;
+    width: 350px; height: 350px; opacity: 0.035; z-index: 0; pointer-events: none;
   }
 </style>
 </head>
@@ -7281,10 +7372,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 <div class="certificate-wrapper" id="certificateArea">
   <div class="cert-border-outer"></div>
   <div class="cert-border-inner"></div>
-  <div class="corner-ornament tl"></div>
-  <div class="corner-ornament tr"></div>
-  <div class="corner-ornament bl"></div>
-  <div class="corner-ornament br"></div>
+  
+  <div class="corner-ornament-outer tl"></div>
+  <div class="corner-ornament-outer tr"></div>
+  <div class="corner-ornament-outer bl"></div>
+  <div class="corner-ornament-outer br"></div>
+
+  <div class="corner-ornament-inner tl"></div>
+  <div class="corner-ornament-inner tr"></div>
+  <div class="corner-ornament-inner bl"></div>
+  <div class="corner-ornament-inner br"></div>
   
   <img src="${logoUrl}" class="cert-watermark" alt="" />
   
@@ -7295,7 +7392,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
     </div>
     
-    <div class="cert-divider"></div>
+    <div class="cert-diamond-divider">
+      <div class="cert-diamond-line-left"></div>
+      <div class="cert-diamond-center"></div>
+      <div class="cert-diamond-line-right"></div>
+    </div>
     
     <div class="cert-title-wrapper">
       <div class="cert-title">Certificate</div>
@@ -7306,31 +7407,36 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       <div class="cert-presented">This is proudly presented to</div>
       <div class="cert-student-name">${student.name}</div>
       
-      <div class="cert-details-grid">
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Register No</div>
-          <div class="cert-detail-value">${sRegNo}</div>
+      <div class="cert-details-row">
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Register No</div>
+          <div class="cert-detail-val">${sRegNo}</div>
         </div>
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Team</div>
-          <div class="cert-detail-value">${teamObj ? teamObj.name : '-'}</div>
+        <div class="cert-detail-divider"></div>
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Team</div>
+          <div class="cert-detail-val">${teamObj ? teamObj.name : '-'}</div>
         </div>
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Category</div>
-          <div class="cert-detail-value">${catObj ? catObj.name : '-'}</div>
+        <div class="cert-detail-divider"></div>
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Category</div>
+          <div class="cert-detail-val">${catObj ? catObj.name : '-'}</div>
         </div>
-        <div class="cert-detail-item">
-          <div class="cert-detail-label">Gender</div>
-          <div class="cert-detail-value">${student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+        <div class="cert-detail-divider"></div>
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Gender</div>
+          <div class="cert-detail-val">${student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
         </div>
       </div>
     </div>
     
     <div class="cert-achievement">
-      <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">For Outstanding Performance in</div>
+      <div class="cert-achievement-label">For Outstanding Performance in</div>
       <div class="cert-program-name">${result.progname || result.progName}</div>
-      <div class="cert-place-badge">${placeText}</div>
-      ${gradeText ? `<div class="cert-grade-text">Grade: <b>${gradeText}</b></div>` : ''}
+      <div class="cert-award-ribbon">
+        <span class="cert-award-place">${placeText}</span>
+        ${gradeText ? `<span class="cert-award-grade">Grade: ${gradeText}</span>` : ''}
+      </div>
     </div>
     
     <div class="cert-footer">
@@ -7339,8 +7445,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         <div class="cert-date-label">Date</div>
       </div>
       <div class="cert-sign-section">
-        <img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />
-        <div class="cert-sign-line">
+        ${signatureUrl ? `<img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />` : ''}
+        <div class="cert-sign-line" style="margin-top: ${signatureUrl ? '0px' : '40px'}">
           <div class="cert-sign-label">Programme Convener</div>
           <div class="cert-sign-role">MILAD FEST Committee</div>
         </div>
@@ -7394,77 +7500,133 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                   width: '1050px',
                   height: '740px',
                   position: 'absolute',
-                  background: '#fffdf7',
+                  background: 'radial-gradient(circle, #ffffff 0%, #faf8f2 100%)',
                   overflow: 'hidden',
                   transform: 'scale(calc(min(90vw, 1050px) / 1050))',
                   transformOrigin: 'center center'
                 }}
               >
-                <div style={{ position: 'absolute', top: '12px', left: '12px', right: '12px', bottom: '12px', border: '3px solid #1a5e3a', borderRadius: '4px' }}></div>
-                <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', border: '1.5px solid #c5a44e', borderRadius: '2px' }}></div>
+                {/* Borders */}
+                <div style={{ position: 'absolute', top: '16px', left: '16px', right: '16px', bottom: '16px', border: '4px solid #1b5e20', borderRadius: '4px' }}></div>
+                <div style={{ position: 'absolute', top: '26px', left: '26px', right: '26px', bottom: '26px', border: '1.5px solid #c5a44e', borderRadius: '2px' }}></div>
                 
-                <div className="corner-ornament tl" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, top: '24px', left: '24px', borderTop: '4px solid #1a5e3a', borderLeft: '4px solid #1a5e3a' }}></div>
-                <div className="corner-ornament tr" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, top: '24px', right: '24px', borderTop: '4px solid #1a5e3a', borderRight: '4px solid #1a5e3a' }}></div>
-                <div className="corner-ornament bl" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, bottom: '24px', left: '24px', borderBottom: '4px solid #1a5e3a', borderLeft: '4px solid #1a5e3a' }}></div>
-                <div className="corner-ornament br" style={{ position: 'absolute', width: '70px', height: '70px', opacity: 0.15, bottom: '24px', right: '24px', borderBottom: '4px solid #1a5e3a', borderRight: '4px solid #1a5e3a' }}></div>
+                {/* Corner ornaments (Outer Green) */}
+                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, top: '26px', left: '26px', borderTop: '4px solid #1b5e20', borderLeft: '4px solid #1b5e20' }}></div>
+                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, top: '26px', right: '26px', borderTop: '4px solid #1b5e20', borderRight: '4px solid #1b5e20' }}></div>
+                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, bottom: '26px', left: '26px', borderBottom: '4px solid #1b5e20', borderLeft: '4px solid #1b5e20' }}></div>
+                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, bottom: '26px', right: '26px', borderBottom: '4px solid #1b5e20', borderRight: '4px solid #1b5e20' }}></div>
+
+                {/* Corner ornaments (Inner Gold) */}
+                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, top: '34px', left: '34px', borderTop: '2px solid #c5a44e', borderLeft: '2px solid #c5a44e' }}></div>
+                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, top: '34px', right: '34px', borderTop: '2px solid #c5a44e', borderRight: '2px solid #c5a44e' }}></div>
+                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, bottom: '34px', left: '34px', borderBottom: '2px solid #c5a44e', borderLeft: '2px solid #c5a44e' }}></div>
+                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, bottom: '34px', right: '34px', borderBottom: '2px solid #c5a44e', borderRight: '2px solid #c5a44e' }}></div>
                 
-                <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px', height: '300px', opacity: 0.03, zIndex: 0, pointerEvents: 'none' }} />
+                {/* Watermark logo */}
+                <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '350px', height: '350px', opacity: 0.035, zIndex: 0, pointerEvents: 'none' }} />
                 
-                <div style={{ position: 'relative', zIndex: 2, padding: '45px 60px 35px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
+                {/* Certificate Content */}
+                <div style={{ position: 'relative', zIndex: 2, padding: '55px 75px 45px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
+                  
+                  {/* Header */}
                   <div style={{ textAlign: 'center', width: '100%' }}>
-                    <img src={logoUrl} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', marginBottom: '8px', border: '2px solid #1a5e3a', boxShadow: '0 4px 15px rgba(26,94,58,0.2)' }} />
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 800, color: '#1a5e3a', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
-                    <div style={{ fontSize: '11px', color: '#666', letterSpacing: '1px', fontWeight: 500 }}>Reg No: {madrasaRegNo} | {madrasaPlace}</div>
+                    <img src={logoUrl} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', marginBottom: '8px', border: '2.5px solid #c5a44e', boxShadow: '0 4px 12px rgba(27,94,32,0.15)' }} />
+                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '26px', fontWeight: 800, color: '#1b5e20', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
+                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#555', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase' }}>Reg No: {madrasaRegNo} | {madrasaPlace}</div>
                   </div>
                   
-                  <div style={{ width: '350px', height: '2px', background: 'linear-gradient(90deg, transparent, #c5a44e, #1a5e3a, #c5a44e, transparent)', margin: '10px auto' }}></div>
+                  {/* Decorative Diamond Divider */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '10px auto', width: '400px' }}>
+                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, #c5a44e)' }}></div>
+                    <div style={{ width: '8px', height: '8px', backgroundColor: '#1b5e20', transform: 'rotate(45deg)', margin: '0 10px', border: '1.5px solid #c5a44e' }}></div>
+                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to left, transparent, #c5a44e)' }}></div>
+                  </div>
                   
+                  {/* Title */}
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '42px', fontWeight: 900, color: '#1a5e3a', letterSpacing: '6px', textTransform: 'uppercase', marginBottom: '4px', textShadow: '0 2px 4px rgba(26,94,58,0.1)' }}>Certificate</div>
-                    <div style={{ fontFamily: "'Great Vibes', cursive", fontSize: '20px', color: '#c5a44e', marginBottom: '2px' }}>of Achievement</div>
+                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '46px', fontWeight: 900, color: '#1b5e20', letterSpacing: '8px', textTransform: 'uppercase', marginBottom: '2px', textShadow: '0 2px 4px rgba(27,94,32,0.06)' }}>Certificate</div>
+                    <div style={{ fontFamily: "'Great Vibes', cursive", fontSize: '24px', color: '#b8860b', marginBottom: '2px' }}>of Achievement</div>
                   </div>
                   
+                  {/* Recipient and details */}
                   <div style={{ textAlign: 'center', width: '100%' }}>
-                    <div style={{ fontSize: '14px', color: '#555', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '10px' }}>This is proudly presented to</div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '36px', fontWeight: 800, color: '#1a3a5c', borderBottom: '3px solid #c5a44e', display: 'inline-block', paddingBottom: '6px', marginBottom: '12px', letterSpacing: '1px' }}>{student.name}</div>
+                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#555', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '12px' }}>This is proudly presented to</div>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '38px', fontWeight: 800, color: '#111111', borderBottom: '2px solid #c5a44e', display: 'inline-block', paddingBottom: '4px', marginBottom: '14px', letterSpacing: '1px', textTransform: 'uppercase' }}>{student.name}</div>
                     
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '25px', marginBottom: '14px', flexWrap: 'wrap' }}>
-                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
-                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Register No</div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{sRegNo}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '30px', margin: '15px 0', fontFamily: "'Inter', sans-serif" }}>
+                      <div>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Register No</span>
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{sRegNo}</span>
                       </div>
-                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
-                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Team</div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{teamObj ? teamObj.name : '-'}</div>
+                      <div style={{ width: '1px', height: '24px', backgroundColor: '#c5a44e' }}></div>
+                      <div>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Team</span>
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{teamObj ? teamObj.name : '-'}</span>
                       </div>
-                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
-                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Category</div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{catObj ? catObj.name : '-'}</div>
+                      <div style={{ width: '1px', height: '24px', backgroundColor: '#c5a44e' }}></div>
+                      <div>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Category</span>
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{catObj ? catObj.name : '-'}</span>
                       </div>
-                      <div style={{ background: 'linear-gradient(135deg, #f8f6f0, #f0ede4)', border: '1px solid #e0dcc8', borderRadius: '10px', padding: '8px 20px', textAlign: 'center', minWidth: '120px' }}>
-                        <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600, marginBottom: '2px' }}>Gender</div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a3a5c' }}>{student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+                      <div style={{ width: '1px', height: '24px', backgroundColor: '#c5a44e' }}></div>
+                      <div>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Gender</span>
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{student.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
                       </div>
                     </div>
                   </div>
                   
+                  {/* Achievement details */}
                   <div style={{ textAlign: 'center', margin: '5px 0' }}>
-                    <div style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>For Outstanding Performance in</div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 700, color: '#1a5e3a', marginBottom: '8px' }}>{result.progname || result.progName}</div>
-                    <div style={{ display: 'inline-block', background: 'linear-gradient(135deg, #c5a44e, #a08530)', color: 'white', padding: '8px 32px', borderRadius: '30px', fontSize: '16px', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', boxShadow: '0 4px 15px rgba(197,164,78,0.4)' }}>{placeText}</div>
-                    {gradeText && <div style={{ marginTop: '6px', fontSize: '13px', color: '#888', fontWeight: 500 }}>Grade: <b>{gradeText}</b></div>}
+                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#555', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '6px' }}>For Outstanding Performance in</div>
+                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '24px', fontWeight: 700, color: '#1b5e20', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '10px' }}>{result.progname || result.progName}</div>
+                    <div style={{
+                      display: 'inline-block',
+                      background: 'linear-gradient(135deg, #1b5e20 0%, #124016 100%)',
+                      border: '2px solid #c5a44e',
+                      padding: '8px 24px',
+                      borderRadius: '4px',
+                      boxShadow: '0 4px 12px rgba(27,94,32,0.15)'
+                    }}>
+                      <span style={{
+                        fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif",
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        color: '#ffffff',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase'
+                      }}>
+                        {placeText}
+                      </span>
+                      {gradeText && (
+                        <span style={{
+                          fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif",
+                          fontSize: '18px',
+                          fontWeight: '700',
+                          color: '#c5a44e',
+                          letterSpacing: '2px',
+                          textTransform: 'uppercase',
+                          marginLeft: '12px',
+                          paddingLeft: '12px',
+                          borderLeft: '1px solid rgba(255,255,255,0.3)'
+                        }}>
+                          Grade: {gradeText}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   
+                  {/* Signatures and Date */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', padding: '0 30px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#333', marginBottom: '4px' }}>{resultDate}</div>
-                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', borderTop: '1.5px solid #ccc', paddingTop: '5px', minWidth: '140px' }}>Date</div>
+                    <div style={{ textAlign: 'left', minWidth: '150px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '600', color: '#333', fontFamily: "'Inter', sans-serif" }}>{resultDate}</div>
+                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', borderTop: '1px solid #ccc', paddingTop: '4px', marginTop: '4px', fontWeight: '600' }}>Date</div>
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <img src={signatureUrl} alt="Signature" style={{ width: '150px', height: 'auto', marginBottom: '2px' }} />
-                      <div style={{ borderTop: '1.5px solid #ccc', paddingTop: '5px', minWidth: '180px' }}>
-                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', fontWeight: 600 }}>Programme Convener</div>
-                        <div style={{ fontSize: '9px', color: '#aaa', letterSpacing: '1px' }}>MILAD FEST Committee</div>
+                    <div style={{ textAlign: 'center', minWidth: '180px' }}>
+                      {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ width: '120px', height: '40px', objectFit: 'contain', marginBottom: '2px' }} />}
+                      <div style={{ borderTop: '1px solid #ccc', paddingTop: '4px', marginTop: signatureUrl ? '0px' : '40px' }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#111', fontWeight: '700' }}>Programme Convener</div>
+                        <div style={{ fontSize: '9px', color: '#777', letterSpacing: '0.5px', marginTop: '2px' }}>MILAD FEST Committee</div>
                       </div>
                     </div>
                   </div>
