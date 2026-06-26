@@ -3500,8 +3500,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                         <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>Enter your register number to access your profile</p>
                       </div>
                       <input
-                        type="tel"
-                        inputMode="numeric"
+                        type="text"
                         className="settings-input"
                         placeholder="Enter Register Number"
                         value={profileRegNo}
