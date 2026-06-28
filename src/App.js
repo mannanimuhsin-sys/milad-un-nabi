@@ -1400,10 +1400,12 @@ function App() {
     const { error } = await supabase.from('categories').update(updatePayload).eq('id', targetId);
     if (error) {
       alert('Error: ' + error.message);
-      fetchSupabaseData(loggedInMadrasa.regNumber);
-    } else {
+      // Roll back to server state on failure
       fetchSupabaseData(loggedInMadrasa.regNumber);
     }
+    // On success: do NOT re-fetch — the optimistic update already placed the
+    // category in the correct position. Re-fetching would return rows in DB
+    // insertion order and move the edited category to the bottom.
   };
 
   // 🧑‍🎓 3. STUDENT ACTIONS (DB uses lowercase: regno, teamid, catid)
