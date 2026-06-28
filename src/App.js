@@ -3339,7 +3339,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                 {/* Gender Tabs */}
                 {champCat && (
                   <div style={{ marginTop: '15px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>Division</label>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>Gender</label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       {['BOYS', 'GIRLS', 'GENERAL'].map(g => (
                         <button key={g} type="button"
@@ -4493,7 +4493,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                 setStudentGender(g);
                               }
                             }} required>
-                              <option value="">Select Category & Division</option>
+                              <option value="">Select Category & Gender</option>
                               {categories.map(c => (
                                 <React.Fragment key={c.id}>
                                   <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
@@ -4520,21 +4520,21 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                               const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
                               let pdfTitle = 'Registered Students List';
-                              let subtitleParts = [];
 
-                              if (studentFilterTeam !== 'ALL') {
+                              // Build smart subtitle: team names + gender, no labels
+                              let teamPart = '';
+                              if (studentFilterTeam === 'ALL') {
+                                teamPart = teams.map(t => t.name).join(' & ');
+                              } else {
                                 const tObj = teams.find(t => String(t.id) === String(studentFilterTeam));
-                                if (tObj) subtitleParts.push(`Team: ${tObj.name}`);
+                                teamPart = tObj ? tObj.name : '';
                               }
-                              if (studentFilterCat !== 'ALL') {
-                                const cObj = categories.find(c => String(c.id) === String(studentFilterCat));
-                                if (cObj) subtitleParts.push(`Category: ${cObj.name}`);
-                              }
-                              if (studentFilterGender !== 'ALL') {
-                                subtitleParts.push(`Division: ${studentFilterGender === 'BOY' ? 'Boys' : 'Girls'}`);
-                              }
+                              let genderPart = '';
+                              if (studentFilterGender === 'BOY') genderPart = 'Boys';
+                              else if (studentFilterGender === 'GIRL') genderPart = 'Girls';
+                              else genderPart = 'Common';
 
-                              const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' | ') : 'All Students';
+                              const subtitle = [teamPart, genderPart].filter(Boolean).join(' | ');
 
                               let contentHtml = '';
 
@@ -4551,14 +4551,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                     const catStudents = filteredStudents.filter(s => String(s.catid || s.catId || '') === String(cat.id));
                                     const rows = catStudents.map((s, idx) => {
                                       const sRegNo = s.regno || s.regNo || '';
-                                      const teamObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
-                                      const genderLabel = s.gender === 'BOY' ? 'Boy' : 'Girl';
                                       return `<tr>
                                         <td>${idx + 1}</td>
                                         <td><strong>${sRegNo}</strong></td>
                                         <td>${s.name}</td>
-                                        <td>${teamObj ? teamObj.name : 'N/A'}</td>
-                                        <td>${genderLabel}</td>
+                                        <td class="check-cell"></td>
                                       </tr>`;
                                     }).join('');
 
@@ -4571,8 +4568,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                               <th style="width: 8%">Sl.No</th>
                                               <th style="width: 20%">Reg. No</th>
                                               <th>Student Name</th>
-                                              <th style="width: 25%">Team / Group</th>
-                                              <th style="width: 15%">Division</th>
+                                              <th style="width: 12%">✓</th>
                                             </tr>
                                           </thead>
                                           <tbody>${rows}</tbody>
@@ -4584,16 +4580,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                 // Simple list of currently filtered students
                                 const rows = filteredStudents.map((s, idx) => {
                                   const sRegNo = s.regno || s.regNo || '';
-                                  const teamObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
-                                  const catObj = categories.find(c => String(c.id) === String(s.catid || s.catId || ''));
-                                  const genderLabel = s.gender === 'BOY' ? 'Boy' : 'Girl';
                                   return `<tr>
                                     <td>${idx + 1}</td>
                                     <td><strong>${sRegNo}</strong></td>
                                     <td>${s.name}</td>
-                                    <td>${teamObj ? teamObj.name : 'N/A'}</td>
-                                    <td>${catObj ? catObj.name : 'N/A'}</td>
-                                    <td>${genderLabel}</td>
+                                    <td class="check-cell"></td>
                                   </tr>`;
                                 }).join('');
 
@@ -4604,13 +4595,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                         <th style="width: 8%">Sl.No</th>
                                         <th style="width: 18%">Reg. No</th>
                                         <th>Student Name</th>
-                                        <th style="width: 22%">Team / Group</th>
-                                        <th style="width: 22%">Category</th>
-                                        <th style="width: 12%">Division</th>
+                                        <th style="width: 12%">✓</th>
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      ${rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px">No students found matching current filters.</td></tr>'}
+                                      ${rows || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:30px">No students found matching current filters.</td></tr>'}
                                     </tbody>
                                   </table>`;
                               }
@@ -4707,6 +4696,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   tr:last-child td { border-bottom: none; }
   tr:nth-child(even) td { background: #f8fafc; }
   td strong { color: #1e40af; }
+  .check-cell {
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 3px;
+    background: #fff !important;
+    min-width: 28px;
+    height: 24px;
+  }
   .footer {
     text-align: center;
     padding: 15px;
@@ -4804,7 +4800,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
                                   {/* 3. Gender Filter */}
                                   <div>
-                                    <div className="filter-section-title">👦/👧 Select Division</div>
+                                    <div className="filter-section-title">👦/👧 Select Gender</div>
                                     <div className="filter-chips-wrapper">
                                       <div 
                                         className={`filter-chip-box ${studentFilterGender === 'ALL' ? 'active' : ''}`}
@@ -4878,7 +4874,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                                     setEditingStudentData({ ...editingStudentData, catid: cId, catId: cId, gender: g });
                                                   }
                                                 }}>
-                                                  <option value="">Select Category & Division</option>
+                                                  <option value="">Select Category & Gender</option>
                                                   {categories.map(c => (
                                                     <React.Fragment key={c.id}>
                                                       <option value={`${c.id}_BOY`}>{c.name} - Boy</option>
@@ -4946,7 +4942,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                 setSelectedProgCat('');
                               }
                             }} required>
-                              <option value="">Select Category & Division</option>
+                              <option value="">Select Category & Gender</option>
                               {categories.map(c => (
                                 <React.Fragment key={c.id}>
                                   <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
@@ -4994,7 +4990,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                   <div class="cat-section">
                                     <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
                                     <table>
-                                      <thead><tr><th>Code</th><th>Program Name</th><th>Division</th><th>Type</th></tr></thead>
+                                      <thead><tr><th>Code</th><th>Program Name</th><th>Gender</th><th>Type</th></tr></thead>
                                       <tbody>${rows}</tbody>
                                     </table>
                                   </div>`;
@@ -5275,7 +5271,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                                       <div>
                                                         <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
                                                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
-                                                          Division: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                                          Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
                                                         </div>
                                                       </div>
                                                     </div>
