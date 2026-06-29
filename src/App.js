@@ -357,6 +357,16 @@ function App() {
     return translations[lang][key] || translations['EN'][key] || key;
   }, [lang]);
 
+  const getFriendlyErrorMessage = useCallback((errorMsg) => {
+    if (!errorMsg) return '';
+    if (errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch') || errorMsg.includes('NetworkError') || errorMsg.includes('network')) {
+      return lang === 'EN'
+        ? 'Database connection failed!\n\nIf you are using Brave browser, an Ad-blocker, or Privacy extension, please DISABLE it for this site (turn off Shields / pause blocker) and try again. Also ensure you have a stable internet connection.'
+        : 'ഡാറ്റാബേസ് കണക്ഷൻ പരാജയപ്പെട്ടു!\n\nനിങ്ങൾ Brave ബ്രൗസർ, Ad-blocker അല്ലെങ്കിൽ Privacy extension ഉപയോഗിക്കുന്നുണ്ടെങ്കിൽ, ദയവായി ഈ സൈറ്റിനായി അത് ഓഫ് ചെയ്യുക (Shields ഓഫ് ചെയ്യുക / ബ്ലോക്കർ പോസ് ചെയ്യുക). നിങ്ങളുടെ ഇന്റർനെറ്റ് കണക്ഷൻ മികച്ചതാണെന്നും ഉറപ്പുവരുത്തുക.';
+    }
+    return errorMsg;
+  }, [lang]);
+
   // ── Persistent session: restore from localStorage on first render ──
   const savedSession = (() => {
     try { return JSON.parse(localStorage.getItem('miladfest_session') || 'null'); } catch { return null; }
@@ -1417,16 +1427,22 @@ function App() {
     const tempId = 'temp_' + Date.now();
     const tempStudent = { id: tempId, name: newStudentName, regno: studentRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
     setStudents(prev => [...prev, tempStudent].sort(compareRegNo));
-    setNewStudentName(''); setStudentRegNo('');
-    const { error } = await supabase.from('students').insert([{
-      name: tempStudent.name, regno: tempStudent.regno, teamid: tempStudent.teamid,
-      catid: tempStudent.catid, gender: tempStudent.gender, madrasa_id: tempStudent.madrasa_id
-    }]);
-    if (error) {
-      alert('Error: ' + error.message);
+
+    try {
+      const { error } = await supabase.from('students').insert([{
+        name: tempStudent.name, regno: tempStudent.regno, teamid: tempStudent.teamid,
+        catid: tempStudent.catid, gender: tempStudent.gender, madrasa_id: tempStudent.madrasa_id
+      }]);
+      if (error) {
+        alert('Error: ' + getFriendlyErrorMessage(error.message));
+        setStudents(prev => prev.filter(s => s.id !== tempId));
+      } else {
+        setNewStudentName(''); setStudentRegNo('');
+        fetchSupabaseData(loggedInMadrasa.regNumber);
+      }
+    } catch (err) {
+      alert('Error: ' + getFriendlyErrorMessage(err.message));
       setStudents(prev => prev.filter(s => s.id !== tempId));
-    } else {
-      fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
 
@@ -1436,23 +1452,46 @@ function App() {
   };
 
   const handleSaveStudentEdit = async () => {
+    const originalStudents = [...students];
     setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData } : s).sort(compareRegNo));
+    const targetId = editingStudentId;
     setEditingStudentId(null);
-    const { error } = await supabase.from('students').update({
-      name: editingStudentData.name,
-      regno: editingStudentData.regno,
-      gender: editingStudentData.gender,
-      teamid: editingStudentData.teamid,
-      catid: editingStudentData.catid
-    }).eq('id', editingStudentId);
-    if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    try {
+      const { error } = await supabase.from('students').update({
+        name: editingStudentData.name,
+        regno: editingStudentData.regno,
+        gender: editingStudentData.gender,
+        teamid: editingStudentData.teamid,
+        catid: editingStudentData.catid
+      }).eq('id', targetId);
+      if (error) {
+        alert('Error: ' + getFriendlyErrorMessage(error.message));
+        setStudents(originalStudents);
+      } else {
+        fetchSupabaseData(loggedInMadrasa.regNumber);
+      }
+    } catch (err) {
+      alert('Error: ' + getFriendlyErrorMessage(err.message));
+      setStudents(originalStudents);
+    }
   };
 
   const handleDeleteStudent = async (id) => {
     if (!window.confirm('Remove this student?')) return;
+    const originalStudents = [...students];
     setStudents(prev => prev.filter(s => s.id !== id));
-    const { error } = await supabase.from('students').delete().eq('id', id);
-    if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    try {
+      const { error } = await supabase.from('students').delete().eq('id', id);
+      if (error) {
+        alert('Error: ' + getFriendlyErrorMessage(error.message));
+        setStudents(originalStudents);
+      } else {
+        fetchSupabaseData(loggedInMadrasa.regNumber);
+      }
+    } catch (err) {
+      alert('Error: ' + getFriendlyErrorMessage(err.message));
+      setStudents(originalStudents);
+    }
   };
 
   // 🏆 4. PROGRAM ACTIONS (DB uses lowercase: catid)
