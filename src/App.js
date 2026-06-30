@@ -805,6 +805,23 @@ function App() {
     };
   }, [isProjectorActive, loggedInMadrasa]);
 
+  // 🎭 Troll Mode Auto-Rotate: ഓരോ 10 മിനിറ്റിലും dialog cycle ആകും
+  useEffect(() => {
+    if (!trollMode || !teams || teams.length === 0) return;
+
+    const trollInterval = setInterval(() => {
+      setTrollOffsets(prev => {
+        const updated = { ...prev };
+        teams.forEach(team => {
+          updated[team.id] = ((prev[team.id] || 0) + 1) % 10;
+        });
+        return updated;
+      });
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => clearInterval(trollInterval);
+  }, [trollMode, teams]);
+
   // ── QR Code URL Parameter Handler ──
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
