@@ -474,6 +474,11 @@ function App() {
   const [settingsSubTab, setSettingsSubTab] = useState('TEAMS');
   const [resultsSubTab, setResultsSubTab] = useState('PROGRAM_WINNERS');
 
+  // GENERAL category feature: virtual composite category
+  const [generalCatIds, setGeneralCatIds] = useState([]); // IDs of categories included in GENERAL
+  const [showGeneralModal, setShowGeneralModal] = useState(false); // show/hide GENERAL options modal
+  const [generalModalTemp, setGeneralModalTemp] = useState([]); // temp selection inside modal
+
   // Filter states for Results tab
   const [filterCat, setFilterCat] = useState('');
   const [filterProg, setFilterProg] = useState('');
@@ -766,6 +771,18 @@ function App() {
         }
       } catch (e) {
         console.error("Failed to parse stored visibility controls", e);
+      }
+
+      // Load GENERAL category selection from localStorage
+      try {
+        const storedGeneral = localStorage.getItem(`general_cat_ids_${rNum}`);
+        if (storedGeneral) {
+          setGeneralCatIds(JSON.parse(storedGeneral));
+        } else {
+          setGeneralCatIds([]);
+        }
+      } catch (e) {
+        console.error("Failed to parse stored general category IDs", e);
       }
 
       // Checker to set default categories on first login if database is empty
@@ -3069,6 +3086,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                     <select className="settings-input" value={filterCat} onChange={(e) => { setFilterCat(e.target.value); setFilterProg(''); }}>
                       <option value="">-- Select --</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
+                      {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
                     </select>
                   </div>
 
@@ -3391,6 +3410,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                   <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampGender('BOYS'); }}>
                     <option value="">-- Select Category --</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
+                      {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
                   </select>
                 </div>
 
@@ -3425,10 +3446,19 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                   const catName = (selectedCatObj || {}).name || '';
 
                   // Filter results for this category and exclude group events
-                  const catResults = resultsList.filter(r =>
-                    (r.catname || r.catName || '') === catName &&
-                    !(r.progtype || '').includes('GROUP')
-                  );
+                  const isChampGeneral = champCat === 'GENERAL';
+                  const generalCatNames = generalCatIds.map(id => {
+                    const cObj = categories.find(c => String(c.id) === String(id));
+                    return cObj ? cObj.name : '';
+                  }).filter(Boolean);
+
+                  const catResults = resultsList.filter(r => {
+                    const rCatName = r.catname || r.catName || '';
+                    const matchCat = isChampGeneral 
+                      ? (rCatName === 'GENERAL' || generalCatNames.includes(rCatName))
+                      : rCatName === catName;
+                    return matchCat && !(r.progtype || '').includes('GROUP');
+                  });
 
                   // Filter by gender division
                   const genderFilteredResults = catResults.filter(r => {
@@ -3690,6 +3720,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                           {categories.map(c => (
                             <div key={c.id} className={`filter-chip-box ${String(profileAdminCatFilter) === String(c.id) ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter(c.id)}>{c.name}</div>
                           ))}
+                          {generalCatIds.length > 0 && (
+                            <div className={`filter-chip-box ${profileAdminCatFilter === 'GENERAL' ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter('GENERAL')} style={{ background: profileAdminCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '', fontWeight: 'bold' }}>🌟 GENERAL</div>
+                          )}
                         </div>
                       </div>
 
@@ -3698,7 +3731,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                         <h3>📋 Students Photo Approval</h3>
                         {(() => {
                           const filtered = students.filter(s => {
-                            const matchCat = profileAdminCatFilter === 'ALL' || String(s.catid || s.catId || '') === String(profileAdminCatFilter);
+                            const matchCat = profileAdminCatFilter === 'ALL'
+                              || (profileAdminCatFilter === 'GENERAL' ? generalCatIds.map(String).includes(String(s.catid || s.catId || '')) : String(s.catid || s.catId || '') === String(profileAdminCatFilter));
                             const hasPhoto = s.photo_url && s.photo_status && s.photo_status !== 'none';
                             return matchCat && hasPhoto;
                           });
@@ -3790,7 +3824,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                       {/* PDF Export Button */}
                       {(() => {
                         const approvedFiltered = students.filter(s => {
-                          const matchCat = profileAdminCatFilter === 'ALL' || String(s.catid || s.catId || '') === String(profileAdminCatFilter);
+                          const matchCat = profileAdminCatFilter === 'ALL'
+                            || (profileAdminCatFilter === 'GENERAL' ? generalCatIds.map(String).includes(String(s.catid || s.catId || '')) : String(s.catid || s.catId || '') === String(profileAdminCatFilter));
                           const matchTeam = profileAdminTeamFilter === 'ALL' || String(s.teamid || s.teamId || '') === String(profileAdminTeamFilter);
                           const matchGender = profileAdminGenderFilter === 'ALL' || (s.gender || '') === profileAdminGenderFilter;
                           return matchCat && matchTeam && matchGender;
@@ -4041,6 +4076,25 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                     {cat.name}
                   </button>
                 ))}
+                {generalCatIds.length > 0 && (
+                  <button
+                    onClick={() => setTimetableFilterCat('GENERAL')}
+                    className={`category-chip ${timetableFilterCat === 'GENERAL' ? 'active' : ''}`}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      border: 'none',
+                      background: timetableFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '#f1f5f9',
+                      color: timetableFilterCat === 'GENERAL' ? '#fff' : '#475569',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    🌟 GENERAL
+                  </button>
+                )}
               </div>
 
               {/* Print Only Header */}
@@ -4065,6 +4119,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                 // Filter by category
                 const filteredTimetable = mappedTimetable.filter(item => {
                   if (timetableFilterCat === 'ALL') return true;
+                  if (timetableFilterCat === 'GENERAL') {
+                    return String(item.program.catid) === 'GENERAL' || generalCatIds.map(String).includes(String(item.program.catid));
+                  }
                   return String(item.program.catid) === String(timetableFilterCat);
                 });
 
@@ -4475,10 +4532,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
                     {/* CATEGORIES SUB-TAB */}
                     {settingsSubTab === 'CATEGORIES' && (
-                      <div className="settings-card-v2">
-                        <div className="settings-form-box-v2">
-                          <h3>📂 Add New Category</h3>
-                          <form onSubmit={handleAddCategory} className="settings-form">
+                      <>
+                        <div className="settings-card-v2">
+                          <div className="settings-form-box-v2">
+                            <h3>📂 Add New Category</h3>
+                            <form onSubmit={handleAddCategory} className="settings-form">
                             <input type="text" className="settings-input-v2" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
                             <input type="text" className="settings-input-v2" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
                             {!dbHasClassRange && (
@@ -4522,8 +4580,106 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                               ))}
                             </div>
                           )}
+
+                          {/* ── GENERAL Special Tile ── */}
+                          <div style={{ marginTop: '20px', border: '2px solid #f59e0b', borderRadius: '14px', background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', padding: '16px', boxShadow: '0 4px 14px rgba(245,158,11,0.15)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontWeight: '900', fontSize: '18px', letterSpacing: '3px', color: '#b45309', textTransform: 'uppercase' }}>🌟 GENERAL</div>
+                                <div style={{ fontSize: '11.5px', color: '#92400e', marginTop: '4px', fontWeight: '600' }}>
+                                  {generalCatIds.length === 0
+                                    ? 'No categories selected yet. Click Options to configure.'
+                                    : `Includes: ${generalCatIds.map(id => { const cat = categories.find(c => String(c.id) === String(id)); return cat ? cat.name : ''; }).filter(Boolean).join(', ')}`
+                                  }
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => { setGeneralModalTemp([...generalCatIds]); setShowGeneralModal(true); }}
+                                style={{ background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(180,83,9,0.25)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                              >
+                                ⚙️ Options
+                              </button>
+                            </div>
+                            {generalCatIds.length > 0 && (
+                              <div style={{ marginTop: '10px' }}>
+                                <div style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', marginBottom: '6px' }}>Students in GENERAL:</div>
+                                <div style={{ fontWeight: '800', fontSize: '20px', color: '#92400e' }}>
+                                  {students.filter(s => generalCatIds.map(String).includes(String(s.catid || s.catId || ''))).length} Students
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
+
+                      {/* ── GENERAL Options Modal ── */}
+                      {showGeneralModal && (
+                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                          <div style={{ background: 'white', borderRadius: '20px', padding: '28px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                              <div>
+                                <div style={{ fontWeight: '900', fontSize: '20px', letterSpacing: '2px', color: '#b45309' }}>🌟 GENERAL Options</div>
+                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Select categories to include in GENERAL</div>
+                              </div>
+                              <button onClick={() => setShowGeneralModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: '700' }}>✕</button>
+                            </div>
+
+                            {categories.length === 0 ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No categories available. Add categories first.</p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                                {categories.map(c => {
+                                  const isSelected = generalModalTemp.map(String).includes(String(c.id));
+                                  return (
+                                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '12px', border: `2px solid ${isSelected ? '#f59e0b' : '#e2e8f0'}`, background: isSelected ? '#fffbeb' : '#f8fafc', transition: 'all 0.2s' }}>
+                                      <div>
+                                        <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{c.name}</div>
+                                        {c.classrange && <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>📚 Class: {c.classrange}</div>}
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                          {students.filter(s => String(s.catid || s.catId || '') === String(c.id)).length} students
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          if (isSelected) {
+                                            setGeneralModalTemp(prev => prev.filter(id => String(id) !== String(c.id)));
+                                          } else {
+                                            setGeneralModalTemp(prev => [...prev, c.id]);
+                                          }
+                                        }}
+                                        style={{ background: isSelected ? 'linear-gradient(135deg, #d97706, #b45309)' : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', color: isSelected ? 'white' : '#475569', border: 'none', padding: '8px 18px', borderRadius: '10px', fontWeight: '800', fontSize: '12px', cursor: 'pointer', transition: 'all 0.2s', minWidth: '90px' }}
+                                      >
+                                        {isSelected ? '✅ Selected' : 'Select'}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button
+                                onClick={() => {
+                                  setGeneralCatIds(generalModalTemp);
+                                  const rNum = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                                  if (rNum) localStorage.setItem(`general_cat_ids_${rNum}`, JSON.stringify(generalModalTemp));
+                                  setShowGeneralModal(false);
+                                }}
+                                style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
+                              >
+                                💾 Save
+                              </button>
+                              <button
+                                onClick={() => setShowGeneralModal(false)}
+                                style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      </>
                     )}
 
                     {/* STUDENTS SUB-TAB */}
@@ -4558,6 +4714,12 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                   <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
                                 </React.Fragment>
                               ))}
+                               {generalCatIds.length > 0 && (
+                                 <React.Fragment>
+                                   <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                   <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                 </React.Fragment>
+                               )}
                             </select>
 
                             <button type="submit" className="btn-premium-action">Add Student</button>
@@ -4567,7 +4729,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                           {(() => {
                             const filteredStudents = students.filter(s => {
                               const matchTeam = studentFilterTeam === 'ALL' || String(s.teamid || s.teamId || '') === String(studentFilterTeam);
-                              const matchCat = studentFilterCat === 'ALL' || String(s.catid || s.catId || '') === String(studentFilterCat);
+                              const matchCat = studentFilterCat === 'ALL'
+                                || (studentFilterCat === 'GENERAL' ? generalCatIds.map(String).includes(String(s.catid || s.catId || '')) : String(s.catid || s.catId || '') === String(studentFilterCat));
                               const matchGender = studentFilterGender === 'ALL' || (s.gender || '') === studentFilterGender;
                               return matchTeam && matchCat && matchGender;
                             });
@@ -4853,6 +5016,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                           {c.name}
                                         </div>
                                       ))}
+                                      {generalCatIds.length > 0 && (
+                                        <div
+                                          className={`filter-chip-box ${studentFilterCat === 'GENERAL' ? 'active' : ''}`}
+                                          onClick={() => setStudentFilterCat('GENERAL')}
+                                          style={{ background: studentFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '', fontWeight: '800', letterSpacing: '1px' }}
+                                        >
+                                          🌟 GENERAL
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
@@ -4939,6 +5111,12 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                                       <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
                                                     </React.Fragment>
                                                   ))}
+                                                   {generalCatIds.length > 0 && (
+                                                     <React.Fragment>
+                                                       <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                                       <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                                     </React.Fragment>
+                                                   )}
                                                 </select>
 
                                                 <div className="action-buttons-group">
@@ -5008,6 +5186,20 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                   <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                 </React.Fragment>
                               ))}
+                               {generalCatIds.length > 0 && (
+                                 <React.Fragment>
+                                   <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                   <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                   <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                 </React.Fragment>
+                               )}
+                              {generalCatIds.length > 0 && (
+                                <React.Fragment>
+                                  <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                  <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                  <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                </React.Fragment>
+                              )}
                             </select>
 
                             <select className="settings-input-v2" value={progType} onChange={(e) => setProgType(e.target.value)}>
@@ -5302,6 +5494,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                                           <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                                         </React.Fragment>
                                                       ))}
+                                                       {generalCatIds.length > 0 && (
+                                                         <React.Fragment>
+                                                           <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                                           <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                                           <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                                         </React.Fragment>
+                                                       )}
                                                     </select>
 
                                                     <select className="settings-input-v2" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
@@ -5363,6 +5562,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
                       const regStudentsFiltered = regTabCat ? students.filter(s => {
                         if (regTabGender !== 'COMMON' && s.gender !== regTabGender) return false;
+                        if (regTabCat === 'GENERAL') {
+                          return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                        }
                         if (isRegGeneral) return true;
                         return String(s.catid || s.catId || '') === String(regTabCat);
                       }) : [];
@@ -5497,6 +5699,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                           {categories.map(c => (
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                           ))}
+                                          {generalCatIds.length > 0 && (
+                                            <option value="GENERAL">🌟 GENERAL</option>
+                                          )}
                                         </select>
                                       </div>
                                     </div>
@@ -5727,6 +5932,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                           {categories.map(c => (
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                           ))}
+                                          {generalCatIds.length > 0 && (
+                                            <option value="GENERAL">🌟 GENERAL</option>
+                                          )}
                                         </select>
                                       </div>
                                     </div>
@@ -5853,6 +6061,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                             const isGeneral = catObj && catObj.name.toLowerCase().includes('general');
                                             const groupStudentsFiltered = groupRegCat ? students.filter(s => {
                                               if (groupRegGender !== 'COMMON' && s.gender !== groupRegGender) return false;
+                                              if (groupRegCat === 'GENERAL') {
+                                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                              }
                                               if (isGeneral) return true;
                                               return String(s.catid || s.catId || '') === String(groupRegCat);
                                             }) : [];
@@ -6073,6 +6284,12 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                         <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
                                       </React.Fragment>
                                     ))}
+                                     {generalCatIds.length > 0 && (
+                                       <React.Fragment>
+                                         <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                         <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                       </React.Fragment>
+                                     )}
                                   </select>
                                 </div>
                               </div>
@@ -6157,6 +6374,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                             .filter(s => {
                                               if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
                                               if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
+                                              if (selectedResultCat === 'GENERAL') {
+                                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                              }
                                               if (isGeneral) return true; // Show all students for General category!
                                               return String(s.catid || s.catId || '') === String(selectedResultCat);
                                             })
@@ -6339,6 +6559,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                           ? students.filter(s => regStudentIds.has(String(s.id)))
                           : students.filter(s => {
                               if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
+                              if (judgeSheetCat === 'GENERAL') {
+                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                              }
                               if (isGeneral) return true;
                               return String(s.catid || s.catId || '') === String(judgeSheetCat);
                             });
@@ -6577,6 +6800,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                       <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                     </React.Fragment>
                                   ))}
+                                   {generalCatIds.length > 0 && (
+                                     <React.Fragment>
+                                       <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                       <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                       <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                     </React.Fragment>
+                                   )}
                                 </select>
                               </div>
 
