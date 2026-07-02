@@ -504,6 +504,12 @@ function App() {
   const [judgeSheetGender, setJudgeSheetGender] = useState('');
   const [judgeSheetProg, setJudgeSheetProg] = useState('');
 
+  // Entry Form states
+  const [entryFormCat, setEntryFormCat] = useState('');
+  const [entryFormGender, setEntryFormGender] = useState('');
+  const [entryFormTeam, setEntryFormTeam] = useState('');
+  const [showEntryForm, setShowEntryForm] = useState(false);
+
   // ── Register Tab States ──
   const [regTabCat, setRegTabCat] = useState('');
   const [regTabGender, setRegTabGender] = useState('BOY');
@@ -6779,6 +6785,33 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
                       return (
                         <div className="settings-card-container">
+                          {/* Toggle tabs: Judge Sheet vs Entry Form */}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setShowEntryForm(false)}
+                              style={{
+                                padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer',
+                                background: !showEntryForm ? 'var(--primary-light)' : 'transparent',
+                                color: !showEntryForm ? 'white' : '#64748b',
+                                transition: 'all 0.2s'
+                              }}
+                            >📋 Judge Sheet</button>
+                            <button
+                              type="button"
+                              onClick={() => setShowEntryForm(true)}
+                              style={{
+                                padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer',
+                                background: showEntryForm ? 'var(--primary-light)' : 'transparent',
+                                color: showEntryForm ? 'white' : '#64748b',
+                                transition: 'all 0.2s'
+                              }}
+                            >📝 Entry Form</button>
+                          </div>
+
+                          {/* ── JUDGE SHEET (existing) ── */}
+                          {!showEntryForm && (
+                          <>
                           <div className="settings-form-box">
                             <h3>📋 Judge Evaluation Sheet</h3>
                             <div className="settings-form">
@@ -6881,6 +6914,356 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                               </>
                             )}
                           </div>
+                          </>
+                          )}
+
+                          {/* ── ENTRY FORM (new) ── */}
+                          {showEntryForm && (() => {
+                            // Filter students by category, gender, and team
+                            const efCatObj = categories.find(c => String(c.id) === String(entryFormCat));
+                            const isEfGeneral = efCatObj && efCatObj.name.toLowerCase().includes('general');
+
+                            const efStudents = (entryFormCat && entryFormTeam) ? students.filter(s => {
+                              // Gender filter
+                              if (entryFormGender && entryFormGender !== 'COMMON' && s.gender !== entryFormGender) return false;
+                              // Team filter
+                              if (String(s.teamid || s.teamId || '') !== String(entryFormTeam)) return false;
+                              // Category filter
+                              if (entryFormCat === 'GENERAL') {
+                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                              }
+                              if (isEfGeneral) return true;
+                              return String(s.catid || s.catId || '') === String(entryFormCat);
+                            }).sort((a, b) => {
+                              const aReg = parseInt(a.regno || a.regNo || '0') || 0;
+                              const bReg = parseInt(b.regno || b.regNo || '0') || 0;
+                              return aReg - bReg;
+                            }) : [];
+
+                            // Get programs for this category+gender (both single and group)
+                            const efAllPrograms = entryFormCat ? programs.filter(p => {
+                              if (String(p.catid || p.catId || '') !== String(entryFormCat)) return false;
+                              if (!entryFormGender || entryFormGender === 'COMMON') return true;
+                              if ((p.type || '').includes('COMMON')) return true;
+                              return (p.type || '').includes(entryFormGender);
+                            }) : [];
+
+                            const efSinglePrograms = efAllPrograms.filter(p => !(p.type || '').includes('GROUP'));
+                            const efGroupPrograms = efAllPrograms.filter(p => (p.type || '').includes('GROUP'));
+
+                            // Teams that have students in this category+gender
+                            const efTeamsWithStudents = entryFormCat ? teams.filter(t => {
+                              return students.some(s => {
+                                if (entryFormGender && entryFormGender !== 'COMMON' && s.gender !== entryFormGender) return false;
+                                if (String(s.teamid || s.teamId || '') !== String(t.id)) return false;
+                                if (entryFormCat === 'GENERAL') {
+                                  return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                }
+                                if (isEfGeneral) return true;
+                                return String(s.catid || s.catId || '') === String(entryFormCat);
+                              });
+                            }) : [];
+
+                            const efSelectedTeamObj = teams.find(t => String(t.id) === String(entryFormTeam));
+
+                            // PDF generation
+                            const handleDownloadEntryFormPDF = () => {
+                              if (!entryFormCat || !entryFormTeam) {
+                                alert('Please select a category and team first!');
+                                return;
+                              }
+                              const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                              const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                              const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                              const catName = efCatObj ? efCatObj.name : (entryFormCat === 'GENERAL' ? 'GENERAL' : '');
+                              const genderLabel = entryFormGender === 'BOY' ? 'Boys' : entryFormGender === 'GIRL' ? 'Girls' : 'Common';
+                              const teamName = efSelectedTeamObj ? efSelectedTeamObj.name : '';
+
+                              const allProgs = [...efSinglePrograms, ...efGroupPrograms];
+
+                              // Build column headers for programs
+                              const progHeaders = allProgs.map((p, idx) => {
+                                return `<th style="writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;padding:8px 3px;font-size:9px;min-width:22px;max-width:28px;letter-spacing:0.3px" title="${p.name}">${p.code || p.name}</th>`;
+                              }).join('');
+
+                              // Single/Group separator header
+                              const singleColSpan = efSinglePrograms.length;
+                              const groupColSpan = efGroupPrograms.length;
+
+                              let programGroupHeader = '';
+                              if (singleColSpan > 0) {
+                                programGroupHeader += `<th colspan="${singleColSpan}" style="text-align:center;background:#dbeafe;color:#1e40af;font-size:10px;padding:5px 2px;border:1px solid #94a3b8">Single (${singleColSpan})</th>`;
+                              }
+                              if (groupColSpan > 0) {
+                                programGroupHeader += `<th colspan="${groupColSpan}" style="text-align:center;background:#fce7f3;color:#be185d;font-size:10px;padding:5px 2px;border:1px solid #94a3b8">Group (${groupColSpan})</th>`;
+                              }
+
+                              // Build student rows
+                              const rows = efStudents.map((s) => {
+                                const sRegNo = s.regno || s.regNo || '';
+                                const sName = s.name || '';
+                                let singleCount = 0;
+                                let groupCount = 0;
+
+                                const progCells = allProgs.map((p) => {
+                                  const isGroup = (p.type || '').includes('GROUP');
+                                  let isRegistered = false;
+
+                                  if (isGroup) {
+                                    // Check group_registrations: student_ids contains this student
+                                    isRegistered = groupRegistrations.some(g => {
+                                      if (String(g.program_id) !== String(p.id)) return false;
+                                      const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                      return memberIds.some(id => String(id) === String(s.id));
+                                    });
+                                    if (isRegistered) groupCount++;
+                                  } else {
+                                    // Check program_registrations
+                                    isRegistered = programRegistrations.some(r =>
+                                      String(r.program_id || r.program_name) === String(p.id) &&
+                                      String(r.student_id) === String(s.id)
+                                    );
+                                    if (isRegistered) singleCount++;
+                                  }
+
+                                  return `<td style="text-align:center;padding:4px 2px;font-size:14px;border:1px solid #cbd5e1;${isRegistered ? 'background:#ecfdf5;' : ''}">${isRegistered ? '✓' : ''}</td>`;
+                                }).join('');
+
+                                const totalCount = singleCount + groupCount;
+
+                                return `<tr>
+                                  <td style="text-align:center;font-weight:700;font-size:12px;color:#064e3b;background:#ecfdf5;padding:6px 4px;border:1px solid #cbd5e1;white-space:nowrap">${sRegNo}</td>
+                                  <td style="padding:6px 6px;font-size:11px;font-weight:600;color:#1e293b;border:1px solid #cbd5e1;white-space:nowrap">${sName}</td>
+                                  ${progCells}
+                                  <td style="text-align:center;font-weight:800;font-size:12px;color:#064e3b;background:#f0fdf4;padding:4px;border:1px solid #cbd5e1">${singleCount}</td>
+                                  <td style="text-align:center;font-weight:800;font-size:12px;color:#7c3aed;background:#f5f3ff;padding:4px;border:1px solid #cbd5e1">${groupCount}</td>
+                                  <td style="text-align:center;font-weight:900;font-size:13px;color:#b45309;background:#fffbeb;padding:4px;border:1px solid #cbd5e1">${totalCount}</td>
+                                </tr>`;
+                              }).join('');
+
+                              const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<title>Entry Form - ${catName} ${genderLabel} - ${teamName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 landscape; margin: 10mm 10mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+  .sheet-wrapper { border: 3px solid #064e3b; border-radius: 10px; overflow: hidden; }
+  .sheet-header {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
+    color: white; text-align: center; padding: 14px 20px 10px;
+  }
+  .festival-title { font-size: 18px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
+  .madrasa-info { display: flex; justify-content: center; gap: 30px; margin-top: 6px; flex-wrap: wrap; }
+  .madrasa-info-item { display: flex; align-items: center; gap: 6px; }
+  .info-label { font-size: 9px; font-weight: 600; color: #94d0b0; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-value { font-size: 12px; font-weight: 800; color: #fbbf24; }
+  .category-bar {
+    background: #f59e0b; padding: 8px 20px;
+    display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap;
+  }
+  .cat-item { display: flex; align-items: center; gap: 6px; }
+  .cat-label { font-size: 10px; font-weight: 700; color: #78350f; text-transform: uppercase; }
+  .cat-value { font-size: 14px; font-weight: 900; color: #1c1917; }
+  .sheet-body { padding: 10px 12px 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr.group-header th { border: 1px solid #94a3b8; }
+  thead tr.prog-header th { border: 1px solid #94a3b8; }
+  th { padding: 6px 4px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; text-align: center; }
+  .main-header th { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; border: 1px solid rgba(255,255,255,0.2); }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  .sheet-footer {
+    margin-top: 16px; display: flex; justify-content: space-between;
+    padding: 0 10px; font-size: 10px; color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+<div class="sheet-wrapper">
+  <div class="sheet-header">
+    <div class="festival-title">✦ Milad Fest ✦</div>
+    <div class="madrasa-info">
+      <div class="madrasa-info-item"><span class="info-label">Madrasa:</span><span class="info-value">${madrasaName}</span></div>
+      <div class="madrasa-info-item"><span class="info-label">Reg No:</span><span class="info-value">${madrasaRegNo}</span></div>
+      <div class="madrasa-info-item"><span class="info-label">Place:</span><span class="info-value">${madrasaPlace}</span></div>
+    </div>
+  </div>
+  <div class="category-bar">
+    <div class="cat-item"><span class="cat-label">Category:</span><span class="cat-value">${catName}</span></div>
+    <div class="cat-item"><span class="cat-label">Division:</span><span class="cat-value">${genderLabel}</span></div>
+    <div class="cat-item"><span class="cat-label">Team:</span><span class="cat-value">${teamName}</span></div>
+  </div>
+  <div class="sheet-body">
+    <table>
+      <thead>
+        <tr class="group-header">
+          <th rowspan="2" style="background:#064e3b;color:white;width:55px;border:1px solid rgba(255,255,255,0.2)">Reg</th>
+          <th rowspan="2" style="background:#064e3b;color:white;min-width:100px;text-align:left;padding-left:8px;border:1px solid rgba(255,255,255,0.2)">Name</th>
+          ${programGroupHeader}
+          <th rowspan="2" style="background:#064e3b;color:white;width:30px;font-size:9px;border:1px solid rgba(255,255,255,0.2)">S</th>
+          <th rowspan="2" style="background:#064e3b;color:white;width:30px;font-size:9px;border:1px solid rgba(255,255,255,0.2)">G</th>
+          <th rowspan="2" style="background:#b45309;color:white;width:35px;font-size:9px;border:1px solid rgba(255,255,255,0.2)">Total</th>
+        </tr>
+        <tr class="prog-header" style="background:#f1f5f9">
+          ${progHeaders}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="' + (allProgs.length + 5) + '" style="text-align:center;color:#94a3b8;padding:30px">No students found.</td></tr>'}
+      </tbody>
+    </table>
+    <div class="sheet-footer">
+      <div>Total Students: ${efStudents.length} | Single Programs: ${singleColSpan} | Group Programs: ${groupColSpan} | Total Programs: ${allProgs.length}</div>
+      <div>Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+                              printHtml(html);
+                            };
+
+                            return (
+                              <>
+                              <div className="settings-form-box">
+                                <h3>📝 Entry Form</h3>
+                                <div className="settings-form">
+
+                                  {/* Step 1: Category & Division */}
+                                  <div style={{ background: '#eff6ff', padding: '12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
+                                    <select className="settings-input" value={entryFormCat && entryFormGender ? `${entryFormCat}_${entryFormGender}` : ''} onChange={e => {
+                                      const val = e.target.value;
+                                      if (!val) { setEntryFormCat(''); setEntryFormGender(''); }
+                                      else { const [cId, g] = val.split('_'); setEntryFormCat(cId); setEntryFormGender(g); }
+                                      setEntryFormTeam('');
+                                    }}>
+                                      <option value="">-- Select Category & Division --</option>
+                                      {categories.map(c => (
+                                        <React.Fragment key={c.id}>
+                                          <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                          <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                          <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                        </React.Fragment>
+                                      ))}
+                                      {generalCatIds.length > 0 && (
+                                        <React.Fragment>
+                                          <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                          <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                          <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                        </React.Fragment>
+                                      )}
+                                    </select>
+                                  </div>
+
+                                  {/* Step 2: Team */}
+                                  <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Team</label>
+                                    <select className="settings-input" value={entryFormTeam} onChange={e => setEntryFormTeam(e.target.value)} disabled={!entryFormCat}>
+                                      <option value="">{entryFormCat ? '-- Select Team --' : 'Select Category First'}</option>
+                                      {efTeamsWithStudents.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  {/* Preview info */}
+                                  {entryFormTeam && (
+                                    <div style={{ background: '#fefce8', padding: '12px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '6px' }}>📊 Preview</div>
+                                      <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.6' }}>
+                                        <strong>{efStudents.length}</strong> students in <strong>{efSelectedTeamObj ? efSelectedTeamObj.name : ''}</strong><br/>
+                                        <span style={{ color: '#064e3b' }}>Single Programs: <strong>{efSinglePrograms.length}</strong></span> | 
+                                        <span style={{ color: '#7c3aed' }}> Group Programs: <strong>{efGroupPrograms.length}</strong></span> | 
+                                        <span style={{ color: '#b45309' }}> Total: <strong>{efAllPrograms.length}</strong></span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={handleDownloadEntryFormPDF}
+                                    disabled={!entryFormTeam}
+                                    className="btn-add-action"
+                                    style={{ background: entryFormTeam ? '#064e3b' : '#94a3b8', cursor: entryFormTeam ? 'pointer' : 'not-allowed' }}
+                                  >
+                                    📥 Download Entry Form PDF
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Preview table */}
+                              {entryFormTeam && efStudents.length > 0 && (
+                                <div className="settings-list-box" style={{ maxHeight: 'none', overflowX: 'auto' }}>
+                                  <h3>📝 Entry Form Preview – {efSelectedTeamObj ? efSelectedTeamObj.name : ''}</h3>
+                                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                                    📌 {efStudents.length} students | {efSinglePrograms.length} single + {efGroupPrograms.length} group programs
+                                  </div>
+                                  <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                                      <thead>
+                                        <tr>
+                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '6px 4px', border: '1px solid #94a3b8', width: '50px' }}>Reg</th>
+                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '6px 4px', border: '1px solid #94a3b8', textAlign: 'left', minWidth: '80px' }}>Name</th>
+                                          {efSinglePrograms.length > 0 && <th colSpan={efSinglePrograms.length} style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 2px', border: '1px solid #94a3b8', fontSize: '10px' }}>Single ({efSinglePrograms.length})</th>}
+                                          {efGroupPrograms.length > 0 && <th colSpan={efGroupPrograms.length} style={{ background: '#fce7f3', color: '#be185d', padding: '4px 2px', border: '1px solid #94a3b8', fontSize: '10px' }}>Group ({efGroupPrograms.length})</th>}
+                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '25px', fontSize: '9px' }}>S</th>
+                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '25px', fontSize: '9px' }}>G</th>
+                                          <th rowSpan={2} style={{ background: '#b45309', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '30px', fontSize: '9px' }}>Total</th>
+                                        </tr>
+                                        <tr>
+                                          {[...efSinglePrograms, ...efGroupPrograms].map(p => (
+                                            <th key={p.id} style={{ background: '#f1f5f9', padding: '4px 2px', border: '1px solid #cbd5e1', fontSize: '8px', writingMode: 'vertical-rl', textOrientation: 'mixed', whiteSpace: 'nowrap', maxWidth: '24px' }} title={p.name}>
+                                              {p.code || p.name}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {efStudents.map((s, idx) => {
+                                          const sRegNo = s.regno || s.regNo || '';
+                                          let sc = 0, gc = 0;
+                                          const allProgsArr = [...efSinglePrograms, ...efGroupPrograms];
+                                          return (
+                                            <tr key={s.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                              <td style={{ textAlign: 'center', fontWeight: '700', fontSize: '11px', color: '#064e3b', background: '#ecfdf5', padding: '5px 3px', border: '1px solid #cbd5e1' }}>{sRegNo}</td>
+                                              <td style={{ padding: '5px 4px', fontWeight: '600', color: '#1e293b', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', fontSize: '10px' }}>{s.name}</td>
+                                              {allProgsArr.map(p => {
+                                                const isGroup = (p.type || '').includes('GROUP');
+                                                let isReg = false;
+                                                if (isGroup) {
+                                                  isReg = groupRegistrations.some(g => {
+                                                    if (String(g.program_id) !== String(p.id)) return false;
+                                                    const mIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                                    return mIds.some(id => String(id) === String(s.id));
+                                                  });
+                                                  if (isReg) gc++;
+                                                } else {
+                                                  isReg = programRegistrations.some(r =>
+                                                    String(r.program_id || r.program_name) === String(p.id) &&
+                                                    String(r.student_id) === String(s.id)
+                                                  );
+                                                  if (isReg) sc++;
+                                                }
+                                                return <td key={p.id} style={{ textAlign: 'center', padding: '3px', border: '1px solid #cbd5e1', fontSize: '12px', background: isReg ? '#ecfdf5' : '' }}>{isReg ? '✓' : ''}</td>;
+                                              })}
+                                              <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#064e3b', background: '#f0fdf4', padding: '3px', border: '1px solid #cbd5e1' }}>{sc}</td>
+                                              <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', padding: '3px', border: '1px solid #cbd5e1' }}>{gc}</td>
+                                              <td style={{ textAlign: 'center', fontWeight: '900', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '3px', border: '1px solid #cbd5e1' }}>{sc + gc}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                              </>
+                            );
+                          })()}
                         </div>
                       );
                     })()}
