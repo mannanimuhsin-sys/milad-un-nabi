@@ -459,6 +459,11 @@ function App() {
   const [selectedPlace, setSelectedPlace] = useState('1');
   const [selectedGrade, setSelectedGrade] = useState('A');
   const [markEntrySection, setMarkEntrySection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
+  // Result inline-edit states (Mark Entry saved list)
+  const [editingResultId, setEditingResultId] = useState(null);
+  const [editingResultPlace, setEditingResultPlace] = useState('1');
+  const [editingResultGrade, setEditingResultGrade] = useState('A');
+  const [editingResultStudent, setEditingResultStudent] = useState('');
 
   // Editing states
   const [editingStudentId, setEditingStudentId] = useState(null);
@@ -1718,6 +1723,77 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     const { error } = await supabase.from('results').delete().eq('id', id);
     if (error) alert(t('alertUnexpectedError') + error.message);
     else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+  };
+
+  const handleUpdateResult = async () => {
+    if (!editingResultId || !loggedInMadrasa) return;
+    // Find the existing record
+    const existing = resultsList.find(r => String(r.id) === String(editingResultId));
+    if (!existing) return;
+
+    const progObj = programs.find(p => String(p.id) === String(existing.progid));
+    const isGroup = progObj && (progObj.type || '').includes('GROUP');
+
+    // Resolve new student/group info
+    let newStudentName = existing.studentname;
+    let newTeamId = existing.teamid;
+    let newTeamName = existing.teamname;
+    let newGender = existing.studentgender;
+
+    if (editingResultStudent && editingResultStudent !== existing.studentname) {
+      if (isGroup) {
+        const gObj = groupRegistrations.find(g => String(g.id) === String(editingResultStudent));
+        if (gObj) {
+          newStudentName = gObj.group_name;
+          newTeamId = gObj.team_id;
+          newTeamName = (teams.find(t => String(t.id) === String(gObj.team_id)) || {}).name || '';
+          newGender = progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON';
+        }
+      } else {
+        const sObj = students.find(s => String(s.id) === String(editingResultStudent));
+        if (sObj) {
+          newStudentName = `${sObj.regno || sObj.regNo || ''} - ${sObj.name}`;
+          newTeamId = sObj.teamid;
+          newTeamName = (teams.find(t => String(t.id) === String(sObj.teamid)) || {}).name || '';
+          newGender = sObj.gender;
+        }
+      }
+    }
+
+    // Recalculate points
+    let pts = 0;
+    const placeVal = editingResultPlace;
+    const gradeVal = editingResultGrade;
+    if (placeVal === '1') pts = isGroup ? Number(pointSystem.gp1) : Number(pointSystem.p1);
+    else if (placeVal === '2') pts = isGroup ? Number(pointSystem.gp2) : Number(pointSystem.p2);
+    else if (placeVal === '3') pts = isGroup ? Number(pointSystem.gp3) : Number(pointSystem.p3);
+    if (gradeVal === 'A') pts += isGroup ? Number(pointSystem.gpA) : Number(pointSystem.gA);
+    else if (gradeVal === 'B') pts += isGroup ? Number(pointSystem.gpB) : Number(pointSystem.gB);
+    else if (gradeVal === 'C') pts += isGroup ? Number(pointSystem.gpC) : Number(pointSystem.gC);
+
+    const placeLabel = placeVal === '0' ? 'No Place' : placeVal === '1' ? 'First' : placeVal === '2' ? 'Second' : 'Third';
+    const gradeLabel = gradeVal === 'No' ? '-' : gradeVal;
+
+    const { error } = await supabase
+      .from('results')
+      .update({
+        studentname: newStudentName,
+        teamid: newTeamId,
+        teamname: newTeamName,
+        studentgender: newGender,
+        place: placeLabel,
+        grade: gradeLabel,
+        points: pts
+      })
+      .eq('id', editingResultId);
+
+    if (error) {
+      alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + error.message);
+    } else {
+      alert(lang === 'EN' ? '✅ Result updated successfully!' : '✅ ഫലം വിജയകരമായി അപ്ഡേറ്റ് ചെയ്തു!');
+      setEditingResultId(null);
+      fetchSupabaseData(loggedInMadrasa.regNumber);
+    }
   };
 
   const handleSaveGroupRegistration = async () => {
@@ -6685,6 +6761,134 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
                             </div>
                           </form>
+
+                          {/* ── Saved Results for this Program ── */}
+                          {selectedResultProg && (() => {
+                            const progSavedResults = resultsList.filter(r => String(r.progid) === String(selectedResultProg));
+                            const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
+                            const isGroup = progObj && (progObj.type || '').includes('GROUP');
+                            if (progSavedResults.length === 0) return null;
+
+                            const replacementOptions = isGroup
+                              ? groupRegistrations.filter(g => String(g.program_id) === String(selectedResultProg))
+                              : (() => {
+                                  const regStudentIds = new Set(
+                                    programRegistrations
+                                      .filter(r => String(r.program_id) === String(selectedResultProg))
+                                      .map(r => String(r.student_id))
+                                  );
+                                  return students.filter(s => {
+                                    if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
+                                    if (regStudentIds.size > 0) return regStudentIds.has(String(s.id));
+                                    return String(s.catid || s.catId || '') === String(selectedResultCat);
+                                  });
+                                })();
+
+                            const placeEmoji = { 'First': '🥇', 'Second': '🥈', 'Third': '🥉', 'No Place': '—' };
+                            const gradeBgColor = { 'A': '#dcfce7', 'B': '#dbeafe', 'C': '#fef9c3', '-': '#f1f5f9' };
+                            const gradeTextColor = { 'A': '#15803d', 'B': '#1d4ed8', 'C': '#a16207', '-': '#94a3b8' };
+
+                            return (
+                              <div style={{ marginTop: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', paddingBottom: '10px', borderBottom: '2px solid #e2e8f0' }}>
+                                  <span style={{ fontSize: '15px', fontWeight: '800', color: '#064e3b' }}>
+                                    📋 {lang === 'EN' ? 'Saved Results' : 'സേവ് ചെയ്ത ഫലങ്ങൾ'}
+                                  </span>
+                                  <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
+                                    {progSavedResults.length} {lang === 'EN' ? 'entries' : 'എൻട്രികൾ'}
+                                  </span>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                  {progSavedResults.map(r => {
+                                    const isEditing = String(editingResultId) === String(r.id);
+                                    if (isEditing) {
+                                      return (
+                                        <div key={r.id} style={{ background: 'linear-gradient(135deg,#f0fdf4,#ecfdf5)', border: '2px solid #059669', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                          <div style={{ fontWeight: '800', color: '#064e3b', fontSize: '13px' }}>
+                                            ✏️ {lang === 'EN' ? 'Editing Result' : 'ഫലം എഡിറ്റ് ചെയ്യുന്നു'}
+                                          </div>
+
+                                          <div>
+                                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>
+                                              {isGroup ? (lang === 'EN' ? 'Change Group' : 'ഗ്രൂപ്പ് മാറ്റുക') : (lang === 'EN' ? 'Change Student' : 'വിദ്യാർത്ഥിയെ മാറ്റുക')}
+                                            </label>
+                                            <select className="settings-input-v2" value={editingResultStudent} onChange={e => setEditingResultStudent(e.target.value)} style={{ fontSize: '13px' }}>
+                                              <option value="">{lang === 'EN' ? `-- Keep current (${r.studentname}) --` : `-- നിലവിലുള്ളത് നിലനിർത്തുക --`}</option>
+                                              {isGroup
+                                                ? replacementOptions.map(g => {
+                                                    const tName = (teams.find(t => String(t.id) === String(g.team_id)) || {}).name || '';
+                                                    return <option key={g.id} value={g.id}>{g.group_name} [{tName}]</option>;
+                                                  })
+                                                : replacementOptions.map(s => {
+                                                    const sReg = s.regno || s.regNo || '';
+                                                    const tName = (teams.find(t => String(t.id) === String(s.teamid)) || {}).name || '';
+                                                    return <option key={s.id} value={s.id}>{sReg} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{tName}]</option>;
+                                                  })
+                                              }
+                                            </select>
+                                          </div>
+
+                                          <div>
+                                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>🏆 {lang === 'EN' ? 'Place' : 'സ്ഥാനം'}</label>
+                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                              {[{ val: '1', label: '🥇 1st' }, { val: '2', label: '🥈 2nd' }, { val: '3', label: '🥉 3rd' }, { val: '0', label: '— No Place' }].map(opt => (
+                                                <button key={opt.val} type="button" onClick={() => setEditingResultPlace(opt.val)} style={{ padding: '6px 12px', borderRadius: '8px', border: '2px solid', fontSize: '12px', fontWeight: '800', cursor: 'pointer', borderColor: editingResultPlace === opt.val ? '#059669' : '#cbd5e1', background: editingResultPlace === opt.val ? '#059669' : '#fff', color: editingResultPlace === opt.val ? '#fff' : '#475569' }}>{opt.label}</button>
+                                              ))}
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>🎖️ {lang === 'EN' ? 'Grade' : 'ഗ്രേഡ്'}</label>
+                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                              {[{ val: 'A', label: 'A Grade' }, { val: 'B', label: 'B Grade' }, { val: 'C', label: 'C Grade' }, { val: 'No', label: 'No Grade' }].map(opt => (
+                                                <button key={opt.val} type="button" onClick={() => setEditingResultGrade(opt.val)} style={{ padding: '6px 12px', borderRadius: '8px', border: '2px solid', fontSize: '12px', fontWeight: '800', cursor: 'pointer', borderColor: editingResultGrade === opt.val ? '#2563eb' : '#cbd5e1', background: editingResultGrade === opt.val ? '#2563eb' : '#fff', color: editingResultGrade === opt.val ? '#fff' : '#475569' }}>{opt.label}</button>
+                                              ))}
+                                            </div>
+                                          </div>
+
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button type="button" onClick={handleUpdateResult} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#059669,#047857)', color: '#fff', fontWeight: '800', fontSize: '13px', cursor: 'pointer' }}>
+                                              ✅ {lang === 'EN' ? 'Save Changes' : 'മാറ്റങ്ങൾ സേവ് ചെയ്യുക'}
+                                            </button>
+                                            <button type="button" onClick={() => { setEditingResultId(null); setEditingResultStudent(''); }} style={{ padding: '10px 16px', borderRadius: '8px', border: '2px solid #e2e8f0', background: '#fff', color: '#475569', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>
+                                              ✕ {lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div key={r.id} style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '18px', minWidth: '24px', textAlign: 'center' }}>{placeEmoji[r.place] || '—'}</span>
+                                        <div style={{ flex: 1, minWidth: '120px' }}>
+                                          <div style={{ fontWeight: '800', fontSize: '13px', color: '#1e293b' }}>{r.studentname}</div>
+                                          <div style={{ fontSize: '11px', color: '#64748b' }}>{r.teamname || ''}</div>
+                                        </div>
+                                        <span style={{ background: '#fef3c7', color: '#92400e', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800' }}>{r.place}</span>
+                                        <span style={{ background: gradeBgColor[r.grade] || '#f1f5f9', color: gradeTextColor[r.grade] || '#94a3b8', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800' }}>{r.grade === '-' ? 'No Grade' : r.grade + ' Grade'}</span>
+                                        <span style={{ background: '#f0fdf4', color: '#059669', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800' }}>{r.points} pts</span>
+                                        <button type="button" onClick={() => {
+                                          setEditingResultId(r.id);
+                                          const pMap = { 'First': '1', 'Second': '2', 'Third': '3', 'No Place': '0' };
+                                          setEditingResultPlace(pMap[r.place] || '1');
+                                          const gMap = { 'A': 'A', 'B': 'B', 'C': 'C', '-': 'No' };
+                                          setEditingResultGrade(gMap[r.grade] || 'No');
+                                          setEditingResultStudent('');
+                                        }} style={{ padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #3b82f6', background: '#eff6ff', color: '#2563eb', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
+                                          ✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}
+                                        </button>
+                                        <button type="button" onClick={() => handleDeleteResult(r.id)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #ef4444', background: '#fef2f2', color: '#dc2626', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
+                                          🗑️ {lang === 'EN' ? 'Delete' : 'ഡിലീറ്റ്'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
