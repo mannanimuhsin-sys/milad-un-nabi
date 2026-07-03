@@ -5639,6 +5639,215 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                         setRegTabSaving(false);
                       };
 
+                      const handleDownloadRegSummaryPDF = () => {
+                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+
+                        const catName = regCatObj ? regCatObj.name : (regTabCat === 'GENERAL' ? 'GENERAL' : '');
+                        
+                        let genderLabel = '';
+                        if (regTabGender === 'BOY') genderLabel = lang === 'EN' ? 'Boys' : 'ആൺകുട്ടികൾ';
+                        else if (regTabGender === 'GIRL') genderLabel = lang === 'EN' ? 'Girls' : 'പെൺകുട്ടികൾ';
+                        else genderLabel = lang === 'EN' ? 'All' : 'എല്ലാവരും';
+
+                        const subtitle = `${catName} | ${genderLabel}`;
+
+                        const rows = regStudentsFiltered.map((s, idx) => {
+                          const sRegNo = s.regno || s.regNo || '';
+                          const sProgs = programRegistrations
+                            .filter(r => String(r.student_id) === String(s.id))
+                            .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
+                            .filter(Boolean);
+
+                          const sGroupProgs = groupRegistrations
+                            .filter(g => {
+                              const studentIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                              return studentIds.map(String).includes(String(s.id));
+                            })
+                            .map(g => programs.find(pr => String(pr.id) === String(g.program_id)))
+                            .filter(Boolean);
+                          
+                          const progsText = sProgs.length > 0 
+                            ? sProgs.map(p => `<span class="prog-badge">${p.code} – ${p.name}</span>`).join(' ') 
+                            : `<span class="no-prog">${lang === 'EN' ? 'No single programs' : 'സിംഗിൾ പ്രോഗ്രാമുകൾ ഇല്ല'}</span>`;
+
+                          const groupProgsText = sGroupProgs.length > 0 
+                            ? sGroupProgs.map(p => `<span class="prog-badge-group">${p.code} – ${p.name}</span>`).join(' ') 
+                            : `<span class="no-prog">${lang === 'EN' ? 'No group programs' : 'ഗ്രൂപ്പ് പ്രോഗ്രാമുകൾ ഇല്ല'}</span>`;
+
+                          return `<tr>
+                            <td style="width: 8%; text-align: center;">${idx + 1}</td>
+                            <td style="width: 12%; font-weight: bold; color: #1e40af;">${sRegNo}</td>
+                            <td style="width: 25%; font-weight: 600;">${s.name} ${s.gender === 'BOY' ? '👦' : '👧'}</td>
+                            <td style="width: 27%;">${progsText}</td>
+                            <td style="width: 28%;">${groupProgsText}</td>
+                          </tr>`;
+                        }).join('');
+
+                        const contentHtml = `
+                          <table>
+                            <thead>
+                              <tr>
+                                <th style="width: 8%; text-align: center;">${lang === 'EN' ? 'Sl.No' : 'ക്രമ നമ്പർ'}</th>
+                                <th style="width: 12%;">${lang === 'EN' ? 'Reg. No' : 'രജി. നമ്പർ'}</th>
+                                <th style="width: 25%;">${lang === 'EN' ? 'Student Name' : 'വിദ്യാർത്ഥിയുടെ പേര്'}</th>
+                                <th style="width: 27%;">${lang === 'EN' ? 'Single Programs' : 'സിംഗിൾ പ്രോഗ്രാമുകൾ'}</th>
+                                <th style="width: 28%;">${lang === 'EN' ? 'Group Programs' : 'ഗ്രൂപ്പ് പ്രോഗ്രാമുകൾ'}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${rows}
+                            </tbody>
+                          </table>`;
+
+                        const printWindow = window.open('', '_blank');
+                        printWindow.document.write(`
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                      <title>Registration Summary - ${madrasaName}</title>
+                      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Serif+Malayalam:wght@400;700&display=swap" rel="stylesheet">
+                      <style>
+                        @page { size: A4; margin: 15mm 10mm; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { font-family: 'Inter', 'Noto Serif Malayalam', sans-serif; background: #fff; color: #1e293b; padding: 10px; }
+                        .notice-board {
+                          border: 3px solid #059669;
+                          border-radius: 12px;
+                          overflow: hidden;
+                          margin-bottom: 20px;
+                          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                        }
+                        .notice-header {
+                          background: linear-gradient(135deg, #064e3b 0%, #0f766e 100%);
+                          color: white;
+                          text-align: center;
+                          padding: 20px 15px;
+                          position: relative;
+                        }
+                        .notice-header::after {
+                          content: '';
+                          display: block;
+                          width: 60px;
+                          height: 3px;
+                          background: #fbbf24;
+                          margin: 8px auto 0;
+                          border-radius: 2px;
+                        }
+                        .fest-title {
+                          font-size: 14px;
+                          font-weight: 800;
+                          color: #fbbf24;
+                          text-transform: uppercase;
+                          letter-spacing: 2px;
+                          margin-bottom: 4px;
+                        }
+                        .madrasa-name {
+                          font-size: 22px;
+                          font-weight: 800;
+                          letter-spacing: 0.5px;
+                          margin-bottom: 2px;
+                        }
+                        .madrasa-sub {
+                          font-size: 12px;
+                          opacity: 0.9;
+                        }
+                        .notice-title-bar {
+                          background: #fbbf24;
+                          color: #78350f;
+                          text-align: center;
+                          padding: 8px;
+                          font-size: 14px;
+                          font-weight: 800;
+                          letter-spacing: 0.5px;
+                          text-transform: uppercase;
+                        }
+                        .notice-body { padding: 15px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+                        th {
+                          background: #f1f5f9;
+                          color: #064e3b;
+                          font-size: 11px;
+                          font-weight: 700;
+                          text-transform: uppercase;
+                          padding: 8px 10px;
+                          text-align: left;
+                          border-bottom: 2px solid #cbd5e1;
+                        }
+                        td {
+                          padding: 8px 10px;
+                          border-bottom: 1px solid #e2e8f0;
+                          font-size: 12px;
+                          vertical-align: middle;
+                        }
+                        tr:last-child td { border-bottom: none; }
+                        tr:nth-child(even) td { background: #f8fafc; }
+                        .prog-badge {
+                          display: inline-block;
+                          background: #e6f4ea;
+                          color: #137333;
+                          border: 1px solid #a3cfbb;
+                          border-radius: 4px;
+                          padding: 2px 6px;
+                          margin: 2px;
+                          font-size: 10.5px;
+                          font-weight: 600;
+                        }
+                        .prog-badge-group {
+                          display: inline-block;
+                          background: #eff6ff;
+                          color: #1e40af;
+                          border: 1px solid #bfdbfe;
+                          border-radius: 4px;
+                          padding: 2px 6px;
+                          margin: 2px;
+                          font-size: 10.5px;
+                          font-weight: 600;
+                        }
+                        .no-prog {
+                          color: #94a3b8;
+                          font-style: italic;
+                          font-size: 11px;
+                        }
+                        @media print {
+                          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                          .no-print { display: none !important; }
+                        }
+                        .print-btn {
+                          display: block;
+                          margin: 10px auto 20px;
+                          padding: 10px 24px;
+                          background: linear-gradient(135deg, #064e3b, #0f766e);
+                          color: white;
+                          border: none;
+                          border-radius: 6px;
+                          font-size: 14px;
+                          font-weight: 700;
+                          cursor: pointer;
+                          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+                        }
+                      </style>
+                      </head>
+                      <body>
+                      <button class="print-btn no-print" onclick="window.print()">🖨️ ${lang === 'EN' ? 'Print / Download PDF' : 'പ്രിന്റ് ചെയ്യുക / പിഡിഎഫ് ഡൗൺലോഡ്'}</button>
+                      <div class="notice-board">
+                        <div class="notice-header">
+                          <div class="fest-title">✨ MILAD FEST ✨</div>
+                          <div class="madrasa-name">${madrasaName}</div>
+                          <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
+                        </div>
+                        <div class="notice-title-bar">📊 ${lang === 'EN' ? 'Registration Summary' : 'രജിസ്ട്രേഷൻ സംഗ്രഹം'} — ${subtitle}</div>
+                        <div class="notice-body">
+                          ${contentHtml}
+                        </div>
+                      </div>
+                      </body>
+                      </html>
+                        `);
+                        printWindow.document.close();
+                      };
+
                       return (
                         <div className="settings-card-v2">
                           {/* Navigation Tabs for Single vs Group Registration */}
@@ -5859,55 +6068,73 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                   ) : regStudentsFiltered.length === 0 ? (
                                     <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{lang === 'EN' ? 'No students in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ വിദ്യാർത്ഥികൾ ഇല്ല.'}</p>
                                   ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
-                                      {regStudentsFiltered.map(s => {
-                                        const sRegNo = s.regno || s.regNo || '';
-                                        const sProgs = programRegistrations
-                                          .filter(r => String(r.student_id) === String(s.id))
-                                          .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
-                                          .filter(Boolean);
-                                        const isSelected = String(regTabStudent) === String(s.id);
-                                        return (
-                                          <div key={s.id}
-                                            style={{
-                                              padding: '12px', borderRadius: '12px', cursor: 'pointer',
-                                              background: '#ffffff',
-                                              border: `1.5px solid ${isSelected ? 'var(--primary-light)' : '#e2e8f0'}`,
-                                              boxShadow: isSelected ? '0 4px 12px rgba(15, 118, 110, 0.08)' : 'none',
-                                              transition: 'all 0.15s'
-                                            }}
-                                            onClick={() => {
-                                              setRegTabStudent(String(s.id));
-                                              const existing = programRegistrations
-                                                .filter(r => String(r.student_id) === String(s.id))
-                                                .map(r => String(r.program_id));
-                                              setRegTabCheckedProgs(existing);
-                                            }}>
-                                            <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                              <span style={{
-                                                background: s.gender === 'BOY' ? '#dbeafe' : '#fce7f3',
-                                                color: s.gender === 'BOY' ? '#1e40af' : '#be185d',
-                                                borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800'
-                                              }}>{sRegNo}</span>
-                                              <span style={{ color: isSelected ? 'var(--primary-deep)' : '#1e293b' }}>{s.name}</span>
-                                              <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
-                                            </div>
-                                            {sProgs.length > 0 ? (
-                                              <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                                {sProgs.map(p => (
-                                                  <span key={p.id} style={{
-                                                    background: '#e6f4ea', color: '#137333', borderRadius: '6px',
-                                                    padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #cbd5e1'
-                                                  }}>{p.code} – {p.name}</span>
-                                                ))}
+                                    <>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
+                                        {regStudentsFiltered.map(s => {
+                                          const sRegNo = s.regno || s.regNo || '';
+                                          const sProgs = programRegistrations
+                                            .filter(r => String(r.student_id) === String(s.id))
+                                            .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
+                                            .filter(Boolean);
+                                          const isSelected = String(regTabStudent) === String(s.id);
+                                          return (
+                                            <div key={s.id}
+                                              style={{
+                                                padding: '12px', borderRadius: '12px', cursor: 'pointer',
+                                                background: '#ffffff',
+                                                border: `1.5px solid ${isSelected ? 'var(--primary-light)' : '#e2e8f0'}`,
+                                                boxShadow: isSelected ? '0 4px 12px rgba(15, 118, 110, 0.08)' : 'none',
+                                                transition: 'all 0.15s'
+                                              }}
+                                              onClick={() => {
+                                                setRegTabStudent(String(s.id));
+                                                const existing = programRegistrations
+                                                  .filter(r => String(r.student_id) === String(s.id))
+                                                  .map(r => String(r.program_id));
+                                                setRegTabCheckedProgs(existing);
+                                              }}>
+                                              <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={{
+                                                  background: s.gender === 'BOY' ? '#dbeafe' : '#fce7f3',
+                                                  color: s.gender === 'BOY' ? '#1e40af' : '#be185d',
+                                                  borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800'
+                                                }}>{sRegNo}</span>
+                                                <span style={{ color: isSelected ? 'var(--primary-deep)' : '#1e293b' }}>{s.name}</span>
+                                                <span>{s.gender === 'BOY' ? '👦' : '👧'}</span>
                                               </div>
-                                            ) : (
-                                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>{lang === 'EN' ? 'No programs registered yet' : 'പ്രോഗ്രാമുകൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല'}</div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
+                                              {sProgs.length > 0 ? (
+                                                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                  {sProgs.map(p => (
+                                                    <span key={p.id} style={{
+                                                      background: '#e6f4ea', color: '#137333', borderRadius: '6px',
+                                                      padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #cbd5e1'
+                                                    }}>{p.code} – {p.name}</span>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>{lang === 'EN' ? 'No programs registered yet' : 'പ്രോഗ്രാമുകൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല'}</div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={handleDownloadRegSummaryPDF}
+                                        className="btn-premium-action"
+                                        style={{
+                                          marginTop: '16px',
+                                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '8px'
+                                        }}
+                                      >
+                                        📄 {lang === 'EN' ? 'Download PDF Summary' : 'പിഡിഎഫ് സമ്മറി ഡൗൺലോഡ് ചെയ്യുക'}
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                               </div>
