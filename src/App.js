@@ -4524,7 +4524,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
           {/* ---------------- 🎯 TAB 3: MASTER SETTINGS ---------------- */}
           {activeTab === 'SETTINGS' && (
             <div className="card animate-tab">
-              <h2>⚙️ Master Settings (Admin Control Panel)</h2>
+              <h2>⚙️ Master Settings (Muhsin Mannani)</h2>
 
               {loginRole !== 'ADMIN' ? (
                 <div style={{ minHeight: '200px' }}></div>
