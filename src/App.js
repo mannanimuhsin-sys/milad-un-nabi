@@ -1,8 +1,9 @@
-import { supabase } from './supabaseClient';
+﻿import { supabase } from './supabaseClient';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
+import * as XLSX from 'xlsx';
 import './App.css';
 import translations from './translations';
 
@@ -443,6 +444,12 @@ function App() {
   const [selectedStudentTeam, setSelectedStudentTeam] = useState('');
   const [selectedStudentCat, setSelectedStudentCat] = useState('');
   const [studentGender, setStudentGender] = useState('BOY');
+
+  // Bulk upload states
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkUploadData, setBulkUploadData] = useState([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null); // { success, failed }
 
   // Program form states
   const [newProgName, setNewProgName] = useState('');
@@ -1490,6 +1497,126 @@ function App() {
       setStudents(prev => prev.filter(s => s.id !== tempId));
     }
   };
+
+  // ── BULK UPLOAD: Parse Excel/CSV file ──
+  const handleExcelFileRead = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBulkUploadResult(null);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        // Normalize column names (case-insensitive)
+        const normalized = rows.map((row, idx) => {
+          const keys = Object.keys(row);
+          const get = (names) => {
+            for (const n of names) {
+              const k = keys.find(k => k.trim().toLowerCase() === n.toLowerCase());
+              if (k !== undefined) return String(row[k]).trim();
+            }
+            return '';
+          };
+          return {
+            _row: idx + 2, // Excel row number (header=1)
+            name: get(['student name', 'name', 'student_name', 'studentname', 'പേര്']),
+            regno: get(['register number', 'regno', 'reg no', 'chest number', 'register_number', 'chestnumber', 'reg number', 'രജിസ്റ്റർ നമ്പർ']),
+            teamName: get(['team', 'team name', 'team_name', 'teamname', 'ടീം']),
+            catName: get(['category', 'cat', 'category name', 'cat name', 'category_name', 'കാറ്റഗറി']),
+            gender: get(['gender', 'sex', 'ജെൻഡർ', 'ലിംഗം']),
+          };
+        }).filter(r => r.name); // skip empty rows
+        setBulkUploadData(normalized);
+      } catch (err) {
+        alert('Excel file read error: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  // ── BULK UPLOAD: Submit all students ──
+  const handleBulkUploadSubmit = async () => {
+    if (!bulkUploadData.length || !loggedInMadrasa) return;
+    setBulkUploading(true);
+    setBulkUploadResult(null);
+
+    let successCount = 0;
+    const failedRows = [];
+
+    // Resolve team & category ids by name (case-insensitive)
+    const resolveTeam = (name) => {
+      if (!name) return null;
+      const t = teams.find(t => t.name.trim().toLowerCase() === name.trim().toLowerCase());
+      return t ? t.id : null;
+    };
+    const resolveCat = (name) => {
+      if (!name) return null;
+      // Check if GENERAL
+      if (name.trim().toUpperCase() === 'GENERAL') return 'GENERAL';
+      const c = categories.find(c => c.name.trim().toLowerCase() === name.trim().toLowerCase());
+      return c ? c.id : null;
+    };
+    const resolveGender = (val) => {
+      if (!val) return 'BOY';
+      const v = val.trim().toUpperCase();
+      if (v === 'GIRL' || v === 'GIRLS' || v === 'F' || v === 'FEMALE' || v === 'പെൺ' || v === 'G') return 'GIRL';
+      return 'BOY';
+    };
+
+    // Prepare records
+    const records = [];
+    for (const row of bulkUploadData) {
+      const teamid = resolveTeam(row.teamName);
+      let catid = resolveCat(row.catName);
+      const gender = resolveGender(row.gender);
+
+      if (!row.name.trim() || !row.regno.trim() || !teamid || !catid) {
+        failedRows.push({ row: row._row, name: row.name, reason: !teamid ? `Team "${row.teamName}" not found` : !catid ? `Category "${row.catName}" not found` : 'Missing name/regno' });
+        continue;
+      }
+      // For GENERAL, resolve to actual generalCatIds[0] or keep 'GENERAL' marker
+      // The app uses generalCatIds for GENERAL check; store actual catid
+      if (catid === 'GENERAL') {
+        if (generalCatIds.length > 0) {
+          catid = generalCatIds[0]; // use first general cat id
+        } else {
+          failedRows.push({ row: row._row, name: row.name, reason: 'No GENERAL category configured' });
+          continue;
+        }
+      }
+      records.push({ name: row.name.trim(), regno: row.regno.trim(), teamid, catid, gender, madrasa_id: loggedInMadrasa.regNumber });
+    }
+
+    // Insert in batches of 50
+    const BATCH = 50;
+    for (let i = 0; i < records.length; i += BATCH) {
+      const batch = records.slice(i, i + BATCH);
+      try {
+        const { error } = await supabase.from('students').insert(batch);
+        if (error) {
+          // Mark all in batch as failed
+          batch.forEach((r, j) => failedRows.push({ row: bulkUploadData[i + j]?._row || '?', name: r.name, reason: getFriendlyErrorMessage(error.message) }));
+        } else {
+          successCount += batch.length;
+        }
+      } catch (err) {
+        batch.forEach((r, j) => failedRows.push({ row: bulkUploadData[i + j]?._row || '?', name: r.name, reason: getFriendlyErrorMessage(err.message) }));
+      }
+    }
+
+    setBulkUploadResult({ success: successCount, failed: failedRows });
+    setBulkUploading(false);
+    if (successCount > 0) {
+      setBulkUploadData([]);
+      fetchSupabaseData(loggedInMadrasa.regNumber);
+    }
+  };
+
 
   const startEditStudent = (student) => {
     setEditingStudentId(student.id);
@@ -4807,6 +4934,68 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                             <button type="submit" className="btn-premium-action">Add Student</button>
                           </form>
                         </div>
+                        {/* BULK_UPLOAD_PANEL_START */}
+                        <div style={{ marginTop: '12px', borderRadius: '14px', overflow: 'hidden', border: '2px dashed #16a34a' }}>
+                          <div onClick={() => { setShowBulkUpload(p => !p); setBulkUploadData([]); setBulkUploadResult(null); }} style={{ background: 'linear-gradient(135deg,#14532d,#166534)', padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#fff', fontWeight: '700', fontSize: '15px' }}>📤 Bulk Add Students (Excel / CSV)</span>
+                            <span style={{ color: '#86efac', fontSize: '20px' }}>{showBulkUpload ? '▲' : '▼'}</span>
+                          </div>
+                          {showBulkUpload && (
+                            <div style={{ background: '#0f172a', padding: '16px' }}>
+                              <div style={{ background: '#1e293b', borderRadius: '10px', padding: '12px', marginBottom: '14px', fontSize: '12px', color: '#94a3b8' }}>
+                                <p style={{ margin: '0 0 6px', fontWeight: '700', color: '#86efac' }}>📋 Excel Column Format (Header Row Required):</p>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                  <thead><tr style={{ borderBottom: '1px solid #334155' }}>{['Student Name','Register Number','Team','Category','Gender'].map(h => <th key={h} style={{ padding: '4px 8px', textAlign: 'left', color: '#f8fafc', fontWeight: '600', fontSize: '11px' }}>{h}</th>)}</tr></thead>
+                                  <tbody><tr><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Ahmed Ali</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>101</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Red Team</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Junior</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Boy / Girl</td></tr></tbody>
+                                </table>
+                                <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: '11px' }}>Team name &amp; Category name must exactly match your account settings.</p>
+                              </div>
+                              <label style={{ display: 'block', background: '#1e293b', border: '2px dashed #334155', borderRadius: '10px', padding: '18px', textAlign: 'center', cursor: 'pointer', marginBottom: '12px' }}>
+                                <input type='file' accept='.xlsx,.xls,.csv' onChange={handleExcelFileRead} style={{ display: 'none' }} />
+                                <span style={{ color: '#86efac', fontSize: '28px' }}>📁</span>
+                                <p style={{ margin: '6px 0 0', color: '#94a3b8', fontSize: '13px' }}>Click to choose Excel (.xlsx) or CSV file</p>
+                              </label>
+                              {bulkUploadData.length > 0 && (
+                                <div style={{ marginBottom: '14px' }}>
+                                  <p style={{ color: '#86efac', fontWeight: '700', fontSize: '13px', margin: '0 0 8px' }}>✅ {bulkUploadData.length} students found – preview:</p>
+                                  <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #334155' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                      <thead><tr style={{ background: '#1e293b' }}>{['#','Name','Reg No','Team','Category','Gender'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: '#94a3b8', fontWeight: '600', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+                                      <tbody>
+                                        {bulkUploadData.slice(0, 10).map((r, i) => (
+                                          <tr key={i} style={{ background: i % 2 === 0 ? '#0f172a' : '#1e293b' }}>
+                                            <td style={{ padding: '6px 10px', color: '#64748b' }}>{r._row}</td>
+                                            <td style={{ padding: '6px 10px', color: '#f8fafc', fontWeight: '500' }}>{r.name}</td>
+                                            <td style={{ padding: '6px 10px', color: '#f8fafc' }}>{r.regno}</td>
+                                            <td style={{ padding: '6px 10px', color: '#fbbf24' }}>{r.teamName}</td>
+                                            <td style={{ padding: '6px 10px', color: '#a78bfa' }}>{r.catName}</td>
+                                            <td style={{ padding: '6px 10px', color: (r.gender||'').toUpperCase().startsWith('G') ? '#f472b6' : '#60a5fa' }}>{r.gender || 'Boy'}</td>
+                                          </tr>
+                                        ))}
+                                        {bulkUploadData.length > 10 && <tr><td colSpan={6} style={{ padding: '8px 10px', color: '#64748b', fontStyle: 'italic', textAlign: 'center' }}>...and {bulkUploadData.length - 10} more rows</td></tr>}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  <button onClick={handleBulkUploadSubmit} disabled={bulkUploading} style={{ marginTop: '12px', width: '100%', padding: '14px', background: bulkUploading ? '#374151' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: bulkUploading ? 'not-allowed' : 'pointer' }}>
+                                     {bulkUploading ? '⏳ Uploading...' : ('🚀 Upload ' + bulkUploadData.length + ' Students')}
+                                  </button>
+                                </div>
+                              )}
+                              {bulkUploadResult && (
+                                <div style={{ borderRadius: '10px', overflow: 'hidden', marginTop: '10px' }}>
+                                  <div style={{ background: '#16a34a', padding: '10px 14px', color: '#fff', fontWeight: '700', fontSize: '13px' }}>✅ {bulkUploadResult.success} students added successfully!</div>
+                                  {bulkUploadResult.failed.length > 0 && (
+                                    <div style={{ background: '#7f1d1d', padding: '10px 14px' }}>
+                                      <p style={{ color: '#fca5a5', fontWeight: '700', margin: '0 0 6px', fontSize: '13px' }}>❌ {bulkUploadResult.failed.length} rows failed:</p>
+                                      {bulkUploadResult.failed.map((f, fi) => <p key={fi} style={{ color: '#fca5a5', margin: '2px 0', fontSize: '12px' }}>Row {f.row}: {f.name} – {f.reason}</p>)}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {/* BULK_UPLOAD_PANEL_END */}
                         <div style={{ marginTop: '20px' }}>
                           {(() => {
                             const filteredStudents = students.filter(s => {
