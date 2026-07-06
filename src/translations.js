@@ -13,7 +13,7 @@ const translations = {
     loginBtn: 'Login',
     loggingIn: 'Logging in...',
     newMadrasaReg: '📝 New Madrasa Registration',
-    adminControlPanel: '⚙️ Admin Control Panel',
+    adminControlPanel: 'Muhsin Mannani',
 
     // ── Register Form ──
     newMadrasaTitle: '📝 New Madrasa Registration',
@@ -264,7 +264,7 @@ const translations = {
     loginBtn: 'ലോഗിൻ',
     loggingIn: 'ലോഗിൻ ചെയ്യുന്നു...',
     newMadrasaReg: '📝 പുതിയ മദ്രസ രജിസ്ട്രേഷൻ',
-    adminControlPanel: '⚙️ അഡ്മിൻ കൺട്രോൾ പാനൽ',
+    adminControlPanel: 'Muhsin Mannani',
 
     // ── Register Form ──
     newMadrasaTitle: '📝 പുതിയ മദ്രസ രജിസ്ട്രേഷൻ',
