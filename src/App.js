@@ -6632,55 +6632,287 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                   ) : (() => {
                                     const activeGroupRegs = groupRegistrations.filter(g => {
                                       const prog = programs.find(p => String(p.id) === String(g.program_id));
-                                      return prog && String(prog.catid || prog.catId || '') === String(groupRegCat);
+                                      if (!prog || String(prog.catid || prog.catId || '') !== String(groupRegCat)) return false;
+                                      
+                                      if (groupRegGender === 'COMMON') return true;
+                                      
+                                      const pt = prog.type || '';
+                                      const isBoyProg = pt.includes('BOY');
+                                      const isGirlProg = pt.includes('GIRL');
+                                      const isCommonProg = pt.includes('COMMON');
+                                      
+                                      if (groupRegGender === 'BOY') {
+                                        if (isBoyProg) return true;
+                                        if (isCommonProg) {
+                                          const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                          return memberIds.some(id => {
+                                            const studentObj = students.find(s => String(s.id) === String(id));
+                                            return studentObj && String(studentObj.gender).toUpperCase() === 'BOY';
+                                          });
+                                        }
+                                        return false;
+                                      }
+                                      
+                                      if (groupRegGender === 'GIRL') {
+                                        if (isGirlProg) return true;
+                                        if (isCommonProg) {
+                                          const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                          return memberIds.some(id => {
+                                            const studentObj = students.find(s => String(s.id) === String(id));
+                                            return studentObj && String(studentObj.gender).toUpperCase() === 'GIRL';
+                                          });
+                                        }
+                                        return false;
+                                      }
+                                      
+                                      return false;
                                     });
+
+                                    const generateGroupRegsPDF = () => {
+                                      const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                                      const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                                      const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+
+                                      const catObj = categories.find(c => String(c.id) === String(groupRegCat));
+                                      const catName = catObj ? catObj.name : (groupRegCat === 'GENERAL' ? 'GENERAL' : '');
+                                      
+                                      let genderLabel = '';
+                                      if (groupRegGender === 'BOY') genderLabel = lang === 'EN' ? 'Boys' : 'ബോയ്സ്';
+                                      else if (groupRegGender === 'GIRL') genderLabel = lang === 'EN' ? 'Girls' : 'ഗേൾസ്';
+                                      else genderLabel = lang === 'EN' ? 'All' : 'എല്ലാവരും';
+
+                                      const pdfTitle = lang === 'EN' ? 'Group Registrations List' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ ലിസ്റ്റ്';
+                                      const subtitle = `${catName} | ${genderLabel}`;
+
+                                      const rows = activeGroupRegs.map((g, idx) => {
+                                        const prog = programs.find(p => String(p.id) === String(g.program_id));
+                                        const team = teams.find(t => String(t.id) === String(g.team_id));
+                                        
+                                        const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                        const memberNames = memberIds.map(id => {
+                                          const studentObj = students.find(s => String(s.id) === String(id));
+                                          return studentObj ? `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}` : '';
+                                        }).filter(Boolean);
+
+                                        return `<tr>
+                                          <td>${idx + 1}</td>
+                                          <td><strong>${g.group_name}</strong></td>
+                                          <td><span class="badge-team">${team ? team.name : ''}</span></td>
+                                          <td><strong>${prog ? prog.code : ''}</strong> - ${prog ? prog.name : ''}</td>
+                                          <td>${memberNames.join(', ') || '<span style="font-style: italic; color: #94a3b8">None</span>'}</td>
+                                        </tr>`;
+                                      }).join('');
+
+                                      const contentHtml = `
+                                        <table>
+                                          <thead>
+                                            <tr>
+                                              <th style="width: 8%">${lang === 'EN' ? 'Sl.No' : 'ക്രമനമ്പർ'}</th>
+                                              <th style="width: 25%">${lang === 'EN' ? 'Group Name' : 'ഗ്രൂപ്പ് പേര്'}</th>
+                                              <th style="width: 15%">${lang === 'EN' ? 'Team' : 'ടീം'}</th>
+                                              <th style="width: 25%">${lang === 'EN' ? 'Program' : 'പ്രോഗ്രാം'}</th>
+                                              <th>${lang === 'EN' ? 'Members' : 'അംഗങ്ങൾ'}</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            ${rows || `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">${lang === 'EN' ? 'No group registrations found matching current filters.' : 'ഫിൽട്ടറിന് അനുയോജ്യമായ ഗ്രൂപ്പ് രജിസ്ട്രേഷനുകൾ ഒന്നും കണ്ടെത്തിയില്ല.'}</td></tr>`}
+                                          </tbody>
+                                        </table>`;
+
+                                      const printWindow = window.open('', '_blank');
+                                      printWindow.document.write(`
+                                    <!DOCTYPE html>
+                                    <html>
+                                    <head>
+                                    <title>${pdfTitle} - ${madrasaName}</title>
+                                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Serif+Malayalam:wght@400;700&display=swap" rel="stylesheet">
+                                    <style>
+                                      @page { size: A4 landscape; margin: 15mm 15mm; }
+                                      * { margin: 0; padding: 0; box-sizing: border-box; }
+                                      body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+                                      .notice-board {
+                                        border: 4px solid #0f766e;
+                                        border-radius: 12px;
+                                        overflow: hidden;
+                                        margin-bottom: 30px;
+                                        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                                      }
+                                      .notice-header {
+                                        background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+                                        color: white;
+                                        text-align: center;
+                                        padding: 24px 20px 18px;
+                                        position: relative;
+                                      }
+                                      .notice-header::after {
+                                        content: '';
+                                        display: block;
+                                        width: 80px;
+                                        height: 3px;
+                                        background: #f59e0b;
+                                        margin: 10px auto 0;
+                                        border-radius: 2px;
+                                      }
+                                      .madrasa-name {
+                                        font-size: 24px;
+                                        font-weight: 800;
+                                        letter-spacing: 1px;
+                                        margin-bottom: 4px;
+                                      }
+                                      .madrasa-sub {
+                                        font-size: 13px;
+                                        opacity: 0.85;
+                                        letter-spacing: 0.5px;
+                                      }
+                                      .notice-title-bar {
+                                        background: #fbbf24;
+                                        color: #78350f;
+                                        text-align: center;
+                                        padding: 10px;
+                                        font-size: 15px;
+                                        font-weight: 800;
+                                        letter-spacing: 1px;
+                                        text-transform: uppercase;
+                                      }
+                                      .notice-body { padding: 20px 25px 30px; }
+                                      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+                                      th {
+                                        background: #f1f5f9;
+                                        color: #0f766e;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                        text-transform: uppercase;
+                                        letter-spacing: 1px;
+                                        padding: 10px 12px;
+                                        text-align: left;
+                                        border-bottom: 2px solid #cbd5e1;
+                                      }
+                                      td {
+                                        padding: 10px 12px;
+                                        border-bottom: 1px solid #e2e8f0;
+                                        font-size: 13px;
+                                        vertical-align: middle;
+                                      }
+                                      tr:last-child td { border-bottom: none; }
+                                      tr:nth-child(even) td { background: #f8fafc; }
+                                      td strong { color: #0f766e; }
+                                      .badge-team {
+                                        background: #fef3c7;
+                                        color: #d97706;
+                                        font-size: 11px;
+                                        font-weight: 800;
+                                        padding: 2px 6px;
+                                        border-radius: 4px;
+                                        text-transform: uppercase;
+                                      }
+                                      .footer {
+                                        text-align: center;
+                                        padding: 15px;
+                                        font-size: 11px;
+                                        color: #94a3b8;
+                                        border-top: 1px solid #e2e8f0;
+                                        margin-top: 10px;
+                                      }
+                                      @media print {
+                                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                                        .no-print { display: none !important; }
+                                      }
+                                      .print-btn {
+                                        display: block;
+                                        margin: 20px auto;
+                                        padding: 12px 32px;
+                                        background: linear-gradient(135deg, #0f766e, #115e59);
+                                        color: white;
+                                        border: none;
+                                        border-radius: 8px;
+                                        font-size: 15px;
+                                        font-weight: 700;
+                                        cursor: pointer;
+                                        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+                                      }
+                                    </style>
+                                    </head>
+                                    <body>
+                                    <button class="print-btn no-print" onclick="window.print()">${lang === 'EN' ? '🖨️ Print / Download PDF' : '🖨️ പ്രിന്റ് / PDF ഡൗൺലോഡ്'}</button>
+                                    <div class="notice-board">
+                                      <div class="notice-header">
+                                        <div class="madrasa-name">${madrasaName}</div>
+                                        <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
+                                      </div>
+                                      <div class="notice-title-bar">👥 ${pdfTitle} — ${subtitle}</div>
+                                      <div class="notice-body">
+                                        ${contentHtml}
+                                      </div>
+                                      <div class="footer">Generated by Milad Fest App • Total Group Registrations: ${activeGroupRegs.length}</div>
+                                    </div>
+                                    </body></html>`);
+                                      printWindow.document.close();
+                                      printWindow.print();
+                                    };
 
                                     return activeGroupRegs.length === 0 ? (
                                       <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
                                         {lang === 'EN' ? 'No group registrations in this category yet.' : 'ഈ വിഭാഗത്തിൽ ഗ്രൂപ്പ് രജിസ്ട്രേഷനുകൾ ഒന്നും ചെയ്തിട്ടില്ല.'}
                                       </p>
                                     ) : (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
-                                        {activeGroupRegs.map(g => {
-                                          const prog = programs.find(p => String(p.id) === String(g.program_id));
-                                          const team = teams.find(t => String(t.id) === String(g.team_id));
-                                          
-                                          // Resolve member student names
-                                          const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
-                                          const memberNames = memberIds.map(id => {
-                                            const studentObj = students.find(s => String(s.id) === String(id));
-                                            return studentObj ? `${studentObj.regno || studentObj.regNo || ''} ${studentObj.name}` : '';
-                                          }).filter(Boolean);
+                                      <>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
+                                          {activeGroupRegs.map(g => {
+                                            const prog = programs.find(p => String(p.id) === String(g.program_id));
+                                            const team = teams.find(t => String(t.id) === String(g.team_id));
+                                            
+                                            // Resolve member student names
+                                            const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                            const memberNames = memberIds.map(id => {
+                                              const studentObj = students.find(s => String(s.id) === String(id));
+                                              return studentObj ? `${studentObj.regno || studentObj.regNo || ''} ${studentObj.name}` : '';
+                                            }).filter(Boolean);
 
-                                          return (
-                                            <div key={g.id}
-                                              style={{
-                                                padding: '12px', borderRadius: '12px',
-                                                background: '#ffffff',
-                                                border: '1.5px solid #e2e8f0',
-                                                boxShadow: 'none',
-                                                transition: 'all 0.15s',
-                                                position: 'relative'
-                                              }}
-                                            >
-                                              <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
-                                                <button onClick={() => handleDeleteGroupRegistration(g.id)}
-                                                  className="btn-row-action-v2 delete" style={{ padding: '4px', fontSize: '12px' }} title="Delete">❌</button>
+                                            return (
+                                              <div key={g.id}
+                                                style={{
+                                                  padding: '12px', borderRadius: '12px',
+                                                  background: '#ffffff',
+                                                  border: '1.5px solid #e2e8f0',
+                                                  boxShadow: 'none',
+                                                  transition: 'all 0.15s',
+                                                  position: 'relative'
+                                                }}
+                                              >
+                                                <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                                  <button onClick={() => handleDeleteGroupRegistration(g.id)}
+                                                    className="btn-row-action-v2 delete" style={{ padding: '4px', fontSize: '12px' }} title="Delete">❌</button>
+                                                </div>
+                                                <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', paddingRight: '25px' }}>
+                                                  {g.group_name} <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 5px', fontWeight: '800', marginLeft: '6px' }}>{team?.name}</span>
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginTop: '4px' }}>
+                                                  📚 {prog?.code} – {prog?.name}
+                                                </div>
+                                                <div style={{ marginTop: '8px', fontSize: '11px', color: '#1e293b' }}>
+                                                  <span style={{ fontWeight: '700', color: '#475569' }}>{lang === 'EN' ? 'Members: ' : 'അംഗങ്ങൾ: '}</span>
+                                                  {memberNames.join(', ') || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>None</span>}
+                                                </div>
                                               </div>
-                                              <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', paddingRight: '25px' }}>
-                                                {g.group_name} <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 5px', fontWeight: '800', marginLeft: '6px' }}>{team?.name}</span>
-                                              </div>
-                                              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginTop: '4px' }}>
-                                                📚 {prog?.code} – {prog?.name}
-                                              </div>
-                                              <div style={{ marginTop: '8px', fontSize: '11px', color: '#1e293b' }}>
-                                                <span style={{ fontWeight: '700', color: '#475569' }}>{lang === 'EN' ? 'Members: ' : 'അംഗങ്ങൾ: '}</span>
-                                                {memberNames.join(', ') || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>None</span>}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
+                                            );
+                                          })}
+                                        </div>
+                                        <button 
+                                          type="button" 
+                                          onClick={generateGroupRegsPDF}
+                                          className="btn-premium-action"
+                                          style={{ 
+                                            marginTop: '16px', 
+                                            background: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px'
+                                          }}
+                                        >
+                                          📄 {lang === 'EN' ? 'Download PDF' : 'PDF ഡൗൺലോഡ് ചെയ്യുക'}
+                                        </button>
+                                      </>
                                     );
                                   })()}
                                 </div>

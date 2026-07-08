@@ -151,7 +151,7 @@ const translations = {
     // ── Register Tab ──
     registerStudentsTitle: '📋 Register Students for Programs',
     selectCategoryStep: 'Select Category',
-    selectDivisionStep: 'Select Division',
+    selectDivisionStep: 'Select Gender',
     selectStudentStep: 'Select Student',
     selectProgramsStep: 'Select Programs',
     saveRegistrationsBtn: 'Save Registrations',
@@ -402,7 +402,7 @@ const translations = {
     // ── Register Tab ──
     registerStudentsTitle: '📋 പ്രോഗ്രാമുകളിൽ വിദ്യാർത്ഥികളെ രജിസ്റ്റർ ചെയ്യുക',
     selectCategoryStep: 'വിഭാഗം തിരഞ്ഞെടുക്കുക',
-    selectDivisionStep: 'ഡിവിഷൻ തിരഞ്ഞെടുക്കുക',
+    selectDivisionStep: 'ലിംഗം തിരഞ്ഞെടുക്കുക',
     selectStudentStep: 'വിദ്യാർത്ഥിയെ തിരഞ്ഞെടുക്കുക',
     selectProgramsStep: 'പ്രോഗ്രാമുകൾ തിരഞ്ഞെടുക്കുക',
     saveRegistrationsBtn: 'രജിസ്ട്രേഷൻ സേവ് ചെയ്യുക',
