@@ -3315,7 +3315,6 @@ ${pagesHtml}
                     <select className="settings-input" value={filterCat} onChange={(e) => { setFilterCat(e.target.value); setFilterProg(''); }}>
                       <option value="">-- Select --</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
                       {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
                     </select>
                   </div>
@@ -3640,7 +3639,6 @@ ${pagesHtml}
                     <option value="">-- Select Category --</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
-                      {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
                   </select>
                 </div>
 
@@ -5484,13 +5482,6 @@ ${pagesHtml}
                                    <option value="GENERAL_COMMON">GENERAL - Common</option>
                                  </React.Fragment>
                                )}
-                              {generalCatIds.length > 0 && (
-                                <React.Fragment>
-                                  <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                  <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                  <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                </React.Fragment>
-                              )}
                             </select>
 
                             <select className="settings-input-v2" value={progType} onChange={(e) => setProgType(e.target.value)}>
