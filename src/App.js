@@ -247,6 +247,32 @@ const printHtml = (htmlContent) => {
   setTimeout(runPrint, 1000);
 };
 
+// Helper to download HTML content as PDF via browser print-to-PDF
+const downloadHtmlAsPdf = (htmlContent, filename = 'document.pdf') => {
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (win) {
+    win.onload = () => {
+      setTimeout(() => {
+        // Set the document title to control the filename in Save dialog
+        win.document.title = filename.replace('.pdf', '');
+        win.focus();
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }, 600);
+    };
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } else {
+    // Fallback: direct download as HTML
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace('.pdf', '.html');
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+};
+
 const getTrollReaction = (rank, teamName, lang, offset = 0) => {
   let hash = 0;
   for (let i = 0; i < teamName.length; i++) {
@@ -2270,174 +2296,168 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     }
   };
 
-  // Generate PDF of multiple ID cards — Portrait 7.5cm × 10cm (fits plastic sleeve)
+  // Generate PDF of multiple ID cards — pure HTML approach (works on all devices including mobile)
   const handleDownloadPDF = useCallback(async (filteredStudentsList, paperSize = 'A4') => {
     if (filteredStudentsList.length === 0) { alert(t('alertNoIdCards')); return; }
     setProfilePdfGenerating(true);
     try {
-      // Portrait ID card size: 7.5cm × 10cm (exact physical size when printed at 100% scale)
-      const cardW = 75;   // mm — exactly 7.5cm
-      const cardH = 100;  // mm — exactly 10cm
-      const gap = 4;      // gap between cards mm (for cutting)
-
       const isA3 = paperSize === 'A3';
-      // Page dimensions
-      // For A3, we use landscape orientation to layout 5 columns and 2 rows (10 cards)
-      // For A4, we use portrait orientation to layout 2 columns and 2 rows (4 cards)
-      const pageW = isA3 ? 420 : 210;
-      const pageH = isA3 ? 297 : 297;
-      const orientation = isA3 ? 'l' : 'p';
-
-      // Grid definition
       const cols = isA3 ? 5 : 2;
       const rows = isA3 ? 2 : 2;
       const cardsPerPage = cols * rows;
+      const pageSize = isA3 ? 'A3 landscape' : 'A4 portrait';
 
-      // Calculate dynamic margins to center the cards on the page
-      const gridW = cols * cardW + (cols - 1) * gap;
-      const gridH = rows * cardH + (rows - 1) * gap;
-      const marginX = (pageW - gridW) / 2;
-      const marginY = (pageH - gridH) / 2;
+      // Build QR data URLs for all students first
+      const appUrl = window.location.origin;
+      const qrMap = {};
+      for (const s of filteredStudentsList) {
+        try {
+          const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
+          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 160, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+        } catch (e) { qrMap[s.id] = ''; }
+      }
 
-      const pdf = new jsPDF(orientation, 'mm', paperSize.toLowerCase());
-      let cardIndex = 0;
-
-      for (let i = 0; i < filteredStudentsList.length; i++) {
-        const s = filteredStudentsList[i];
-
-        // DOM element: 283px × 378px (≈ 7.5cm × 10cm at 96px/in = 37.795px/cm)
-        // 7.5cm × 37.795 = 283.46px ≈ 283px; 10cm × 37.795 = 377.95px ≈ 378px
-        // scale:3 → canvas ≈ 850×1134px → ~300 DPI for print
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '0';
-        tempDiv.style.width = '283px';
-        tempDiv.style.height = '378px';
-        document.body.appendChild(tempDiv);
-
+      // Build card HTML for each student
+      const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
         const teamObj = teams.find(t => String(t.id) === String(sTeamId));
         const catObj = categories.find(c => String(c.id) === String(sCatId));
-
-        // Generate QR code
-        const appUrl = window.location.origin;
-        const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
-        let qrDataUrl = '';
-        try {
-          qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 200, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
-        } catch (e) {
-          console.error(e);
-        }
-
-        // Render photo or SVG silhouette
-        const hasPhoto = s.photo_url && s.photo_status && s.photo_status === 'approved';
-        const isBoy = String(s.gender).toUpperCase() === 'BOY';
-        let photoHtml = '';
-        if (hasPhoto) {
-          photoHtml = `<img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />`;
-        } else {
-          const color = isBoy ? '#1e40af' : '#be185d';
-          const bg = isBoy ? 'linear-gradient(135deg,#dbeafe,#93c5fd)' : 'linear-gradient(135deg,#fce7f3,#f9a8d4)';
-          photoHtml = `
-            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${bg};">
+        const hasPhoto = s.photo_url && s.photo_status === 'approved';
+        const isBoy = String(s.gender || '').toUpperCase() === 'BOY';
+        const color = isBoy ? '#1e40af' : '#be185d';
+        const bg = isBoy ? 'linear-gradient(135deg,#dbeafe,#93c5fd)' : 'linear-gradient(135deg,#fce7f3,#f9a8d4)';
+        const photoHtml = hasPhoto
+          ? `<img src="${s.photo_url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;" />`
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${bg};">
               <svg viewBox="0 0 24 24" style="width:55%;height:55%;fill:none;stroke:${color};stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
-            </div>
-          `;
-        }
-
-        // Portrait card HTML — 283×378px = exactly 7.5cm×10cm at 96dpi (37.795px/cm)
-        // Layout: Header → [Photo LEFT | Name+RegNo RIGHT] → Details → QR Code → Footer
-        tempDiv.innerHTML = `
-          <div style="width:283px;height:378px;background:#fff;border-radius:0;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;border:2px solid #064e3b;box-sizing:border-box;display:flex;flex-direction:column;position:relative;">
-            <!-- Top gradient stripe -->
-            <div style="height:5px;background:linear-gradient(90deg,#022c22,#fbbf24,#059669);flex-shrink:0;"></div>
-            <!-- Header: Madrasa name + RegNo + Place -->
-            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:6px 10px 5px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
-              <div style="font-size:10px;font-weight:900;color:#fbbf24;text-align:center;letter-spacing:0.5px;text-transform:uppercase;line-height:1.3;margin-bottom:2px;">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
-              <div style="font-size:7px;color:#94a3b8;text-align:center;line-height:1.3;">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
-            </div>
-            <!-- Photo LEFT + Student Name & RegNo RIGHT -->
-            <div style="flex-shrink:0;display:flex;flex-direction:row;align-items:center;padding:8px 10px 8px 10px;background:#f8fafc;border-bottom:2px solid #fbbf24;gap:10px;">
-              <!-- Photo -->
-              <div style="flex-shrink:0;width:78px;height:88px;border-radius:8px;border:3px solid #064e3b;overflow:hidden;background:#f1f5f9;box-shadow:0 2px 8px rgba(0,0,0,0.18);">
-                ${photoHtml}
+             </div>`;
+        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:68px;height:68px;display:block;" />` : '';
+        return `<div class="id-card">
+          <div class="stripe"></div>
+          <div class="card-header">
+            <div class="madrasa-name">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
+            <div class="madrasa-meta">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
+          </div>
+          <div class="card-top">
+            <div class="photo-box">${photoHtml}</div>
+            <div class="name-box">
+              <div class="student-name">${s.name || ''}</div>
+              <div class="reg-badge">
+                <div class="reg-label">Register No.</div>
+                <div class="reg-num">${s.regno || s.regNo || ''}</div>
               </div>
-              <!-- Name + RegNo — fills the space beside photo -->
-              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:6px;min-width:0;">
-                <div style="font-size:15px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.4px;line-height:1.2;word-break:break-word;text-align:center;margin-bottom:2px;">${s.name}</div>
-                <!-- Big highlighted Reg No badge -->
-                <div style="background:linear-gradient(135deg,#022c22,#059669);border-radius:8px;padding:6px 8px;box-shadow:0 3px 8px rgba(6,78,59,0.35);width:100%;box-sizing:border-box;text-align:center;">
-                  <div style="font-size:8px;font-weight:800;color:#86efac;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Register No.</div>
-                  <div style="font-size:22px;font-weight:900;color:#fbbf24;letter-spacing:1px;line-height:1;">${s.regno || s.regNo || ''}</div>
-                </div>
-              </div>
-            </div>
-            <!-- Details: Group / Category / Gender -->
-            <div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;padding:8px 12px 6px;box-sizing:border-box;">
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:7.5px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Group</span>
-                <span style="font-weight:700;color:#1e293b;font-size:9.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${teamObj ? teamObj.name : 'N/A'}</span>
-              </div>
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:7.5px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Category</span>
-                <span style="font-weight:700;color:#1e293b;font-size:9.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${catObj ? catObj.name : 'N/A'}</span>
-              </div>
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:7.5px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.3px;">Gender</span>
-                <span style="font-weight:700;color:#1e293b;font-size:9.5px;">${s.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
-              </div>
-            </div>
-            <!-- QR Code — centered, smaller -->
-            <div style="flex:1;display:flex;justify-content:center;align-items:center;padding:4px 0 2px;">
-              ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:70px;height:70px;display:block;" />` : ''}
-            </div>
-            <!-- Footer -->
-            <div style="background:linear-gradient(135deg,#022c22,#064e3b);padding:10px 8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <span style="font-size:9px;color:#fbbf24;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">MILAD FEST • ID CARD</span>
             </div>
           </div>
-        `;
+          <div class="details">
+            <div class="detail-row"><span class="dl">Group</span><span class="dv">${teamObj ? teamObj.name : 'N/A'}</span></div>
+            <div class="detail-row"><span class="dl">Category</span><span class="dv">${catObj ? catObj.name : 'N/A'}</span></div>
+            <div class="detail-row"><span class="dl">Gender</span><span class="dv">${isBoy ? 'Boy' : 'Girl'}</span></div>
+          </div>
+          <div class="qr-section">${qrHtml}</div>
+          <div class="card-footer"><span class="footer-text">MILAD FEST • ID CARD</span></div>
+        </div>`;
+      });
 
-        // scale:3 on 283×378px DOM → ~850×1134px canvas → ≈300 DPI for 7.5cm×10cm card
-        const canvas = await html2canvas(tempDiv.firstElementChild, {
-          scale: 3,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff'
-        });
-        document.body.removeChild(tempDiv);
+      // Group cards into pages
+      const pages = [];
+      for (let i = 0; i < cardHtmlList.length; i += cardsPerPage) {
+        pages.push(cardHtmlList.slice(i, i + cardsPerPage));
+      }
 
-        const imgData = canvas.toDataURL('image/png');
+      const pagesHtml = pages.map(pageCards =>
+        `<div class="page"><div class="card-grid">${pageCards.join('')}</div></div>`
+      ).join('');
 
-        // New page when needed
-        if (cardIndex > 0 && cardIndex % cardsPerPage === 0) {
-          pdf.addPage();
+      const madrasaLabel = loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export';
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ID Cards - ${madrasaLabel} - ${paperSize}</title>
+<style>
+  @page { size: ${pageSize}; margin: 8mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { page-break-after: always; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  .page:last-child { page-break-after: auto; }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(${cols}, 75mm);
+    grid-template-rows: repeat(${rows}, 100mm);
+    gap: 4mm;
+  }
+  .id-card {
+    width: 75mm; height: 100mm;
+    border: 2px solid #064e3b;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    background: #fff;
+  }
+  .stripe { height: 3px; background: linear-gradient(90deg,#022c22,#fbbf24,#059669); flex-shrink: 0; }
+  .card-header {
+    background: linear-gradient(135deg,#022c22,#064e3b);
+    padding: 4px 6px 3px; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .madrasa-name { font-size: 7px; font-weight: 900; color: #fbbf24; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; }
+  .madrasa-meta { font-size: 5.5px; color: #94a3b8; text-align: center; }
+  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 4px 5px; background: #f8fafc; border-bottom: 2px solid #fbbf24; gap: 5px; }
+  .photo-box { flex-shrink: 0; width: 50px; height: 58px; border-radius: 5px; border: 2px solid #064e3b; overflow: hidden; background: #f1f5f9; }
+  .name-box { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .student-name { font-size: 9px; font-weight: 900; color: #0f172a; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; }
+  .reg-badge { background: linear-gradient(135deg,#022c22,#059669); border-radius: 5px; padding: 3px 5px; text-align: center; }
+  .reg-label { font-size: 5px; font-weight: 800; color: #86efac; text-transform: uppercase; letter-spacing: 0.8px; }
+  .reg-num { font-size: 14px; font-weight: 900; color: #fbbf24; letter-spacing: 0.5px; line-height: 1; }
+  .details { flex-shrink: 0; padding: 3px 5px; display: flex; flex-direction: column; gap: 2px; }
+  .detail-row { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px 5px; display: flex; justify-content: space-between; align-items: center; }
+  .dl { font-size: 5px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.2px; }
+  .dv { font-weight: 700; color: #1e293b; font-size: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
+  .qr-section { flex: 1; display: flex; justify-content: center; align-items: center; }
+  .card-footer { background: linear-gradient(135deg,#022c22,#064e3b); padding: 5px 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .footer-text { font-size: 5.5px; color: #fbbf24; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+${pagesHtml}
+<script>
+  window.addEventListener('load', function() {
+    setTimeout(function() { window.print(); }, 800);
+  });
+</script>
+</body>
+</html>`;
+
+      // Open in new tab for print/save as PDF
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      // Try share API on mobile first
+      const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile && navigator.share && navigator.canShare) {
+        const htmlFile = new File([blob], `ID_Cards_${madrasaLabel}_${paperSize}.html`, { type: 'text/html' });
+        if (navigator.canShare({ files: [htmlFile] })) {
+          try {
+            await navigator.share({ files: [htmlFile], title: `ID Cards - ${madrasaLabel}` });
+            URL.revokeObjectURL(url);
+            setProfilePdfGenerating(false);
+            return;
+          } catch (e) { /* fall through */ }
         }
-
-        // Position on page
-        const posInPage = cardIndex % cardsPerPage;
-        const col = posInPage % cols;
-        const row = Math.floor(posInPage / cols);
-        const x = marginX + col * (cardW + gap);
-        const y = marginY + row * (cardH + gap);
-
-        pdf.addImage(imgData, 'PNG', x, y, cardW, cardH);
-        cardIndex++;
       }
 
-      if (cardIndex === 0) {
-        alert(t('alertNoApprovedPhotos'));
-        setProfilePdfGenerating(false);
-        return;
+      const win = window.open(url, '_blank');
+      if (!win) {
+        // Popup blocked — fallback download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ID_Cards_${madrasaLabel}_${paperSize}.html`;
+        a.click();
       }
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
 
-      const pdfBlob = pdf.output('blob');
-      await downloadFile(pdfBlob, `ID_Cards_${loggedInMadrasa ? loggedInMadrasa.name.replace(/\s+/g, '_') : 'export'}_${paperSize}.pdf`, 'application/pdf');
     } catch (err) {
       alert(t('alertPDFGenerationFailed') + err.message);
     }
@@ -7430,11 +7450,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                         });
                       })() : [];
 
-                      const handleDownloadJudgeSheetPDF = () => {
-                        if (!judgeSheetProg) {
-                          alert('Please select a program first!');
-                          return;
-                        }
+                      const buildJudgeSheetHtml = () => {
                         const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
                         const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
                         const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
@@ -7442,19 +7458,18 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                         const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
                         const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
 
-                        const rows = judgeStudents.map((s, idx) => {
+                        const rows = judgeStudents.map((s) => {
                           const sRegNo = s.regno || s.regNo || '';
                           return `<tr>
-                            <td style="text-align:center;font-weight:700;font-size:13px">${sRegNo}</td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
+                            <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5">${sRegNo}</td>
+                            <td style="text-align:center"></td>
+                            <td style="text-align:center"></td>
+                            <td style="text-align:center"></td>
+                            <td style="text-align:center"></td>
                           </tr>`;
                         }).join('');
 
-                        const html = `
+                        return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -7498,33 +7513,12 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     gap: 30px;
     flex-wrap: wrap;
   }
-  .subtitle-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .subtitle-label {
-    font-size: 10px;
-    font-weight: 700;
-    color: #78350f;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .subtitle-value {
-    font-size: 13px;
-    font-weight: 800;
-    color: #1c1917;
-  }
+  .subtitle-item { display: flex; align-items: center; gap: 6px; }
+  .subtitle-label { font-size: 10px; font-weight: 700; color: #78350f; text-transform: uppercase; letter-spacing: 0.5px; }
+  .subtitle-value { font-size: 13px; font-weight: 800; color: #1c1917; }
   .sheet-body { padding: 14px 18px 18px; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-  thead tr {
-    background: linear-gradient(90deg, #064e3b, #0f766e);
-    color: white;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; }
   th {
     padding: 9px 8px;
     font-weight: 700;
@@ -7534,35 +7528,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     border: 1px solid rgba(255,255,255,0.2);
     text-align: center;
   }
-  td {
-    padding: 10px 8px;
-    border: 1.5px solid #cbd5e1;
-    min-height: 36px;
-    height: 36px;
-  }
+  td { padding: 10px 8px; border: 1.5px solid #cbd5e1; min-height: 36px; height: 36px; }
   tbody tr:nth-child(even) { background: #f8fafc; }
-  tbody tr:hover { background: #f0fdf4; }
-  .reg-no-cell {
-    text-align: center;
-    font-weight: 800;
-    font-size: 13px;
-    color: #064e3b;
-    background: #ecfdf5;
-    width: 100px;
-  }
-  .name-cell { width: 180px; }
-  .chance-cell { width: 90px; text-align: center; }
-  .marks-cell { width: 90px; text-align: center; }
-  .position-cell { width: 90px; text-align: center; }
-  .team-cell { width: 120px; }
   .sheet-footer {
-    margin-top: 20px;
+    margin-top: 28px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     padding: 0 10px;
-    font-size: 11px;
-    color: #64748b;
   }
   .signature-box {
     text-align: center;
@@ -7571,9 +7544,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .signature-line {
     border-top: 1.5px solid #1e293b;
     padding-top: 5px;
-    font-weight: 600;
+    font-weight: 700;
     color: #1e293b;
-    font-size: 11px;
+    font-size: 12px;
+  }
+  .footer-center {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 10px;
   }
 </style>
 </head>
@@ -7602,37 +7580,46 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     <table>
       <thead>
         <tr>
-          <th style="width:100px">Reg. No</th>
-          <th style="width:180px">Student Name</th>
-          <th style="width:90px">Chance No</th>
-          <th style="width:90px">Marks</th>
-          <th style="width:90px">Position</th>
-          <th>Team Name</th>
+          <th style="width:110px">Reg. No</th>
+          <th style="width:100px">Chance No</th>
+          <th style="width:120px">Marks (1)</th>
+          <th style="width:120px">Marks (2)</th>
+          <th style="width:110px">Position</th>
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px">No students registered.</td></tr>'}
+        ${rows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">No students registered.</td></tr>'}
       </tbody>
     </table>
     <div class="sheet-footer">
       <div class="signature-box">
-        <div style="height:40px"></div>
-        <div class="signature-line">Judge Signature</div>
+        <div style="height:50px"></div>
+        <div class="signature-line">Judge Signature 1</div>
       </div>
-      <div style="text-align:center;color:#94a3b8">
-        <div style="font-size:10px">Milad Fest | ${catName} | ${progName}</div>
-        <div style="font-size:10px;margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+      <div class="footer-center">
+        <div>Milad Fest | ${catName} | ${progName}</div>
+        <div style="margin-top:3px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
       </div>
       <div class="signature-box">
-        <div style="height:40px"></div>
-        <div class="signature-line">Coordinator Signature</div>
+        <div style="height:50px"></div>
+        <div class="signature-line">Judge Signature 2</div>
       </div>
     </div>
   </div>
 </div>
 </body>
 </html>`;
-                        printHtml(html);
+                      };
+
+                      const handlePrintJudgeSheet = () => {
+                        if (!judgeSheetProg) { alert('Please select a program first!'); return; }
+                        printHtml(buildJudgeSheetHtml());
+                      };
+
+                      const handleDownloadJudgeSheetPDF = () => {
+                        if (!judgeSheetProg) { alert('Please select a program first!'); return; }
+                        const progName = selectedProgObj ? `${selectedProgObj.code}_${selectedProgObj.name}` : 'JudgeSheet';
+                        downloadHtmlAsPdf(buildJudgeSheetHtml(), `JudgeSheet_${progName}.pdf`);
                       };
 
                       return (
@@ -7719,15 +7706,26 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                 </div>
                               )}
 
-                              <button
-                                type="button"
-                                onClick={handleDownloadJudgeSheetPDF}
-                                disabled={!judgeSheetProg}
-                                className="btn-add-action"
-                                style={{ background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
-                              >
-                                📥 Download Judge Sheet PDF
-                              </button>
+                              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={handlePrintJudgeSheet}
+                                  disabled={!judgeSheetProg}
+                                  className="btn-add-action"
+                                  style={{ flex: 1, background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                >
+                                  🖨️ Print Judge Sheet
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleDownloadJudgeSheetPDF}
+                                  disabled={!judgeSheetProg}
+                                  className="btn-add-action"
+                                  style={{ flex: 1, background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                >
+                                  📥 Download Judge Sheet PDF
+                                </button>
+                              </div>
                             </div>
                           </div>
 
@@ -7763,6 +7761,66 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                                     </div>
                                   );
                                 })}
+                                {/* Download Participants PDF button */}
+                                <div style={{ padding: '12px 10px 4px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const catName = selectedCatObj ? selectedCatObj.name : '';
+                                      const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
+                                      const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
+                                      const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                                      const rows = judgeStudents.map((s, idx) => {
+                                        const sRegNo = s.regno || s.regNo || '';
+                                        const sName = s.name || '';
+                                        const teamObj2 = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                                        const teamName = teamObj2 ? teamObj2.name : '';
+                                        return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
+                                          <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5;padding:8px 10px;border:1px solid #cbd5e1">${sRegNo}</td>
+                                          <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1e293b;border:1px solid #cbd5e1">${sName}</td>
+                                          <td style="padding:8px 12px;font-size:12px;color:#475569;border:1px solid #cbd5e1">${teamName}</td>
+                                        </tr>`;
+                                      }).join('');
+                                      const html = `<!DOCTYPE html><html><head><title>Participants - ${progName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 15mm; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; }
+  .wrapper { border:3px solid #064e3b; border-radius:10px; overflow:hidden; }
+  .hdr { background:linear-gradient(135deg,#064e3b,#0f766e); color:#fff; text-align:center; padding:16px 20px 12px; }
+  .hdr-title { font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; opacity:0.85; margin-bottom:4px; }
+  .hdr-name { font-size:20px; font-weight:800; margin-bottom:2px; }
+  .subtitle-bar { background:#f59e0b; padding:7px 20px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap; }
+  .sl { display:flex; align-items:center; gap:5px; }
+  .sl-lbl { font-size:9px; font-weight:700; color:#78350f; text-transform:uppercase; }
+  .sl-val { font-size:12px; font-weight:800; color:#1c1917; }
+  .body { padding:14px 16px 18px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead tr { background:linear-gradient(90deg,#064e3b,#0f766e); color:#fff; }
+  th { padding:9px 10px; font-weight:700; font-size:11px; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); text-align:left; }
+  td { padding:9px 10px; border:1px solid #cbd5e1; }
+</style></head><body>
+<div class="wrapper">
+  <div class="hdr"><div class="hdr-title">✦ Milad Fest ✦</div><div class="hdr-name">${madrasaName}</div></div>
+  <div class="subtitle-bar">
+    <div class="sl"><span class="sl-lbl">Category:</span><span class="sl-val">${catName} (${genderLabel})</span></div>
+    <div class="sl"><span class="sl-lbl">Program:</span><span class="sl-val">${progName}</span></div>
+    <div class="sl"><span class="sl-lbl">Total:</span><span class="sl-val">${judgeStudents.length} Participants</span></div>
+  </div>
+  <div class="body">
+    <table><thead><tr><th style="width:100px">Reg. No</th><th>Student Name</th><th style="width:150px">Team</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No students registered.</td></tr>'}</tbody></table>
+  </div>
+</div></body></html>`;
+                                      downloadHtmlAsPdf(html, `Participants_${progName}.pdf`);
+                                    }}
+                                    className="btn-add-action"
+                                    style={{ width: '100%', background: '#1d4ed8' }}
+                                  >
+                                    📄 Download Participants PDF
+                                  </button>
+                                </div>
                               </>
                             )}
                           </div>
