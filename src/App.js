@@ -71,97 +71,98 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
       style={{
         width: '283px',
         height: '378px',
-        background: 'radial-gradient(ellipse at 38% 68%, #8ab800 0%, #4a7800 38%, #1e3800 72%, #0d1f00 100%)',
+        background: 'linear-gradient(160deg, #ffffff 0%, #f0fdf4 40%, #ecfdf5 70%, #f0fff4 100%)',
         borderRadius: '0',
         overflow: 'hidden',
         fontFamily: 'Segoe UI, system-ui, sans-serif',
-        border: '2px solid #a3e635',
+        border: '2px solid #16a34a',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
         margin: '0 auto',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
       }}
     >
-      {/* Decorative geometric overlays */}
-      <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '130px', height: '130px', borderRadius: '50%', background: 'rgba(163,230,53,0.12)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', bottom: '30px', left: '-35px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(251,191,36,0.10)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', top: '50%', right: '-20px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(163,230,53,0.08)', pointerEvents: 'none', zIndex: 0 }} />
+      {/* Decorative geometric overlays — light */}
+      <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '130px', height: '130px', borderRadius: '50%', background: 'rgba(74,222,128,0.12)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', bottom: '30px', left: '-35px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(251,191,36,0.09)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', top: '50%', right: '-20px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(74,222,128,0.07)', pointerEvents: 'none', zIndex: 0 }} />
 
       {/* Top gradient stripe */}
-      <div style={{ height: '5px', background: 'linear-gradient(90deg,#0d1f00,#fbbf24,#a3e635)', flexShrink: 0, position: 'relative', zIndex: 1 }} />
+      <div style={{ height: '6px', background: 'linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d)', flexShrink: 0, position: 'relative', zIndex: 1 }} />
 
       {/* Header: Madrasa name + RegNo + Place */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.3) 100%)', padding: '6px 10px 5px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1, borderBottom: '1px solid rgba(163,230,53,0.3)' }}>
-        <div style={{ fontSize: '10px', fontWeight: '900', color: '#fbbf24', textAlign: 'center', letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px' }}>
+      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '6px 10px 5px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1, borderBottom: '2px solid #fbbf24' }}>
+        <div style={{ fontSize: '10px', fontWeight: '900', color: '#fef08a', textAlign: 'center', letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
           {loggedInMadrasa ? loggedInMadrasa.name : ''}
         </div>
-        <div style={{ fontSize: '7px', color: '#bef264', textAlign: 'center', lineHeight: 1.3, opacity: 0.85 }}>
+        <div style={{ fontSize: '7px', color: '#bbf7d0', textAlign: 'center', lineHeight: 1.3, opacity: 0.9 }}>
           {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}
         </div>
       </div>
 
       {/* Photo LEFT + Student Name & RegNo RIGHT */}
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '8px 10px', background: 'rgba(0,0,0,0.35)', borderBottom: '2px solid #fbbf24', gap: '10px', position: 'relative', zIndex: 1 }}>
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '8px 10px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '10px', position: 'relative', zIndex: 1 }}>
         {/* Photo */}
-        <div style={{ flexShrink: 0, width: '78px', height: '88px', borderRadius: '8px', border: '3px solid #a3e635', overflow: 'hidden', background: '#1e3800', boxShadow: '0 2px 12px rgba(0,0,0,0.4), 0 0 0 1px rgba(163,230,53,0.3)' }}>
+        <div style={{ flexShrink: 0, width: '78px', height: '88px', borderRadius: '10px', border: '3px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 4px 16px rgba(22,163,74,0.25), 0 0 0 1px rgba(22,163,74,0.15)' }}>
           {photoContent}
         </div>
 
         {/* Name + RegNo */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'stretch', gap: '6px', minWidth: 0 }}>
-          <div style={{ fontSize: '14px', fontWeight: '900', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.4px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', marginBottom: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
+          {/* Student Name — bigger, dark green for contrast on light bg */}
+          <div style={{ fontSize: '15px', fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', marginBottom: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             {s.name}
           </div>
-          {/* Big highlighted Reg No badge */}
-          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '8px', padding: '5px 8px', boxShadow: '0 3px 10px rgba(251,191,36,0.5)', width: '100%', boxSizing: 'border-box', textAlign: 'center' }}>
-            <div style={{ fontSize: '8px', fontWeight: '800', color: '#1e3800', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>
+          {/* Big highlighted Reg No badge — now more vivid & larger */}
+          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '8px', padding: '5px 8px', boxShadow: '0 4px 14px rgba(251,191,36,0.55)', width: '100%', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
+            <div style={{ fontSize: '8px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>
               Register No.
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#0d1f00', letterSpacing: '1px', lineHeight: 1 }}>
+            <div style={{ fontSize: '26px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
               {s.regno || s.regNo || ''}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Details: Group / Category / Gender — bigger, colorful */}
+      {/* Details: Group / Category / Gender */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '5px', padding: '10px 12px 8px', boxSizing: 'border-box', position: 'relative', zIndex: 1 }}>
         {/* Group */}
-        <div style={{ background: 'linear-gradient(135deg, rgba(163,230,53,0.18) 0%, rgba(163,230,53,0.08) 100%)', border: '1px solid rgba(163,230,53,0.5)', borderLeft: '4px solid #a3e635', borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: '#bef264', letterSpacing: '1px' }}>👥 Group</span>
-          <span style={{ fontWeight: '800', color: '#ffffff', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(22,163,74,0.1) 0%, rgba(22,163,74,0.04) 100%)', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '4px solid #16a34a', borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: '#15803d', letterSpacing: '1px' }}>👥 Group</span>
+          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {teamObj ? teamObj.name : 'N/A'}
           </span>
         </div>
         {/* Category */}
-        <div style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(251,191,36,0.08) 100%)', border: '1px solid rgba(251,191,36,0.5)', borderLeft: '4px solid #fbbf24', borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '1px' }}>🏷️ Category</span>
-          <span style={{ fontWeight: '800', color: '#ffffff', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(251,191,36,0.04) 100%)', border: '1px solid rgba(217,119,6,0.35)', borderLeft: '4px solid #f59e0b', borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: '#b45309', letterSpacing: '1px' }}>🏷️ Category</span>
+          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {catObj ? catObj.name : 'N/A'}
           </span>
         </div>
         {/* Gender */}
-        <div style={{ background: `linear-gradient(135deg, ${isBoy ? 'rgba(96,165,250,0.18)' : 'rgba(244,114,182,0.18)'} 0%, rgba(0,0,0,0) 100%)`, border: `1px solid ${isBoy ? 'rgba(96,165,250,0.5)' : 'rgba(244,114,182,0.5)'}`, borderLeft: `4px solid ${isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: isBoy ? '#93c5fd' : '#f9a8d4', letterSpacing: '1px' }}>{isBoy ? '👦' : '👧'} Gender</span>
-          <span style={{ fontWeight: '800', color: '#ffffff', fontSize: '11px' }}>
+        <div style={{ background: `linear-gradient(135deg, ${isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)'} 0%, rgba(255,255,255,0) 100%)`, border: `1px solid ${isBoy ? 'rgba(96,165,250,0.4)' : 'rgba(244,114,182,0.4)'}`, borderLeft: `4px solid ${isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: isBoy ? '#2563eb' : '#be185d', letterSpacing: '1px' }}>{isBoy ? '👦' : '👧'} Gender</span>
+          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '11px' }}>
             {s.gender === 'BOY' ? 'Boy' : 'Girl'}
           </span>
         </div>
       </div>
 
-      {/* QR Code — centered with gold-bordered panel */}
+      {/* QR Code — centered with bordered panel */}
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0 2px', position: 'relative', zIndex: 1 }}>
-        <div style={{ background: 'rgba(255,255,255,0.92)', border: '2px solid #fbbf24', borderRadius: '10px', padding: '7px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.35), 0 0 0 1px rgba(163,230,53,0.2)' }}>
-          <div style={{ fontSize: '6px', fontWeight: '900', color: '#1e3800', textTransform: 'uppercase', letterSpacing: '1.5px' }}>🔍 Scan QR</div>
+        <div style={{ background: 'rgba(255,255,255,0.96)', border: '2px solid #fbbf24', borderRadius: '10px', padding: '7px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.1), 0 0 0 1px rgba(22,163,74,0.15)' }}>
+          <div style={{ fontSize: '6px', fontWeight: '900', color: '#166534', textTransform: 'uppercase', letterSpacing: '1.5px' }}>🔍 Scan QR</div>
           <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={70} />
         </div>
       </div>
 
       {/* Footer */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(13,31,0,0.8) 100%)', padding: '10px 8px', textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1, borderTop: '1px solid rgba(163,230,53,0.3)' }}>
-        <span style={{ fontSize: '9px', color: '#fbbf24', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '10px 8px', textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1, borderTop: '2px solid #fbbf24' }}>
+        <span style={{ fontSize: '9px', color: '#fef08a', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
           MILAD FEST • ID CARD
         </span>
       </div>
