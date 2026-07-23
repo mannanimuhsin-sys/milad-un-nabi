@@ -2402,47 +2402,47 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .id-card {
     width: 75mm; height: 100mm;
-    border: 2px solid #a3e635;
+    border: 2px solid #16a34a;
     overflow: hidden;
     display: flex; flex-direction: column;
-    background: radial-gradient(ellipse at 38% 68%, #8ab800 0%, #4a7800 38%, #1e3800 72%, #0d1f00 100%);
+    background: linear-gradient(160deg, #ffffff 0%, #f0fdf4 40%, #ecfdf5 70%, #f0fff4 100%);
     position: relative;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .stripe { height: 3px; background: linear-gradient(90deg,#0d1f00,#fbbf24,#a3e635); flex-shrink: 0; position: relative; z-index: 1; }
+  .stripe { height: 4px; background: linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d); flex-shrink: 0; position: relative; z-index: 1; }
   .card-header {
-    background: rgba(0,0,0,0.45);
+    background: linear-gradient(135deg, #166534 0%, #15803d 100%);
     padding: 4px 6px 3px; flex-shrink: 0;
     display: flex; flex-direction: column; align-items: center;
     position: relative; z-index: 1;
-    border-bottom: 1px solid rgba(163,230,53,0.3);
+    border-bottom: 2px solid #fbbf24;
   }
-  .madrasa-name { font-size: 7px; font-weight: 900; color: #fbbf24; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; }
-  .madrasa-meta { font-size: 5.5px; color: #bef264; text-align: center; opacity: 0.85; }
-  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 4px 5px; background: rgba(0,0,0,0.35); border-bottom: 2px solid #fbbf24; gap: 5px; position: relative; z-index: 1; }
-  .photo-box { flex-shrink: 0; width: 50px; height: 58px; border-radius: 5px; border: 2px solid #a3e635; overflow: hidden; background: #1e3800; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+  .madrasa-name { font-size: 7px; font-weight: 900; color: #fef08a; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .madrasa-meta { font-size: 5.5px; color: #bbf7d0; text-align: center; opacity: 0.9; }
+  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 4px 5px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 5px; position: relative; z-index: 1; }
+  .photo-box { flex-shrink: 0; width: 50px; height: 58px; border-radius: 7px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); }
   .name-box { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .student-name { font-size: 9px; font-weight: 900; color: #ffffff; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 5px; padding: 3px 5px; text-align: center; box-shadow: 0 2px 8px rgba(251,191,36,0.5); }
-  .reg-label { font-size: 5px; font-weight: 800; color: #1e3800; text-transform: uppercase; letter-spacing: 0.8px; }
-  .reg-num { font-size: 14px; font-weight: 900; color: #0d1f00; letter-spacing: 0.5px; line-height: 1; }
+  .student-name { font-size: 10px; font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; }
+  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 5px; padding: 3px 5px; text-align: center; box-shadow: 0 3px 10px rgba(251,191,36,0.55); border: 1px solid #d97706; }
+  .reg-label { font-size: 5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.8px; }
+  .reg-num { font-size: 18px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
   .details { flex-shrink: 0; padding: 4px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
   .detail-row { border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; gap: 1px; }
-  .detail-row-group { background: rgba(163,230,53,0.15); border: 1px solid rgba(163,230,53,0.45); border-left: 3px solid #a3e635; }
-  .detail-row-cat   { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.45); border-left: 3px solid #fbbf24; }
-  .detail-row-gen-b { background: rgba(96,165,250,0.15); border: 1px solid rgba(96,165,250,0.45); border-left: 3px solid #60a5fa; }
-  .detail-row-gen-g { background: rgba(244,114,182,0.15); border: 1px solid rgba(244,114,182,0.45); border-left: 3px solid #f472b6; }
-  .dl { font-size: 5.5px; font-weight: 900; text-transform: uppercase; color: #bef264; letter-spacing: 0.8px; }
-  .dl-cat { color: #fbbf24; }
-  .dl-boy { color: #93c5fd; }
-  .dl-girl { color: #f9a8d4; }
-  .dv { font-weight: 800; color: #ffffff; font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail-row-group { background: rgba(22,163,74,0.1); border: 1px solid rgba(22,163,74,0.35); border-left: 3px solid #16a34a; }
+  .detail-row-cat   { background: rgba(251,191,36,0.12); border: 1px solid rgba(217,119,6,0.35); border-left: 3px solid #f59e0b; }
+  .detail-row-gen-b { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.4); border-left: 3px solid #60a5fa; }
+  .detail-row-gen-g { background: rgba(244,114,182,0.1); border: 1px solid rgba(244,114,182,0.4); border-left: 3px solid #f472b6; }
+  .dl { font-size: 5.5px; font-weight: 900; text-transform: uppercase; color: #15803d; letter-spacing: 0.8px; }
+  .dl-cat { color: #b45309; }
+  .dl-boy { color: #2563eb; }
+  .dl-girl { color: #be185d; }
+  .dv { font-weight: 800; color: #14532d; font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .qr-section { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; z-index: 1; }
-  .qr-section-inner { background: rgba(255,255,255,0.92); border: 2px solid #fbbf24; border-radius: 6px; padding: 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
-  .qr-scan-label { font-size: 4.5px; font-weight: 900; color: #1e3800; text-transform: uppercase; letter-spacing: 1.2px; }
-  .card-footer { background: rgba(0,0,0,0.55); border-top: 1px solid rgba(163,230,53,0.3); padding: 4px 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 1; }
-  .footer-text { font-size: 5.5px; color: #fbbf24; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+  .qr-section-inner { background: rgba(255,255,255,0.97); border: 2px solid #fbbf24; border-radius: 7px; padding: 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+  .qr-scan-label { font-size: 4.5px; font-weight: 900; color: #166534; text-transform: uppercase; letter-spacing: 1.2px; }
+  .card-footer { background: linear-gradient(135deg, #166534 0%, #15803d 100%); border-top: 2px solid #fbbf24; padding: 4px 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 1; }
+  .footer-text { font-size: 5.5px; color: #fef08a; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
 </style>
 </head>
 <body>
