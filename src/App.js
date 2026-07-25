@@ -5500,13 +5500,11 @@ ${pagesHtml}
                                   <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                 </React.Fragment>
                               ))}
-                               {generalCatIds.length > 0 && (
-                                 <React.Fragment>
-                                   <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                   <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                   <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                 </React.Fragment>
-                               )}
+                              <React.Fragment>
+                                <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                <option value="GENERAL_COMMON">GENERAL - Common</option>
+                              </React.Fragment>
                             </select>
 
                             <select className="settings-input-v2" value={progType} onChange={(e) => setProgType(e.target.value)}>
@@ -5520,10 +5518,22 @@ ${pagesHtml}
                         <div style={{ marginTop: '20px' }}>
                         <div className="settings-list-box" style={{ maxHeight: 'none' }}>
                           {(() => {
-                            // Category filter chips
+                            // Helper to check if a program is a General category program
+                            const isGeneralProg = (p) => {
+                              const pCatId = String(p.catid || p.catId || '');
+                              if (pCatId === 'GENERAL') return true;
+                              if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
+                              const catObj = categories.find(c => String(c.id) === pCatId);
+                              if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+                              return false;
+                            };
+
+                            // Filtered programs based on selected category chip
                             const filteredPrograms = programFilterCat === 'ALL'
                               ? programs
-                              : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat));
+                              : programFilterCat === 'GENERAL'
+                                ? programs.filter(isGeneralProg)
+                                : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat));
 
                             // PDF generator function
                             const generateProgramsPDF = (catIdFilter) => {
@@ -5531,27 +5541,88 @@ ${pagesHtml}
                               const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
                               const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
-                              const catsToShow = catIdFilter === 'ALL'
-                                ? categories
-                                : categories.filter(c => String(c.id) === String(catIdFilter));
+                              let catSections = '';
+                              let pdfTotalCount = 0;
 
-                              const catSections = catsToShow.map(cat => {
-                                const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(cat.id));
-                                if (catProgs.length === 0) return '';
-                                const rows = catProgs.map(p => {
-                                  const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                  const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
-                                  return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
-                                }).join('');
-                                return `
-                                  <div class="cat-section">
-                                    <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
-                                    <table>
-                                      <thead><tr><th>Code</th><th>Program Name</th><th>Gender</th><th>Type</th></tr></thead>
-                                      <tbody>${rows}</tbody>
-                                    </table>
-                                  </div>`;
-                              }).join('');
+                              if (catIdFilter === 'ALL' || catIdFilter === 'GENERAL') {
+                                // 1. Standard DB Categories (for ALL)
+                                if (catIdFilter === 'ALL') {
+                                  categories.forEach(cat => {
+                                    const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                    if (catProgs.length === 0) return;
+                                    pdfTotalCount += catProgs.length;
+                                    const rows = catProgs.map(p => {
+                                      const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                      const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                      return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                    }).join('');
+                                    catSections += `
+                                      <div class="cat-section">
+                                        <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
+                                        <table>
+                                          <thead><tr><th>Code</th><th>Program Name</th><th>Gender</th><th>Type</th></tr></thead>
+                                          <tbody>${rows}</tbody>
+                                        </table>
+                                      </div>`;
+                                  });
+                                }
+
+                                // 2. GENERAL Category section (for ALL or GENERAL)
+                                const genProgs = programs.filter(p => {
+                                  const pCatId = String(p.catid || p.catId || '');
+                                  if (pCatId === 'GENERAL') return true;
+                                  if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) {
+                                    if (catIdFilter === 'GENERAL') return true;
+                                    const inDbCat = categories.some(c => String(c.id) === pCatId);
+                                    if (!inDbCat) return true;
+                                  }
+                                  if ((categories.find(c => String(c.id) === pCatId)?.name || '').toLowerCase().includes('general')) {
+                                    if (catIdFilter === 'GENERAL') return true;
+                                  }
+                                  return false;
+                                });
+
+                                if (genProgs.length > 0) {
+                                  if (catIdFilter === 'GENERAL') pdfTotalCount = genProgs.length;
+                                  else if (catIdFilter === 'ALL' && !categories.some(c => genProgs.every(p => String(p.catid || p.catId || '') === String(c.id)))) {
+                                    // add standalone general progs count
+                                    const standaloneGen = genProgs.filter(p => !categories.some(c => String(c.id) === String(p.catid || p.catId || '')));
+                                    pdfTotalCount += standaloneGen.length;
+                                  }
+                                  const rows = genProgs.map(p => {
+                                    const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                    const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                    return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                  }).join('');
+                                  catSections += `
+                                    <div class="cat-section">
+                                      <div class="cat-heading">GENERAL</div>
+                                      <table>
+                                        <thead><tr><th>Code</th><th>Program Name</th><th>Gender</th><th>Type</th></tr></thead>
+                                        <tbody>${rows}</tbody>
+                                      </table>
+                                    </div>`;
+                                }
+                              } else {
+                                const cat = categories.find(c => String(c.id) === String(catIdFilter));
+                                const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(catIdFilter));
+                                if (catProgs.length > 0 && cat) {
+                                  pdfTotalCount = catProgs.length;
+                                  const rows = catProgs.map(p => {
+                                    const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                    const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                    return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                  }).join('');
+                                  catSections += `
+                                    <div class="cat-section">
+                                      <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
+                                      <table>
+                                        <thead><tr><th>Code</th><th>Program Name</th><th>Gender</th><th>Type</th></tr></thead>
+                                        <tbody>${rows}</tbody>
+                                      </table>
+                                    </div>`;
+                                }
+                              }
 
                               const printWindow = window.open('', '_blank');
                               printWindow.document.write(`
@@ -5679,11 +5750,11 @@ ${pagesHtml}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
   </div>
-  <div class="notice-title-bar">🏆 Programs List — ${catIdFilter === 'ALL' ? 'All Categories' : (categories.find(c => String(c.id) === String(catIdFilter)) || {}).name || ''}</div>
+  <div class="notice-title-bar">🏆 Programs List — ${catIdFilter === 'ALL' ? 'All Categories' : catIdFilter === 'GENERAL' ? 'GENERAL' : (categories.find(c => String(c.id) === String(catIdFilter)) || {}).name || ''}</div>
   <div class="notice-body">
     ${catSections || '<p style="color:#94a3b8;text-align:center;padding:30px">No programs found.</p>'}
   </div>
-  <div class="footer">Generated by Milad Fest App • Total Programs: ${catIdFilter === 'ALL' ? programs.length : programs.filter(p => String(p.catid || p.catId || '') === String(catIdFilter)).length}</div>
+  <div class="footer">Generated by Milad Fest App • Total Programs: ${catIdFilter === 'ALL' ? programs.length : pdfTotalCount}</div>
 </div>
 </body></html>`);
                               printWindow.document.close();
@@ -5714,6 +5785,18 @@ ${pagesHtml}
                                           {c.name}
                                         </div>
                                       ))}
+                                      <div
+                                        className={`filter-chip-box ${programFilterCat === 'GENERAL' ? 'active' : ''}`}
+                                        onClick={() => setProgramFilterCat('GENERAL')}
+                                        style={{
+                                          background: programFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
+                                          color: programFilterCat === 'GENERAL' ? '#fff' : '',
+                                          fontWeight: '800',
+                                          letterSpacing: '1px'
+                                        }}
+                                      >
+                                        🌟 GENERAL
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -5739,118 +5822,179 @@ ${pagesHtml}
                                       </button>
                                     );
                                   })}
+                                  <button
+                                    key="GENERAL"
+                                    onClick={() => generateProgramsPDF('GENERAL')}
+                                    style={{ background: 'linear-gradient(135deg, #b45309, #78350f)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                  >
+                                    📄 GENERAL
+                                  </button>
                                 </div>
 
                                 {/* Programs grouped by category */}
                                 <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
-                                  {programs.length === 0 ? (
-                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs added.</p>
-                                  ) : filteredPrograms.length === 0 ? (
-                                    <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No programs in this category.</p>
-                                  ) : (() => {
-                                    // Group by category
-                                    const catsToShow = programFilterCat === 'ALL'
+                                  {(() => {
+                                    const dbCatsToShow = programFilterCat === 'ALL'
                                       ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
-                                      : categories.filter(c => String(c.id) === String(programFilterCat));
+                                      : programFilterCat === 'GENERAL'
+                                        ? []
+                                        : categories.filter(c => String(c.id) === String(programFilterCat));
 
-                                    return catsToShow.map(cat => {
-                                      const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
-                                      if (catProgs.length === 0) return null;
-                                      return (
-                                        <div key={cat.id} style={{ marginTop: '16px' }}>
-                                          {/* Category heading */}
-                                          <div style={{
-                                            background: 'linear-gradient(90deg, var(--primary-deep), var(--primary-light))',
-                                            color: 'white',
-                                            padding: '10px 14px',
-                                            borderRadius: '8px',
-                                            fontWeight: '700',
-                                            fontSize: '13px',
-                                            marginBottom: '10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            boxShadow: '0 2px 6px rgba(6, 78, 59, 0.12)'
-                                          }}>
-                                            📂 {cat.name}
-                                            {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
-                                            <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
-                                          </div>
-                                          {/* Programs in this category */}
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                            {catProgs.map(p => (
-                                              <div key={p.id} className={`settings-item-row-v2 ${editingProgId === p.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                                                {editingProgId === p.id ? (
-                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                    <input type="text" className="settings-input-v2" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
-                                                    <input type="text" className="settings-input-v2" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
-
-                                                    <select className="settings-input-v2" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
-                                                      const val = e.target.value;
-                                                      if (val) {
-                                                        const [cId, g] = val.split('_');
-                                                        const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
-                                                        setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
-                                                      }
-                                                    }}>
-                                                      <option value="">Select Category & Division</option>
-                                                      {categories.map(c => (
-                                                        <React.Fragment key={c.id}>
-                                                          <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                                          <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                                          <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
-                                                        </React.Fragment>
-                                                      ))}
-                                                       {generalCatIds.length > 0 && (
-                                                         <React.Fragment>
-                                                           <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                                           <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                                           <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                                         </React.Fragment>
-                                                       )}
-                                                    </select>
-
-                                                    <select className="settings-input-v2" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
-                                                      const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
-                                                      setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
-                                                    }}>
-                                                      <option value="SINGLE">SINGLE</option>
-                                                      <option value="GROUP">GROUP</option>
-                                                    </select>
-
-                                                    <div className="action-buttons-group">
-                                                      <button onClick={handleSaveProgEdit} className="btn-premium-action-small primary">Save</button>
-                                                      <button onClick={() => setEditingProgId(null)} className="btn-premium-action-small secondary">Cancel</button>
-                                                    </div>
-                                                  </div>
-                                                ) : (
-                                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                      <span style={{
-                                                        background: 'var(--dash-bg)',
-                                                        color: 'var(--primary-deep)',
-                                                        borderRadius: '8px', padding: '4px 10px', fontWeight: '800', fontSize: '13px',
-                                                        border: '1px solid #cbd5e1'
-                                                      }}>{p.code}</span>
-                                                      <div>
-                                                        <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
-                                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
-                                                          Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                    <div>
-                                                      <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
-                                                      <button onClick={() => handleDeleteProgram(p.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
-                                                    </div>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
+                                    const standaloneGenProgs = filteredPrograms.filter(p => {
+                                      const pCatId = String(p.catid || p.catId || '');
+                                      if (pCatId === 'GENERAL') return true;
+                                      if (programFilterCat === 'GENERAL') return isGeneralProg(p);
+                                      if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) {
+                                        const inDbCat = categories.some(c => String(c.id) === pCatId);
+                                        if (!inDbCat) return true;
+                                      }
+                                      return false;
                                     });
+
+                                    const showGeneralBlock = (programFilterCat === 'ALL' && standaloneGenProgs.length > 0) || programFilterCat === 'GENERAL';
+
+                                    if (dbCatsToShow.length === 0 && !showGeneralBlock) {
+                                      return (
+                                        <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
+                                          {programs.length === 0 ? 'No programs added.' : 'No programs in this category.'}
+                                        </p>
+                                      );
+                                    }
+
+                                    const renderProgRow = (p) => (
+                                      <div key={p.id} className={`settings-item-row-v2 ${editingProgId === p.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                                        {editingProgId === p.id ? (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <input type="text" className="settings-input-v2" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
+                                            <input type="text" className="settings-input-v2" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
+
+                                            <select className="settings-input-v2" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
+                                              const val = e.target.value;
+                                              if (val) {
+                                                const [cId, g] = val.split('_');
+                                                const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
+                                                setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
+                                              }
+                                            }}>
+                                              <option value="">Select Category & Division</option>
+                                              {categories.map(c => (
+                                                <React.Fragment key={c.id}>
+                                                  <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                                  <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                                  <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                                </React.Fragment>
+                                              ))}
+                                              <React.Fragment>
+                                                <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                                <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                                <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                              </React.Fragment>
+                                            </select>
+
+                                            <select className="settings-input-v2" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
+                                              const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
+                                              setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
+                                            }}>
+                                              <option value="SINGLE">SINGLE</option>
+                                              <option value="GROUP">GROUP</option>
+                                            </select>
+
+                                            <div className="action-buttons-group">
+                                              <button onClick={handleSaveProgEdit} className="btn-premium-action-small primary">Save</button>
+                                              <button onClick={() => setEditingProgId(null)} className="btn-premium-action-small secondary">Cancel</button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                              <span style={{
+                                                background: 'var(--dash-bg)',
+                                                color: 'var(--primary-deep)',
+                                                borderRadius: '8px', padding: '4px 10px', fontWeight: '800', fontSize: '13px',
+                                                border: '1px solid #cbd5e1'
+                                              }}>{p.code}</span>
+                                              <div>
+                                                <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
+                                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
+                                                  Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                              <button onClick={() => handleDeleteProgram(p.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+
+                                    return (
+                                      <>
+                                        {dbCatsToShow.map(cat => {
+                                          const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                          if (catProgs.length === 0) return null;
+                                          return (
+                                            <div key={cat.id} style={{ marginTop: '16px' }}>
+                                              {/* Category heading */}
+                                              <div style={{
+                                                background: 'linear-gradient(90deg, var(--primary-deep), var(--primary-light))',
+                                                color: 'white',
+                                                padding: '10px 14px',
+                                                borderRadius: '8px',
+                                                fontWeight: '700',
+                                                fontSize: '13px',
+                                                marginBottom: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                boxShadow: '0 2px 6px rgba(6, 78, 59, 0.12)'
+                                              }}>
+                                                📂 {cat.name}
+                                                {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
+                                                <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
+                                              </div>
+                                              {/* Programs in this category */}
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                {catProgs.map(renderProgRow)}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+
+                                        {showGeneralBlock && (
+                                          <div key="GENERAL" style={{ marginTop: '16px' }}>
+                                            {/* Category heading */}
+                                            <div style={{
+                                              background: 'linear-gradient(90deg, #b45309, #d97706)',
+                                              color: 'white',
+                                              padding: '10px 14px',
+                                              borderRadius: '8px',
+                                              fontWeight: '700',
+                                              fontSize: '13px',
+                                              marginBottom: '10px',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '8px',
+                                              boxShadow: '0 2px 6px rgba(180, 83, 9, 0.2)'
+                                            }}>
+                                              🌟 GENERAL
+                                              <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{standaloneGenProgs.length} programs</span>
+                                            </div>
+                                            {/* Programs in GENERAL */}
+                                            {standaloneGenProgs.length === 0 ? (
+                                              <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '16px 0' }}>
+                                                No general programs added yet. Use "Add New Program" form above with GENERAL category.
+                                              </p>
+                                            ) : (
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                {standaloneGenProgs.map(renderProgRow)}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </>
+                                    );
                                   })()}
                                 </div>
                               </>
