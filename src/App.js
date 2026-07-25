@@ -4372,7 +4372,9 @@ ${pagesHtml}
                 const filteredTimetable = mappedTimetable.filter(item => {
                   if (timetableFilterCat === 'ALL') return true;
                   if (timetableFilterCat === 'GENERAL') {
-                    return String(item.program.catid) === 'GENERAL' || generalCatIds.map(String).includes(String(item.program.catid));
+                    const pCatId = String(item.program.catid || item.program.catId || '');
+                    const catObj = categories.find(c => String(c.id) === pCatId);
+                    return pCatId === 'GENERAL' || (catObj && (catObj.name || '').toLowerCase().includes('general'));
                   }
                   return String(item.program.catid) === String(timetableFilterCat);
                 });
@@ -5522,7 +5524,6 @@ ${pagesHtml}
                             const isGeneralProg = (p) => {
                               const pCatId = String(p.catid || p.catId || '');
                               if (pCatId === 'GENERAL') return true;
-                              if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
                               const catObj = categories.find(c => String(c.id) === pCatId);
                               if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
                               return false;
@@ -5571,13 +5572,8 @@ ${pagesHtml}
                                 const genProgs = programs.filter(p => {
                                   const pCatId = String(p.catid || p.catId || '');
                                   if (pCatId === 'GENERAL') return true;
-                                  if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) {
-                                    if (catIdFilter === 'GENERAL') return true;
-                                    const inDbCat = categories.some(c => String(c.id) === pCatId);
-                                    if (!inDbCat) return true;
-                                  }
                                   if ((categories.find(c => String(c.id) === pCatId)?.name || '').toLowerCase().includes('general')) {
-                                    if (catIdFilter === 'GENERAL') return true;
+                                    return true;
                                   }
                                   return false;
                                 });
@@ -5844,10 +5840,8 @@ ${pagesHtml}
                                       const pCatId = String(p.catid || p.catId || '');
                                       if (pCatId === 'GENERAL') return true;
                                       if (programFilterCat === 'GENERAL') return isGeneralProg(p);
-                                      if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) {
-                                        const inDbCat = categories.some(c => String(c.id) === pCatId);
-                                        if (!inDbCat) return true;
-                                      }
+                                      const catObj = categories.find(c => String(c.id) === pCatId);
+                                      if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
                                       return false;
                                     });
 
