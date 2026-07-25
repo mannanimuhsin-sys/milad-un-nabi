@@ -574,6 +574,7 @@ function App() {
   const [groupRegProgram, setGroupRegProgram] = useState('');
   const [groupRegName, setGroupRegName] = useState('');
   const [groupRegTeam, setGroupRegTeam] = useState('');
+  const [groupRegLeader, setGroupRegLeader] = useState('');
   const [groupRegStudents, setGroupRegStudents] = useState([]); // array of student IDs
   const [groupRegSaving, setGroupRegSaving] = useState(false);
 
@@ -1966,21 +1967,36 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     if (!groupRegTeam) { alert(lang === 'EN' ? 'Please select a team' : 'ടീം തിരഞ്ഞെടുക്കുക'); return; }
     if (groupRegStudents.length === 0) { alert(lang === 'EN' ? 'Please select at least one student' : 'കുറഞ്ഞത് ഒരു വിദ്യാർത്ഥിയെയെങ്കിലും തിരഞ്ഞെടുക്കുക'); return; }
 
+    // Resolve Leader ID
+    const chosenLeader = groupRegLeader || (groupRegStudents.length > 0 ? groupRegStudents[0] : null);
+
     setGroupRegSaving(true);
     try {
       const madrasaId = loggedInMadrasa.regNumber;
       
-      const insertData = {
+      let insertData = {
         madrasa_id: madrasaId,
         program_id: String(groupRegProgram),
         group_name: groupRegName.trim(),
         team_id: String(groupRegTeam),
-        student_ids: groupRegStudents // JSON array of student IDs
+        student_ids: groupRegStudents, // JSON array of student IDs
+        leader_id: chosenLeader ? String(chosenLeader) : null
       };
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from('group_registrations')
         .insert([insertData]);
+
+      // If leader_id column doesn't exist yet, retry without leader_id column but putting leader as 1st element of student_ids
+      if (error && error.message && error.message.includes('leader_id')) {
+        delete insertData.leader_id;
+        const reordered = chosenLeader 
+          ? [String(chosenLeader), ...groupRegStudents.filter(id => String(id) !== String(chosenLeader))]
+          : groupRegStudents;
+        insertData.student_ids = reordered;
+        const res = await supabase.from('group_registrations').insert([insertData]);
+        error = res.error;
+      }
 
       if (error) {
         if (error.code === 'PGRST205') {
@@ -1991,6 +2007,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   program_id TEXT NOT NULL,
   group_name TEXT NOT NULL,
   team_id TEXT NOT NULL,
+  leader_id TEXT,
   student_ids JSONB NOT NULL DEFAULT '[]',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );`);
@@ -2000,6 +2017,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       } else {
         alert(lang === 'EN' ? 'Group registration saved successfully!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ വിജയിച്ചു!');
         setGroupRegName('');
+        setGroupRegLeader('');
         setGroupRegStudents([]);
         
         // Refresh group registrations
@@ -6753,32 +6771,72 @@ ${pagesHtml}
                                                   {groupStudentsFiltered.map(s => {
                                                     const sRegNo = s.regno || s.regNo || '';
                                                     const isChecked = groupRegStudents.includes(String(s.id));
+                                                    const isLeader = groupRegLeader ? String(groupRegLeader) === String(s.id) : (groupRegStudents.length > 0 && String(groupRegStudents[0]) === String(s.id));
                                                     const teamName = (teams.find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || '';
                                                     
                                                     return (
                                                       <label key={s.id} style={{
                                                         display: 'flex', alignItems: 'center', gap: '10px',
                                                         padding: '6px 8px', borderRadius: '6px', cursor: 'pointer',
-                                                        background: isChecked ? '#eff6ff' : 'transparent',
+                                                        background: isChecked ? (isLeader ? '#f0fdf4' : '#eff6ff') : 'transparent',
+                                                        border: isLeader && isChecked ? '1px solid #86efac' : '1px solid transparent',
                                                         transition: 'all 0.15s'
                                                       }}>
                                                         <input type="checkbox" checked={isChecked}
                                                           onChange={e => {
                                                             if (e.target.checked) {
                                                               setGroupRegStudents(prev => [...prev, String(s.id)]);
+                                                              if (!groupRegLeader) setGroupRegLeader(String(s.id));
                                                             } else {
-                                                              setGroupRegStudents(prev => prev.filter(id => id !== String(s.id)));
+                                                              const next = groupRegStudents.filter(id => id !== String(s.id));
+                                                              setGroupRegStudents(next);
+                                                              if (String(groupRegLeader) === String(s.id)) {
+                                                                setGroupRegLeader(next.length > 0 ? next[0] : '');
+                                                              }
                                                             }
                                                           }}
                                                           style={{ width: '16px', height: '16px', accentColor: '#3b82f6', cursor: 'pointer' }}
                                                         />
-                                                        <div style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>
-                                                          <b>{sRegNo}</b> - {s.name} <span style={{ fontSize: '11px', color: '#64748b' }}>({teamName})</span>
+                                                        <div style={{ flex: 1, fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                          <div>
+                                                            <b>{sRegNo}</b> - {s.name} <span style={{ fontSize: '11px', color: '#64748b' }}>({teamName})</span>
+                                                          </div>
+                                                          {isChecked && isLeader && (
+                                                            <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', border: '1px solid #86efac' }}>
+                                                              👑 {lang === 'EN' ? 'Leader' : 'ടീം ലീഡർ'}
+                                                            </span>
+                                                          )}
                                                         </div>
                                                       </label>
                                                     );
                                                   })}
                                                 </div>
+
+                                                {/* Team Leader Dropdown selection */}
+                                                {groupRegStudents.length > 0 && (
+                                                  <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0', marginTop: '6px' }}>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                                      <span>👑</span> {lang === 'EN' ? 'Select Team Leader (Required for Judge Sheet):' : 'ടീം ലീഡറെ തിരഞ്ഞെടുക്കുക (ജഡ്ജ് ഷീറ്റിനായി):'}
+                                                    </label>
+                                                    <select 
+                                                      className="settings-input-v2"
+                                                      value={groupRegLeader || (groupRegStudents.length > 0 ? groupRegStudents[0] : '')}
+                                                      onChange={e => setGroupRegLeader(e.target.value)}
+                                                      style={{ background: '#fff', fontSize: '13px', fontWeight: '700', color: '#064e3b' }}
+                                                    >
+                                                      {groupRegStudents.map(sId => {
+                                                        const st = students.find(s => String(s.id) === String(sId));
+                                                        if (!st) return null;
+                                                        const sReg = st.regno || st.regNo || '';
+                                                        return (
+                                                          <option key={st.id} value={st.id}>
+                                                            {sReg} - {st.name}
+                                                          </option>
+                                                        );
+                                                      })}
+                                                    </select>
+                                                  </div>
+                                                )}
                                               </div>
                                             );
                                           })()}
@@ -7581,27 +7639,115 @@ ${pagesHtml}
 
                       // Students registered for this program: prefer program_registrations, fall back to category+gender
                       const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
-                      const judgeStudents = judgeSheetProg ? (() => {
-                        const regStudentIds = new Set(
-                          programRegistrations
-                            .filter(r => String(r.program_id) === String(judgeSheetProg))
-                            .map(r => String(r.student_id))
-                        );
-                        const baseStudents = regStudentIds.size > 0
-                          ? students.filter(s => regStudentIds.has(String(s.id)))
-                          : students.filter(s => {
-                              if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
-                              if (judgeSheetCat === 'GENERAL') {
-                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
-                              }
-                              if (isGeneral) return true;
-                              return String(s.catid || s.catId || '') === String(judgeSheetCat);
+                      const isGroupProg = selectedProgObj && (selectedProgObj.type || '').includes('GROUP');
+
+                      // Build items for Judge Sheet (Single student vs Group/Team)
+                      const judgeItems = judgeSheetProg ? (() => {
+                        if (isGroupProg) {
+                          // 1. Get explicit group registrations for this program
+                          const progGroupRegs = groupRegistrations.filter(g => String(g.program_id) === String(judgeSheetProg));
+                          
+                          if (progGroupRegs.length > 0) {
+                            return progGroupRegs.map(g => {
+                              const teamObj = teams.find(t => String(t.id) === String(g.team_id));
+                              const teamName = g.group_name || (teamObj ? teamObj.name : 'Team');
+                              const studentIds = Array.isArray(g.student_ids) 
+                                ? g.student_ids 
+                                : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
+                              
+                              const leaderId = g.leader_id || (studentIds.length > 0 ? studentIds[0] : null);
+                              const leaderStudent = students.find(s => String(s.id) === String(leaderId));
+                              const memberStudents = students.filter(s => 
+                                studentIds.map(String).includes(String(s.id)) && String(s.id) !== String(leaderId)
+                              );
+
+                              return {
+                                id: g.id,
+                                isGroup: true,
+                                teamName: teamName,
+                                teamCode: teamObj ? teamObj.name : '',
+                                leaderStudent: leaderStudent,
+                                leaderRegNo: leaderStudent ? (leaderStudent.regno || leaderStudent.regNo || '') : '',
+                                leaderName: leaderStudent ? leaderStudent.name : '',
+                                memberStudents: memberStudents,
+                                memberRegNos: memberStudents.map(m => m.regno || m.regNo || '').filter(Boolean),
+                                allStudentIds: studentIds
+                              };
                             });
-                        return baseStudents.sort((a, b) => {
-                          const aReg = parseInt(a.regno || a.regNo || '0') || 0;
-                          const bReg = parseInt(b.regno || b.regNo || '0') || 0;
-                          return aReg - bReg;
-                        });
+                          } else {
+                            // Fallback: If no explicit group registrations, group registered students by team
+                            const regStudentIds = new Set(
+                              programRegistrations
+                                .filter(r => String(r.program_id) === String(judgeSheetProg))
+                                .map(r => String(r.student_id))
+                            );
+                            const baseStudents = regStudentIds.size > 0
+                              ? students.filter(s => regStudentIds.has(String(s.id)))
+                              : students.filter(s => {
+                                  if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
+                                  if (judgeSheetCat === 'GENERAL') {
+                                    return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                  }
+                                  if (isGeneral) return true;
+                                  return String(s.catid || s.catId || '') === String(judgeSheetCat);
+                                });
+
+                            const teamGroupMap = {};
+                            baseStudents.forEach(s => {
+                              const tId = String(s.teamid || s.teamId || 'no_team');
+                              if (!teamGroupMap[tId]) teamGroupMap[tId] = [];
+                              teamGroupMap[tId].push(s);
+                            });
+
+                            return Object.keys(teamGroupMap).map(tId => {
+                              const teamSts = teamGroupMap[tId].sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0));
+                              const teamObj = teams.find(t => String(t.id) === String(tId));
+                              const leaderStudent = teamSts[0];
+                              const memberStudents = teamSts.slice(1);
+
+                              return {
+                                id: `team_${tId}`,
+                                isGroup: true,
+                                teamName: teamObj ? teamObj.name : 'Team',
+                                teamCode: teamObj ? teamObj.name : '',
+                                leaderStudent: leaderStudent,
+                                leaderRegNo: leaderStudent ? (leaderStudent.regno || leaderStudent.regNo || '') : '',
+                                leaderName: leaderStudent ? leaderStudent.name : '',
+                                memberStudents: memberStudents,
+                                memberRegNos: memberStudents.map(m => m.regno || m.regNo || '').filter(Boolean),
+                                allStudentIds: teamSts.map(s => s.id)
+                              };
+                            });
+                          }
+                        } else {
+                          // Single program: Individual students
+                          const regStudentIds = new Set(
+                            programRegistrations
+                              .filter(r => String(r.program_id) === String(judgeSheetProg))
+                              .map(r => String(r.student_id))
+                          );
+                          const baseStudents = regStudentIds.size > 0
+                            ? students.filter(s => regStudentIds.has(String(s.id)))
+                            : students.filter(s => {
+                                if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
+                                if (judgeSheetCat === 'GENERAL') {
+                                  return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                }
+                                if (isGeneral) return true;
+                                return String(s.catid || s.catId || '') === String(judgeSheetCat);
+                              });
+
+                          return baseStudents
+                            .sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0))
+                            .map(s => ({
+                              id: s.id,
+                              isGroup: false,
+                              student: s,
+                              regNo: s.regno || s.regNo || '',
+                              name: s.name || '',
+                              teamObj: teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''))
+                            }));
+                        }
                       })() : [];
 
                       const buildJudgeSheetHtml = () => {
@@ -7612,15 +7758,45 @@ ${pagesHtml}
                         const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
                         const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
 
-                        const rows = judgeStudents.map((s) => {
-                          const sRegNo = s.regno || s.regNo || '';
-                          return `<tr>
-                            <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5">${sRegNo}</td>
-                            <td style="text-align:center"></td>
-                            <td style="text-align:center"></td>
-                            <td style="text-align:center"></td>
-                            <td style="text-align:center"></td>
-                          </tr>`;
+                        const rows = judgeItems.map((item) => {
+                          if (item.isGroup) {
+                            const leaderDisplay = item.leaderRegNo 
+                              ? `<b>Reg No: ${item.leaderRegNo}</b> ${item.leaderName ? `(${item.leaderName})` : ''}`
+                              : (item.leaderName || '-');
+
+                            const membersDisplay = item.memberStudents && item.memberStudents.length > 0
+                              ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''}${m.name ? ` (${m.name})` : ''}`).join(', ')
+                              : (item.memberRegNos.length > 0 ? `Reg Nos: ${item.memberRegNos.join(', ')}` : '');
+
+                            return `<tr style="min-height:55px; height:55px;">
+                              <td style="text-align:left; padding:8px 12px; border:1.5px solid #cbd5e1; vertical-align:middle;">
+                                <div style="font-weight:800; font-size:13px; color:#064e3b; margin-bottom:3px; display:flex; align-items:center; justify-space-between;">
+                                  <span>🚩 ${item.teamName}</span>
+                                  ${item.teamCode ? `<span style="font-size:11px; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px; margin-left:8px;">${item.teamCode}</span>` : ''}
+                                </div>
+                                <div style="font-size:11px; font-weight:700; color:#1e293b;">
+                                  👑 Leader: ${leaderDisplay}
+                                </div>
+                                ${membersDisplay ? `
+                                  <div style="font-size:10px; color:#64748b; margin-top:2px;">
+                                    👥 Members: ${membersDisplay}
+                                  </div>
+                                ` : ''}
+                              </td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                            </tr>`;
+                          } else {
+                            return `<tr>
+                              <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5">${item.regNo}</td>
+                              <td style="text-align:center"></td>
+                              <td style="text-align:center"></td>
+                              <td style="text-align:center"></td>
+                              <td style="text-align:center"></td>
+                            </tr>`;
+                          }
                         }).join('');
 
                         return `
@@ -7682,7 +7858,7 @@ ${pagesHtml}
     border: 1px solid rgba(255,255,255,0.2);
     text-align: center;
   }
-  td { padding: 10px 8px; border: 1.5px solid #cbd5e1; min-height: 36px; height: 36px; }
+  td { padding: 10px 8px; border: 1.5px solid #cbd5e1; min-height: 36px; }
   tbody tr:nth-child(even) { background: #f8fafc; }
   .sheet-footer {
     margin-top: 28px;
@@ -7726,15 +7902,15 @@ ${pagesHtml}
       <span class="subtitle-value">${progName}</span>
     </div>
     <div class="subtitle-item">
-      <span class="subtitle-label">Total Participants:</span>
-      <span class="subtitle-value">${judgeStudents.length}</span>
+      <span class="subtitle-label">${isGroupProg ? 'Total Teams:' : 'Total Participants:'}</span>
+      <span class="subtitle-value">${judgeItems.length} ${isGroupProg ? 'Teams' : 'Students'}</span>
     </div>
   </div>
   <div class="sheet-body">
     <table>
       <thead>
         <tr>
-          <th style="width:110px">Reg. No</th>
+          <th style="${isGroupProg ? 'width:320px;text-align:left;padding-left:12px;' : 'width:110px;'}">${isGroupProg ? 'Team & Members (ടീം & അംഗങ്ങൾ)' : 'Reg. No'}</th>
           <th style="width:100px">Chance No</th>
           <th style="width:120px">Marks (1)</th>
           <th style="width:120px">Marks (2)</th>
@@ -7742,7 +7918,7 @@ ${pagesHtml}
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">No students registered.</td></tr>'}
+        ${rows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">No entries registered.</td></tr>'}
       </tbody>
     </table>
     <div class="sheet-footer">
@@ -7854,7 +8030,7 @@ ${pagesHtml}
                                 <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
                                   <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '4px' }}>📊 Preview</div>
                                   <div style={{ fontSize: '13px', color: '#1e293b' }}>
-                                    <strong>{judgeStudents.length}</strong> participants registered in{' '}
+                                    <strong>{judgeItems.length}</strong> {isGroupProg ? 'teams' : 'participants'} registered in{' '}
                                     <strong>{selectedProgObj ? selectedProgObj.name : ''}</strong>
                                   </div>
                                 </div>
@@ -7885,35 +8061,65 @@ ${pagesHtml}
 
                           {/* Preview list */}
                           <div className="settings-list-box" style={{ maxHeight: 'none' }}>
-                            <h3>📋 {judgeSheetProg ? `Participants – ${selectedProgObj ? selectedProgObj.name : ''}` : 'Select a Program'}</h3>
+                            <h3>📋 {judgeSheetProg ? `${isGroupProg ? 'Teams' : 'Participants'} – ${selectedProgObj ? selectedProgObj.name : ''}` : 'Select a Program'}</h3>
                             {!judgeSheetProg ? (
                               <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>Please select a category and program above.</p>
-                            ) : judgeStudents.length === 0 ? (
-                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>No students registered in this category/division.</p>
+                            ) : judgeItems.length === 0 ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>No entries registered in this category/division.</p>
                             ) : (
                               <>
                                 <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
-                                  📌 {judgeStudents.length} participants will appear on the sheet, sorted by Reg. No.
+                                  📌 {judgeItems.length} {isGroupProg ? 'teams' : 'participants'} will appear on the sheet.
                                 </div>
-                                {judgeStudents.map((s, idx) => {
-                                  const sRegNo = s.regno || s.regNo || '';
-                                  const teamObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
-                                  return (
-                                    <div key={s.id} style={{
-                                      display: 'flex', alignItems: 'center', gap: '10px',
-                                      padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
-                                      background: idx % 2 === 0 ? '#f8fafc' : '#fff'
-                                    }}>
-                                      <span style={{
-                                        background: '#064e3b', color: 'white', borderRadius: '6px',
-                                        padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
-                                      }}>{sRegNo}</span>
-                                      <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
-                                      <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
-                                      <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
-                                      >{s.gender === 'BOY' ? '👦' : '👧'}</span>
-                                    </div>
-                                  );
+                                {judgeItems.map((item, idx) => {
+                                  if (item.isGroup) {
+                                    return (
+                                      <div key={item.id} style={{
+                                        display: 'flex', flexDirection: 'column', gap: '4px',
+                                        padding: '10px 12px', borderBottom: '1px solid #e2e8f0',
+                                        background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                          <div style={{ fontSize: '14px', fontWeight: '800', color: '#064e3b' }}>
+                                            🚩 {item.teamName}
+                                          </div>
+                                          {item.teamCode && (
+                                            <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 6px', fontWeight: '800' }}>
+                                              {item.teamCode}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#1e293b', fontWeight: '700' }}>
+                                          👑 Leader: <span style={{ background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px' }}>Reg No: {item.leaderRegNo || '-'}</span> {item.leaderName ? `(${item.leaderName})` : ''}
+                                        </div>
+                                        {item.memberStudents && item.memberStudents.length > 0 && (
+                                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                            👥 Members: {item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  } else {
+                                    const s = item.student;
+                                    const sRegNo = item.regNo;
+                                    const teamObj = item.teamObj;
+                                    return (
+                                      <div key={item.id} style={{
+                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                        padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
+                                        background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                      }}>
+                                        <span style={{
+                                          background: '#064e3b', color: 'white', borderRadius: '6px',
+                                          padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
+                                        }}>{sRegNo}</span>
+                                        <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
+                                        <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
+                                        <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
+                                        >{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                      </div>
+                                    );
+                                  }
                                 })}
                                 {/* Download Participants PDF button */}
                                 <div style={{ padding: '12px 10px 4px' }}>
@@ -7924,18 +8130,32 @@ ${pagesHtml}
                                       const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
                                       const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
                                       const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                                      const rows = judgeStudents.map((s, idx) => {
-                                        const sRegNo = s.regno || s.regNo || '';
-                                        const sName = s.name || '';
-                                        const teamObj2 = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
-                                        const teamName = teamObj2 ? teamObj2.name : '';
-                                        return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
-                                          <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5;padding:8px 10px;border:1px solid #cbd5e1">${sRegNo}</td>
-                                          <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1e293b;border:1px solid #cbd5e1">${sName}</td>
-                                          <td style="padding:8px 12px;font-size:12px;color:#475569;border:1px solid #cbd5e1">${teamName}</td>
-                                        </tr>`;
+                                      
+                                      const rows = judgeItems.map((item, idx) => {
+                                        if (item.isGroup) {
+                                          const leaderDisplay = item.leaderRegNo ? `Reg No: <b>${item.leaderRegNo}</b> (${item.leaderName})` : '-';
+                                          const membersDisplay = item.memberStudents && item.memberStudents.length > 0
+                                            ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')
+                                            : '';
+
+                                          return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
+                                            <td style="text-align:left;font-weight:800;font-size:13px;color:#064e3b;padding:10px 12px;border:1px solid #cbd5e1">🚩 ${item.teamName}</td>
+                                            <td style="padding:10px 12px;font-size:12px;color:#1e293b;border:1px solid #cbd5e1">👑 ${leaderDisplay}</td>
+                                            <td style="padding:10px 12px;font-size:11px;color:#475569;border:1px solid #cbd5e1">👥 ${membersDisplay}</td>
+                                          </tr>`;
+                                        } else {
+                                          const sRegNo = item.regNo;
+                                          const sName = item.name;
+                                          const teamName = item.teamObj ? item.teamObj.name : '';
+                                          return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
+                                            <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5;padding:8px 10px;border:1px solid #cbd5e1">${sRegNo}</td>
+                                            <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1e293b;border:1px solid #cbd5e1">${sName}</td>
+                                            <td style="padding:8px 12px;font-size:12px;color:#475569;border:1px solid #cbd5e1">${teamName}</td>
+                                          </tr>`;
+                                        }
                                       }).join('');
-                                      const html = `<!DOCTYPE html><html><head><title>Participants - ${progName}</title>
+
+                                      const html = `<!DOCTYPE html><html><head><title>${isGroupProg ? 'Teams' : 'Participants'} - ${progName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 portrait; margin: 15mm; }
@@ -7960,11 +8180,13 @@ ${pagesHtml}
   <div class="subtitle-bar">
     <div class="sl"><span class="sl-lbl">Category:</span><span class="sl-val">${catName} (${genderLabel})</span></div>
     <div class="sl"><span class="sl-lbl">Program:</span><span class="sl-val">${progName}</span></div>
-    <div class="sl"><span class="sl-lbl">Total:</span><span class="sl-val">${judgeStudents.length} Participants</span></div>
+    <div class="sl"><span class="sl-lbl">Total:</span><span class="sl-val">${judgeItems.length} ${isGroupProg ? 'Teams' : 'Participants'}</span></div>
   </div>
   <div class="body">
-    <table><thead><tr><th style="width:100px">Reg. No</th><th>Student Name</th><th style="width:150px">Team</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No students registered.</td></tr>'}</tbody></table>
+    <table><thead><tr>
+      ${isGroupProg ? '<th style="width:140px">Team</th><th style="width:180px">Leader</th><th>Members</th>' : '<th style="width:100px">Reg. No</th><th>Student Name</th><th style="width:150px">Team</th>'}
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No entries registered.</td></tr>'}</tbody></table>
   </div>
 </div></body></html>`;
                                       downloadHtmlAsPdf(html, `Participants_${progName}.pdf`);
@@ -7972,7 +8194,7 @@ ${pagesHtml}
                                     className="btn-add-action"
                                     style={{ width: '100%', background: '#1d4ed8' }}
                                   >
-                                    📄 Download Participants PDF
+                                    📄 Download ${isGroupProg ? 'Teams' : 'Participants'} PDF
                                   </button>
                                 </div>
                               </>
