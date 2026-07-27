@@ -64,7 +64,8 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
     );
   }
 
-  return (    <div
+  return (
+    <div
       ref={cardRef}
       className={`id-card ${className}`}
       style={{
@@ -9310,6 +9311,39 @@ ${pagesHtml}
         const signatureUrl = window.location.origin + '/signature.png';
         const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
+        const handleModalDownloadPdf = async () => {
+          const certArea = document.getElementById('modalCertificateArea');
+          if (!certArea) return;
+          try {
+            const originalTransform = certArea.style.transform;
+            certArea.style.transform = 'none';
+            await new Promise(r => setTimeout(r, 60));
+            const canvas = await html2canvas(certArea, {
+              scale: 2,
+              useCORS: true,
+              allowTaint: true,
+              backgroundColor: '#fffdf7',
+              width: 1050,
+              height: 740
+            });
+            certArea.style.transform = originalTransform;
+            const imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF({
+              orientation: 'landscape',
+              unit: 'mm',
+              format: 'a4'
+            });
+
+            pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+            const pdfBlob = pdf.output('blob');
+            const fileName = `Certificate_${student.name.replace(/[^a-zA-Z0-9]/g, '_')}_${(result.progname || result.progName || '').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+            await downloadFile(pdfBlob, fileName, 'application/pdf');
+          } catch (err) {
+            alert('Failed to save PDF: ' + err.message);
+          }
+        };
+
         const handleModalDownload = async () => {
           const certArea = document.getElementById('modalCertificateArea');
           if (!certArea) return;
@@ -9317,9 +9351,11 @@ ${pagesHtml}
             // Temporarily reset transform for rendering high-res image
             const originalTransform = certArea.style.transform;
             certArea.style.transform = 'none';
+            await new Promise(r => setTimeout(r, 60));
             const canvas = await html2canvas(certArea, {
               scale: 2,
               useCORS: true,
+              allowTaint: true,
               backgroundColor: '#fffdf7',
               width: 1050,
               height: 740
@@ -9814,30 +9850,42 @@ ${pagesHtml}
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button 
+                onClick={handleModalDownloadPdf}
+                style={{
+                  background: 'linear-gradient(135deg, #059669, #047857)',
+                  color: 'white', border: 'none', borderRadius: '12px',
+                  padding: '12px 24px', fontSize: '14px', fontWeight: '800',
+                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(5, 150, 105, 0.3)',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}
+              >
+                📄 Download PDF
+              </button>
               <button 
                 onClick={handleModalDownload}
                 style={{
                   background: 'linear-gradient(135deg, #16a34a, #15803d)',
                   color: 'white', border: 'none', borderRadius: '12px',
-                  padding: '14px 28px', fontSize: '14px', fontWeight: '700',
+                  padding: '12px 24px', fontSize: '14px', fontWeight: '800',
                   cursor: 'pointer', boxShadow: '0 6px 20px rgba(22, 163, 74, 0.3)',
                   display: 'flex', alignItems: 'center', gap: '8px'
                 }}
               >
-                📥 Save Certificate Image
+                🖼️ Save Image (PNG)
               </button>
               <button 
                 onClick={handleModalPrint}
                 style={{
                   background: 'linear-gradient(135deg, #0284c7, #0369a1)',
                   color: 'white', border: 'none', borderRadius: '12px',
-                  padding: '14px 28px', fontSize: '14px', fontWeight: '700',
+                  padding: '12px 24px', fontSize: '14px', fontWeight: '800',
                   cursor: 'pointer', boxShadow: '0 6px 20px rgba(2, 132, 199, 0.3)',
                   display: 'flex', alignItems: 'center', gap: '8px'
                 }}
               >
-                🖨️ Print Certificate
+                🖨️ Print (A4 Landscape)
               </button>
             </div>
           </div>
