@@ -64,13 +64,12 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
     );
   }
 
-  return (
-    <div
+  return (    <div
       ref={cardRef}
       className={`id-card ${className}`}
       style={{
         width: '283px',
-        height: '378px',
+        height: '435px',
         background: 'linear-gradient(160deg, #ffffff 0%, #f0fdf4 40%, #ecfdf5 70%, #f0fff4 100%)',
         borderRadius: '0',
         overflow: 'hidden',
@@ -90,37 +89,37 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
       <div style={{ position: 'absolute', top: '50%', right: '-20px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(74,222,128,0.07)', pointerEvents: 'none', zIndex: 0 }} />
 
       {/* Top gradient stripe */}
-      <div style={{ height: '6px', background: 'linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d)', flexShrink: 0, position: 'relative', zIndex: 1 }} />
+      <div style={{ height: '5px', background: 'linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d)', flexShrink: 0, position: 'relative', zIndex: 1 }} />
 
       {/* Header: Madrasa name + RegNo + Place */}
-      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '6px 10px 5px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1, borderBottom: '2px solid #fbbf24' }}>
-        <div style={{ fontSize: '10px', fontWeight: '900', color: '#fef08a', textAlign: 'center', letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '5px 8px 4px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1, borderBottom: '2px solid #fbbf24' }}>
+        <div style={{ fontSize: '9.5px', fontWeight: '900', color: '#fef08a', textAlign: 'center', letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
           {loggedInMadrasa ? loggedInMadrasa.name : ''}
         </div>
-        <div style={{ fontSize: '7px', color: '#bbf7d0', textAlign: 'center', lineHeight: 1.3, opacity: 0.9 }}>
+        <div style={{ fontSize: '6.5px', color: '#bbf7d0', textAlign: 'center', lineHeight: 1.3, opacity: 0.9 }}>
           {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}
         </div>
       </div>
 
       {/* Photo LEFT + Student Name & RegNo RIGHT */}
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '8px 10px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '10px', position: 'relative', zIndex: 1 }}>
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '6px 8px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '8px', position: 'relative', zIndex: 1 }}>
         {/* Photo */}
-        <div style={{ flexShrink: 0, width: '78px', height: '88px', borderRadius: '10px', border: '3px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 4px 16px rgba(22,163,74,0.25), 0 0 0 1px rgba(22,163,74,0.15)' }}>
+        <div style={{ flexShrink: 0, width: '74px', height: '84px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)' }}>
           {photoContent}
         </div>
 
         {/* Name + RegNo */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'stretch', gap: '6px', minWidth: 0 }}>
-          {/* Student Name — bigger, dark green for contrast on light bg */}
-          <div style={{ fontSize: '15px', fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', marginBottom: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'stretch', gap: '5px', minWidth: 0 }}>
+          {/* Student Name */}
+          <div style={{ fontSize: '14px', fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', marginBottom: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             {s.name}
           </div>
-          {/* Big highlighted Reg No badge — now more vivid & larger */}
-          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '8px', padding: '5px 8px', boxShadow: '0 4px 14px rgba(251,191,36,0.55)', width: '100%', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
-            <div style={{ fontSize: '8px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>
+          {/* Highlighted Reg No badge */}
+          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '4px 6px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
+            <div style={{ fontSize: '7.5px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>
               Register No.
             </div>
-            <div style={{ fontSize: '26px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontSize: '24px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
               {s.regno || s.regNo || ''}
             </div>
           </div>
@@ -128,41 +127,41 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
       </div>
 
       {/* Details: Group / Category / Gender */}
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '5px', padding: '10px 12px 8px', boxSizing: 'border-box', position: 'relative', zIndex: 1 }}>
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', padding: '6px 10px 4px', boxSizing: 'border-box', position: 'relative', zIndex: 1 }}>
         {/* Group */}
-        <div style={{ background: 'linear-gradient(135deg, rgba(22,163,74,0.1) 0%, rgba(22,163,74,0.04) 100%)', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '4px solid #16a34a', borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: '#15803d', letterSpacing: '1px' }}>👥 Group</span>
-          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(22,163,74,0.1) 0%, rgba(22,163,74,0.04) 100%)', border: '1px solid rgba(22,163,74,0.35)', borderLeft: '4px solid #16a34a', borderRadius: '5px', padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <span style={{ fontSize: '7.5px', fontWeight: '900', textTransform: 'uppercase', color: '#15803d', letterSpacing: '1px' }}>👥 Group</span>
+          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '10.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {teamObj ? teamObj.name : 'N/A'}
           </span>
         </div>
         {/* Category */}
-        <div style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(251,191,36,0.04) 100%)', border: '1px solid rgba(217,119,6,0.35)', borderLeft: '4px solid #f59e0b', borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: '#b45309', letterSpacing: '1px' }}>🏷️ Category</span>
-          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(251,191,36,0.04) 100%)', border: '1px solid rgba(217,119,6,0.35)', borderLeft: '4px solid #f59e0b', borderRadius: '5px', padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <span style={{ fontSize: '7.5px', fontWeight: '900', textTransform: 'uppercase', color: '#b45309', letterSpacing: '1px' }}>🏷️ Category</span>
+          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '10.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {catObj ? catObj.name : 'N/A'}
           </span>
         </div>
         {/* Gender */}
-        <div style={{ background: `linear-gradient(135deg, ${isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)'} 0%, rgba(255,255,255,0) 100%)`, border: `1px solid ${isBoy ? 'rgba(96,165,250,0.4)' : 'rgba(244,114,182,0.4)'}`, borderLeft: `4px solid ${isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '6px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', color: isBoy ? '#2563eb' : '#be185d', letterSpacing: '1px' }}>{isBoy ? '👦' : '👧'} Gender</span>
-          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '11px' }}>
+        <div style={{ background: `linear-gradient(135deg, ${isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)'} 0%, rgba(255,255,255,0) 100%)`, border: `1px solid ${isBoy ? 'rgba(96,165,250,0.4)' : 'rgba(244,114,182,0.4)'}`, borderLeft: `4px solid ${isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '5px', padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <span style={{ fontSize: '7.5px', fontWeight: '900', textTransform: 'uppercase', color: isBoy ? '#2563eb' : '#be185d', letterSpacing: '1px' }}>{isBoy ? '👦' : '👧'} Gender</span>
+          <span style={{ fontWeight: '800', color: '#14532d', fontSize: '10.5px' }}>
             {s.gender === 'BOY' ? 'Boy' : 'Girl'}
           </span>
         </div>
       </div>
 
       {/* QR Code — centered with bordered panel */}
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0 2px', position: 'relative', zIndex: 1 }}>
-        <div style={{ background: 'rgba(255,255,255,0.96)', border: '2px solid #fbbf24', borderRadius: '10px', padding: '7px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.1), 0 0 0 1px rgba(22,163,74,0.15)' }}>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0', position: 'relative', zIndex: 1 }}>
+        <div style={{ background: 'rgba(255,255,255,0.96)', border: '2px solid #fbbf24', borderRadius: '8px', padding: '5px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', boxShadow: '0 3px 12px rgba(0,0,0,0.1), 0 0 0 1px rgba(22,163,74,0.15)' }}>
           <div style={{ fontSize: '6px', fontWeight: '900', color: '#166534', textTransform: 'uppercase', letterSpacing: '1.5px' }}>🔍 Scan QR</div>
-          <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={70} />
+          <StudentQrCode madrasaReg={loggedInMadrasa?.regNumber} studentId={s.id} size={62} />
         </div>
       </div>
 
       {/* Footer */}
-      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '10px 8px', textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1, borderTop: '2px solid #fbbf24' }}>
-        <span style={{ fontSize: '9px', color: '#fef08a', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '8px 8px', textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1, borderTop: '2px solid #fbbf24' }}>
+        <span style={{ fontSize: '8.5px', color: '#fef08a', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
           MILAD FEST • ID CARD
         </span>
       </div>
@@ -547,6 +546,7 @@ function App() {
 
   // Filter state for Programs list in Master Settings
   const [programFilterCat, setProgramFilterCat] = useState('ALL');
+  const [programFilterGender, setProgramFilterGender] = useState('ALL');
 
   // Judge Sheet states
   const [judgeSheetCat, setJudgeSheetCat] = useState('');
@@ -577,6 +577,12 @@ function App() {
   const [groupRegLeader, setGroupRegLeader] = useState('');
   const [groupRegStudents, setGroupRegStudents] = useState([]); // array of student IDs
   const [groupRegSaving, setGroupRegSaving] = useState(false);
+  // Edit states for group registration
+  const [editingGroupRegId, setEditingGroupRegId] = useState(null);
+  const [editingGroupRegName, setEditingGroupRegName] = useState('');
+  const [editingGroupRegStudents, setEditingGroupRegStudents] = useState([]);
+  const [editingGroupRegLeader, setEditingGroupRegLeader] = useState('');
+  const [editingGroupRegSaving, setEditingGroupRegSaving] = useState(false);
 
   // ── Visibility Control States (for VIEW role hide/show) ──
   const [visibilityControls, setVisibilityControls] = useState({
@@ -2058,6 +2064,43 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       console.error(err);
     }
   };
+
+  const handleUpdateGroupRegistration = async (id) => {
+    if (!editingGroupRegName.trim()) { alert(lang === 'EN' ? 'Please enter a group name' : 'ഗ്രൂപ്പ് പേര് നൽകുക'); return; }
+    if (editingGroupRegStudents.length === 0) { alert(lang === 'EN' ? 'Please select at least one student' : 'കുറഞ്ഞത് ഒരു വിദ്യാർത്ഥിയെയെങ്കിലും തിരഞ്ഞെടുക്കുക'); return; }
+    const chosenLeader = editingGroupRegLeader || editingGroupRegStudents[0] || null;
+    setEditingGroupRegSaving(true);
+    try {
+      const updateData = {
+        group_name: editingGroupRegName.trim(),
+        student_ids: editingGroupRegStudents,
+        leader_id: chosenLeader ? String(chosenLeader) : null
+      };
+      let { error } = await supabase.from('group_registrations').update(updateData).eq('id', id);
+      if (error) {
+        if (error.message && error.message.includes('leader_id')) {
+          // Fallback: update without leader_id
+          const { error: e2 } = await supabase.from('group_registrations').update({
+            group_name: updateData.group_name,
+            student_ids: updateData.student_ids
+          }).eq('id', id);
+          if (e2) throw new Error(e2.message);
+        } else {
+          throw new Error(error.message);
+        }
+      }
+      setGroupRegistrations(prev => prev.map(g => g.id === id
+        ? { ...g, group_name: editingGroupRegName.trim(), student_ids: editingGroupRegStudents, leader_id: chosenLeader }
+        : g
+      ));
+      setEditingGroupRegId(null);
+      alert(lang === 'EN' ? 'Group registration updated!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ അപ്ഡേറ്റ് ചെയ്തു!');
+    } catch (err) {
+      alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + err.message);
+    }
+    setEditingGroupRegSaving(false);
+  };
+
 
   // Redirect hidden resultsSubTab for VIEW role
   useEffect(() => {
@@ -5547,12 +5590,21 @@ ${pagesHtml}
                               return false;
                             };
 
-                            // Filtered programs based on selected category chip
-                            const filteredPrograms = programFilterCat === 'ALL'
+                            // Filtered programs based on selected category chip + gender chip
+                            const genderMatch = (p) => {
+                              if (programFilterGender === 'ALL') return true;
+                              const t = (p.type || '').toUpperCase();
+                              if (programFilterGender === 'BOY') return t.includes('BOY');
+                              if (programFilterGender === 'GIRL') return t.includes('GIRL');
+                              if (programFilterGender === 'COMMON') return !t.includes('BOY') && !t.includes('GIRL');
+                              return true;
+                            };
+                            const filteredPrograms = (programFilterCat === 'ALL'
                               ? programs
                               : programFilterCat === 'GENERAL'
                                 ? programs.filter(isGeneralProg)
-                                : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat));
+                                : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat))
+                            ).filter(genderMatch);
 
                             // PDF generator function
                             const generateProgramsPDF = (catIdFilter) => {
@@ -5815,7 +5867,38 @@ ${pagesHtml}
                                   </div>
                                 </div>
 
+                                  {/* Gender filter chips */}
+                                  <div style={{ marginTop: '10px' }}>
+                                    <div className="filter-section-title">⚧ Filter by Gender</div>
+                                    <div className="filter-chips-wrapper">
+                                      {[
+                                        { key: 'ALL', label: '🔀 All' },
+                                        { key: 'BOY', label: '👦 Boys' },
+                                        { key: 'GIRL', label: '👧 Girls' },
+                                        { key: 'COMMON', label: '🚻 Common' },
+                                      ].map(({ key, label }) => (
+                                        <div
+                                          key={key}
+                                          className={`filter-chip-box ${programFilterGender === key ? 'active' : ''}`}
+                                          onClick={() => setProgramFilterGender(key)}
+                                          style={
+                                            key === 'BOY' && programFilterGender === 'BOY'
+                                              ? { background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff' }
+                                              : key === 'GIRL' && programFilterGender === 'GIRL'
+                                                ? { background: 'linear-gradient(135deg,#be185d,#9d174d)', color: '#fff' }
+                                                : key === 'COMMON' && programFilterGender === 'COMMON'
+                                                  ? { background: 'linear-gradient(135deg,#0f766e,#115e59)', color: '#fff' }
+                                                  : {}
+                                          }
+                                        >
+                                          {label}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
                                 {/* PDF Download buttons */}
+
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
                                   <button
                                     onClick={() => generateProgramsPDF('ALL')}
@@ -7100,31 +7183,173 @@ ${pagesHtml}
                                               return studentObj ? `${studentObj.regno || studentObj.regNo || ''} ${studentObj.name}` : '';
                                             }).filter(Boolean);
 
+                                            // Get eligible students for this program (same logic as add form)
+                                            const editProg = prog;
+                                            const editProgType = editProg ? (editProg.type || '') : '';
+                                            const editStudentsFiltered = editProg ? students.filter(s => {
+                                              const sCatId = String(s.catid || s.catId || '');
+                                              const sPCatId = String(editProg.catid || editProg.catId || '');
+                                              if (sCatId !== sPCatId) return false;
+                                              const sGender = String(s.gender || '').toUpperCase();
+                                              if (editProgType.includes('BOY') && sGender !== 'BOY') return false;
+                                              if (editProgType.includes('GIRL') && sGender !== 'GIRL') return false;
+                                              return true;
+                                            }) : [];
+
+                                            const isEditing = editingGroupRegId === g.id;
+
                                             return (
                                               <div key={g.id}
                                                 style={{
                                                   padding: '12px', borderRadius: '12px',
-                                                  background: '#ffffff',
-                                                  border: '1.5px solid #e2e8f0',
+                                                  background: isEditing ? '#f0fdf4' : '#ffffff',
+                                                  border: isEditing ? '2px solid #34d399' : '1.5px solid #e2e8f0',
                                                   boxShadow: 'none',
                                                   transition: 'all 0.15s',
                                                   position: 'relative'
                                                 }}
                                               >
-                                                <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
-                                                  <button onClick={() => handleDeleteGroupRegistration(g.id)}
-                                                    className="btn-row-action-v2 delete" style={{ padding: '4px', fontSize: '12px' }} title="Delete">❌</button>
+                                                {/* Action buttons */}
+                                                <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '4px' }}>
+                                                  {!isEditing && (
+                                                    <button
+                                                      onClick={() => {
+                                                        setEditingGroupRegId(g.id);
+                                                        setEditingGroupRegName(g.group_name || '');
+                                                        const ids = Array.isArray(g.student_ids) ? g.student_ids.map(String) : [];
+                                                        setEditingGroupRegStudents(ids);
+                                                        setEditingGroupRegLeader(g.leader_id ? String(g.leader_id) : (ids[0] || ''));
+                                                      }}
+                                                      className="btn-row-action-v2 edit" style={{ padding: '4px', fontSize: '12px' }} title={lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}>✏️</button>
+                                                  )}
+                                                  {!isEditing && (
+                                                    <button onClick={() => handleDeleteGroupRegistration(g.id)}
+                                                      className="btn-row-action-v2 delete" style={{ padding: '4px', fontSize: '12px' }} title={lang === 'EN' ? 'Delete' : 'ഡിലീറ്റ്'}>❌</button>
+                                                  )}
                                                 </div>
-                                                <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', paddingRight: '25px' }}>
-                                                  {g.group_name} <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 5px', fontWeight: '800', marginLeft: '6px' }}>{team?.name}</span>
-                                                </div>
-                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginTop: '4px' }}>
-                                                  📚 {prog?.code} – {prog?.name}
-                                                </div>
-                                                <div style={{ marginTop: '8px', fontSize: '11px', color: '#1e293b' }}>
-                                                  <span style={{ fontWeight: '700', color: '#475569' }}>{lang === 'EN' ? 'Members: ' : 'അംഗങ്ങൾ: '}</span>
-                                                  {memberNames.join(', ') || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>None</span>}
-                                                </div>
+
+                                                {/* View mode */}
+                                                {!isEditing ? (
+                                                  <>
+                                                    <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', paddingRight: '55px' }}>
+                                                      {g.group_name} <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 5px', fontWeight: '800', marginLeft: '6px' }}>{team?.name}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginTop: '4px' }}>
+                                                      📚 {prog?.code} – {prog?.name}
+                                                    </div>
+                                                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#1e293b' }}>
+                                                      <span style={{ fontWeight: '700', color: '#475569' }}>{lang === 'EN' ? 'Members: ' : 'അംഗങ്ങൾ: '}</span>
+                                                      {memberNames.join(', ') || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>None</span>}
+                                                    </div>
+                                                  </>
+                                                ) : (
+                                                  /* Edit mode */
+                                                  <div style={{ paddingRight: '30px' }}>
+                                                    <div style={{ fontSize: '12px', fontWeight: '800', color: '#0f766e', marginBottom: '10px' }}>
+                                                      ✏️ {lang === 'EN' ? 'Edit Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ എഡിറ്റ്'}
+                                                    </div>
+
+                                                    {/* Group Name */}
+                                                    <div style={{ marginBottom: '8px' }}>
+                                                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
+                                                        {lang === 'EN' ? 'Group Name' : 'ഗ്രൂപ്പ് പേര്'}
+                                                      </label>
+                                                      <input
+                                                        type="text"
+                                                        className="settings-input-v2"
+                                                        value={editingGroupRegName}
+                                                        onChange={e => setEditingGroupRegName(e.target.value)}
+                                                        placeholder={lang === 'EN' ? 'Group Name' : 'ഗ്രൂപ്പ് പേര്'}
+                                                        style={{ fontSize: '13px', padding: '7px 10px' }}
+                                                      />
+                                                    </div>
+
+                                                    {/* Program & Team (read only) */}
+                                                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginBottom: '8px' }}>
+                                                      📚 {prog?.code} – {prog?.name} &nbsp;|&nbsp;
+                                                      <span style={{ background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 5px', fontWeight: '800' }}>{team?.name}</span>
+                                                    </div>
+
+                                                    {/* Student Checkboxes */}
+                                                    <div style={{ marginBottom: '8px' }}>
+                                                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                                                        {lang === 'EN' ? 'Members' : 'അംഗങ്ങൾ'} <span style={{ color: '#0f766e', fontWeight: '800' }}>({editingGroupRegStudents.length} {lang === 'EN' ? 'selected' : 'തിരഞ്ഞെടുത്തത്'})</span>
+                                                      </div>
+                                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '200px', overflowY: 'auto', border: '1px solid #cbd5e1', padding: '8px', borderRadius: '8px', background: '#fff' }}>
+                                                        {editStudentsFiltered.length === 0 ? (
+                                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px', margin: 0 }}>{lang === 'EN' ? 'No students available.' : 'വിദ്യാർത്ഥികൾ ലഭ്യമല്ല.'}</p>
+                                                        ) : editStudentsFiltered.map(s => {
+                                                          const sRegNo = s.regno || s.regNo || '';
+                                                          const isChecked = editingGroupRegStudents.includes(String(s.id));
+                                                          const isLeader = editingGroupRegLeader ? String(editingGroupRegLeader) === String(s.id) : (editingGroupRegStudents.length > 0 && String(editingGroupRegStudents[0]) === String(s.id));
+                                                          const teamName = (teams.find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || '';
+                                                          return (
+                                                            <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 7px', borderRadius: '6px', cursor: 'pointer', background: isChecked ? (isLeader ? '#f0fdf4' : '#eff6ff') : 'transparent', border: isLeader && isChecked ? '1px solid #86efac' : '1px solid transparent' }}>
+                                                              <input type="checkbox" checked={isChecked}
+                                                                onChange={e => {
+                                                                  if (e.target.checked) {
+                                                                    setEditingGroupRegStudents(prev => [...prev, String(s.id)]);
+                                                                    if (!editingGroupRegLeader) setEditingGroupRegLeader(String(s.id));
+                                                                  } else {
+                                                                    const next = editingGroupRegStudents.filter(id => id !== String(s.id));
+                                                                    setEditingGroupRegStudents(next);
+                                                                    if (String(editingGroupRegLeader) === String(s.id)) setEditingGroupRegLeader(next[0] || '');
+                                                                  }
+                                                                }}
+                                                                style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                                              />
+                                                              <div style={{ flex: 1, fontSize: '12px', color: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                <span><b>{sRegNo}</b> - {s.name} <span style={{ fontSize: '10px', color: '#64748b' }}>({teamName})</span></span>
+                                                                {isChecked && isLeader && <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', fontWeight: '800', padding: '1px 5px', borderRadius: '4px' }}>👑 {lang === 'EN' ? 'Leader' : 'ലീഡർ'}</span>}
+                                                              </div>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                      </div>
+                                                    </div>
+
+                                                    {/* Leader selector */}
+                                                    {editingGroupRegStudents.length > 0 && (
+                                                      <div style={{ background: '#f0fdf4', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '10px' }}>
+                                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px' }}>
+                                                          👑 {lang === 'EN' ? 'Team Leader:' : 'ടീം ലീഡർ:'}
+                                                        </label>
+                                                        <select
+                                                          className="settings-input-v2"
+                                                          value={editingGroupRegLeader || editingGroupRegStudents[0] || ''}
+                                                          onChange={e => setEditingGroupRegLeader(e.target.value)}
+                                                          style={{ background: '#fff', fontSize: '12px', fontWeight: '700', color: '#064e3b', padding: '6px 10px' }}
+                                                        >
+                                                          {editingGroupRegStudents.map(sId => {
+                                                            const st = students.find(s => String(s.id) === String(sId));
+                                                            if (!st) return null;
+                                                            const sReg = st.regno || st.regNo || '';
+                                                            return <option key={st.id} value={st.id}>{sReg} - {st.name}</option>;
+                                                          })}
+                                                        </select>
+                                                      </div>
+                                                    )}
+
+                                                    {/* Save / Cancel buttons */}
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                      <button
+                                                        onClick={() => handleUpdateGroupRegistration(g.id)}
+                                                        disabled={editingGroupRegSaving}
+                                                        className="btn-premium-action-small primary"
+                                                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                                                      >
+                                                        {editingGroupRegSaving ? `⏳ ${lang === 'EN' ? 'Saving...' : 'സേവ് ചെയ്യുന്നു...'}` : `💾 ${lang === 'EN' ? 'Save Changes' : 'മാറ്റങ്ങൾ സേവ് ചെയ്യുക'}`}
+                                                      </button>
+                                                      <button
+                                                        onClick={() => setEditingGroupRegId(null)}
+                                                        className="btn-premium-action-small secondary"
+                                                        style={{ padding: '8px 12px', fontSize: '12px' }}
+                                                      >
+                                                        {lang === 'EN' ? 'Cancel' : 'റദ്ദ്'}
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                )}
                                               </div>
                                             );
                                           })}
