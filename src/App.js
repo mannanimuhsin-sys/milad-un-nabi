@@ -8635,7 +8635,9 @@ ${pagesHtml}
 </div>
 </body>
 </html>`;
-                              printHtml(html);
+                              const catName2 = efCatObj ? efCatObj.name : (entryFormCat === 'GENERAL' ? 'General' : 'Entry');
+                              const teamName2 = efSelectedTeamObj ? efSelectedTeamObj.name : 'Team';
+                              downloadHtmlAsPdf(html, `EntryForm_${catName2}_${teamName2}.pdf`);
                             };
 
                             return (
