@@ -7482,12 +7482,14 @@ ${pagesHtml}
                                       <React.Fragment key={c.id}>
                                         <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
                                         <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                        <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                       </React.Fragment>
                                     ))}
                                      {generalCatIds.length > 0 && (
                                        <React.Fragment>
                                          <option value="GENERAL_BOY">GENERAL - Boys</option>
                                          <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                         <option value="GENERAL_COMMON">GENERAL - Common</option>
                                        </React.Fragment>
                                      )}
                                   </select>
@@ -7572,7 +7574,7 @@ ${pagesHtml}
                                           <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
                                           {students
                                             .filter(s => {
-                                              if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
+                                              if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
                                               if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
                                               if (selectedResultCat === 'GENERAL') {
                                                 return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
