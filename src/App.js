@@ -8507,7 +8507,8 @@ ${pagesHtml}
 
                               // Build column headers for programs
                               const progHeaders = allProgs.map((p, idx) => {
-                                return `<th style="background:#f1f5f9;border:1px solid #94a3b8;padding:4px 2px;font-size:9px;min-width:22px;max-width:28px;height:65px;vertical-align:middle;text-align:center;box-sizing:border-box;" title="${p.name}"><div style="writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;display:inline-block;margin:0 auto;line-height:1.2;transform:rotate(180deg);">${p.code || p.name}</div></th>`;
+                                const headerLabel = p.name ? `${p.name} (${p.code})` : (p.code || '');
+                                return `<th style="background:#f1f5f9;border:1px solid #94a3b8;padding:4px 2px;font-size:9px;min-width:22px;max-width:32px;height:80px;vertical-align:middle;text-align:center;box-sizing:border-box;"><div style="writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;display:inline-block;margin:0 auto;line-height:1.3;transform:rotate(180deg);">${headerLabel}</div></th>`;
                               }).join('');
 
                               // Single/Group separator header
@@ -8742,9 +8743,9 @@ ${pagesHtml}
                                         </tr>
                                         <tr>
                                           {[...efSinglePrograms, ...efGroupPrograms].map(p => (
-                                            <th key={p.id} style={{ background: '#f1f5f9', padding: '4px 2px', border: '1px solid #cbd5e1', fontSize: '9px', height: '65px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }} title={p.name}>
-                                              <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)', whiteSpace: 'nowrap', display: 'inline-block', margin: '0 auto', lineHeight: '1.2' }}>
-                                                {p.code || p.name}
+                                            <th key={p.id} style={{ background: '#f1f5f9', padding: '4px 2px', border: '1px solid #cbd5e1', fontSize: '9px', height: '80px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
+                                              <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)', whiteSpace: 'nowrap', display: 'inline-block', margin: '0 auto', lineHeight: '1.3' }}>
+                                                {p.name ? `${p.name} (${p.code})` : (p.code || '')}
                                               </div>
                                             </th>
                                           ))}
