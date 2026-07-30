@@ -433,6 +433,13 @@ function App() {
   const [isProjectorActive, setIsProjectorActive] = useState(false);
   const [projectorSlide, setProjectorSlide] = useState(0); // 0: Overall, 1: Category, 2: Recent Winners
 
+  // Event / Program Name States (stored in localStorage)
+  const [eventName, setEventName] = useState('');
+  const [eventYear, setEventYear] = useState('');
+  const [eventNameInput, setEventNameInput] = useState('');
+  const [eventYearInput, setEventYearInput] = useState('');
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
+
   // Troll Mode States
   const [trollMode, setTrollMode] = useState(false);
   const [trollLang, setTrollLang] = useState('ML');
@@ -846,6 +853,18 @@ function App() {
         }
       } catch (e) {
         console.error("Failed to parse stored general category IDs", e);
+      }
+
+      // Load Event Name & Year from localStorage
+      try {
+        const storedEventName = localStorage.getItem(`event_name_${rNum}`) || '';
+        const storedEventYear = localStorage.getItem(`event_year_${rNum}`) || '';
+        setEventName(storedEventName);
+        setEventYear(storedEventYear);
+        setEventNameInput(storedEventName);
+        setEventYearInput(storedEventYear);
+      } catch (e) {
+        console.error("Failed to load event name/year", e);
       }
 
       // Checker to set default categories on first login if database is empty
@@ -4815,6 +4834,65 @@ ${pagesHtml}
                             <button type="submit" className="btn-premium-action">Add Team</button>
                           </form>
                         </div>
+
+                        {/* ✨ Program / Event Name Section */}
+                        <div className="settings-form-box-v2" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1.5px solid #86efac', borderRadius: '14px', padding: '18px' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#166534', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            🏷️ {lang === 'EN' ? 'Program Name' : 'പ്രോഗ്രാം നാമം'}
+                          </h3>
+                          {eventName && !isEditingEvent ? (
+                            <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '1px solid #bbf7d0', marginBottom: '10px' }}>
+                              <div style={{ fontSize: '18px', fontWeight: '800', color: '#15803d', letterSpacing: '0.5px' }}>{eventName}</div>
+                              {eventYear && <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>📅 {eventYear}</div>}
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                <button
+                                  onClick={() => { setEventNameInput(eventName); setEventYearInput(eventYear); setIsEditingEvent(true); }}
+                                  style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                >✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              <input
+                                type="text"
+                                className="settings-input-v2"
+                                placeholder={lang === 'EN' ? 'Program / Event Name (any language)' : 'പ്രോഗ്രാമിന്റെ പേര് (ഏത് ഭാഷയിലും)'}
+                                value={eventNameInput}
+                                onChange={e => setEventNameInput(e.target.value)}
+                              />
+                              <input
+                                type="text"
+                                className="settings-input-v2"
+                                placeholder={lang === 'EN' ? 'Year (eg: 2025)' : 'വർഷം (eg: 2025)'}
+                                value={eventYearInput}
+                                onChange={e => setEventYearInput(e.target.value)}
+                              />
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => {
+                                    if (!eventNameInput.trim()) return;
+                                    const rNum = loggedInMadrasa?.regNumber;
+                                    if (rNum) {
+                                      localStorage.setItem(`event_name_${rNum}`, eventNameInput.trim());
+                                      localStorage.setItem(`event_year_${rNum}`, eventYearInput.trim());
+                                    }
+                                    setEventName(eventNameInput.trim());
+                                    setEventYear(eventYearInput.trim());
+                                    setIsEditingEvent(false);
+                                  }}
+                                  style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
+                                >💾 {isEditingEvent ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
+                                {isEditingEvent && (
+                                  <button
+                                    onClick={() => setIsEditingEvent(false)}
+                                    style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                  >{lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}</button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                         <div style={{ marginTop: '20px' }}>
                           <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Existing Teams</h3>
                           {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No teams added.</p> : (
@@ -9112,7 +9190,21 @@ ${pagesHtml}
               <div className="projector-live-badge">
                 <span className="projector-live-dot"></span> LIVE
               </div>
-              <h1 className="projector-title">{loggedInMadrasa ? loggedInMadrasa.name : 'MILAD FESTIVAL'}</h1>
+              {eventName && (
+                <div style={{ lineHeight: '1.2', marginBottom: '2px' }}>
+                  <div style={{
+                    fontSize: 'clamp(18px, 3vw, 28px)',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    letterSpacing: '1px',
+                    textShadow: '0 0 20px rgba(251,191,36,0.5)',
+                    textTransform: 'uppercase'
+                  }}>
+                    {eventName}{eventYear ? ` ${eventYear}` : ''}
+                  </div>
+                </div>
+              )}
+              <h1 className="projector-title" style={{ fontSize: eventName ? 'clamp(13px, 2vw, 18px)' : undefined, opacity: eventName ? 0.85 : 1 }}>{loggedInMadrasa ? loggedInMadrasa.name : 'MILAD FESTIVAL'}</h1>
             </div>
             <div className="projector-nav-pills">
               <span className={`projector-nav-pill ${projectorSlide === 0 ? 'active' : ''}`} onClick={() => setProjectorSlide(0)}>
@@ -9444,7 +9536,7 @@ ${pagesHtml}
   .cert-content {
     position: relative;
     z-index: 2;
-    padding: 55px 75px 45px;
+    padding: 40px 75px 45px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -9453,13 +9545,25 @@ ${pagesHtml}
   }
   
   .cert-header { text-align: center; width: 100%; }
+  .cert-event-name {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
+    font-size: 22px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase;
+    color: #b8860b;
+    text-shadow: 0 1px 3px rgba(184,134,11,0.25);
+    margin-bottom: 0px;
+  }
+  .cert-event-sub {
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #888;
+    letter-spacing: 2.5px; font-weight: 700; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
   .cert-logo {
-    width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
-    margin-bottom: 8px; border: 2.5px solid #c5a44e;
+    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+    margin-bottom: 6px; border: 2.5px solid #c5a44e;
     box-shadow: 0 4px 12px rgba(27,94,32,0.15);
   }
   .cert-org-name {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 26px; font-weight: 800;
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 22px; font-weight: 800;
     color: #1b5e20; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 2px;
   }
   .cert-org-details { font-family: 'Inter', sans-serif; font-size: 11px; color: #555; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
@@ -9619,6 +9723,7 @@ ${pagesHtml}
   
   <div class="cert-content">
     <div class="cert-header">
+      ${eventName ? `<div class="cert-event-name">${eventName}</div><div class="cert-event-sub">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
       <img src="${logoUrl}" class="cert-logo" alt="Logo" />
       <div class="cert-org-name">${madrasaName}</div>
       <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
@@ -9758,12 +9863,18 @@ ${pagesHtml}
                 <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '350px', height: '350px', opacity: 0.035, zIndex: 0, pointerEvents: 'none' }} />
                 
                 {/* Certificate Content */}
-                <div style={{ position: 'relative', zIndex: 2, padding: '55px 75px 45px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
+                <div style={{ position: 'relative', zIndex: 2, padding: '40px 75px 45px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
                   
                   {/* Header */}
                   <div style={{ textAlign: 'center', width: '100%' }}>
-                    <img src={logoUrl} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', marginBottom: '8px', border: '2.5px solid #c5a44e', boxShadow: '0 4px 12px rgba(27,94,32,0.15)' }} />
-                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '26px', fontWeight: 800, color: '#1b5e20', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
+                    {eventName && (
+                      <>
+                        <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '22px', fontWeight: 900, letterSpacing: '5px', textTransform: 'uppercase', color: '#b8860b', textShadow: '0 1px 3px rgba(184,134,11,0.25)', marginBottom: '0px' }}>{eventName}</div>
+                        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#888', letterSpacing: '2.5px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Milad_fest{eventYear ? ' ' + eventYear : ''}</div>
+                      </>
+                    )}
+                    <img src={logoUrl} alt="Logo" style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover', marginBottom: '6px', border: '2.5px solid #c5a44e', boxShadow: '0 4px 12px rgba(27,94,32,0.15)' }} />
+                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '22px', fontWeight: 800, color: '#1b5e20', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
                     <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#555', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase' }}>Reg No: {madrasaRegNo} | {madrasaPlace}</div>
                   </div>
                   
