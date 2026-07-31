@@ -737,9 +737,24 @@ function App() {
       ]);
 
       if (teamsData) setTeams(teamsData);
-      if (catsData) setCategories(catsData);
-      if (studentsData) setStudents([...studentsData].sort(compareRegNo));
-      if (programsData) setPrograms([...programsData].sort(compareProgCode));
+      if (studentsData) {
+        const uniqueMap = new Map();
+        for (const s of studentsData) {
+          const rKey = String(s.regno || s.regNo || '').trim();
+          if (!rKey) {
+            uniqueMap.set(s.id, s);
+          } else {
+            const existing = uniqueMap.get(rKey);
+            if (!existing) {
+              uniqueMap.set(rKey, s);
+            } else if (!existing.photo_url && s.photo_url) {
+              // Prefer record with photo if duplicate exists in DB
+              uniqueMap.set(rKey, s);
+            }
+          }
+        }
+        setStudents(Array.from(uniqueMap.values()).sort(compareRegNo));
+      }
       if (resultsData) setResultsList(resultsData);
       if (madrasaData) {
         const [, , trollStatus, dbTrollLang] = (madrasaData.place || '').split('|');
@@ -1537,12 +1552,45 @@ function App() {
   // 🧑‍🎓 3. STUDENT ACTIONS (DB uses lowercase: regno, teamid, catid)
   const handleAddStudent = async (e) => {
     e.preventDefault();
-    if (!newStudentName.trim() || !studentRegNo.trim() || !selectedStudentTeam || !selectedStudentCat || !loggedInMadrasa) {
-      alert('Please fill in all details!'); return;
+    const trimmedName = newStudentName.trim();
+    const trimmedRegNo = studentRegNo.trim();
+
+    if (!trimmedName || !trimmedRegNo || !selectedStudentTeam || !selectedStudentCat || !loggedInMadrasa) {
+      alert(lang === 'EN' ? 'Please fill in all details!' : 'ദയവായി എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!');
+      return;
     }
+
+    // 🚫 1. Check duplicate register number in local state
+    const existingInState = students.find(s => String(s.regno || s.regNo || '').trim() === trimmedRegNo);
+    if (existingInState) {
+      alert(lang === 'EN'
+        ? `Student with Register Number "${trimmedRegNo}" already exists (${existingInState.name})!`
+        : `രജിസ്റ്റർ നമ്പർ "${trimmedRegNo}" നിലവിൽ മറ്റൊരു വിദ്യാർത്ഥിക്ക് (${existingInState.name}) നൽകിയിട്ടുണ്ട്! ഡൂപ്ലിക്കേറ്റ് ആഡ് ചെയ്യാൻ സാധ്യമല്ല.`);
+      return;
+    }
+
+    // 🚫 2. Check duplicate register number in Supabase
+    try {
+      const { data: dbExisting } = await supabase
+        .from('students')
+        .select('id, name')
+        .eq('madrasa_id', loggedInMadrasa.regNumber)
+        .eq('regno', trimmedRegNo)
+        .maybeSingle();
+
+      if (dbExisting) {
+        alert(lang === 'EN'
+          ? `Register Number "${trimmedRegNo}" already exists in database (${dbExisting.name})!`
+          : `രജിസ്റ്റർ നമ്പർ "${trimmedRegNo}" ഡാറ്റാബേസിൽ നിലവിലുണ്ട് (${dbExisting.name})! ഡൂപ്ലിക്കേറ്റ് എൻട്രി അനുവദിക്കില്ല.`);
+        return;
+      }
+    } catch (err) {
+      // ignore network check error and proceed
+    }
+
     const tempId = 'temp_' + Date.now();
-    const tempStudent = { id: tempId, name: newStudentName, regno: studentRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
-    setStudents(prev => [...prev, tempStudent].sort(compareRegNo));
+    const tempStudent = { id: tempId, name: trimmedName, regno: trimmedRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
+    setStudents(prev => [...prev.filter(s => String(s.regno || s.regNo || '').trim() !== trimmedRegNo), tempStudent].sort(compareRegNo));
 
     try {
       const { error } = await supabase.from('students').insert([{
@@ -1634,15 +1682,29 @@ function App() {
 
     // Prepare records
     const records = [];
+    const existingRegs = new Set(students.map(s => String(s.regno || s.regNo || '').trim().toLowerCase()));
+    const uploadRegs = new Set();
+
     for (const row of bulkUploadData) {
+      const reg = row.regno ? String(row.regno).trim() : '';
+      const regLower = reg.toLowerCase();
       const teamid = resolveTeam(row.teamName);
       let catid = resolveCat(row.catName);
       const gender = resolveGender(row.gender);
 
-      if (!row.name.trim() || !row.regno.trim() || !teamid || !catid) {
+      if (!row.name.trim() || !reg || !teamid || !catid) {
         failedRows.push({ row: row._row, name: row.name, reason: !teamid ? `Team "${row.teamName}" not found` : !catid ? `Category "${row.catName}" not found` : 'Missing name/regno' });
         continue;
       }
+
+      if (existingRegs.has(regLower) || uploadRegs.has(regLower)) {
+        failedRows.push({ row: row._row, name: row.name, reason: `Register Number "${reg}" already exists (Duplicate)` });
+        continue;
+      }
+
+      uploadRegs.add(regLower);
+      existingRegs.add(regLower);
+
       // For GENERAL, resolve to actual generalCatIds[0] or keep 'GENERAL' marker
       // The app uses generalCatIds for GENERAL check; store actual catid
       if (catid === 'GENERAL') {
@@ -1653,7 +1715,7 @@ function App() {
           continue;
         }
       }
-      records.push({ name: row.name.trim(), regno: row.regno.trim(), teamid, catid, gender, madrasa_id: loggedInMadrasa.regNumber });
+      records.push({ name: row.name.trim(), regno: reg, teamid, catid, gender, madrasa_id: loggedInMadrasa.regNumber });
     }
 
     // Insert in batches of 50
@@ -1688,8 +1750,17 @@ function App() {
   };
 
   const handleSaveStudentEdit = async () => {
+    const trimmedReg = String(editingStudentData.regno || '').trim();
+    if (!trimmedReg) { alert('Register Number cannot be empty!'); return; }
+
+    const isColliding = students.some(s => s.id !== editingStudentId && String(s.regno || s.regNo || '').trim().toLowerCase() === trimmedReg.toLowerCase());
+    if (isColliding) {
+      alert(`Register Number "${trimmedReg}" is already assigned to another student!`);
+      return;
+    }
+
     const originalStudents = [...students];
-    setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData } : s).sort(compareRegNo));
+    setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData, regno: trimmedReg } : s).sort(compareRegNo));
     const targetId = editingStudentId;
     setEditingStudentId(null);
     try {
