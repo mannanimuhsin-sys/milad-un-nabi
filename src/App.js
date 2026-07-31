@@ -3959,16 +3959,57 @@ ${pagesHtml}
                   )}
 
                   {/* Step 2: Student found - show details + upload */}
-                  {profileStep === 'FOUND' && profileStudent && (
+                  {profileStep === 'FOUND' && profileStudent && (() => {
+                    const _foundTeam = teams.find(t => String(t.id) === String(profileStudent.teamid ?? profileStudent.teamId ?? ''));
+                    const _foundCat  = categories.find(c => String(c.id) === String(profileStudent.catid ?? profileStudent.catId ?? ''));
+                    const _isBoy     = (profileStudent.gender || '').toUpperCase() === 'BOY';
+                    return (
                     <div className="profile-reg-input-card">
-                      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                        <div style={{ fontSize: '36px', marginBottom: '6px' }}>🎓</div>
-                        <h3 style={{ color: '#1e293b', fontWeight: '700' }}>{profileStudent.name}</h3>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '8px', fontSize: '13px', color: '#475569' }}>
-                          <span>📋 {profileStudent.regno || profileStudent.regNo}</span>
-                          <span>🚩 {(teams.find(t => String(t.id) === String(profileStudent.teamid || profileStudent.teamId)) || {}).name || 'N/A'}</span>
-                          <span>📂 {(categories.find(c => String(c.id) === String(profileStudent.catid || profileStudent.catId)) || {}).name || 'N/A'}</span>
-                          <span>{profileStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                      {/* ── Student info card ── */}
+                      <div style={{
+                        background: 'linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%)',
+                        border: '2px solid #16a34a',
+                        borderRadius: '16px',
+                        padding: '20px 16px 16px',
+                        marginBottom: '16px',
+                        textAlign: 'center',
+                        boxShadow: '0 4px 20px rgba(22,163,74,0.12)'
+                      }}>
+                        <div style={{ fontSize: '40px', marginBottom: '6px' }}>🎓</div>
+                        <h3 style={{
+                          color: '#14532d',
+                          fontWeight: '800',
+                          fontSize: '18px',
+                          letterSpacing: '0.3px',
+                          marginBottom: '14px'
+                        }}>{profileStudent.name}</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          {/* Reg No */}
+                          <div style={{
+                            background: 'linear-gradient(135deg,#fbbf24,#f59e0b)',
+                            borderRadius: '10px',
+                            padding: '8px 6px',
+                            boxShadow: '0 2px 8px rgba(251,191,36,0.4)',
+                            gridColumn: '1 / -1'
+                          }}>
+                            <div style={{ fontSize: '10px', fontWeight: '700', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px' }}>📋 Register No.</div>
+                            <div style={{ fontSize: '22px', fontWeight: '900', color: '#1c1917', letterSpacing: '2px', lineHeight: 1.2 }}>{profileStudent.regno || profileStudent.regNo}</div>
+                          </div>
+                          {/* Team */}
+                          <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.3)', borderLeft: '3px solid #16a34a', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
+                            <div style={{ fontSize: '9px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>🚩 Team</div>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{_foundTeam ? _foundTeam.name : <span style={{color:'#ef4444'}}>Not found</span>}</div>
+                          </div>
+                          {/* Category */}
+                          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(217,119,6,0.3)', borderLeft: '3px solid #f59e0b', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
+                            <div style={{ fontSize: '9px', fontWeight: '700', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>📂 Category</div>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{_foundCat ? _foundCat.name : <span style={{color:'#ef4444'}}>Not assigned</span>}</div>
+                          </div>
+                          {/* Gender */}
+                          <div style={{ background: _isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)', border: `1px solid ${_isBoy ? 'rgba(96,165,250,0.35)' : 'rgba(244,114,182,0.35)'}`, borderLeft: `3px solid ${_isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '8px', padding: '8px 6px', textAlign: 'left', gridColumn: '1 / -1' }}>
+                            <div style={{ fontSize: '9px', fontWeight: '700', color: _isBoy ? '#2563eb' : '#be185d', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{_isBoy ? '👦' : '👧'} Gender</div>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d' }}>{_isBoy ? 'Boy' : 'Girl'}</div>
+                          </div>
                         </div>
                       </div>
 
@@ -4008,7 +4049,9 @@ ${pagesHtml}
 
                       <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
                     </div>
-                  )}
+                    );
+                  })()}
+
 
                   {/* Step 3: Waiting for approval */}
                   {profileStep === 'WAITING' && profileStudent && (
