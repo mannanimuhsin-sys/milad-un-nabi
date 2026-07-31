@@ -2143,16 +2143,70 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   // ══════════════════════════════════════════════════════════════════════
 
   // Look up student by register number
-  const handleProfileLookup = () => {
+  const handleProfileLookup = async () => {
     if (!profileRegNo.trim()) { alert(t('alertEnterRegNo')); return; }
-    const found = students.find(s => String(s.regno || s.regNo || '') === String(profileRegNo.trim()));
+
+    // First try local state for quick response
+    let found = students.find(s => String(s.regno || s.regNo || '') === String(profileRegNo.trim()));
+
+    // If not in local state, fetch fresh from Supabase
+    if (!found && loggedInMadrasa) {
+      try {
+        const { data } = await supabase
+          .from('students')
+          .select('*')
+          .eq('madrasa_id', loggedInMadrasa.regNumber)
+          .eq('regno', profileRegNo.trim())
+          .maybeSingle();
+        found = data;
+      } catch (e) { /* ignore */ }
+    }
+
     if (!found) { alert(t('alertStudentNotFound')); return; }
-    setProfileStudent(found);
+
+    // Resolve category name: try local state first, then Supabase directly
+    const catIdVal = found.catid ?? found.catId;
+    let resolvedCatName = '';
+    // Try local categories state
+    if (categories.length > 0 && catIdVal != null) {
+      const catRef = String(catIdVal);
+      const localCat = categories.find(c =>
+        String(c.id) === catRef ||
+        c.name === catRef ||
+        c.name?.toLowerCase() === catRef.toLowerCase()
+      );
+      resolvedCatName = localCat ? localCat.name : '';
+    }
+    // If still not resolved, fetch category directly from Supabase
+    if (!resolvedCatName && catIdVal != null && loggedInMadrasa) {
+      try {
+        const { data: catData } = await supabase
+          .from('categories')
+          .select('id, name')
+          .eq('madrasa_id', loggedInMadrasa.regNumber);
+        if (catData && catData.length > 0) {
+          // refresh categories state so future lookups work too
+          setCategories(catData);
+          const catRef = String(catIdVal);
+          const fetchedCat = catData.find(c =>
+            String(c.id) === catRef ||
+            c.name === catRef ||
+            c.name?.toLowerCase() === catRef.toLowerCase()
+          );
+          resolvedCatName = fetchedCat ? fetchedCat.name : '';
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Attach resolved names directly to the student object
+    const enrichedStudent = { ...found, _resolvedCatName: resolvedCatName };
+    setProfileStudent(enrichedStudent);
     const status = found.photo_status || 'none';
     if (status === 'approved') setProfileStep('APPROVED');
     else if (status === 'pending') setProfileStep('WAITING');
     else setProfileStep('FOUND');
   };
+
 
   const handleProfileReset = () => {
     setProfileRegNo('');
@@ -3961,8 +4015,19 @@ ${pagesHtml}
                   {/* Step 2: Student found - show details + upload */}
                   {profileStep === 'FOUND' && profileStudent && (() => {
                     const _foundTeam = teams.find(t => String(t.id) === String(profileStudent.teamid ?? profileStudent.teamId ?? ''));
-                    const _foundCat  = categories.find(c => String(c.id) === String(profileStudent.catid ?? profileStudent.catId ?? ''));
+
+                    // Robust category lookup: try ID match first, then name-based fallback
+                    const _catRef = String(profileStudent.catid ?? profileStudent.catId ?? profileStudent.catname ?? profileStudent.catName ?? '');
+                    const _foundCat = _catRef
+                      ? categories.find(c =>
+                          String(c.id) === _catRef ||
+                          c.name === _catRef ||
+                          c.name?.toLowerCase() === _catRef.toLowerCase()
+                        )
+                      : undefined;
+
                     const _isBoy     = (profileStudent.gender || '').toUpperCase() === 'BOY';
+
                     return (
                     <div className="profile-reg-input-card">
                       {/* ── Student info card ── */}
@@ -4003,7 +4068,9 @@ ${pagesHtml}
                           {/* Category */}
                           <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(217,119,6,0.3)', borderLeft: '3px solid #f59e0b', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
                             <div style={{ fontSize: '9px', fontWeight: '700', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>📂 Category</div>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{_foundCat ? _foundCat.name : <span style={{color:'#ef4444'}}>Not assigned</span>}</div>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {profileStudent._resolvedCatName || (_foundCat ? _foundCat.name : <span style={{color:'#ef4444'}}>Not assigned</span>)}
+                            </div>
                           </div>
                           {/* Gender */}
                           <div style={{ background: _isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)', border: `1px solid ${_isBoy ? 'rgba(96,165,250,0.35)' : 'rgba(244,114,182,0.35)'}`, borderLeft: `3px solid ${_isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '8px', padding: '8px 6px', textAlign: 'left', gridColumn: '1 / -1' }}>
