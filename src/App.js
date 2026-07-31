@@ -4162,7 +4162,7 @@ ${pagesHtml}
                           <div className="filter-section-title">🚩 Team</div>
                           <div className="filter-chips-wrapper">
                             <div className={`filter-chip-box ${profileAdminTeamFilter === 'ALL' ? 'active' : ''}`} onClick={() => setProfileAdminTeamFilter('ALL')}>👥 All</div>
-                            {teams.map(t => (
+                          {teams.map(t => (
                               <div key={t.id} className={`filter-chip-box ${String(profileAdminTeamFilter) === String(t.id) ? 'active' : ''}`} onClick={() => setProfileAdminTeamFilter(t.id)}>{t.name}</div>
                             ))}
                           </div>
@@ -4287,102 +4287,127 @@ ${pagesHtml}
                           return new Date(iso).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
                         };
 
-                        const appUrl = window.location.origin;
-                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(appUrl)}`;
                         const madrasaName = loggedInMadrasa?.name || 'MILAD FEST';
                         const regNum = loggedInMadrasa?.regNumber || '';
-                        const place = loggedInMadrasa?.place || '';
+                        const placeRaw = (loggedInMadrasa?.place || '').split('|')[0].trim();
 
-                        const rowsHtml = scheduledItems.length === 0
-                          ? `<tr><td colspan="5" style="text-align:center;padding:30px;color:#64748b;font-style:italic;">No programs scheduled yet.</td></tr>`
-                          : scheduledItems.map((item, idx) => {
-                              const now = new Date();
-                              const dt = new Date(item.scheduled_time);
-                              const diff = dt - now;
-                              let badge = '';
-                              if (diff > 0) badge = `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;">UPCOMING</span>`;
-                              else if (diff <= 0 && diff > -3600000) badge = `<span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;">NOW</span>`;
-                              else badge = `<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;">DONE</span>`;
-                              return `
-                                <tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-                                  <td style="padding:10px 14px;font-weight:bold;color:#475569;font-size:13px;">${item.program.code}</td>
-                                  <td style="padding:10px 14px;font-weight:bold;color:#1e293b;">${item.program.name}</td>
-                                  <td style="padding:10px 14px;"><span style="font-size:11px;font-weight:bold;background:#0f766e20;color:#0f766e;padding:3px 8px;border-radius:6px;">${item.category?.name || 'Common'}</span></td>
-                                  <td style="padding:10px 14px;color:#0f766e;font-weight:bold;">${formatDT(item.scheduled_time)}</td>
-                                  <td style="padding:10px 14px;">${item.venue ? `📍 ${item.venue}` : '-'} ${badge}</td>
-                                </tr>`;
-                            }).join('');
+                        // Group by category, then by gender within each category
+                        const catOrder = categories.map(c => ({ id: String(c.id), name: c.name }));
+                        const grouped = {};
+                        scheduledItems.forEach(item => {
+                          const catName = item.category?.name || 'Common';
+                          const pType = (item.program.type || '').toUpperCase();
+                          let gKey = 'COMMON';
+                          if (pType.includes('BOY')) gKey = 'BOY';
+                          else if (pType.includes('GIRL')) gKey = 'GIRL';
+                          if (!grouped[catName]) grouped[catName] = { BOY: [], GIRL: [], COMMON: [] };
+                          grouped[catName][gKey].push(item);
+                        });
+
+                        const orderedCatNames = catOrder.map(c => c.name).filter(n => grouped[n]);
+                        Object.keys(grouped).forEach(n => { if (!orderedCatNames.includes(n)) orderedCatNames.push(n); });
+
+                        const gLbl = { BOY: '&#128102; Boys', GIRL: '&#128103; Girls', COMMON: '&#128101; Common' };
+                        const gBg  = { BOY: '#1e40af', GIRL: '#be185d', COMMON: '#0f766e' };
+
+                        let sectionsHtml = '';
+                        if (scheduledItems.length === 0) {
+                          sectionsHtml = '<p style="text-align:center;padding:40px;color:#64748b;font-style:italic;">No programs scheduled yet.</p>';
+                        } else {
+                          orderedCatNames.forEach(catName => {
+                            const catData = grouped[catName];
+                            sectionsHtml += `<div style="margin-bottom:28px;">
+                              <div style="font-size:17px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1e293b,#334155);padding:10px 18px;border-radius:10px 10px 0 0;letter-spacing:.5px;">${catName}</div>`;
+                            ['BOY', 'GIRL', 'COMMON'].forEach(gKey => {
+                              const items = catData[gKey] || [];
+                              if (!items.length) return;
+                              sectionsHtml += `
+                              <div style="border:1px solid #e2e8f0;border-top:none;">
+                                <div style="font-size:12px;font-weight:700;color:#fff;background:${gBg[gKey]};padding:6px 18px;letter-spacing:1px;text-transform:uppercase;">${gLbl[gKey]}</div>
+                                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                                  <thead>
+                                    <tr style="background:#f1f5f9;">
+                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:60px;">Code</th>
+                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;">Program Name</th>
+                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:170px;">&#9200; Time</th>
+                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:140px;">&#128205; Venue</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    ${items.map((item, idx) => `
+                                      <tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
+                                        <td style="padding:9px 12px;font-weight:700;color:#0f766e;border-bottom:1px solid #f1f5f9;">${item.program.code}</td>
+                                        <td style="padding:9px 12px;font-weight:600;border-bottom:1px solid #f1f5f9;">${item.program.name}</td>
+                                        <td style="padding:9px 12px;color:#0369a1;font-weight:600;border-bottom:1px solid #f1f5f9;">${formatDT(item.scheduled_time)}</td>
+                                        <td style="padding:9px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${item.venue || '&#8212;'}</td>
+                                      </tr>`).join('')}
+                                  </tbody>
+                                </table>
+                              </div>`;
+                            });
+                            sectionsHtml += '</div>';
+                          });
+                        }
 
                         const timetablePrintHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>${madrasaName} – Program Timetable</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${madrasaName} - Program Timetable</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; }
-    .page { padding:30px 36px; max-width:900px; margin:0 auto; }
-    .header { display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:3px solid #0f766e; margin-bottom:24px; }
-    .header-left { flex:1; }
-    .header-left .fest-label { font-size:11px; font-weight:700; letter-spacing:2px; color:#0f766e; text-transform:uppercase; margin-bottom:4px; }
-    .header-left h1 { font-size:26px; font-weight:800; color:#0f172a; line-height:1.2; }
-    .header-left .sub { font-size:13px; color:#64748b; margin-top:6px; }
-    .header-left .timetable-title { font-size:17px; font-weight:700; color:#0f766e; margin-top:10px; display:flex; align-items:center; gap:6px; }
-    .qr-box { text-align:center; }
-    .qr-box img { width:110px; height:110px; border:3px solid #e2e8f0; border-radius:10px; padding:4px; }
-    .qr-box .qr-label { font-size:10px; color:#94a3b8; margin-top:4px; font-weight:600; }
-    .table-wrap { border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 4px 16px rgba(0,0,0,0.06); }
-    table { width:100%; border-collapse:collapse; font-size:13px; }
-    thead tr { background:linear-gradient(135deg,#064e3b,#0f766e); color:#fff; }
-    thead th { padding:12px 14px; text-align:left; font-size:12px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; }
-    tbody tr:last-child td { border-bottom:none; }
-    tbody td { border-bottom:1px solid #f1f5f9; }
-    .footer { margin-top:28px; text-align:center; font-size:11px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:14px; }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    body { font-family:Arial,Helvetica,sans-serif; background:#fff; color:#1e293b; }
+    .page { padding:28px 32px; max-width:960px; margin:0 auto; }
+    .header { display:flex; align-items:flex-start; justify-content:space-between; padding:20px 24px; background:linear-gradient(135deg,#064e3b,#0f766e); border-radius:12px; margin-bottom:26px; color:#fff; }
+    .header h1 { font-size:22px; font-weight:900; line-height:1.2; }
+    .header .sub { font-size:12px; color:#bbf7d0; margin-top:5px; }
+    .header .tt-title { font-size:15px; font-weight:700; color:#fef08a; margin-top:8px; }
+    .stats { background:rgba(255,255,255,0.15); border-radius:10px; padding:10px 16px; text-align:center; }
+    .stats .num { font-size:28px; font-weight:900; color:#fef08a; line-height:1; }
+    .stats .lbl { font-size:10px; color:#bbf7d0; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-top:3px; }
+    .footer { margin-top:24px; text-align:center; font-size:11px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:14px; }
     .footer strong { color:#0f766e; }
-    @media print {
-      body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .page { padding:20px; }
-    }
+    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .page { padding:16px; } }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="header">
-      <div class="header-left">
-        <div class="fest-label">🕌 MILAD FEST – Official Schedule</div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#a7f3d0;text-transform:uppercase;margin-bottom:6px;">&#128332; MILAD FEST &#8211; Official Schedule</div>
         <h1>${madrasaName}</h1>
-        <div class="sub">Register No: <strong>${regNum}</strong>${place ? ` &nbsp;|&nbsp; ${place}` : ''}</div>
-        <div class="timetable-title">📅 Program Timetable</div>
+        <div class="sub">Reg No: <strong style="color:#fef08a;">${regNum}</strong>${placeRaw ? ` &nbsp;|&nbsp; ${placeRaw}` : ''}</div>
+        <div class="tt-title">&#128197; Program Timetable</div>
       </div>
-      <div class="qr-box">
-        <img src="${qrUrl}" alt="App QR Code" />
-        <div class="qr-label">Scan for Live App</div>
+      <div class="stats">
+        <div class="num">${scheduledItems.length}</div>
+        <div class="lbl">Programs</div>
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Program Name</th>
-            <th>Category</th>
-            <th>⏰ Time</th>
-            <th>📍 Venue / Status</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>
+
+    ${sectionsHtml}
+
     <div class="footer">
       Printed from <strong>MILAD FEST App</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
     </div>
   </div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
 </body>
 </html>`;
 
-                        // Use the iframe-based printHtml helper for reliable printing (no popup blocker issues)
-                        printHtml(timetablePrintHtml);
+                        // Open as blob URL in new tab — works on both desktop and Android (no blank PDF)
+                        const blob = new Blob([timetablePrintHtml], { type: 'text/html;charset=utf-8' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        const win = window.open(blobUrl, '_blank');
+                        if (!win) {
+                          // Popup blocked: fallback to direct download
+                          const a = document.createElement('a');
+                          a.href = blobUrl;
+                          a.download = `${madrasaName.replace(/\s+/g,'-')}-Timetable.html`;
+                          a.click();
+                        }
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 12000);
                       }}
                       className="btn-add-action" 
                       style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
