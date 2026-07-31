@@ -3430,7 +3430,15 @@ ${pagesHtml}
                     <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>Program</label>
                     <select className="settings-input" value={filterProg} onChange={(e) => setFilterProg(e.target.value)} disabled={!filterCat}>
                       <option value="">-- Select --</option>
-                      {programs.filter(p => String(p.catid || p.catId || '') === String(filterCat)).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                      {programs.filter(p => {
+                        const catMatch = String(p.catid || p.catId || '') === String(filterCat);
+                        if (!catMatch) return false;
+                        if (filterGender === 'ALL') return true;
+                        const pType = (p.type || '').toUpperCase();
+                        if (filterGender === 'BOY') return pType.includes('BOY') || (!pType.includes('BOY') && !pType.includes('GIRL'));
+                        if (filterGender === 'GIRL') return pType.includes('GIRL') || (!pType.includes('BOY') && !pType.includes('GIRL'));
+                        return true;
+                      }).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
                     </select>
                   </div>
 
@@ -3439,7 +3447,21 @@ ${pagesHtml}
                     <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '4px' }}>Gender</label>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {['ALL', 'BOY', 'GIRL'].map(g => (
-                        <button key={g} type="button" onClick={() => setFilterGender(g)}
+                        <button key={g} type="button" onClick={() => {
+                          setFilterGender(g);
+                          // Reset program selection if it doesn't match new gender
+                          if (g !== 'ALL' && filterProg) {
+                            const selProg = programs.find(p => String(p.id) === String(filterProg));
+                            if (selProg) {
+                              const pType = (selProg.type || '').toUpperCase();
+                              const isBoyProg = pType.includes('BOY');
+                              const isGirlProg = pType.includes('GIRL');
+                              if ((g === 'BOY' && isGirlProg) || (g === 'GIRL' && isBoyProg)) {
+                                setFilterProg('');
+                              }
+                            }
+                          }
+                        }}
                           style={{ flex: 1, padding: '7px 4px', borderRadius: '8px', border: '2px solid', fontWeight: '700', cursor: 'pointer', fontSize: '11px',
                             background: filterGender === g ? (g === 'BOY' ? '#3b82f6' : g === 'GIRL' ? '#ec4899' : '#7c3aed') : '#f8fafc',
                             color: filterGender === g ? 'white' : '#475569',
@@ -3456,7 +3478,8 @@ ${pagesHtml}
                   const progObj = programs.find(p => String(p.id) === String(filterProg));
                   const progResults = resultsList.filter(r => {
                     const matchProg = String(r.progid) === String(filterProg);
-                    const matchGender = filterGender === 'ALL' || (r.studentgender || r.studentGender) === filterGender;
+                    const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
+                    const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
                     return matchProg && matchGender;
                   });
                   const firstResults = progResults.filter(r => r.place === 'First');
