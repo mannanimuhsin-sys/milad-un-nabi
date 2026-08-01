@@ -540,6 +540,11 @@ function App() {
   const [filterProg, setFilterProg] = useState('');
   const [filterGender, setFilterGender] = useState('ALL');
 
+  // Poster modal state
+  const [posterModal, setPosterModal] = useState(null); // { result, progObj, catObj }
+  const [posterLang, setPosterLang] = useState('ML'); // 'ML' = Malayalam, 'EN' = English
+  const posterRef = useRef(null);
+
   // Student search by reg number
   const [searchRegNo, setSearchRegNo] = useState('');
 
@@ -3617,6 +3622,7 @@ ${pagesHtml}
                     const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
                     const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
                     const genderVal = result.studentgender || result.studentGender || '';
+                    const catObj2 = categories.find(c => String(c.id) === String(filterCat));
                     return (
                       <div key={result.id} style={{
                         background: gradient,
@@ -3644,6 +3650,27 @@ ${pagesHtml}
                           <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
                             {genderVal.toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
                           </div>
+                          {/* Poster Button */}
+                          <button
+                            onClick={() => setPosterModal({ result, regPart, namePart, genderVal, progObj, catObj: catObj2 })}
+                            style={{
+                              marginTop: '10px',
+                              background: 'rgba(255,255,255,0.25)',
+                              border: '1px solid rgba(255,255,255,0.5)',
+                              color: 'white',
+                              borderRadius: '8px',
+                              padding: '5px 12px',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              backdropFilter: 'blur(4px)'
+                            }}
+                          >
+                            🖼️ View Poster
+                          </button>
                         </div>
                         {/* Photo frame */}
                         <div style={{ position: 'relative', zIndex: 1 }}>
@@ -10248,6 +10275,245 @@ ${pagesHtml}
           </div>
         );
       })()}
+
+      {/* ── Winner Poster Modal ── */}
+      {posterModal && (() => {
+        const { result, regPart, namePart, genderVal, progObj: pm_prog, catObj: pm_cat } = posterModal;
+        const isML = posterLang === 'ML';
+        const isBoy = genderVal.toUpperCase() === 'BOY';
+        const pm_student = students.find(s => String(s.regno || s.regNo || '') === String(regPart));
+        const hasPhoto = pm_student && pm_student.photo_url && pm_student.photo_status && pm_student.photo_status !== 'none';
+        const teamName = result.teamname || result.teamName || '-';
+
+        // Malayalam text helpers
+        const placeML = result.place === 'First' ? 'ഒന്നാം സ്ഥാനം' : result.place === 'Second' ? 'രണ്ടാം സ്ഥാനം' : 'മൂന്നാം സ്ഥാനം';
+        const placeEN = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : '3rd Place';
+        const placeShortML = result.place === 'First' ? '1-ാം' : result.place === 'Second' ? '2-ാം' : '3-ാം';
+        const placeShortEN = result.place === 'First' ? '1st' : result.place === 'Second' ? '2nd' : '3rd';
+        const genderML = isBoy ? 'ബോയ്സ്' : 'ഗേൾസ്';
+        const genderEN = isBoy ? 'Boys' : 'Girls';
+        const catNameML = pm_cat ? pm_cat.name : '';
+        const catNameEN = pm_cat ? pm_cat.name : '';
+        const progNameML = pm_prog ? pm_prog.name : '';
+        const progNameEN = pm_prog ? pm_prog.name : '';
+        const eventTitle = eventName || 'മിലാദ് ഫെസ്റ്റ്';
+        const congratsML = 'അഭിനന്ദനങ്ങൾ';
+        const congratsEN = 'Congratulations';
+        const medalEmoji = result.place === 'First' ? '🥇' : result.place === 'Second' ? '🥈' : '🥉';
+        const rankBg = result.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #b45309)' :
+                       result.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #475569)' :
+                       'linear-gradient(135deg, #f97316, #9a3412)';
+
+        const bodyTextML = `${genderML} ${catNameML} വിഭാഗം ${progNameML} മത്സരത്തിൽ ${placeML} കരസ്ഥമാക്കി`;
+        const bodyTextEN = `Secured ${placeEN} in ${genderEN} ${catNameEN} – ${progNameEN}`;
+
+        const handleDownloadPoster = async () => {
+          if (!posterRef.current) return;
+          try {
+            const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: null });
+            const link = document.createElement('a');
+            link.download = `winner_poster_${namePart.replace(/\s+/g,'_')}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+          } catch(e) { console.error('Poster download error:', e); }
+        };
+
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9995,
+            background: 'rgba(5, 20, 10, 0.92)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '16px', overflowY: 'auto'
+          }}>
+            {/* Header bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '420px', marginBottom: '12px' }}>
+              {/* Language toggle */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {['ML', 'EN'].map(l => (
+                  <button key={l} onClick={() => setPosterLang(l)} style={{
+                    padding: '6px 14px', borderRadius: '20px', fontWeight: '800',
+                    fontSize: '12px', border: 'none', cursor: 'pointer',
+                    background: posterLang === l ? '#16a34a' : 'rgba(255,255,255,0.12)',
+                    color: 'white'
+                  }}>{l === 'ML' ? 'മലയാളം' : 'English'}</button>
+                ))}
+              </div>
+              <button onClick={() => setPosterModal(null)} style={{
+                background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white',
+                cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700'
+              }}>✕ Close</button>
+            </div>
+
+            {/* ── POSTER CANVAS ── */}
+            <div ref={posterRef} style={{
+              width: '400px',
+              minHeight: '500px',
+              background: 'linear-gradient(145deg, #0d4a1f 0%, #1a7a35 40%, #0d5c22 70%, #0a3d18 100%)',
+              borderRadius: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 30px 70px rgba(0,0,0,0.6)',
+              fontFamily: isML ? '\'Noto Sans Malayalam\', \'Manjari\', sans-serif' : '\'Poppins\', \'Inter\', sans-serif',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* Decorative diagonal stripes */}
+              <div style={{ position: 'absolute', top: 0, right: 0, width: '200px', height: '200px', background: 'linear-gradient(135deg, rgba(74,222,128,0.15), transparent)', borderRadius: '0 24px 0 200px', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, width: '150px', height: '150px', background: 'linear-gradient(315deg, rgba(74,222,128,0.1), transparent)', borderRadius: '0 150px 0 24px', pointerEvents: 'none' }} />
+              {/* Diagonal lines accent */}
+              <div style={{ position: 'absolute', top: 0, right: '60px', width: '3px', height: '100%', background: 'rgba(74,222,128,0.08)', transform: 'rotate(15deg)', transformOrigin: 'top right', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', top: 0, right: '90px', width: '2px', height: '100%', background: 'rgba(74,222,128,0.05)', transform: 'rotate(15deg)', transformOrigin: 'top right', pointerEvents: 'none' }} />
+
+              {/* Top header */}
+              <div style={{ padding: '20px 20px 14px', zIndex: 2, position: 'relative' }}>
+                {/* Congratulations vertical text on left */}
+                <div style={{
+                  position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%) rotate(-90deg)',
+                  transformOrigin: 'center center',
+                  fontSize: isML ? '13px' : '11px',
+                  fontWeight: '900',
+                  color: 'rgba(74,222,128,0.6)',
+                  letterSpacing: '3px',
+                  whiteSpace: 'nowrap',
+                  fontStyle: 'italic'
+                }}>{isML ? congratsML : congratsEN}</div>
+
+                <div style={{ marginLeft: '30px' }}>
+                  {/* Event Name in Malayalam */}
+                  <div style={{ fontSize: isML ? '17px' : '15px', fontWeight: '900', color: '#fef08a', textAlign: 'center', lineHeight: 1.3, textShadow: '0 2px 8px rgba(0,0,0,0.5)', letterSpacing: isML ? '0.5px' : '1px' }}>{eventTitle}</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86efac', textAlign: 'center', letterSpacing: '2px', marginTop: '3px' }}>MILAD FEST 2026</div>
+                </div>
+
+                {/* Thin separator */}
+                <div style={{ height: '2px', background: 'linear-gradient(90deg, transparent, #4ade80, transparent)', margin: '12px 20px 0' }} />
+              </div>
+
+              {/* Body: Rank badge + Photo side-by-side */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', padding: '0 24px 16px', zIndex: 2, position: 'relative' }}>
+                {/* Left: white card area */}
+                <div style={
+                  {
+                    flex: 1,
+                    background: 'rgba(255,255,255,0.95)',
+                    borderRadius: '18px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+                  }
+                }>
+                  {/* Rank circle */}
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: rankBg,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
+                    border: '3px solid white',
+                    marginBottom: '10px',
+                    flexShrink: 0
+                  }}>
+                    <div style={{ fontSize: '20px', fontWeight: '900', color: 'white', lineHeight: 1 }}>{placeShortML}</div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.85)', fontWeight: '700', letterSpacing: '1px' }}>Rank</div>
+                  </div>
+
+                  {/* Body text */}
+                  <div style={{ textAlign: 'center', color: '#166534', fontSize: isML ? '12px' : '11px', fontWeight: '700', lineHeight: 1.5, marginBottom: '10px' }}>
+                    {isML ? bodyTextML : bodyTextEN}
+                  </div>
+
+                  {/* Congratulations big text */}
+                  <div style={{
+                    textAlign: 'center',
+                    fontSize: isML ? '22px' : '20px',
+                    fontWeight: '900',
+                    color: '#15803d',
+                    lineHeight: 1.2,
+                    textShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    position: 'relative'
+                  }}>
+                    <span style={{ position: 'relative', zIndex: 1 }}>
+                      {isML ? '✨ ' + congratsML + ' ✨' : '✨ ' + congratsEN + ' ✨'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Photo circle */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <div style={{
+                    width: '110px', height: '110px',
+                    borderRadius: '50%',
+                    border: '4px solid #4ade80',
+                    boxShadow: '0 0 0 4px rgba(74,222,128,0.3), 0 10px 30px rgba(0,0,0,0.4)',
+                    overflow: 'hidden',
+                    background: isBoy ? 'linear-gradient(135deg, #dbeafe, #93c5fd)' : 'linear-gradient(135deg, #fce7f3, #f9a8d4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {hasPhoto ? (
+                      <img src={pm_student.photo_url} alt={namePart} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" style={{ width: '60%', height: '60%', fill: 'none', stroke: isBoy ? '#1e40af' : '#be185d', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#86efac', fontWeight: '700', letterSpacing: '1px' }}>{medalEmoji} {isML ? genderML : genderEN}</div>
+                </div>
+              </div>
+
+              {/* Dark info strip */}
+              <div style={{
+                background: 'linear-gradient(135deg, #064e3b, #065f46)',
+                margin: '0 16px 16px',
+                borderRadius: '16px',
+                padding: '14px 16px',
+                zIndex: 2,
+                position: 'relative',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+              }}>
+                {/* Student name */}
+                <div style={{ fontSize: '20px', fontWeight: '900', color: 'white', textAlign: 'center', letterSpacing: '0.5px', marginBottom: '8px', lineHeight: 1.2 }}>
+                  {namePart}
+                </div>
+                {/* Register No */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                  <div style={{ background: 'rgba(74,222,128,0.2)', borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', color: '#86efac', border: '1px solid rgba(74,222,128,0.4)' }}>
+                    {isML ? 'രജി. നം: ' : 'Reg No: '}#{regPart}
+                  </div>
+                  <div style={{ background: 'rgba(251,191,36,0.2)', borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', color: '#fde68a', border: '1px solid rgba(251,191,36,0.4)' }}>
+                    {isML ? 'ടീം: ' : 'Team: '}{teamName}
+                  </div>
+                </div>
+                {/* Place badge */}
+                <div style={{ textAlign: 'center', marginTop: '4px' }}>
+                  <span style={{ background: rankBg, borderRadius: '20px', padding: '4px 16px', fontSize: '12px', fontWeight: '900', color: 'white', letterSpacing: '1px' }}>
+                    {medalEmoji} {isML ? placeML : placeEN}
+                  </span>
+                </div>
+              </div>
+
+              {/* Bottom sparkle strip */}
+              <div style={{ height: '6px', background: 'linear-gradient(90deg, #15803d, #4ade80, #fbbf24, #4ade80, #15803d)', flexShrink: 0 }} />
+            </div>
+
+            {/* Download button */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button onClick={handleDownloadPoster} style={{
+                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                color: 'white', border: 'none', borderRadius: '12px',
+                padding: '12px 28px', fontSize: '14px', fontWeight: '800',
+                cursor: 'pointer', boxShadow: '0 6px 20px rgba(22,163,74,0.4)',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}>🖼️ {isML ? 'ചിത്രം ഡൗൺലോഡ്' : 'Download PNG'}</button>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   )
 }
