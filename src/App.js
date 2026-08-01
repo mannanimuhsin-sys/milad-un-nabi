@@ -844,6 +844,18 @@ function App() {
 
       // Fetch data from online database
       fetchSupabaseData(rNum);
+
+      // 🔄 Realtime auto-refresh interval (every 8 seconds) so all admin phones stay in sync
+      const intervalId = setInterval(() => {
+        fetchSupabaseData(rNum);
+      }, 8000);
+
+      // 🔄 Sync immediately when user switches back to this browser tab
+      const handleFocus = () => {
+        fetchSupabaseData(rNum);
+      };
+      window.addEventListener('focus', handleFocus);
+
       // Points system is still stored in localStorage - safely parsed
       try {
         const storedPoints = localStorage.getItem(`points_${rNum}`);
@@ -881,10 +893,13 @@ function App() {
         console.error("Failed to parse stored visibility controls", e);
       }
 
-      // eventName, eventYear, generalCatIds are loaded from Supabase in fetchSupabaseData
-
       // Checker to set default categories on first login if database is empty
       checkAndInsertDefaultCategories(rNum);
+
+      return () => {
+        clearInterval(intervalId);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [loggedInMadrasa]);
 
@@ -1199,7 +1214,7 @@ function App() {
       }
 
       if (loginPassword === madrasa.adminPassword || loginPassword === madrasa.viewPassword) {
-        const [actualPlace, status, trollStatus, dbTrollLang] = (madrasa.place || '').split('|');
+        const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
         if (currentStatus === 'pending') {
@@ -1219,9 +1234,21 @@ function App() {
         setCurrentScreen('DASHBOARD');
         setActiveTab('SCOREBOARD');
 
-        // 🎭 Sync troll mode from database
+        // 🎭 Sync troll mode & settings from database
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
+        const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
+        const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
+        setEventName(loadedEventName);
+        setEventYear(loadedEventYear);
+        setEventNameInput(loadedEventName);
+        setEventYearInput(loadedEventYear);
+        try {
+          const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
+          setGeneralCatIds(Array.isArray(loadedGeneral) ? loadedGeneral : []);
+        } catch (e) {
+          setGeneralCatIds([]);
+        }
 
         // 💾 Save session to localStorage for auto-login
         localStorage.setItem('miladfest_session', JSON.stringify({ madrasa: sanitizedMadrasa, role }));
