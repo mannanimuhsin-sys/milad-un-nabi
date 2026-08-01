@@ -10442,7 +10442,7 @@ ${pagesHtml}
                 </div>
 
                 {/* Right: Photo circle */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{
                     width: '110px', height: '110px',
                     borderRadius: '50%',
@@ -10462,7 +10462,6 @@ ${pagesHtml}
                       </svg>
                     )}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#86efac', fontWeight: '700', letterSpacing: '1px' }}>{medalEmoji} {isML ? genderML : genderEN}</div>
                 </div>
               </div>
 
