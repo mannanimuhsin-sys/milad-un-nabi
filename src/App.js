@@ -764,9 +764,25 @@ function App() {
       }
       if (resultsData) setResultsList(resultsData);
       if (madrasaData) {
-        const [, , trollStatus, dbTrollLang] = (madrasaData.place || '').split('|');
+        // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS
+        const parts = (madrasaData.place || '').split('|');
+        const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats] = parts;
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
+        // Load event name/year from Supabase (cross-device sync)
+        const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
+        const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
+        setEventName(loadedEventName);
+        setEventYear(loadedEventYear);
+        setEventNameInput(loadedEventName);
+        setEventYearInput(loadedEventYear);
+        // Load generalCatIds from Supabase (cross-device sync)
+        try {
+          const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
+          setGeneralCatIds(Array.isArray(loadedGeneral) ? loadedGeneral : []);
+        } catch (e) {
+          setGeneralCatIds([]);
+        }
       }
       if (regData) {
         const mappedRegs = regData.map(r => ({
@@ -865,29 +881,7 @@ function App() {
         console.error("Failed to parse stored visibility controls", e);
       }
 
-      // Load GENERAL category selection from localStorage
-      try {
-        const storedGeneral = localStorage.getItem(`general_cat_ids_${rNum}`);
-        if (storedGeneral) {
-          setGeneralCatIds(JSON.parse(storedGeneral));
-        } else {
-          setGeneralCatIds([]);
-        }
-      } catch (e) {
-        console.error("Failed to parse stored general category IDs", e);
-      }
-
-      // Load Event Name & Year from localStorage
-      try {
-        const storedEventName = localStorage.getItem(`event_name_${rNum}`) || '';
-        const storedEventYear = localStorage.getItem(`event_year_${rNum}`) || '';
-        setEventName(storedEventName);
-        setEventYear(storedEventYear);
-        setEventNameInput(storedEventName);
-        setEventYearInput(storedEventYear);
-      } catch (e) {
-        console.error("Failed to load event name/year", e);
-      }
+      // eventName, eventYear, generalCatIds are loaded from Supabase in fetchSupabaseData
 
       // Checker to set default categories on first login if database is empty
       checkAndInsertDefaultCategories(rNum);
@@ -5127,16 +5121,28 @@ ${pagesHtml}
                               />
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (!eventNameInput.trim()) return;
                                     const rNum = loggedInMadrasa?.regNumber;
-                                    if (rNum) {
-                                      localStorage.setItem(`event_name_${rNum}`, eventNameInput.trim());
-                                      localStorage.setItem(`event_year_${rNum}`, eventYearInput.trim());
-                                    }
-                                    setEventName(eventNameInput.trim());
-                                    setEventYear(eventYearInput.trim());
+                                    const newName = eventNameInput.trim();
+                                    const newYear = eventYearInput.trim();
+                                    setEventName(newName);
+                                    setEventYear(newYear);
                                     setIsEditingEvent(false);
+                                    // Save to Supabase for cross-device sync
+                                    if (rNum) {
+                                      try {
+                                        const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                        const parts = (md ? md.place : '').split('|');
+                                        const actualPlace = parts[0] || '';
+                                        const status = parts[1] || 'approved';
+                                        const trollSt = parts[2] || 'troll_off';
+                                        const trollLng = parts[3] || 'ML';
+                                        const generalCats = parts[6] || '';
+                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${encodeURIComponent(newName)}|${encodeURIComponent(newYear)}|${generalCats}`;
+                                        await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                      } catch (err) { console.error('Failed to save event name to Supabase:', err); }
+                                    }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
                                 >💾 {isEditingEvent ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
@@ -5311,11 +5317,25 @@ ${pagesHtml}
 
                             <div style={{ display: 'flex', gap: '10px' }}>
                               <button
-                                onClick={() => {
+                                onClick={async () => {
                                   setGeneralCatIds(generalModalTemp);
                                   const rNum = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                                  if (rNum) localStorage.setItem(`general_cat_ids_${rNum}`, JSON.stringify(generalModalTemp));
                                   setShowGeneralModal(false);
+                                  // Save to Supabase for cross-device sync
+                                  if (rNum) {
+                                    try {
+                                      const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                      const parts = (md ? md.place : '').split('|');
+                                      const actualPlace = parts[0] || '';
+                                      const status = parts[1] || 'approved';
+                                      const trollSt = parts[2] || 'troll_off';
+                                      const trollLng = parts[3] || 'ML';
+                                      const evName = parts[4] || '';
+                                      const evYear = parts[5] || '';
+                                      const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${encodeURIComponent(JSON.stringify(generalModalTemp))}`;
+                                      await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                    } catch (err) { console.error('Failed to save general cats to Supabase:', err); }
+                                  }
                                 }}
                                 style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
                               >
@@ -8213,8 +8233,7 @@ ${pagesHtml}
                       const selectedProgObj = programs.find(p => String(p.id) === String(judgeSheetProg));
                       const selectedCatObj = categories.find(c => String(c.id) === String(judgeSheetCat));
 
-                      // Students registered for this program: prefer program_registrations, fall back to category+gender
-                      const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
+                      // Students registered for this program: strictly use program_registrations
                       const isGroupProg = selectedProgObj && (selectedProgObj.type || '').includes('GROUP');
 
                       // Build items for Judge Sheet (Single student vs Group/Team)
