@@ -725,9 +725,9 @@ function App() {
     try {
       const [
         { data: teamsData },
-        { data: catsData },
+        { data: catsData }, // eslint-disable-line no-unused-vars
         { data: studentsData },
-        { data: programsData },
+        { data: programsData }, // eslint-disable-line no-unused-vars
         { data: resultsData },
         { data: regData },
         { data: madrasaData }
@@ -10289,7 +10289,6 @@ ${pagesHtml}
         const placeML = result.place === 'First' ? 'ഒന്നാം സ്ഥാനം' : result.place === 'Second' ? 'രണ്ടാം സ്ഥാനം' : 'മൂന്നാം സ്ഥാനം';
         const placeEN = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : '3rd Place';
         const placeShortML = result.place === 'First' ? '1-ാം' : result.place === 'Second' ? '2-ാം' : '3-ാം';
-        const placeShortEN = result.place === 'First' ? '1st' : result.place === 'Second' ? '2nd' : '3rd';
         const genderML = isBoy ? 'ബോയ്സ്' : 'ഗേൾസ്';
         const genderEN = isBoy ? 'Boys' : 'Girls';
         const catNameML = pm_cat ? pm_cat.name : '';
