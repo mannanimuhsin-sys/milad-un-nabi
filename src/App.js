@@ -725,9 +725,9 @@ function App() {
     try {
       const [
         { data: teamsData },
-        { data: catsData }, // eslint-disable-line no-unused-vars
+        { data: catsData },
         { data: studentsData },
-        { data: programsData }, // eslint-disable-line no-unused-vars
+        { data: programsData },
         { data: resultsData },
         { data: regData },
         { data: madrasaData }
@@ -742,6 +742,8 @@ function App() {
       ]);
 
       if (teamsData) setTeams(teamsData);
+      if (catsData) setCategories(catsData);
+      if (programsData) setPrograms(programsData);
       if (studentsData) {
         const uniqueMap = new Map();
         for (const s of studentsData) {
