@@ -8251,22 +8251,13 @@ ${pagesHtml}
                               };
                             });
                           } else {
-                            // Fallback: If no explicit group registrations, group registered students by team
+                            // Group program fallback: filter registered students for this group program
                             const regStudentIds = new Set(
                               programRegistrations
-                                .filter(r => String(r.program_id) === String(judgeSheetProg))
+                                .filter(r => String(r.program_id || r.program_name || '') === String(judgeSheetProg))
                                 .map(r => String(r.student_id))
                             );
-                            const baseStudents = regStudentIds.size > 0
-                              ? students.filter(s => regStudentIds.has(String(s.id)))
-                              : students.filter(s => {
-                                  if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
-                                  if (judgeSheetCat === 'GENERAL') {
-                                    return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
-                                  }
-                                  if (isGeneral) return true;
-                                  return String(s.catid || s.catId || '') === String(judgeSheetCat);
-                                });
+                            const baseStudents = students.filter(s => regStudentIds.has(String(s.id)));
 
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
@@ -8296,22 +8287,13 @@ ${pagesHtml}
                             });
                           }
                         } else {
-                          // Single program: Individual students
+                          // Single program: Individual students registered for this program ONLY
                           const regStudentIds = new Set(
                             programRegistrations
-                              .filter(r => String(r.program_id) === String(judgeSheetProg))
+                              .filter(r => String(r.program_id || r.program_name || '') === String(judgeSheetProg))
                               .map(r => String(r.student_id))
                           );
-                          const baseStudents = regStudentIds.size > 0
-                            ? students.filter(s => regStudentIds.has(String(s.id)))
-                            : students.filter(s => {
-                                if (judgeSheetGender && s.gender !== judgeSheetGender) return false;
-                                if (judgeSheetCat === 'GENERAL') {
-                                  return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
-                                }
-                                if (isGeneral) return true;
-                                return String(s.catid || s.catId || '') === String(judgeSheetCat);
-                              });
+                          const baseStudents = students.filter(s => regStudentIds.has(String(s.id)));
 
                           return baseStudents
                             .sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0))
