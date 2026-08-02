@@ -1643,14 +1643,24 @@ function App() {
     const file = e.target.files[0];
     if (!file) return;
     setBulkUploadResult(null);
+    setBulkUploadData([]);
+    // Capture the input element reference BEFORE any async work
+    const inputEl = e.target;
     const reader = new FileReader();
     reader.onload = (evt) => {
+      // Reset input here (after file is safely read) so same file can be re-selected
+      try { inputEl.value = ''; } catch (_) {}
       try {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        // Normalize column names (case-insensitive)
+        // header:1 ensures first row becomes keys; defval:'', raw:false for string values
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        if (!rows || rows.length === 0) {
+          alert('Excel file is empty or could not be read. Please check the file.');
+          return;
+        }
+        // Normalize column names (case-insensitive, trim whitespace)
         const normalized = rows.map((row, idx) => {
           const keys = Object.keys(row);
           const get = (names) => {
@@ -1662,21 +1672,28 @@ function App() {
           };
           return {
             _row: idx + 2, // Excel row number (header=1)
-            name: get(['student name', 'name', 'student_name', 'studentname', 'പേര്']),
-            regno: get(['register number', 'regno', 'reg no', 'chest number', 'register_number', 'chestnumber', 'reg number', 'രജിസ്റ്റർ നമ്പർ']),
-            teamName: get(['team', 'team name', 'team_name', 'teamname', 'ടീം']),
-            catName: get(['category', 'cat', 'category name', 'cat name', 'category_name', 'കാറ്റഗറി']),
-            gender: get(['gender', 'sex', 'ജെൻഡർ', 'ലിംഗം']),
+            name: get(['student name', 'name', 'student_name', 'studentname', 'പേര്', 'sname']),
+            regno: get(['register number', 'regno', 'reg no', 'chest number', 'register_number', 'chestnumber', 'reg number', 'chest no', 'chestno', 'reg', 'രജിസ്റ്റർ നമ്പർ', 'register']),
+            teamName: get(['team', 'team name', 'team_name', 'teamname', 'ടീം', 'house']),
+            catName: get(['category', 'cat', 'category name', 'cat name', 'category_name', 'കാറ്റഗറി', 'class', 'group']),
+            gender: get(['gender', 'sex', 'ജഡർ', 'ജെൻഡർ', 'ലിംഗം', 'g', 'gen']),
           };
-        }).filter(r => r.name); // skip empty rows
+        }).filter(r => r.name && r.name.length > 0); // skip empty rows
+        if (normalized.length === 0) {
+          // Show first row keys to help debug
+          const sampleKeys = Object.keys(rows[0] || {}).join(', ');
+          alert('No valid student rows found.\n\nColumn headers found in your file:\n' + sampleKeys + '\n\nRequired headers: Student Name, Register Number, Team, Category, Gender');
+          return;
+        }
         setBulkUploadData(normalized);
       } catch (err) {
         alert('Excel file read error: ' + err.message);
       }
     };
+    reader.onerror = () => {
+      alert('Failed to read the file. Please try again or use a different file.');
+    };
     reader.readAsArrayBuffer(file);
-    // Reset input so same file can be re-selected
-    e.target.value = '';
   };
 
   // ── BULK UPLOAD: Submit all students ──
