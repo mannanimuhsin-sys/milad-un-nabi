@@ -774,24 +774,30 @@ function App() {
         const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = parts;
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
-        // Load event name/year/convener from Supabase (cross-device sync)
+
         const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
         const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
-        setEventName(loadedEventName);
-        setEventYear(loadedEventYear);
-        setConvenerSadar(loadedConvenerSadar);
-        // Only update input fields if user is not actively editing
-        // (Input fields get initialized to current values when user clicks Edit)
-        setEventNameInput(prev => prev === '' || prev === eventName ? loadedEventName : prev);
-        setEventYearInput(prev => prev === '' || prev === eventYear ? loadedEventYear : prev);
-        setConvenerSadarInput(prev => prev === '' || prev === convenerSadar ? loadedConvenerSadar : prev);
-        // Load generalCatIds from Supabase (cross-device sync)
+
+        // Only overwrite state if DB value exists or local state is currently empty
+        setEventName(prev => loadedEventName || prev);
+        setEventYear(prev => loadedEventYear || prev);
+        setConvenerSadar(prev => loadedConvenerSadar || prev);
+
+        setEventNameInput(prev => prev === '' ? loadedEventName : prev);
+        setEventYearInput(prev => prev === '' ? loadedEventYear : prev);
+        setConvenerSadarInput(prev => prev === '' ? loadedConvenerSadar : prev);
+
+        // Load generalCatIds from Supabase
         try {
-          const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
-          setGeneralCatIds(Array.isArray(loadedGeneral) ? loadedGeneral : []);
+          if (dbGeneralCats) {
+            const loadedGeneral = JSON.parse(decodeURIComponent(dbGeneralCats));
+            if (Array.isArray(loadedGeneral)) {
+              setGeneralCatIds(loadedGeneral);
+            }
+          }
         } catch (e) {
-          setGeneralCatIds([]);
+          // preserve existing generalCatIds if json parse fails
         }
       }
       if (regData) {
@@ -1226,7 +1232,7 @@ function App() {
       }
 
       if (loginPassword === madrasa.adminPassword || loginPassword === madrasa.viewPassword) {
-        const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats] = (madrasa.place || '').split('|');
+        const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
         if (currentStatus === 'pending') {
@@ -1251,10 +1257,13 @@ function App() {
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
         const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
+        const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
         setEventName(loadedEventName);
         setEventYear(loadedEventYear);
+        setConvenerSadar(loadedConvenerSadar);
         setEventNameInput(loadedEventName);
         setEventYearInput(loadedEventYear);
+        setConvenerSadarInput(loadedConvenerSadar);
         try {
           const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
           setGeneralCatIds(Array.isArray(loadedGeneral) ? loadedGeneral : []);
@@ -1346,9 +1355,24 @@ function App() {
     }
   };
 
+  // Helper to safely construct full 8-part place string for Supabase:
+  // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR
+  const makePlaceString = (rawPlace, overrides = {}) => {
+    const parts = (rawPlace || '').split('|');
+    const actualPlace = overrides.place !== undefined ? overrides.place : (parts[0] || '');
+    const status = overrides.status !== undefined ? overrides.status : (parts[1] || 'approved');
+    const trollSt = overrides.trollStatus !== undefined ? overrides.trollStatus : (parts[2] || (trollMode ? 'troll_on' : 'troll_off'));
+    const trollLng = overrides.trollLang !== undefined ? overrides.trollLang : (parts[3] || (trollLang === 'EN' ? 'EN' : 'ML'));
+    const evName = overrides.eventName !== undefined ? overrides.eventName : (parts[4] || (eventName ? encodeURIComponent(eventName) : ''));
+    const evYear = overrides.eventYear !== undefined ? overrides.eventYear : (parts[5] || (eventYear ? encodeURIComponent(eventYear) : ''));
+    const genCats = overrides.generalCats !== undefined ? overrides.generalCats : (parts[6] || (generalCatIds.length > 0 ? encodeURIComponent(JSON.stringify(generalCatIds)) : ''));
+    const csVal = overrides.convenerSadar !== undefined ? overrides.convenerSadar : (parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : ''));
+
+    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}`;
+  };
+
   const handleApproveMadrasa = async (madrasa) => {
-    const [actualPlace] = (madrasa.place || '').split('|');
-    const updatedPlace = `${actualPlace}|approved`;
+    const updatedPlace = makePlaceString(madrasa.place, { status: 'approved' });
     const { error } = await supabase
       .from('madrasas')
       .update({ place: updatedPlace })
@@ -1363,8 +1387,7 @@ function App() {
   };
 
   const handleBlockMadrasa = async (madrasa) => {
-    const [actualPlace] = (madrasa.place || '').split('|');
-    const updatedPlace = `${actualPlace}|blocked`;
+    const updatedPlace = makePlaceString(madrasa.place, { status: 'blocked' });
     const { error } = await supabase
       .from('madrasas')
       .update({ place: updatedPlace })
@@ -1417,9 +1440,7 @@ function App() {
       return;
     }
 
-    const [, status] = (editingMadrasaData.place || '').split('|');
-    const currentStatus = status || 'approved';
-    const updatedPlace = `${editingMadrasaData.tempPlace}|${currentStatus}`;
+    const updatedPlace = makePlaceString(editingMadrasaData.place, { place: editingMadrasaData.tempPlace });
 
     const { error } = await supabase
       .from('madrasas')
@@ -1447,7 +1468,6 @@ function App() {
 
     if (loggedInMadrasa) {
       try {
-        // Fetch current place from Supabase to preserve location name and status
         const { data: madrasaData } = await supabase
           .from('madrasas')
           .select('place')
@@ -1455,9 +1475,7 @@ function App() {
           .maybeSingle();
 
         const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
-        const [actualPlace, status, , currentTrollLang] = (fullPlace || '').split('|');
-        const activeTrollLang = currentTrollLang === 'EN' ? 'EN' : 'ML';
-        const updatedPlace = `${actualPlace || ''}|${status || 'approved'}|${newTrollMode ? 'troll_on' : 'troll_off'}|${activeTrollLang}`;
+        const updatedPlace = makePlaceString(fullPlace, { trollStatus: newTrollMode ? 'troll_on' : 'troll_off' });
 
         await supabase
           .from('madrasas')
@@ -1482,9 +1500,7 @@ function App() {
           .maybeSingle();
 
         const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
-        const [actualPlace, status, currentTrollStatus] = (fullPlace || '').split('|');
-        const activeTrollStatus = currentTrollStatus || (trollMode ? 'troll_on' : 'troll_off');
-        const updatedPlace = `${actualPlace || ''}|${status || 'approved'}|${activeTrollStatus}|${newTrollLang}`;
+        const updatedPlace = makePlaceString(fullPlace, { trollLang: newTrollLang });
 
         await supabase
           .from('madrasas')
@@ -5288,14 +5304,10 @@ ${pagesHtml}
                                     if (rNum) {
                                       try {
                                         const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
-                                        const parts = (md ? md.place : '').split('|');
-                                        const actualPlace = parts[0] || '';
-                                        const status = parts[1] || 'approved';
-                                        const trollSt = parts[2] || 'troll_off';
-                                        const trollLng = parts[3] || 'ML';
-                                        const generalCats = parts[6] || '';
-                                        const csVal = parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : '');
-                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${encodeURIComponent(newName)}|${encodeURIComponent(newYear)}|${generalCats}|${csVal}`;
+                                        const updatedPlace = makePlaceString(md ? md.place : '', {
+                                          eventName: encodeURIComponent(newName),
+                                          eventYear: encodeURIComponent(newYear)
+                                        });
                                         await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
                                       } catch (err) { console.error('Failed to save event name to Supabase:', err); }
                                     }
@@ -5349,15 +5361,9 @@ ${pagesHtml}
                                     if (rNum) {
                                       try {
                                         const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
-                                        const parts = (md ? md.place : '').split('|');
-                                        const actualPlace = parts[0] || '';
-                                        const status = parts[1] || 'approved';
-                                        const trollSt = parts[2] || 'troll_off';
-                                        const trollLng = parts[3] || 'ML';
-                                        const evName = parts[4] || '';
-                                        const evYear = parts[5] || '';
-                                        const generalCats = parts[6] || '';
-                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${generalCats}|${encodeURIComponent(newCS)}`;
+                                        const updatedPlace = makePlaceString(md ? md.place : '', {
+                                          convenerSadar: encodeURIComponent(newCS)
+                                        });
                                         await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
                                       } catch (err) { console.error('Failed to save Convener / Sadar Muallim to Supabase:', err); }
                                     }
@@ -5543,15 +5549,9 @@ ${pagesHtml}
                                     if (rNum) {
                                       try {
                                         const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
-                                        const parts = (md ? md.place : '').split('|');
-                                        const actualPlace = parts[0] || '';
-                                        const status = parts[1] || 'approved';
-                                        const trollSt = parts[2] || 'troll_off';
-                                        const trollLng = parts[3] || 'ML';
-                                        const evName = parts[4] || '';
-                                        const evYear = parts[5] || '';
-                                        const csVal = parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : '');
-                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${encodeURIComponent(JSON.stringify(generalModalTemp))}|${csVal}`;
+                                        const updatedPlace = makePlaceString(md ? md.place : '', {
+                                          generalCats: encodeURIComponent(JSON.stringify(generalModalTemp))
+                                        });
                                         await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
                                       } catch (err) { console.error('Failed to save general cats to Supabase:', err); }
                                     }
@@ -9845,51 +9845,115 @@ ${pagesHtml}
 
                         if (!prog) return null;
 
+                        const catObj = categories.find(c => String(c.id) === String(prog.catid || prog.catId));
+                        const catName = catObj ? catObj.name : (prog.catname || '');
+
+                        const pType = (prog.type || '').toUpperCase();
+                        const isBoyProg = pType.includes('BOY');
+                        const isGirlProg = pType.includes('GIRL');
+                        const genderText = isBoyProg
+                          ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്')
+                          : isGirlProg
+                            ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്')
+                            : (lang === 'EN' ? 'Common' : 'കോമൺ');
+
                         const firstW = progResults.find(r => r.place === 'First');
                         const secondW = progResults.find(r => r.place === 'Second');
                         const thirdW = progResults.find(r => r.place === 'Third');
 
+                        const renderWinnerRow = (w, medalEmoji, rowClass) => {
+                          if (!w) return null;
+
+                          const regNoPart = (w.studentname || '').includes(' - ') ? w.studentname.split(' - ')[0].trim() : '';
+                          const studentObj = students.find(s => 
+                            (regNoPart && String(s.regno || s.regNo || '').trim() === regNoPart) ||
+                            (w.studentid && String(s.id) === String(w.studentid))
+                          );
+
+                          const targetRegNo = studentObj ? (studentObj.regno || studentObj.regNo || regNoPart) : regNoPart;
+                          const targetGender = studentObj?.gender || w.studentgender || (isBoyProg ? 'BOY' : isGirlProg ? 'GIRL' : 'COMMON');
+
+                          return (
+                            <div key={w.id || medalEmoji} className={`projector-winner-row ${rowClass}`}>
+                              <span className="medal">{medalEmoji}</span>
+                              {targetRegNo ? (
+                                renderStudentPhoto(targetRegNo, targetGender, '46px', '10px')
+                              ) : (
+                                <div style={{
+                                  width: '46px',
+                                  height: '46px',
+                                  minWidth: '46px',
+                                  borderRadius: '10px',
+                                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '20px',
+                                  fontWeight: '800',
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  border: '2px solid rgba(255,255,255,0.4)'
+                                }}>
+                                  👥
+                                </div>
+                              )}
+                              <div className="winner-info">
+                                <span className="winner-name">{w.studentname}</span>
+                                <span className="winner-team">{w.teamname || teams.find(t => String(t.id) === String(w.teamId || w.teamid))?.name || ''}</span>
+                              </div>
+                              <span className="winner-grade-badge">{w.grade === '-' || w.grade === 'No' ? '' : w.grade}</span>
+                            </div>
+                          );
+                        };
+
                         return (
                           <div key={progId} className="projector-winner-card">
                             <div className="projector-winner-card-header">
-                              <span className="winner-prog-code">{prog.code}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '6px' }}>
+                                <span className="winner-prog-code">{prog.code}</span>
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  {catName && (
+                                    <span style={{
+                                      background: 'rgba(59, 130, 246, 0.15)',
+                                      color: '#60a5fa',
+                                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      📁 {catName}
+                                    </span>
+                                  )}
+                                  <span style={{
+                                    background: isBoyProg
+                                      ? 'rgba(37, 99, 235, 0.2)'
+                                      : isGirlProg
+                                        ? 'rgba(219, 39, 119, 0.2)'
+                                        : 'rgba(217, 119, 6, 0.2)',
+                                    color: isBoyProg ? '#93c5fd' : isGirlProg ? '#f472b6' : '#fbbf24',
+                                    border: `1px solid ${isBoyProg ? 'rgba(59, 130, 246, 0.4)' : isGirlProg ? 'rgba(236, 72, 153, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    fontWeight: '800',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}>
+                                    {isBoyProg ? '👦 ' : isGirlProg ? '👧 ' : '🌐 '}{genderText}
+                                  </span>
+                                </div>
+                              </div>
                               <span className="winner-prog-name">{prog.name}</span>
-                              <span className="winner-prog-cat">({prog.catname || 'Common'})</span>
                             </div>
                             <div className="projector-winners-list">
-                              {/* 1st Place */}
-                              {firstW && (
-                                <div className="projector-winner-row gold">
-                                  <span className="medal">🥇</span>
-                                  <div className="winner-info">
-                                    <span className="winner-name">{firstW.studentname}</span>
-                                    <span className="winner-team">{firstW.teamname || teams.find(t => String(t.id) === String(firstW.teamId || firstW.teamid))?.name || ''}</span>
-                                  </div>
-                                  <span className="winner-grade-badge">{firstW.grade === '-' || firstW.grade === 'No' ? '' : firstW.grade}</span>
-                                </div>
-                              )}
-                              {/* 2nd Place */}
-                              {secondW && (
-                                <div className="projector-winner-row silver">
-                                  <span className="medal">🥈</span>
-                                  <div className="winner-info">
-                                    <span className="winner-name">{secondW.studentname}</span>
-                                    <span className="winner-team">{secondW.teamname || teams.find(t => String(t.id) === String(secondW.teamId || secondW.teamid))?.name || ''}</span>
-                                  </div>
-                                  <span className="winner-grade-badge">{secondW.grade === '-' || secondW.grade === 'No' ? '' : secondW.grade}</span>
-                                </div>
-                              )}
-                              {/* 3rd Place */}
-                              {thirdW && (
-                                <div className="projector-winner-row bronze">
-                                  <span className="medal">🥉</span>
-                                  <div className="winner-info">
-                                    <span className="winner-name">{thirdW.studentname}</span>
-                                    <span className="winner-team">{thirdW.teamname || teams.find(t => String(t.id) === String(thirdW.teamId || thirdW.teamid))?.name || ''}</span>
-                                  </div>
-                                  <span className="winner-grade-badge">{thirdW.grade === '-' || thirdW.grade === 'No' ? '' : thirdW.grade}</span>
-                                </div>
-                              )}
+                              {renderWinnerRow(firstW, '🥇', 'gold')}
+                              {renderWinnerRow(secondW, '🥈', 'silver')}
+                              {renderWinnerRow(thirdW, '🥉', 'bronze')}
                             </div>
                           </div>
                         );
