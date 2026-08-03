@@ -4317,8 +4317,106 @@ ${pagesHtml}
                     <button className={`sub-nav-item ${profileAdminSubTab === 'ID_CARDS' ? 'active' : ''}`} onClick={() => setProfileAdminSubTab('ID_CARDS')}>🪪 ID Cards</button>
                   </div>
 
+
+                  {/* ── Photo Stats Summary Cards ── */}
+                  {(() => {
+                    const totalStudents = students.length;
+                    const uploadedCount = students.filter(s => s.photo_url && s.photo_status && s.photo_status !== 'none').length;
+                    const approvedCount = students.filter(s => s.photo_status === 'approved').length;
+                    const pendingCount = uploadedCount - approvedCount;
+
+                    const statCards = [
+                      {
+                        icon: '🧑‍🎓',
+                        label: lang === 'EN' ? 'Total Students' : 'ആകെ വിദ്യാർത്ഥികൾ',
+                        value: totalStudents,
+                        color: '#1e40af',
+                        bg: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                        border: '#93c5fd',
+                        valueColor: '#1e40af',
+                      },
+                      {
+                        icon: '📸',
+                        label: lang === 'EN' ? 'Photos Uploaded' : 'ഫോട്ടോ അപ്‌ലോഡ്',
+                        value: uploadedCount,
+                        color: '#92400e',
+                        bg: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+                        border: '#fcd34d',
+                        valueColor: '#b45309',
+                      },
+                      {
+                        icon: '✅',
+                        label: lang === 'EN' ? 'Approved' : 'അപ്‌പ്രൂവ്ഡ്',
+                        value: approvedCount,
+                        color: '#14532d',
+                        bg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                        border: '#86efac',
+                        valueColor: '#15803d',
+                      },
+                    ];
+
+                    return (
+                      <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
+                        {statCards.map((card, i) => (
+                          <div key={i} style={{
+                            flex: 1,
+                            background: card.bg,
+                            border: `1.5px solid ${card.border}`,
+                            borderRadius: '14px',
+                            padding: '14px 10px',
+                            textAlign: 'center',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                          }}>
+                            <div style={{ fontSize: '22px', marginBottom: '4px' }}>{card.icon}</div>
+                            <div style={{
+                              fontSize: '28px',
+                              fontWeight: '900',
+                              color: card.valueColor,
+                              lineHeight: 1,
+                              marginBottom: '5px',
+                            }}>{card.value}</div>
+                            <div style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              color: card.color,
+                              opacity: 0.8,
+                              letterSpacing: '0.3px',
+                              lineHeight: '1.2',
+                            }}>{card.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Pending badge */}
+                  {(() => {
+                    const uploadedCount = students.filter(s => s.photo_url && s.photo_status && s.photo_status !== 'none').length;
+                    const approvedCount = students.filter(s => s.photo_status === 'approved').length;
+                    const pendingCount = uploadedCount - approvedCount;
+                    if (pendingCount <= 0) return null;
+                    return (
+                      <div style={{
+                        background: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
+                        border: '1.5px solid #fca5a5',
+                        borderRadius: '10px',
+                        padding: '10px 16px',
+                        marginBottom: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        color: '#b91c1c',
+                      }}>
+                        ⏳ <span>{pendingCount} {lang === 'EN' ? 'photo(s) pending approval' : 'ഫോട്ടോ അപ്‌പ്രൂവൽ ബാക്കിയുണ്ട്'}</span>
+                      </div>
+                    );
+                  })()}
+
                   {/* ── Section A: APPROVAL ── */}
                   {profileAdminSubTab === 'APPROVAL' && (
+
                     <div>
                       {/* Category filter chips */}
                       <div className="student-filters-container" style={{ marginBottom: '16px' }}>
