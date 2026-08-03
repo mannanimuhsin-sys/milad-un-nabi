@@ -911,7 +911,7 @@ function App() {
         window.removeEventListener('focus', handleFocus);
       };
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedInMadrasa]);
 
   // 📺 Projector Mode Synchronization & Slide Rotation Effect
@@ -919,7 +919,7 @@ function App() {
     if (!isProjectorActive || !loggedInMadrasa) return;
 
     const rNum = loggedInMadrasa.regNumber;
-    
+
     // Auto-refresh from Supabase every 30 seconds
     const dataInterval = setInterval(() => {
       console.log("Projector mode: auto-refreshing data...");
@@ -944,7 +944,7 @@ function App() {
       clearInterval(slideInterval);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProjectorActive, loggedInMadrasa]);
 
   // 🎭 Troll Mode Auto-Rotate: ഓരോ 10 മിനിറ്റിലും dialog cycle ആകും
@@ -1062,7 +1062,7 @@ function App() {
           .from('group_registrations')
           .select('*')
           .eq('madrasa_id', madrasaReg);
-        
+
         if (gRegs) {
           studentGroups = gRegs.filter(g => {
             const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
@@ -1121,7 +1121,7 @@ function App() {
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
-      
+
     if (isStandalone) {
       // App is installed & running standalone – never show the popup
       setShowInstallPopup(false);
@@ -1129,8 +1129,8 @@ function App() {
     }
 
     // Detect iOS device / macOS Safari (Apple ecosystem)
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || 
-                  (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.userAgent.includes("Mac") && "ontouchend" in document);
     setIsIosDevice(isIos);
 
     // Auto-show the install notification popup (only in browser mode)
@@ -1444,7 +1444,7 @@ function App() {
   const handleToggleTrollMode = async () => {
     const newTrollMode = !trollMode;
     setTrollMode(newTrollMode);
-    
+
     if (loggedInMadrasa) {
       try {
         // Fetch current place from Supabase to preserve location name and status
@@ -1472,7 +1472,7 @@ function App() {
   const handleToggleTrollLang = async () => {
     const newTrollLang = trollLang === 'EN' ? 'ML' : 'EN';
     setTrollLang(newTrollLang);
-    
+
     if (loggedInMadrasa) {
       try {
         const { data: madrasaData } = await supabase
@@ -1661,7 +1661,7 @@ function App() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       // Reset input here (after file is safely read) so same file can be re-selected
-      try { inputEl.value = ''; } catch (_) {}
+      try { inputEl.value = ''; } catch (_) { }
       try {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -1927,7 +1927,7 @@ function App() {
     if (error) {
       if (error.code === 'PGRST204' || (error.message && error.message.includes('timetable'))) {
         // Table not found error
-        alert((lang === 'EN' ? 'Database setup required!\nPlease run this SQL in your Supabase SQL Editor to create the timetable table:\n\n' : 'ഡാറ്റാബേസ് സെറ്റപ്പ് ആവശ്യമാണ്!\nSupabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\n') + 
+        alert((lang === 'EN' ? 'Database setup required!\nPlease run this SQL in your Supabase SQL Editor to create the timetable table:\n\n' : 'ഡാറ്റാബേസ് സെറ്റപ്പ് ആവശ്യമാണ്!\nSupabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\n') +
           `CREATE TABLE timetable (
   id BIGSERIAL PRIMARY KEY,
   madrasa_id TEXT NOT NULL,
@@ -2016,7 +2016,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       studentname: isGroup ? groupObj.group_name : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`,
       studentgender: isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : studentObj.gender,
       teamid: isGroup ? groupObj.team_id : studentObj.teamid,
-      teamname: isGroup 
+      teamname: isGroup
         ? ((teams.find(t => String(t.id) === String(groupObj.team_id)) || {}).name || '')
         : ((teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || ''),
       place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
@@ -2127,7 +2127,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setGroupRegSaving(true);
     try {
       const madrasaId = loggedInMadrasa.regNumber;
-      
+
       let insertData = {
         madrasa_id: madrasaId,
         program_id: String(groupRegProgram),
@@ -2144,7 +2144,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       // If leader_id column doesn't exist yet, retry without leader_id column but putting leader as 1st element of student_ids
       if (error && error.message && error.message.includes('leader_id')) {
         delete insertData.leader_id;
-        const reordered = chosenLeader 
+        const reordered = chosenLeader
           ? [String(chosenLeader), ...groupRegStudents.filter(id => String(id) !== String(chosenLeader))]
           : groupRegStudents;
         insertData.student_ids = reordered;
@@ -2154,7 +2154,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
       if (error) {
         if (error.code === 'PGRST205') {
-          alert((lang === 'EN' ? 'Database setup required!\nPlease run this SQL in your Supabase SQL Editor to create the group_registrations table:\n\n' : 'ഡാറ്റാബേസ് സെറ്റപ്പ് ആവശ്യമാണ്!\nSupabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\n') + 
+          alert((lang === 'EN' ? 'Database setup required!\nPlease run this SQL in your Supabase SQL Editor to create the group_registrations table:\n\n' : 'ഡാറ്റാബേസ് സെറ്റപ്പ് ആവശ്യമാണ്!\nSupabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\n') +
             `CREATE TABLE group_registrations (
   id BIGSERIAL PRIMARY KEY,
   madrasa_id TEXT NOT NULL,
@@ -2173,7 +2173,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         setGroupRegName('');
         setGroupRegLeader('');
         setGroupRegStudents([]);
-        
+
         // Refresh group registrations
         const { data: gRegData } = await supabase
           .from('group_registrations')
@@ -2189,16 +2189,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
   const handleDeleteGroupRegistration = async (id) => {
     if (!window.confirm(lang === 'EN' ? 'Remove this group registration?' : 'ഈ ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ ഒഴിവാക്കണോ?')) return;
-    
+
     // Optimistic delete
     setGroupRegistrations(prev => prev.filter(g => g.id !== id));
-    
+
     try {
       const { error } = await supabase
         .from('group_registrations')
         .delete()
         .eq('id', id);
-        
+
       if (error) {
         alert(error.message);
         // Refresh to restore if error
@@ -2547,21 +2547,21 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     try {
       const canvas = await html2canvas(element, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
-      
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 190; // A4 is 210mm wide (10mm margins on left/right)
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
+
       let finalW = imgWidth;
       let finalH = imgHeight;
       if (finalH > 277) { // A4 is 297mm high (10mm margins on top/bottom)
         finalH = 277;
         finalW = (canvas.width * finalH) / canvas.height;
       }
-      
+
       const x = (210 - finalW) / 2;
       const y = (297 - finalH) / 2;
-      
+
       pdf.addImage(imgData, 'PNG', x, y, finalW, finalH);
       const pdfBlob = pdf.output('blob');
       await downloadFile(pdfBlob, `Poster_${qrModalData.student.name.replace(/\s+/g, '_')}.pdf`, 'application/pdf');
@@ -2902,8 +2902,8 @@ ${pagesHtml}
       {currentScreen === 'LOGIN' && (
         <div className="executive-login-container">
           {/* Floating Language Toggle */}
-          <button 
-            onClick={toggleLanguage} 
+          <button
+            onClick={toggleLanguage}
             style={{
               position: 'absolute',
               top: '20px',
@@ -3323,8 +3323,8 @@ ${pagesHtml}
               </p>
             </div>
             <div className="header-buttons-wrapper">
-              <button 
-                onClick={toggleLanguage} 
+              <button
+                onClick={toggleLanguage}
                 className="btn-logout-top lang-btn-top"
               >
                 🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
@@ -3362,7 +3362,7 @@ ${pagesHtml}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       {loginRole === 'ADMIN' && (
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <button 
+                          <button
                             onClick={handleToggleTrollMode}
                             style={{
                               background: trollMode ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #059669, #047857)',
@@ -3408,7 +3408,7 @@ ${pagesHtml}
                           )}
                         </div>
                       )}
-                      <button 
+                      <button
                         onClick={() => setIsProjectorActive(true)}
                         style={{
                           background: 'linear-gradient(135deg, #1e1b4b, #0f172a)',
@@ -3458,67 +3458,67 @@ ${pagesHtml}
                           const rank = teamRanks[idx];
                           const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
                           const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
-                          
+
                           return (
                             <div key={team.id} className={`leaderboard-item ${rankClass}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                  <div className="leaderboard-rank-badge">{badgeIcon}</div>
-                                  <div className="leaderboard-content" style={{ flex: 1 }}>
-                                    <div className="team-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                        <span className="team-name">{team.name}</span>
-                                        {trollMode && (() => {
-                                          const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
-                                          return (
-                                            <div 
-                                              className="troll-badge-container" 
-                                              style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
-                                              }}
-                                              title={lang === 'EN' ? 'Click to change reaction!' : 'മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക!'}
-                                            >
-                                              <span className="troll-emoji-avatar animate-troll-emoji" style={{ fontSize: '22px' }}>
-                                                {reaction.emoji}
-                                              </span>
-                                              <div className="troll-speech-bubble">
-                                                {reaction.text}
-                                              </div>
+                                <div className="leaderboard-rank-badge">{badgeIcon}</div>
+                                <div className="leaderboard-content" style={{ flex: 1 }}>
+                                  <div className="team-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <span className="team-name">{team.name}</span>
+                                      {trollMode && (() => {
+                                        const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
+                                        return (
+                                          <div
+                                            className="troll-badge-container"
+                                            style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
+                                            }}
+                                            title={lang === 'EN' ? 'Click to change reaction!' : 'മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക!'}
+                                          >
+                                            <span className="troll-emoji-avatar animate-troll-emoji" style={{ fontSize: '22px' }}>
+                                              {reaction.emoji}
+                                            </span>
+                                            <div className="troll-speech-bubble">
+                                              {reaction.text}
                                             </div>
-                                          );
-                                        })()}
-                                      </div>
-                                      <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
-                                    <div className="progress-track">
-                                      <div className="progress-fill" style={{ width: `${barWidth}%` }}>
-                                         <div className="progress-glow"></div>
-                                      </div>
+                                    <span className="team-score-text">{totalPts} <span>{t('points')}</span></span>
+                                  </div>
+                                  <div className="progress-track">
+                                    <div className="progress-fill" style={{ width: `${barWidth}%` }}>
+                                      <div className="progress-glow"></div>
                                     </div>
                                   </div>
+                                </div>
                               </div>
-                              
+
                               {/* Category Breakdown for this Team */}
                               <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                  {categories.map(c => {
-                                      // Calculate points for this category and team
-                                      const catResults = resultsList.filter(r => (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name);
-                                      if (catResults.length === 0) return null;
-                                      
-                                      const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
-                                      const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + r.points, 0);
-                                      
-                                      return (
-                                          <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', minWidth: '110px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                              <strong style={{ color: '#1e293b', display: 'block', marginBottom: '4px' }}>{c.name}</strong>
-                                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
-                                                  <span>👦 <b style={{ color: '#3b82f6' }}>{boyPts}</b></span>
-                                                  <span>👧 <b style={{ color: '#ec4899' }}>{girlPts}</b></span>
-                                              </div>
-                                          </div>
-                                      );
-                                  })}
+                                {categories.map(c => {
+                                  // Calculate points for this category and team
+                                  const catResults = resultsList.filter(r => (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name);
+                                  if (catResults.length === 0) return null;
+
+                                  const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
+                                  const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + r.points, 0);
+
+                                  return (
+                                    <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', minWidth: '110px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                      <strong style={{ color: '#1e293b', display: 'block', marginBottom: '4px' }}>{c.name}</strong>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                        <span>👦 <b style={{ color: '#3b82f6' }}>{boyPts}</b></span>
+                                        <span>👧 <b style={{ color: '#ec4899' }}>{girlPts}</b></span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           );
@@ -3551,235 +3551,237 @@ ${pagesHtml}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
                   {[
                     { key: 'PROGRAM_WINNERS', icon: '🏆', label: 'Program Winners', grad: 'linear-gradient(135deg, #f59e0b, #d97706)', actBg: '#fffbeb', actBorder: '#fcd34d' },
-                    { key: 'STUDENT_REPORT',  icon: '🔍📜', label: 'Student Report & Certificate', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
+                    { key: 'STUDENT_REPORT', icon: '🔍📜', label: 'Student Report & Certificate', grad: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', actBg: '#eff6ff', actBorder: '#93c5fd' },
                     { key: 'RESULTS_HISTORY', icon: '🗂', label: 'Results History', grad: 'linear-gradient(135deg, #10b981, #047857)', actBg: '#ecfdf5', actBorder: '#6ee7b7' },
-                    { key: 'CHAMPIONS',       icon: '🏅', label: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
+                    { key: 'CHAMPIONS', icon: '🏅', label: 'Champions', grad: 'linear-gradient(135deg, #7c3aed, #4c1d95)', actBg: '#f5f3ff', actBorder: '#c4b5fd' },
                   ].filter(tab => {
                     if (loginRole === 'VIEW') {
                       return visibilityControls['results_' + tab.key];
                     }
                     return true;
                   }).map(tab => {
-                  const isActive = resultsSubTab === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => setResultsSubTab(tab.key)}
-                      style={{
-                        border: `2px solid ${isActive ? tab.actBorder : '#e2e8f0'}`,
-                        borderRadius: '14px',
-                        padding: '14px 10px',
-                        cursor: 'pointer',
-                        background: isActive ? tab.actBg : '#f8fafc',
-                        textAlign: 'center',
-                        transition: 'all 0.22s ease',
-                        boxShadow: isActive ? `0 4px 18px rgba(0,0,0,0.10)` : '0 1px 4px rgba(0,0,0,0.04)',
-                        transform: isActive ? 'translateY(-2px)' : 'none',
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {isActive && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: tab.grad, borderRadius: '14px 14px 0 0' }} />
-                      )}
-                      <div style={{ fontSize: '28px', marginBottom: '4px', filter: isActive ? 'none' : 'grayscale(0.3)' }}>{tab.icon}</div>
-                      <div style={{ fontSize: '12px', fontWeight: '800', color: isActive ? '#1e293b' : '#475569', lineHeight: 1.3, marginBottom: '2px' }}>{tab.label}</div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="settings-content" style={{ marginTop: '0' }}>
-
-              {/* ── Section 1: Program Winners Viewer ── */}
-              {resultsSubTab === 'PROGRAM_WINNERS' && (
-              <div style={{ marginBottom: '20px' }}>
-
-                {/* Filter Row */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '15px' }}>
-                  {/* Category Filter */}
-                  <div style={{ flex: '1 1 200px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '4px' }}>Category</label>
-                    <select className="settings-input" value={filterCat} onChange={(e) => { setFilterCat(e.target.value); setFilterProg(''); }}>
-                      <option value="">-- Select --</option>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
-                    </select>
-                  </div>
-
-                  {/* Program Filter */}
-                  <div style={{ flex: '1 1 200px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>Program</label>
-                    <select className="settings-input" value={filterProg} onChange={(e) => setFilterProg(e.target.value)} disabled={!filterCat}>
-                      <option value="">-- Select --</option>
-                      {programs.filter(p => {
-                        const catMatch = String(p.catid || p.catId || '') === String(filterCat);
-                        if (!catMatch) return false;
-                        if (filterGender === 'ALL') return true;
-                        const pType = (p.type || '').toUpperCase();
-                        if (filterGender === 'BOY') return pType.includes('BOY') || (!pType.includes('BOY') && !pType.includes('GIRL'));
-                        if (filterGender === 'GIRL') return pType.includes('GIRL') || (!pType.includes('BOY') && !pType.includes('GIRL'));
-                        return true;
-                      }).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Gender Filter */}
-                  <div style={{ flex: '1 1 150px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '4px' }}>Gender</label>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {['ALL', 'BOY', 'GIRL'].map(g => (
-                        <button key={g} type="button" onClick={() => {
-                          setFilterGender(g);
-                          // Reset program selection if it doesn't match new gender
-                          if (g !== 'ALL' && filterProg) {
-                            const selProg = programs.find(p => String(p.id) === String(filterProg));
-                            if (selProg) {
-                              const pType = (selProg.type || '').toUpperCase();
-                              const isBoyProg = pType.includes('BOY');
-                              const isGirlProg = pType.includes('GIRL');
-                              if ((g === 'BOY' && isGirlProg) || (g === 'GIRL' && isBoyProg)) {
-                                setFilterProg('');
-                              }
-                            }
-                          }
+                    const isActive = resultsSubTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setResultsSubTab(tab.key)}
+                        style={{
+                          border: `2px solid ${isActive ? tab.actBorder : '#e2e8f0'}`,
+                          borderRadius: '14px',
+                          padding: '14px 10px',
+                          cursor: 'pointer',
+                          background: isActive ? tab.actBg : '#f8fafc',
+                          textAlign: 'center',
+                          transition: 'all 0.22s ease',
+                          boxShadow: isActive ? `0 4px 18px rgba(0,0,0,0.10)` : '0 1px 4px rgba(0,0,0,0.04)',
+                          transform: isActive ? 'translateY(-2px)' : 'none',
+                          position: 'relative',
+                          overflow: 'hidden',
                         }}
-                          style={{ flex: 1, padding: '7px 4px', borderRadius: '8px', border: '2px solid', fontWeight: '700', cursor: 'pointer', fontSize: '11px',
-                            background: filterGender === g ? (g === 'BOY' ? '#3b82f6' : g === 'GIRL' ? '#ec4899' : '#7c3aed') : '#f8fafc',
-                            color: filterGender === g ? 'white' : '#475569',
-                            borderColor: filterGender === g ? 'transparent' : '#e2e8f0' }}>
-                          {g === 'ALL' ? '👥 All' : g === 'BOY' ? '👦 Boys' : '👧 Girls'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      >
+                        {isActive && (
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: tab.grad, borderRadius: '14px 14px 0 0' }} />
+                        )}
+                        <div style={{ fontSize: '28px', marginBottom: '4px', filter: isActive ? 'none' : 'grayscale(0.3)' }}>{tab.icon}</div>
+                        <div style={{ fontSize: '12px', fontWeight: '800', color: isActive ? '#1e293b' : '#475569', lineHeight: 1.3, marginBottom: '2px' }}>{tab.label}</div>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Winners Display */}
-                {filterProg && (() => {
-                  const progObj = programs.find(p => String(p.id) === String(filterProg));
-                  const progResults = resultsList.filter(r => {
-                    const matchProg = String(r.progid) === String(filterProg);
-                    const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
-                    const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
-                    return matchProg && matchGender;
-                  });
-                  const firstResults = progResults.filter(r => r.place === 'First');
-                  const secondResults = progResults.filter(r => r.place === 'Second');
-                  const thirdResults = progResults.filter(r => r.place === 'Third');
+                <div className="settings-content" style={{ marginTop: '0' }}>
 
-                   const renderWinnerCard = (result, gradient, medal, borderColor) => {
-                    const sName = result.studentname || result.studentName || '';
-                    const dashIdx = sName.indexOf(' - ');
-                    const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
-                    const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
-                    const genderVal = result.studentgender || result.studentGender || '';
-                    const catObj2 = categories.find(c => String(c.id) === String(filterCat));
-                    return (
-                      <div key={result.id} style={{
-                        background: gradient,
-                        borderRadius: '20px',
-                        padding: '16px 20px',
-                        color: 'white',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-                        border: `2px solid ${borderColor}`,
-                        animation: 'fadeInTab 0.5s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '15px'
-                      }}>
-                        <div style={{ flex: 1, zIndex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '28px' }}>{medal}</span>
-                            <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{result.place}</span>
+                  {/* ── Section 1: Program Winners Viewer ── */}
+                  {resultsSubTab === 'PROGRAM_WINNERS' && (
+                    <div style={{ marginBottom: '20px' }}>
+
+                      {/* Filter Row */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '15px' }}>
+                        {/* Category Filter */}
+                        <div style={{ flex: '1 1 200px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '4px' }}>Category</label>
+                          <select className="settings-input" value={filterCat} onChange={(e) => { setFilterCat(e.target.value); setFilterProg(''); }}>
+                            <option value="">-- Select --</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
+                          </select>
+                        </div>
+
+                        {/* Program Filter */}
+                        <div style={{ flex: '1 1 200px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>Program</label>
+                          <select className="settings-input" value={filterProg} onChange={(e) => setFilterProg(e.target.value)} disabled={!filterCat}>
+                            <option value="">-- Select --</option>
+                            {programs.filter(p => {
+                              const catMatch = String(p.catid || p.catId || '') === String(filterCat);
+                              if (!catMatch) return false;
+                              if (filterGender === 'ALL') return true;
+                              const pType = (p.type || '').toUpperCase();
+                              if (filterGender === 'BOY') return pType.includes('BOY') || (!pType.includes('BOY') && !pType.includes('GIRL'));
+                              if (filterGender === 'GIRL') return pType.includes('GIRL') || (!pType.includes('BOY') && !pType.includes('GIRL'));
+                              return true;
+                            }).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                          </select>
+                        </div>
+
+                        {/* Gender Filter */}
+                        <div style={{ flex: '1 1 150px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '4px' }}>Gender</label>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {['ALL', 'BOY', 'GIRL'].map(g => (
+                              <button key={g} type="button" onClick={() => {
+                                setFilterGender(g);
+                                // Reset program selection if it doesn't match new gender
+                                if (g !== 'ALL' && filterProg) {
+                                  const selProg = programs.find(p => String(p.id) === String(filterProg));
+                                  if (selProg) {
+                                    const pType = (selProg.type || '').toUpperCase();
+                                    const isBoyProg = pType.includes('BOY');
+                                    const isGirlProg = pType.includes('GIRL');
+                                    if ((g === 'BOY' && isGirlProg) || (g === 'GIRL' && isBoyProg)) {
+                                      setFilterProg('');
+                                    }
+                                  }
+                                }
+                              }}
+                                style={{
+                                  flex: 1, padding: '7px 4px', borderRadius: '8px', border: '2px solid', fontWeight: '700', cursor: 'pointer', fontSize: '11px',
+                                  background: filterGender === g ? (g === 'BOY' ? '#3b82f6' : g === 'GIRL' ? '#ec4899' : '#7c3aed') : '#f8fafc',
+                                  color: filterGender === g ? 'white' : '#475569',
+                                  borderColor: filterGender === g ? 'transparent' : '#e2e8f0'
+                                }}>
+                                {g === 'ALL' ? '👥 All' : g === 'BOY' ? '👦 Boys' : '👧 Girls'}
+                              </button>
+                            ))}
                           </div>
-                          <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{regPart}</div>
-                          <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{namePart}</div>
-                          <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{result.teamname || result.teamName || '-'}</span></div>
-                          <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
-                            {genderVal.toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
-                          </div>
-                          {/* Poster Button */}
-                          <button
-                            onClick={() => setPosterModal({ result, regPart, namePart, genderVal, progObj, catObj: catObj2 })}
-                            style={{
-                              marginTop: '10px',
-                              background: 'rgba(255,255,255,0.25)',
-                              border: '1px solid rgba(255,255,255,0.5)',
+                        </div>
+                      </div>
+
+                      {/* Winners Display */}
+                      {filterProg && (() => {
+                        const progObj = programs.find(p => String(p.id) === String(filterProg));
+                        const progResults = resultsList.filter(r => {
+                          const matchProg = String(r.progid) === String(filterProg);
+                          const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
+                          const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
+                          return matchProg && matchGender;
+                        });
+                        const firstResults = progResults.filter(r => r.place === 'First');
+                        const secondResults = progResults.filter(r => r.place === 'Second');
+                        const thirdResults = progResults.filter(r => r.place === 'Third');
+
+                        const renderWinnerCard = (result, gradient, medal, borderColor) => {
+                          const sName = result.studentname || result.studentName || '';
+                          const dashIdx = sName.indexOf(' - ');
+                          const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                          const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                          const genderVal = result.studentgender || result.studentGender || '';
+                          const catObj2 = categories.find(c => String(c.id) === String(filterCat));
+                          return (
+                            <div key={result.id} style={{
+                              background: gradient,
+                              borderRadius: '20px',
+                              padding: '16px 20px',
                               color: 'white',
-                              borderRadius: '8px',
-                              padding: '5px 12px',
-                              fontSize: '11px',
-                              fontWeight: '800',
-                              cursor: 'pointer',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                              border: `2px solid ${borderColor}`,
+                              animation: 'fadeInTab 0.5s ease',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '5px',
-                              backdropFilter: 'blur(4px)'
-                            }}
-                          >
-                            🖼️ View Poster
-                          </button>
-                        </div>
-                        {/* Photo frame */}
-                        <div style={{ position: 'relative', zIndex: 1 }}>
-                          {renderStudentPhoto(regPart, genderVal, '85px', '12px')}
-                        </div>
-                        {/* Background subtle watermark medal */}
-                        <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '100px', opacity: 0.08, pointerEvents: 'none' }}>{medal}</div>
-                      </div>
-                    );
-                  };
+                              justifyContent: 'space-between',
+                              gap: '15px'
+                            }}>
+                              <div style={{ flex: 1, zIndex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                  <span style={{ fontSize: '28px' }}>{medal}</span>
+                                  <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{result.place}</span>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{regPart}</div>
+                                <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{namePart}</div>
+                                <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{result.teamname || result.teamName || '-'}</span></div>
+                                <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
+                                  {genderVal.toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
+                                </div>
+                                {/* Poster Button */}
+                                <button
+                                  onClick={() => setPosterModal({ result, regPart, namePart, genderVal, progObj, catObj: catObj2 })}
+                                  style={{
+                                    marginTop: '10px',
+                                    background: 'rgba(255,255,255,0.25)',
+                                    border: '1px solid rgba(255,255,255,0.5)',
+                                    color: 'white',
+                                    borderRadius: '8px',
+                                    padding: '5px 12px',
+                                    fontSize: '11px',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    backdropFilter: 'blur(4px)'
+                                  }}
+                                >
+                                  🖼️ View Poster
+                                </button>
+                              </div>
+                              {/* Photo frame */}
+                              <div style={{ position: 'relative', zIndex: 1 }}>
+                                {renderStudentPhoto(regPart, genderVal, '85px', '12px')}
+                              </div>
+                              {/* Background subtle watermark medal */}
+                              <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '100px', opacity: 0.08, pointerEvents: 'none' }}>{medal}</div>
+                            </div>
+                          );
+                        };
 
-                  return (
-                    <div style={{ marginTop: '20px' }}>
-                      <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-                        <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
-                      </div>
-                      {progResults.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results for this program.</p>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
-                          {firstResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #f59e0b, #d97706)', '🥇', '#fbbf24'))}
-                          {secondResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #94a3b8, #64748b)', '🥈', '#cbd5e1'))}
-                          {thirdResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #f97316, #c2410c)', '🥉', '#fb923c'))}
-                        </div>
-                      )}
+                        return (
+                          <div style={{ marginTop: '20px' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                              <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
+                            </div>
+                            {progResults.length === 0 ? (
+                              <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results for this program.</p>
+                            ) : (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+                                {firstResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #f59e0b, #d97706)', '🥇', '#fbbf24'))}
+                                {secondResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #94a3b8, #64748b)', '🥈', '#cbd5e1'))}
+                                {thirdResults.map(r => renderWinnerCard(r, 'linear-gradient(135deg, #f97316, #c2410c)', '🥉', '#fb923c'))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
-                  );
-                })()}
-              </div>
-              )}
+                  )}
 
-              {/* ── Section 2: Student Search by Register Number ── */}
-              {resultsSubTab === 'STUDENT_REPORT' && (
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ marginTop: '10px' }}>
-                  <input type="text" className="settings-input" placeholder="Enter Register Number..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
-                </div>
+                  {/* ── Section 2: Student Search by Register Number ── */}
+                  {resultsSubTab === 'STUDENT_REPORT' && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ marginTop: '10px' }}>
+                        <input type="text" className="settings-input" placeholder="Enter Register Number..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
+                      </div>
 
-                {searchRegNo.trim() && (() => {
-                  const matchedStudent = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === searchRegNo.trim().toLowerCase());
-                  if (!matchedStudent) return <p style={{ color: '#ef4444', marginTop: '15px', fontWeight: '600' }}>No student found with this register number.</p>;
+                      {searchRegNo.trim() && (() => {
+                        const matchedStudent = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === searchRegNo.trim().toLowerCase());
+                        if (!matchedStudent) return <p style={{ color: '#ef4444', marginTop: '15px', fontWeight: '600' }}>No student found with this register number.</p>;
 
-                  const sRegNo = matchedStudent.regno || matchedStudent.regNo || '';
-                  const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
-                  const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
-                  const sResults = resultsList.filter(r => {
-                    const sName = r.studentname || r.studentName || '';
-                    return sName.startsWith(sRegNo + ' - ');
-                  });
+                        const sRegNo = matchedStudent.regno || matchedStudent.regNo || '';
+                        const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
+                        const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
+                        const sResults = resultsList.filter(r => {
+                          const sName = r.studentname || r.studentName || '';
+                          return sName.startsWith(sRegNo + ' - ');
+                        });
 
-                  const printReport = () => {
-                    const rows = sResults.map(r => {
-                      let placeLabel = r.place || '-';
-                      let gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
-                      return `<tr><td>${r.progname || r.progName}</td><td>${r.catname || r.catName}</td><td>${placeLabel}</td><td>${gradeLabel}</td><td>${r.points} Pts</td></tr>`;
-                    }).join('');
-                    const html = `
+                        const printReport = () => {
+                          const rows = sResults.map(r => {
+                            let placeLabel = r.place || '-';
+                            let gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+                            return `<tr><td>${r.progname || r.progName}</td><td>${r.catname || r.catName}</td><td>${placeLabel}</td><td>${gradeLabel}</td><td>${r.points} Pts</td></tr>`;
+                          }).join('');
+                          const html = `
                     <html><head><title>${matchedStudent.name} - Report</title>
                     <style>body{font-family:Arial,sans-serif;padding:30px;background:#fff} h1{color:#1e1b4b} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:10px;border:1px solid #e2e8f0;text-align:center} .header{background:linear-gradient(135deg,#1e1b4b,#3730a3);color:white;padding:30px;border-radius:12px;margin-bottom:20px} .badge{display:inline-block;background:#f59e0b;color:#78350f;padding:4px 12px;border-radius:20px;font-weight:700;font-size:14px;margin-top:8px}</style></head>
                     <body>
@@ -3791,105 +3793,105 @@ ${pagesHtml}
                     <table><thead><tr><th>Program</th><th>Category</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
                     <p style='margin-top:20px;color:#64748b;font-size:13px'>Total Points: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
                     </body></html>`;
-                    printHtml(html);
-                  };
+                          printHtml(html);
+                        };
 
-                  const generateCertificate = (result) => {
-                    setActiveCertificate({
-                      student: matchedStudent,
-                      result: result
-                    });
-                  };
+                        const generateCertificate = (result) => {
+                          setActiveCertificate({
+                            student: matchedStudent,
+                            result: result
+                          });
+                        };
 
-                  return (
-                    <div style={{ marginTop: '20px' }}>
-                      {/* Student Info Card */}
-                      <div style={{
-                        background: 'linear-gradient(135deg, #1e1b4b, #3730a3)',
-                        borderRadius: '24px',
-                        padding: '24px',
-                        color: 'white',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: '20px',
-                        flexWrap: 'wrap'
-                      }}>
-                        {/* Profile Photo */}
-                        <div style={{ position: 'relative', zIndex: 1 }}>
-                          {renderStudentPhoto(sRegNo, matchedStudent.gender, '100px', '16px')}
-                        </div>
-                        <div style={{ flex: 1, minWidth: '200px', zIndex: 1 }}>
-                          <div style={{ fontSize: '11px', fontWeight: '800', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Profile & Report</div>
-                          <div style={{ fontSize: '26px', fontWeight: '900', marginTop: '6px', letterSpacing: '0.5px' }}>{matchedStudent.name}</div>
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Reg: {sRegNo}</span>
-                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
-                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Category: {catObj ? catObj.name : '' || '-'}</span>
-                            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
-                          </div>
-                          <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24', marginTop: '14px' }}>
-                            {sResults.reduce((s, r) => s + r.points, 0)}{' '}
-                            <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '600' }}>Total Points</span>
-                          </div>
-                        </div>
-                        <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '100px', opacity: 0.05, pointerEvents: 'none' }}>🏆</div>
-                      </div>
-
-                      {/* Results */}
-                      {sResults.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results.</p>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '15px' }}>
-                          {sResults.map((r, idx) => {
-                            const medal = r.place === 'First' ? '🥇' : r.place === 'Second' ? '🥈' : r.place === 'Third' ? '🥉' : '🏅';
-                            const bg = r.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : r.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #64748b)' : r.place === 'Third' ? 'linear-gradient(135deg, #f97316, #c2410c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)';
-                            return (
-                              <div key={idx} style={{ background: bg, borderRadius: '14px', padding: '16px', color: 'white', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
-                                <div style={{ fontSize: '24px', marginBottom: '6px' }}>{medal}</div>
-                                <div style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>{r.progname || r.progName}</div>
-                                <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>{r.catname || r.catName}</div>
-                                <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontWeight: '700', marginBottom: '10px' }}>{r.place} | {(r.grade === '-' || r.grade === 'No') ? 'No Grade' : r.grade} | {r.points} Pts</div>
-                                <button onClick={() => generateCertificate(r)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(6px)', border: '1.5px solid rgba(255,255,255,0.35)', color: 'white', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', transition: 'all 0.2s ease' }}>
-                                  📜 Certificate
-                                </button>
+                        return (
+                          <div style={{ marginTop: '20px' }}>
+                            {/* Student Info Card */}
+                            <div style={{
+                              background: 'linear-gradient(135deg, #1e1b4b, #3730a3)',
+                              borderRadius: '24px',
+                              padding: '24px',
+                              color: 'white',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                              display: 'flex',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: '20px',
+                              flexWrap: 'wrap'
+                            }}>
+                              {/* Profile Photo */}
+                              <div style={{ position: 'relative', zIndex: 1 }}>
+                                {renderStudentPhoto(sRegNo, matchedStudent.gender, '100px', '16px')}
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                              <div style={{ flex: 1, minWidth: '200px', zIndex: 1 }}>
+                                <div style={{ fontSize: '11px', fontWeight: '800', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Profile & Report</div>
+                                <div style={{ fontSize: '26px', fontWeight: '900', marginTop: '6px', letterSpacing: '0.5px' }}>{matchedStudent.name}</div>
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Reg: {sRegNo}</span>
+                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
+                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Category: {catObj ? catObj.name : '' || '-'}</span>
+                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                                </div>
+                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24', marginTop: '14px' }}>
+                                  {sResults.reduce((s, r) => s + r.points, 0)}{' '}
+                                  <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '600' }}>Total Points</span>
+                                </div>
+                              </div>
+                              <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '100px', opacity: 0.05, pointerEvents: 'none' }}>🏆</div>
+                            </div>
 
-                      {/* Download / Print Report Button */}
-                      <button onClick={printReport} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#78350f', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
-                        📥 Download / Print Report
-                      </button>
+                            {/* Results */}
+                            {sResults.length === 0 ? (
+                              <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results.</p>
+                            ) : (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '15px' }}>
+                                {sResults.map((r, idx) => {
+                                  const medal = r.place === 'First' ? '🥇' : r.place === 'Second' ? '🥈' : r.place === 'Third' ? '🥉' : '🏅';
+                                  const bg = r.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : r.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #64748b)' : r.place === 'Third' ? 'linear-gradient(135deg, #f97316, #c2410c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)';
+                                  return (
+                                    <div key={idx} style={{ background: bg, borderRadius: '14px', padding: '16px', color: 'white', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
+                                      <div style={{ fontSize: '24px', marginBottom: '6px' }}>{medal}</div>
+                                      <div style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>{r.progname || r.progName}</div>
+                                      <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>{r.catname || r.catName}</div>
+                                      <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontWeight: '700', marginBottom: '10px' }}>{r.place} | {(r.grade === '-' || r.grade === 'No') ? 'No Grade' : r.grade} | {r.points} Pts</div>
+                                      <button onClick={() => generateCertificate(r)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(6px)', border: '1.5px solid rgba(255,255,255,0.35)', color: 'white', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', transition: 'all 0.2s ease' }}>
+                                        📜 Certificate
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Download / Print Report Button */}
+                            <button onClick={printReport} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#78350f', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
+                              📥 Download / Print Report
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
-                  );
-                })()}
-              </div>
-              )}
+                  )}
 
-              {/* ── Section 3: Results History Table ── */}
-              {resultsSubTab === 'RESULTS_HISTORY' && (() => {
-                const printResultsHistory = () => {
-                  const rows = resultsList.map(r => {
-                    const sName = r.studentname || r.studentName || '';
-                    const dashIdx = sName.indexOf(' - ');
-                    const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
-                    const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
-                    
-                    const student = students.find(s => String(s.regno || s.regNo || '') === String(regPart));
-                    const hasPhoto = student && student.photo_url && student.photo_status && student.photo_status !== 'none';
-                    const photoHtml = hasPhoto 
-                      ? `<img src="${student.photo_url}" style="width:30px;height:30px;border-radius:4px;object-fit:cover;display:block;margin:0 auto;" />`
-                      : `<span style="font-size:16px;">${(r.studentgender || r.studentGender) === 'BOY' ? '👦' : '👧'}</span>`;
-                    
-                    const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
-                    const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
-                    return `<tr>
+                  {/* ── Section 3: Results History Table ── */}
+                  {resultsSubTab === 'RESULTS_HISTORY' && (() => {
+                    const printResultsHistory = () => {
+                      const rows = resultsList.map(r => {
+                        const sName = r.studentname || r.studentName || '';
+                        const dashIdx = sName.indexOf(' - ');
+                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                        const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+
+                        const student = students.find(s => String(s.regno || s.regNo || '') === String(regPart));
+                        const hasPhoto = student && student.photo_url && student.photo_status && student.photo_status !== 'none';
+                        const photoHtml = hasPhoto
+                          ? `<img src="${student.photo_url}" style="width:30px;height:30px;border-radius:4px;object-fit:cover;display:block;margin:0 auto;" />`
+                          : `<span style="font-size:16px;">${(r.studentgender || r.studentGender) === 'BOY' ? '👦' : '👧'}</span>`;
+
+                        const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
+                        const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+                        return `<tr>
                       <td>${r.progname || r.progName}</td>
                       <td>${String(r.progtype || r.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</td>
                       <td>${r.catname || r.catName}</td>
@@ -3902,9 +3904,9 @@ ${pagesHtml}
                       <td>${gradeLabel}</td>
                       <td>${r.points}</td>
                     </tr>`;
-                  }).join('');
+                      }).join('');
 
-                  const html = `
+                      const html = `
                     <html><head><title>Results History</title>
                     <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
                     <body>
@@ -3912,221 +3914,221 @@ ${pagesHtml}
                     <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
                     </body></html>
                   `;
-                  printHtml(html);
-                };
+                      printHtml(html);
+                    };
 
-                return (
-              <div>
-                <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {resultsList.length === 0 ? <tr><td colSpan="12">No results announced yet.</td></tr> :
-                        resultsList.map(r => {
-                          const sName = r.studentname || r.studentName || '';
-                          const dashIdx = sName.indexOf(' - ');
-                          const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
-                          const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
-                          const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
-                          const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
-                          return (
-                            <tr key={r.id}>
-                              <td>{r.progname || r.progName}</td>
-                              <td><span style={{ background: String(r.progtype || r.progType).includes('GROUP') ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{String(r.progtype || r.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</span></td>
-                              <td>{r.catname || r.catName}</td>
-                              <td>{renderTablePhoto(regPart, r.studentgender || r.studentGender)}</td>
-                              <td><b style={{ color: '#1e40af' }}>{regPart}</b></td>
-                              <td>{namePart}</td>
-                              <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
-                              <td><b>{r.teamname || r.teamName}</b></td>
-                              <td><span style={{ background: placeLabel === 'First' ? '#fbbf24' : placeLabel === 'Second' ? '#94a3b8' : placeLabel === 'Third' ? '#f97316' : '#e2e8f0', color: placeLabel === 'First' ? '#78350f' : placeLabel === 'Second' ? '#1e293b' : placeLabel === 'Third' ? '#7c2d12' : '#475569', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', fontSize: '12px' }}>{placeLabel}</span></td>
-                              <td><span style={{ fontWeight: '700', color: gradeLabel === 'A' ? '#059669' : gradeLabel === 'B' ? '#2563eb' : gradeLabel === 'C' ? '#7c3aed' : '#94a3b8' }}>{gradeLabel}</span></td>
-                              <td><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
-                              {loginRole === 'ADMIN' && <td><button onClick={() => handleDeleteResult(r.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button></td>}
-                            </tr>
-                          );
-                        })
-                      }
-                    </tbody>
-                  </table>
-                </div>
-                <button onClick={printResultsHistory} style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
-                  📄 Download PDF / Print
-                </button>
-              </div>
-              );
-              })()}
-
-              {/* ── Section 4: Champion Section ── */}
-              {resultsSubTab === 'CHAMPIONS' && (
-              <div style={{ marginTop: '10px' }}>
-
-                {/* Category Selector */}
-                <div style={{ marginTop: '15px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>Select Category</label>
-                  <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampGender('BOYS'); }}>
-                    <option value="">-- Select Category --</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
-                  </select>
-                </div>
-
-                {/* Gender Tabs */}
-                {champCat && (
-                  <div style={{ marginTop: '15px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>Gender</label>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {['BOYS', 'GIRLS', 'GENERAL'].map(g => (
-                        <button key={g} type="button"
-                          onClick={() => { setChampGender(g); }}
-                          style={{
-                            padding: '8px 18px', borderRadius: '10px', border: '2px solid',
-                            fontWeight: '700', cursor: 'pointer', fontSize: '13px',
-                            background: champGender === g
-                              ? (g === 'BOYS' ? '#3b82f6' : g === 'GIRLS' ? '#ec4899' : '#10b981')
-                              : '#f8fafc',
-                            color: champGender === g ? 'white' : '#475569',
-                            borderColor: champGender === g ? 'transparent' : '#e2e8f0',
-                            transition: 'all 0.2s'
-                          }}>
-                          {g === 'BOYS' ? '👦 Boys' : g === 'GIRLS' ? '👧 Girls' : '👥 General'}
+                    return (
+                      <div>
+                        <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {resultsList.length === 0 ? <tr><td colSpan="12">No results announced yet.</td></tr> :
+                                resultsList.map(r => {
+                                  const sName = r.studentname || r.studentName || '';
+                                  const dashIdx = sName.indexOf(' - ');
+                                  const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                                  const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                                  const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
+                                  const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+                                  return (
+                                    <tr key={r.id}>
+                                      <td>{r.progname || r.progName}</td>
+                                      <td><span style={{ background: String(r.progtype || r.progType).includes('GROUP') ? '#ef4444' : '#10b981', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>{String(r.progtype || r.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</span></td>
+                                      <td>{r.catname || r.catName}</td>
+                                      <td>{renderTablePhoto(regPart, r.studentgender || r.studentGender)}</td>
+                                      <td><b style={{ color: '#1e40af' }}>{regPart}</b></td>
+                                      <td>{namePart}</td>
+                                      <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
+                                      <td><b>{r.teamname || r.teamName}</b></td>
+                                      <td><span style={{ background: placeLabel === 'First' ? '#fbbf24' : placeLabel === 'Second' ? '#94a3b8' : placeLabel === 'Third' ? '#f97316' : '#e2e8f0', color: placeLabel === 'First' ? '#78350f' : placeLabel === 'Second' ? '#1e293b' : placeLabel === 'Third' ? '#7c2d12' : '#475569', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', fontSize: '12px' }}>{placeLabel}</span></td>
+                                      <td><span style={{ fontWeight: '700', color: gradeLabel === 'A' ? '#059669' : gradeLabel === 'B' ? '#2563eb' : gradeLabel === 'C' ? '#7c3aed' : '#94a3b8' }}>{gradeLabel}</span></td>
+                                      <td><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
+                                      {loginRole === 'ADMIN' && <td><button onClick={() => handleDeleteResult(r.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button></td>}
+                                    </tr>
+                                  );
+                                })
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                        <button onClick={printResultsHistory} style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
+                          📄 Download PDF / Print
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Champion Rankings by Total Points across all programs */}
-                {champCat && (() => {
-                  const selectedCatObj = categories.find(c => String(c.id) === String(champCat));
-                  const catName = (selectedCatObj || {}).name || '';
-
-                  // Filter results for this category and exclude group events
-                  const isChampGeneral = champCat === 'GENERAL';
-                  const generalCatNames = generalCatIds.map(id => {
-                    const cObj = categories.find(c => String(c.id) === String(id));
-                    return cObj ? cObj.name : '';
-                  }).filter(Boolean);
-
-                  const catResults = resultsList.filter(r => {
-                    const rCatName = r.catname || r.catName || '';
-                    const matchCat = isChampGeneral 
-                      ? (rCatName === 'GENERAL' || generalCatNames.includes(rCatName))
-                      : rCatName === catName;
-                    return matchCat && !(r.progtype || '').includes('GROUP');
-                  });
-
-                  // Filter by gender division
-                  const genderFilteredResults = catResults.filter(r => {
-                    const gender = (r.studentgender || r.studentGender || '').toUpperCase();
-                    if (champGender === 'BOYS') return gender === 'BOY';
-                    if (champGender === 'GIRLS') return gender === 'GIRL';
-                    return true; // GENERAL: include everyone
-                  });
-
-                  if (genderFilteredResults.length === 0) return (
-                    <p style={{ marginTop: '20px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
-                      No results in this Category / Division.
-                    </p>
-                  );
-
-                  // Aggregate total points per student
-                  const studentMap = {};
-                  genderFilteredResults.forEach(r => {
-                    const sName = r.studentname || r.studentName || '';
-                    if (!studentMap[sName]) {
-                      const dashIdx = sName.indexOf(' - ');
-                      studentMap[sName] = {
-                        key: sName,
-                        regPart: dashIdx !== -1 ? sName.substring(0, dashIdx) : '',
-                        namePart: dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName,
-                        teamname: r.teamname || r.teamName || '-',
-                        studentgender: r.studentgender || r.studentGender || '',
-                        totalPoints: 0
-                      };
-                    }
-                    studentMap[sName].totalPoints += r.points;
-                  });
-
-                  // Sort descending by total points
-                  const sortedStudents = Object.values(studentMap).sort((a, b) => b.totalPoints - a.totalPoints);
-
-                  // Assign ranks with tie handling
-                  let currentRank = 1;
-                  const rankedStudents = sortedStudents.map((s, i) => {
-                    if (i > 0 && s.totalPoints < sortedStudents[i - 1].totalPoints) currentRank = i + 1;
-                    return { ...s, rank: currentRank };
-                  });
-
-                  const displayStudents = rankedStudents.filter(s => s.rank <= 3);
-
-                  const rankConfig = {
-                    1: { medal: '🥇', gradient: 'linear-gradient(135deg, #f59e0b, #b45309)', border: '#fbbf24', label: 'FIRST PLACE' },
-                    2: { medal: '🥈', gradient: 'linear-gradient(135deg, #94a3b8, #475569)', border: '#cbd5e1', label: 'SECOND PLACE' },
-                    3: { medal: '🥉', gradient: 'linear-gradient(135deg, #f97316, #b45309)', border: '#fb923c', label: 'THIRD PLACE' }
-                  };
-
-                  return (
-                    <div style={{ marginTop: '22px' }}>
-                      <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-                        <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 22px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>
-                          🏆 {catName} — {champGender === 'BOYS' ? '👦 Boys' : champGender === 'GIRLS' ? '👧 Girls' : '👥 General'}
-                        </span>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
-                        {displayStudents.map(student => {
-                          const cfg = rankConfig[student.rank] || rankConfig[3];
-                          return (
-                             <div key={student.key} style={{
-                              background: cfg.gradient,
-                              borderRadius: '24px',
-                              padding: '20px',
-                              color: 'white',
-                              position: 'relative',
-                              overflow: 'hidden',
-                              boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-                              border: `3px solid ${cfg.border}`,
-                              animation: 'fadeInTab 0.5s ease',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '15px'
-                            }}>
-                              <div style={{ flex: 1, zIndex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                  <span style={{ fontSize: '32px' }}>{cfg.medal}</span>
-                                  <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{cfg.label}</span>
-                                </div>
-                                <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{student.regPart}</div>
-                                <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{student.namePart}</div>
-                                <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{student.teamname}</span></div>
-                                <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
-                                  {(student.studentgender || '').toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
-                                </div>
-                                <div style={{ marginTop: '10px', background: 'rgba(255,255,255,0.25)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '900', fontSize: '16px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                                  ⭐ {student.totalPoints} Pts
-                                </div>
-                              </div>
-                              {/* Photo frame */}
-                              <div style={{ position: 'relative', zIndex: 1 }}>
-                                {renderStudentPhoto(student.regPart, student.studentgender, '95px', '14px')}
-                              </div>
-                              <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '110px', opacity: 0.07, pointerEvents: 'none' }}>{cfg.medal}</div>
+                    );
+                  })()}
+
+                  {/* ── Section 4: Champion Section ── */}
+                  {resultsSubTab === 'CHAMPIONS' && (
+                    <div style={{ marginTop: '10px' }}>
+
+                      {/* Category Selector */}
+                      <div style={{ marginTop: '15px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>Select Category</label>
+                        <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampGender('BOYS'); }}>
+                          <option value="">-- Select Category --</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
+                        </select>
+                      </div>
+
+                      {/* Gender Tabs */}
+                      {champCat && (
+                        <div style={{ marginTop: '15px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '6px' }}>Gender</label>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {['BOYS', 'GIRLS', 'GENERAL'].map(g => (
+                              <button key={g} type="button"
+                                onClick={() => { setChampGender(g); }}
+                                style={{
+                                  padding: '8px 18px', borderRadius: '10px', border: '2px solid',
+                                  fontWeight: '700', cursor: 'pointer', fontSize: '13px',
+                                  background: champGender === g
+                                    ? (g === 'BOYS' ? '#3b82f6' : g === 'GIRLS' ? '#ec4899' : '#10b981')
+                                    : '#f8fafc',
+                                  color: champGender === g ? 'white' : '#475569',
+                                  borderColor: champGender === g ? 'transparent' : '#e2e8f0',
+                                  transition: 'all 0.2s'
+                                }}>
+                                {g === 'BOYS' ? '👦 Boys' : g === 'GIRLS' ? '👧 Girls' : '👥 General'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Champion Rankings by Total Points across all programs */}
+                      {champCat && (() => {
+                        const selectedCatObj = categories.find(c => String(c.id) === String(champCat));
+                        const catName = (selectedCatObj || {}).name || '';
+
+                        // Filter results for this category and exclude group events
+                        const isChampGeneral = champCat === 'GENERAL';
+                        const generalCatNames = generalCatIds.map(id => {
+                          const cObj = categories.find(c => String(c.id) === String(id));
+                          return cObj ? cObj.name : '';
+                        }).filter(Boolean);
+
+                        const catResults = resultsList.filter(r => {
+                          const rCatName = r.catname || r.catName || '';
+                          const matchCat = isChampGeneral
+                            ? (rCatName === 'GENERAL' || generalCatNames.includes(rCatName))
+                            : rCatName === catName;
+                          return matchCat && !(r.progtype || '').includes('GROUP');
+                        });
+
+                        // Filter by gender division
+                        const genderFilteredResults = catResults.filter(r => {
+                          const gender = (r.studentgender || r.studentGender || '').toUpperCase();
+                          if (champGender === 'BOYS') return gender === 'BOY';
+                          if (champGender === 'GIRLS') return gender === 'GIRL';
+                          return true; // GENERAL: include everyone
+                        });
+
+                        if (genderFilteredResults.length === 0) return (
+                          <p style={{ marginTop: '20px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
+                            No results in this Category / Division.
+                          </p>
+                        );
+
+                        // Aggregate total points per student
+                        const studentMap = {};
+                        genderFilteredResults.forEach(r => {
+                          const sName = r.studentname || r.studentName || '';
+                          if (!studentMap[sName]) {
+                            const dashIdx = sName.indexOf(' - ');
+                            studentMap[sName] = {
+                              key: sName,
+                              regPart: dashIdx !== -1 ? sName.substring(0, dashIdx) : '',
+                              namePart: dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName,
+                              teamname: r.teamname || r.teamName || '-',
+                              studentgender: r.studentgender || r.studentGender || '',
+                              totalPoints: 0
+                            };
+                          }
+                          studentMap[sName].totalPoints += r.points;
+                        });
+
+                        // Sort descending by total points
+                        const sortedStudents = Object.values(studentMap).sort((a, b) => b.totalPoints - a.totalPoints);
+
+                        // Assign ranks with tie handling
+                        let currentRank = 1;
+                        const rankedStudents = sortedStudents.map((s, i) => {
+                          if (i > 0 && s.totalPoints < sortedStudents[i - 1].totalPoints) currentRank = i + 1;
+                          return { ...s, rank: currentRank };
+                        });
+
+                        const displayStudents = rankedStudents.filter(s => s.rank <= 3);
+
+                        const rankConfig = {
+                          1: { medal: '🥇', gradient: 'linear-gradient(135deg, #f59e0b, #b45309)', border: '#fbbf24', label: 'FIRST PLACE' },
+                          2: { medal: '🥈', gradient: 'linear-gradient(135deg, #94a3b8, #475569)', border: '#cbd5e1', label: 'SECOND PLACE' },
+                          3: { medal: '🥉', gradient: 'linear-gradient(135deg, #f97316, #b45309)', border: '#fb923c', label: 'THIRD PLACE' }
+                        };
+
+                        return (
+                          <div style={{ marginTop: '22px' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                              <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 22px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>
+                                🏆 {catName} — {champGender === 'BOYS' ? '👦 Boys' : champGender === 'GIRLS' ? '👧 Girls' : '👥 General'}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+                              {displayStudents.map(student => {
+                                const cfg = rankConfig[student.rank] || rankConfig[3];
+                                return (
+                                  <div key={student.key} style={{
+                                    background: cfg.gradient,
+                                    borderRadius: '24px',
+                                    padding: '20px',
+                                    color: 'white',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
+                                    border: `3px solid ${cfg.border}`,
+                                    animation: 'fadeInTab 0.5s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '15px'
+                                  }}>
+                                    <div style={{ flex: 1, zIndex: 1 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <span style={{ fontSize: '32px' }}>{cfg.medal}</span>
+                                        <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{cfg.label}</span>
+                                      </div>
+                                      <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{student.regPart}</div>
+                                      <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{student.namePart}</div>
+                                      <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{student.teamname}</span></div>
+                                      <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
+                                        {(student.studentgender || '').toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
+                                      </div>
+                                      <div style={{ marginTop: '10px', background: 'rgba(255,255,255,0.25)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '900', fontSize: '16px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                                        ⭐ {student.totalPoints} Pts
+                                      </div>
+                                    </div>
+                                    {/* Photo frame */}
+                                    <div style={{ position: 'relative', zIndex: 1 }}>
+                                      {renderStudentPhoto(student.regPart, student.studentgender, '95px', '14px')}
+                                    </div>
+                                    <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '110px', opacity: 0.07, pointerEvents: 'none' }}>{cfg.medal}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </div>
-              )}
-              </div>
-            </div>
             )
           )}
 
@@ -4170,102 +4172,102 @@ ${pagesHtml}
                     const _catRef = String(profileStudent.catid ?? profileStudent.catId ?? profileStudent.catname ?? profileStudent.catName ?? '');
                     const _foundCat = _catRef
                       ? categories.find(c =>
-                          String(c.id) === _catRef ||
-                          c.name === _catRef ||
-                          c.name?.toLowerCase() === _catRef.toLowerCase()
-                        )
+                        String(c.id) === _catRef ||
+                        c.name === _catRef ||
+                        c.name?.toLowerCase() === _catRef.toLowerCase()
+                      )
                       : undefined;
 
-                    const _isBoy     = (profileStudent.gender || '').toUpperCase() === 'BOY';
+                    const _isBoy = (profileStudent.gender || '').toUpperCase() === 'BOY';
 
                     return (
-                    <div className="profile-reg-input-card">
-                      {/* ── Student info card ── */}
-                      <div style={{
-                        background: 'linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%)',
-                        border: '2px solid #16a34a',
-                        borderRadius: '16px',
-                        padding: '20px 16px 16px',
-                        marginBottom: '16px',
-                        textAlign: 'center',
-                        boxShadow: '0 4px 20px rgba(22,163,74,0.12)'
-                      }}>
-                        <div style={{ fontSize: '40px', marginBottom: '6px' }}>🎓</div>
-                        <h3 style={{
-                          color: '#14532d',
-                          fontWeight: '800',
-                          fontSize: '18px',
-                          letterSpacing: '0.3px',
-                          marginBottom: '14px'
-                        }}>{profileStudent.name}</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          {/* Reg No */}
-                          <div style={{
-                            background: 'linear-gradient(135deg,#fbbf24,#f59e0b)',
-                            borderRadius: '10px',
-                            padding: '8px 6px',
-                            boxShadow: '0 2px 8px rgba(251,191,36,0.4)',
-                            gridColumn: '1 / -1'
-                          }}>
-                            <div style={{ fontSize: '10px', fontWeight: '700', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px' }}>📋 Register No.</div>
-                            <div style={{ fontSize: '22px', fontWeight: '900', color: '#1c1917', letterSpacing: '2px', lineHeight: 1.2 }}>{profileStudent.regno || profileStudent.regNo}</div>
-                          </div>
-                          {/* Team */}
-                          <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.3)', borderLeft: '3px solid #16a34a', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
-                            <div style={{ fontSize: '9px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>🚩 Team</div>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{_foundTeam ? _foundTeam.name : <span style={{color:'#ef4444'}}>Not found</span>}</div>
-                          </div>
-                          {/* Category */}
-                          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(217,119,6,0.3)', borderLeft: '3px solid #f59e0b', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
-                            <div style={{ fontSize: '9px', fontWeight: '700', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>📂 Category</div>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {profileStudent._resolvedCatName || (_foundCat ? _foundCat.name : <span style={{color:'#ef4444'}}>Not assigned</span>)}
+                      <div className="profile-reg-input-card">
+                        {/* ── Student info card ── */}
+                        <div style={{
+                          background: 'linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%)',
+                          border: '2px solid #16a34a',
+                          borderRadius: '16px',
+                          padding: '20px 16px 16px',
+                          marginBottom: '16px',
+                          textAlign: 'center',
+                          boxShadow: '0 4px 20px rgba(22,163,74,0.12)'
+                        }}>
+                          <div style={{ fontSize: '40px', marginBottom: '6px' }}>🎓</div>
+                          <h3 style={{
+                            color: '#14532d',
+                            fontWeight: '800',
+                            fontSize: '18px',
+                            letterSpacing: '0.3px',
+                            marginBottom: '14px'
+                          }}>{profileStudent.name}</h3>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            {/* Reg No */}
+                            <div style={{
+                              background: 'linear-gradient(135deg,#fbbf24,#f59e0b)',
+                              borderRadius: '10px',
+                              padding: '8px 6px',
+                              boxShadow: '0 2px 8px rgba(251,191,36,0.4)',
+                              gridColumn: '1 / -1'
+                            }}>
+                              <div style={{ fontSize: '10px', fontWeight: '700', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px' }}>📋 Register No.</div>
+                              <div style={{ fontSize: '22px', fontWeight: '900', color: '#1c1917', letterSpacing: '2px', lineHeight: 1.2 }}>{profileStudent.regno || profileStudent.regNo}</div>
                             </div>
-                          </div>
-                          {/* Gender */}
-                          <div style={{ background: _isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)', border: `1px solid ${_isBoy ? 'rgba(96,165,250,0.35)' : 'rgba(244,114,182,0.35)'}`, borderLeft: `3px solid ${_isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '8px', padding: '8px 6px', textAlign: 'left', gridColumn: '1 / -1' }}>
-                            <div style={{ fontSize: '9px', fontWeight: '700', color: _isBoy ? '#2563eb' : '#be185d', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{_isBoy ? '👦' : '👧'} Gender</div>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d' }}>{_isBoy ? 'Boy' : 'Girl'}</div>
+                            {/* Team */}
+                            <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.3)', borderLeft: '3px solid #16a34a', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
+                              <div style={{ fontSize: '9px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>🚩 Team</div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{_foundTeam ? _foundTeam.name : <span style={{ color: '#ef4444' }}>Not found</span>}</div>
+                            </div>
+                            {/* Category */}
+                            <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(217,119,6,0.3)', borderLeft: '3px solid #f59e0b', borderRadius: '8px', padding: '8px 6px', textAlign: 'left' }}>
+                              <div style={{ fontSize: '9px', fontWeight: '700', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>📂 Category</div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {profileStudent._resolvedCatName || (_foundCat ? _foundCat.name : <span style={{ color: '#ef4444' }}>Not assigned</span>)}
+                              </div>
+                            </div>
+                            {/* Gender */}
+                            <div style={{ background: _isBoy ? 'rgba(96,165,250,0.1)' : 'rgba(244,114,182,0.1)', border: `1px solid ${_isBoy ? 'rgba(96,165,250,0.35)' : 'rgba(244,114,182,0.35)'}`, borderLeft: `3px solid ${_isBoy ? '#60a5fa' : '#f472b6'}`, borderRadius: '8px', padding: '8px 6px', textAlign: 'left', gridColumn: '1 / -1' }}>
+                              <div style={{ fontSize: '9px', fontWeight: '700', color: _isBoy ? '#2563eb' : '#be185d', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{_isBoy ? '👦' : '👧'} Gender</div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#14532d' }}>{_isBoy ? 'Boy' : 'Girl'}</div>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Photo Upload Area */}
-                      <div className="photo-upload-area">
-                        {!profilePhotoPreview ? (
-                          <>
-                            <div style={{ fontSize: '40px', marginBottom: '8px' }}>📷</div>
-                            <p style={{ color: '#475569', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Upload Your Photo</p>
-                            <label className="btn-add-action" style={{ display: 'inline-block', cursor: 'pointer', padding: '10px 24px', width: 'auto' }}>
-                              Select Photo
-                              <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
-                            </label>
-                          </>
-                        ) : (
-                          <>
-                            <div style={{ width: '140px', height: '140px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #064e3b', margin: '0 auto 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
-                              <img src={profilePhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            </div>
-                            {profileCropMode && (
-                              <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600', marginBottom: '8px', textAlign: 'center' }}>
-                                ✂️ Manually Cropped — Ready to Upload
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                              <button onClick={handleProfilePhotoUpload} className="btn-add-action" style={{ width: 'auto', padding: '10px 24px' }} disabled={profileUploading}>
-                                {profileUploading ? '⏳ Uploading...' : '✅ Upload'}
-                              </button>
-                              <label className="btn-add-action" style={{ width: 'auto', padding: '10px 24px', background: '#64748b', cursor: 'pointer' }}>
-                                🔄 Change
+                        {/* Photo Upload Area */}
+                        <div className="photo-upload-area">
+                          {!profilePhotoPreview ? (
+                            <>
+                              <div style={{ fontSize: '40px', marginBottom: '8px' }}>📷</div>
+                              <p style={{ color: '#475569', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Upload Your Photo</p>
+                              <label className="btn-add-action" style={{ display: 'inline-block', cursor: 'pointer', padding: '10px 24px', width: 'auto' }}>
+                                Select Photo
                                 <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
                               </label>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ width: '140px', height: '140px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #064e3b', margin: '0 auto 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
+                                <img src={profilePhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                              {profileCropMode && (
+                                <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600', marginBottom: '8px', textAlign: 'center' }}>
+                                  ✂️ Manually Cropped — Ready to Upload
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                <button onClick={handleProfilePhotoUpload} className="btn-add-action" style={{ width: 'auto', padding: '10px 24px' }} disabled={profileUploading}>
+                                  {profileUploading ? '⏳ Uploading...' : '✅ Upload'}
+                                </button>
+                                <label className="btn-add-action" style={{ width: 'auto', padding: '10px 24px', background: '#64748b', cursor: 'pointer' }}>
+                                  🔄 Change
+                                  <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
+                                </label>
+                              </div>
+                            </>
+                          )}
+                        </div>
 
-                      <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
-                    </div>
+                        <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
+                      </div>
                     );
                   })()}
 
@@ -4519,7 +4521,7 @@ ${pagesHtml}
                           <div className="filter-section-title">🚩 Team</div>
                           <div className="filter-chips-wrapper">
                             <div className={`filter-chip-box ${profileAdminTeamFilter === 'ALL' ? 'active' : ''}`} onClick={() => setProfileAdminTeamFilter('ALL')}>👥 All</div>
-                          {teams.map(t => (
+                            {teams.map(t => (
                               <div key={t.id} className={`filter-chip-box ${String(profileAdminTeamFilter) === String(t.id) ? 'active' : ''}`} onClick={() => setProfileAdminTeamFilter(t.id)}>{t.name}</div>
                             ))}
                           </div>
@@ -4611,7 +4613,7 @@ ${pagesHtml}
               )}
             </div>
           )
-        }
+          }
 
           {/* ---------------- 📅 TAB: TIMETABLE ---------------- */}
           {activeTab === 'TIMETABLE' && (
@@ -4619,15 +4621,15 @@ ${pagesHtml}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
                 <h2 style={{ margin: 0 }}>📅 {t('timetableTitle')}</h2>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    onClick={() => setTimetableView(prev => prev === 'GRID' ? 'LIST' : 'GRID')} 
-                    className="btn-add-action" 
+                  <button
+                    onClick={() => setTimetableView(prev => prev === 'GRID' ? 'LIST' : 'GRID')}
+                    className="btn-add-action"
                     style={{ background: '#0f766e', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
                   >
                     {timetableView === 'GRID' ? '📝 List View' : '🎴 Grid View'}
                   </button>
                   {loginRole === 'ADMIN' && (
-                    <button 
+                    <button
                       onClick={() => {
                         // Build scheduled programs for print
                         const scheduledItems = programs
@@ -4665,7 +4667,7 @@ ${pagesHtml}
                         Object.keys(grouped).forEach(n => { if (!orderedCatNames.includes(n)) orderedCatNames.push(n); });
 
                         const gLbl = { BOY: '&#128102; Boys', GIRL: '&#128103; Girls', COMMON: '&#128101; Common' };
-                        const gBg  = { BOY: '#1e40af', GIRL: '#be185d', COMMON: '#0f766e' };
+                        const gBg = { BOY: '#1e40af', GIRL: '#be185d', COMMON: '#0f766e' };
 
                         let sectionsHtml = '';
                         if (scheduledItems.length === 0) {
@@ -4746,7 +4748,7 @@ ${pagesHtml}
     ${sectionsHtml}
 
     <div class="footer">
-      Printed from <strong>MILAD FEST App</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+      Printed from <strong>MILAD FEST App</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
     </div>
   </div>
   <script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
@@ -4761,12 +4763,12 @@ ${pagesHtml}
                           // Popup blocked: fallback to direct download
                           const a = document.createElement('a');
                           a.href = blobUrl;
-                          a.download = `${madrasaName.replace(/\s+/g,'-')}-Timetable.html`;
+                          a.download = `${madrasaName.replace(/\s+/g, '-')}-Timetable.html`;
                           a.click();
                         }
                         setTimeout(() => URL.revokeObjectURL(blobUrl), 12000);
                       }}
-                      className="btn-add-action" 
+                      className="btn-add-action"
                       style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
                     >
                       🖨️ {t('printTimetable')}
@@ -4777,7 +4779,7 @@ ${pagesHtml}
 
               {/* Category Filter Chips */}
               <div className="category-chips-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '20px' }}>
-                <button 
+                <button
                   onClick={() => setTimetableFilterCat('ALL')}
                   className={`category-chip ${timetableFilterCat === 'ALL' ? 'active' : ''}`}
                   style={{
@@ -4795,7 +4797,7 @@ ${pagesHtml}
                   {t('allCategories')}
                 </button>
                 {categories.map(cat => (
-                  <button 
+                  <button
                     key={cat.id}
                     onClick={() => setTimetableFilterCat(cat.id)}
                     className={`category-chip ${String(timetableFilterCat) === String(cat.id) ? 'active' : ''}`}
@@ -4867,8 +4869,8 @@ ${pagesHtml}
 
                 // In view mode, we hide unscheduled programs from visitors to keep the schedule tidy
                 // but always show all programs for admins so they can schedule them.
-                const displayedTimetable = loginRole === 'ADMIN' 
-                  ? filteredTimetable 
+                const displayedTimetable = loginRole === 'ADMIN'
+                  ? filteredTimetable
                   : filteredTimetable.filter(item => item.scheduled_time);
 
                 // Sort: Scheduled first (time asc), then unscheduled
@@ -4910,7 +4912,7 @@ ${pagesHtml}
                   const date = new Date(isoString);
                   const now = new Date();
                   const diffMs = date - now;
-                  
+
                   if (diffMs > 0) {
                     return <span className="status-badge upcoming" style={{ background: '#dbeafe', color: '#1e40af', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{t('upcomingBadge')}</span>;
                   } else if (diffMs <= 0 && diffMs > -3600000) { // 1 hour duration assumption
@@ -4931,8 +4933,8 @@ ${pagesHtml}
                           const categoryColor = item.category?.color || '#0f766e';
 
                           return (
-                            <div 
-                              key={item.program.id} 
+                            <div
+                              key={item.program.id}
                               className={`timetable-card-item ${hasTime ? 'scheduled' : 'unscheduled'}`}
                               style={{
                                 border: '1px solid #e2e8f0',
@@ -4957,7 +4959,7 @@ ${pagesHtml}
                                 </div>
 
                                 <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1e293b' }}>
-                                  {item.program.name} 
+                                  {item.program.name}
                                   <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px', fontWeight: 'normal' }}>
                                     ({item.program.code})
                                   </span>
@@ -4968,8 +4970,8 @@ ${pagesHtml}
                                   <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     <div>
                                       <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>⏰ {t('setTime')}</label>
-                                      <input 
-                                        type="datetime-local" 
+                                      <input
+                                        type="datetime-local"
                                         value={timetableFormData.scheduled_time}
                                         onChange={(e) => setTimetableFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
                                         style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
@@ -4977,8 +4979,8 @@ ${pagesHtml}
                                     </div>
                                     <div>
                                       <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>📍 {t('setVenue')}</label>
-                                      <input 
-                                        type="text" 
+                                      <input
+                                        type="text"
                                         placeholder={t('venuePlaceholder')}
                                         value={timetableFormData.venue}
                                         onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
@@ -4986,14 +4988,14 @@ ${pagesHtml}
                                       />
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                                      <button 
+                                      <button
                                         onClick={() => handleSaveTimetableEntry(item.program.id)}
                                         className="btn-add-action"
                                         style={{ padding: '4px 8px', fontSize: '12px', flex: 1, background: '#10b981' }}
                                       >
                                         💾 Save
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={() => setEditingTimetableId(null)}
                                         className="btn-add-action"
                                         style={{ padding: '4px 8px', fontSize: '12px', flex: 1, background: '#64748b' }}
@@ -5021,7 +5023,7 @@ ${pagesHtml}
 
                               {loginRole === 'ADMIN' && !isEditing && (
                                 <div style={{ display: 'flex', gap: '8px', marginTop: '14px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                                  <button 
+                                  <button
                                     onClick={() => {
                                       setEditingTimetableId(item.program.id);
                                       let localDateTime = '';
@@ -5041,7 +5043,7 @@ ${pagesHtml}
                                     ✏️ Edit
                                   </button>
                                   {hasTime && (
-                                    <button 
+                                    <button
                                       onClick={() => handleClearTimetableEntry(item.program.id)}
                                       className="btn-add-action"
                                       style={{ padding: '4px 8px', fontSize: '12px', background: '#ef4444' }}
@@ -5087,8 +5089,8 @@ ${pagesHtml}
                                   </td>
                                   <td style={{ padding: '12px 16px', color: '#1e293b' }}>
                                     {isEditing ? (
-                                      <input 
-                                        type="datetime-local" 
+                                      <input
+                                        type="datetime-local"
                                         value={timetableFormData.scheduled_time}
                                         onChange={(e) => setTimetableFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
                                         style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
@@ -5101,8 +5103,8 @@ ${pagesHtml}
                                   </td>
                                   <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#334155' }}>
                                     {isEditing ? (
-                                      <input 
-                                        type="text" 
+                                      <input
+                                        type="text"
                                         placeholder={t('venuePlaceholder')}
                                         value={timetableFormData.venue}
                                         onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
@@ -5117,14 +5119,14 @@ ${pagesHtml}
                                     <td style={{ padding: '12px 16px' }}>
                                       {isEditing ? (
                                         <div style={{ display: 'flex', gap: '6px' }}>
-                                          <button 
+                                          <button
                                             onClick={() => handleSaveTimetableEntry(item.program.id)}
                                             className="btn-add-action"
                                             style={{ padding: '3px 6px', fontSize: '11px', background: '#10b981' }}
                                           >
                                             Save
                                           </button>
-                                          <button 
+                                          <button
                                             onClick={() => setEditingTimetableId(null)}
                                             className="btn-add-action"
                                             style={{ padding: '3px 6px', fontSize: '11px', background: '#64748b' }}
@@ -5134,7 +5136,7 @@ ${pagesHtml}
                                         </div>
                                       ) : (
                                         <div style={{ display: 'flex', gap: '6px' }}>
-                                          <button 
+                                          <button
                                             onClick={() => {
                                               setEditingTimetableId(item.program.id);
                                               let localDateTime = '';
@@ -5154,7 +5156,7 @@ ${pagesHtml}
                                             Edit
                                           </button>
                                           {hasTime && (
-                                            <button 
+                                            <button
                                               onClick={() => handleClearTimetableEntry(item.program.id)}
                                               className="btn-add-action"
                                               style={{ padding: '3px 6px', fontSize: '11px', background: '#ef4444' }}
@@ -5411,163 +5413,163 @@ ${pagesHtml}
                           <div className="settings-form-box-v2">
                             <h3>📂 Add New Category</h3>
                             <form onSubmit={handleAddCategory} className="settings-form">
-                            <input type="text" className="settings-input-v2" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
-                            <input type="text" className="settings-input-v2" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
-                            {!dbHasClassRange && (
-                              <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '-4px', marginBottom: '8px', background: '#fffbeb', padding: '8px 12px', borderRadius: '8px', border: '1px solid #fde68a', lineHeight: '1.4' }}>
-                                ⚠️ {lang === 'EN' ? "To enable 'Which classes?' (Class Range) saving, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;" : "ക്ലാസ്സ് റേഞ്ച് (Which classes?) ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;"}
-                              </div>
-                            )}
-                            <button type="submit" className="btn-premium-action">Add Category</button>
-                          </form>
-                        </div>
-                        <div style={{ marginTop: '20px' }}>
-                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Existing Categories</h3>
-                          {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No categories added.</p> : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {categories.map(c => (
-                                <div key={c.id} className={`settings-item-row-v2 ${editingCatId === c.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
-                                  {editingCatId === c.id ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                                      <input type="text" className="settings-input-v2" value={editingCatName} onChange={e => setEditingCatName(e.target.value)} placeholder="Category Name" />
-                                      <input type="text" className="settings-input-v2" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="Which classes? (eg: 1 to 4)" />
-                                      <div className="action-buttons-group">
-                                        <button onClick={handleSaveCatEdit} className="btn-premium-action-small primary">Save</button>
-                                        <button onClick={() => setEditingCatId(null)} className="btn-premium-action-small secondary">Cancel</button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                      <div>
-                                        <span style={{ fontWeight: '700', color: '#334155' }}>{c.name}</span>
-                                        {c.classrange && (
-                                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', background: '#eff6ff', display: 'inline-block', padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>📚 Class: {c.classrange}</div>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <button onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name); setEditingCatClassRange(c.classrange || ''); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
-                                        <button onClick={() => handleDeleteCategory(c.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
-                                      </div>
-                                    </div>
-                                  )}
+                              <input type="text" className="settings-input-v2" placeholder="Category Name (eg: Junior)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
+                              <input type="text" className="settings-input-v2" placeholder="Which classes? (eg: 1 to 4)" value={newCatClassRange} onChange={(e) => setNewCatClassRange(e.target.value)} />
+                              {!dbHasClassRange && (
+                                <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '-4px', marginBottom: '8px', background: '#fffbeb', padding: '8px 12px', borderRadius: '8px', border: '1px solid #fde68a', lineHeight: '1.4' }}>
+                                  ⚠️ {lang === 'EN' ? "To enable 'Which classes?' (Class Range) saving, please run this SQL query in your Supabase SQL Editor:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;" : "ക്ലാസ്സ് റേഞ്ച് (Which classes?) ഫീച്ചർ എനേബിൾ ചെയ്യാൻ Supabase SQL Editor-ൽ ഈ കോഡ് റൺ ചെയ്യുക:\n\nALTER TABLE categories ADD COLUMN classrange TEXT;"}
                                 </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* ── GENERAL Special Tile ── */}
-                          <div style={{ marginTop: '20px', border: '2px solid #f59e0b', borderRadius: '14px', background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', padding: '16px', boxShadow: '0 4px 14px rgba(245,158,11,0.15)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div>
-                                <div style={{ fontWeight: '900', fontSize: '18px', letterSpacing: '3px', color: '#b45309', textTransform: 'uppercase' }}>🌟 GENERAL</div>
-                                <div style={{ fontSize: '11.5px', color: '#92400e', marginTop: '4px', fontWeight: '600' }}>
-                                  {generalCatIds.length === 0
-                                    ? 'No categories selected yet. Click Options to configure.'
-                                    : `Includes: ${generalCatIds.map(id => { const cat = categories.find(c => String(c.id) === String(id)); return cat ? cat.name : ''; }).filter(Boolean).join(', ')}`
-                                  }
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => { setGeneralModalTemp([...generalCatIds]); setShowGeneralModal(true); }}
-                                style={{ background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(180,83,9,0.25)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                              >
-                                ⚙️ Options
-                              </button>
-                            </div>
-                            {generalCatIds.length > 0 && (
-                              <div style={{ marginTop: '10px' }}>
-                                <div style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', marginBottom: '6px' }}>Students in GENERAL:</div>
-                                <div style={{ fontWeight: '800', fontSize: '20px', color: '#92400e' }}>
-                                  {students.filter(s => generalCatIds.map(String).includes(String(s.catid || s.catId || ''))).length} Students
-                                </div>
-                              </div>
-                            )}
+                              )}
+                              <button type="submit" className="btn-premium-action">Add Category</button>
+                            </form>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* ── GENERAL Options Modal ── */}
-                      {showGeneralModal && (
-                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-                          <div style={{ background: 'white', borderRadius: '20px', padding: '28px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                              <div>
-                                <div style={{ fontWeight: '900', fontSize: '20px', letterSpacing: '2px', color: '#b45309' }}>🌟 GENERAL Options</div>
-                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Select categories to include in GENERAL</div>
-                              </div>
-                              <button onClick={() => setShowGeneralModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: '700' }}>✕</button>
-                            </div>
-
-                            {categories.length === 0 ? (
-                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No categories available. Add categories first.</p>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-                                {categories.map(c => {
-                                  const isSelected = generalModalTemp.map(String).includes(String(c.id));
-                                  return (
-                                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '12px', border: `2px solid ${isSelected ? '#f59e0b' : '#e2e8f0'}`, background: isSelected ? '#fffbeb' : '#f8fafc', transition: 'all 0.2s' }}>
-                                      <div>
-                                        <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{c.name}</div>
-                                        {c.classrange && <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>📚 Class: {c.classrange}</div>}
-                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                          {students.filter(s => String(s.catid || s.catId || '') === String(c.id)).length} students
+                          <div style={{ marginTop: '20px' }}>
+                            <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Existing Categories</h3>
+                            {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No categories added.</p> : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {categories.map(c => (
+                                  <div key={c.id} className={`settings-item-row-v2 ${editingCatId === c.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                                    {editingCatId === c.id ? (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                        <input type="text" className="settings-input-v2" value={editingCatName} onChange={e => setEditingCatName(e.target.value)} placeholder="Category Name" />
+                                        <input type="text" className="settings-input-v2" value={editingCatClassRange} onChange={e => setEditingCatClassRange(e.target.value)} placeholder="Which classes? (eg: 1 to 4)" />
+                                        <div className="action-buttons-group">
+                                          <button onClick={handleSaveCatEdit} className="btn-premium-action-small primary">Save</button>
+                                          <button onClick={() => setEditingCatId(null)} className="btn-premium-action-small secondary">Cancel</button>
                                         </div>
                                       </div>
-                                      <button
-                                        onClick={() => {
-                                          if (isSelected) {
-                                            setGeneralModalTemp(prev => prev.filter(id => String(id) !== String(c.id)));
-                                          } else {
-                                            setGeneralModalTemp(prev => [...prev, c.id]);
-                                          }
-                                        }}
-                                        style={{ background: isSelected ? 'linear-gradient(135deg, #d97706, #b45309)' : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', color: isSelected ? 'white' : '#475569', border: 'none', padding: '8px 18px', borderRadius: '10px', fontWeight: '800', fontSize: '12px', cursor: 'pointer', transition: 'all 0.2s', minWidth: '90px' }}
-                                      >
-                                        {isSelected ? '✅ Selected' : 'Select'}
-                                      </button>
-                                    </div>
-                                  );
-                                })}
+                                    ) : (
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                        <div>
+                                          <span style={{ fontWeight: '700', color: '#334155' }}>{c.name}</span>
+                                          {c.classrange && (
+                                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', background: '#eff6ff', display: 'inline-block', padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>📚 Class: {c.classrange}</div>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <button onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name); setEditingCatClassRange(c.classrange || ''); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                          <button onClick={() => handleDeleteCategory(c.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             )}
 
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button
-                                onClick={async () => {
-                                  setGeneralCatIds(generalModalTemp);
-                                  const rNum = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                                  setShowGeneralModal(false);
-                                  // Save to Supabase for cross-device sync
-                                  if (rNum) {
-                                    try {
-                                      const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
-                                      const parts = (md ? md.place : '').split('|');
-                                      const actualPlace = parts[0] || '';
-                                      const status = parts[1] || 'approved';
-                                      const trollSt = parts[2] || 'troll_off';
-                                      const trollLng = parts[3] || 'ML';
-                                      const evName = parts[4] || '';
-                                      const evYear = parts[5] || '';
-                                      const csVal = parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : '');
-                                      const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${encodeURIComponent(JSON.stringify(generalModalTemp))}|${csVal}`;
-                                      await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
-                                    } catch (err) { console.error('Failed to save general cats to Supabase:', err); }
-                                  }
-                                }}
-                                style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
-                              >
-                                💾 Save
-                              </button>
-                              <button
-                                onClick={() => setShowGeneralModal(false)}
-                                style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}
-                              >
-                                Cancel
-                              </button>
+                            {/* ── GENERAL Special Tile ── */}
+                            <div style={{ marginTop: '20px', border: '2px solid #f59e0b', borderRadius: '14px', background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', padding: '16px', boxShadow: '0 4px 14px rgba(245,158,11,0.15)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <div style={{ fontWeight: '900', fontSize: '18px', letterSpacing: '3px', color: '#b45309', textTransform: 'uppercase' }}>🌟 GENERAL</div>
+                                  <div style={{ fontSize: '11.5px', color: '#92400e', marginTop: '4px', fontWeight: '600' }}>
+                                    {generalCatIds.length === 0
+                                      ? 'No categories selected yet. Click Options to configure.'
+                                      : `Includes: ${generalCatIds.map(id => { const cat = categories.find(c => String(c.id) === String(id)); return cat ? cat.name : ''; }).filter(Boolean).join(', ')}`
+                                    }
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => { setGeneralModalTemp([...generalCatIds]); setShowGeneralModal(true); }}
+                                  style={{ background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(180,83,9,0.25)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                                >
+                                  ⚙️ Options
+                                </button>
+                              </div>
+                              {generalCatIds.length > 0 && (
+                                <div style={{ marginTop: '10px' }}>
+                                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', marginBottom: '6px' }}>Students in GENERAL:</div>
+                                  <div style={{ fontWeight: '800', fontSize: '20px', color: '#92400e' }}>
+                                    {students.filter(s => generalCatIds.map(String).includes(String(s.catid || s.catId || ''))).length} Students
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
-                      )}
+
+                        {/* ── GENERAL Options Modal ── */}
+                        {showGeneralModal && (
+                          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '28px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <div>
+                                  <div style={{ fontWeight: '900', fontSize: '20px', letterSpacing: '2px', color: '#b45309' }}>🌟 GENERAL Options</div>
+                                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Select categories to include in GENERAL</div>
+                                </div>
+                                <button onClick={() => setShowGeneralModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: '700' }}>✕</button>
+                              </div>
+
+                              {categories.length === 0 ? (
+                                <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>No categories available. Add categories first.</p>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                                  {categories.map(c => {
+                                    const isSelected = generalModalTemp.map(String).includes(String(c.id));
+                                    return (
+                                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '12px', border: `2px solid ${isSelected ? '#f59e0b' : '#e2e8f0'}`, background: isSelected ? '#fffbeb' : '#f8fafc', transition: 'all 0.2s' }}>
+                                        <div>
+                                          <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{c.name}</div>
+                                          {c.classrange && <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>📚 Class: {c.classrange}</div>}
+                                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                            {students.filter(s => String(s.catid || s.catId || '') === String(c.id)).length} students
+                                          </div>
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              setGeneralModalTemp(prev => prev.filter(id => String(id) !== String(c.id)));
+                                            } else {
+                                              setGeneralModalTemp(prev => [...prev, c.id]);
+                                            }
+                                          }}
+                                          style={{ background: isSelected ? 'linear-gradient(135deg, #d97706, #b45309)' : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', color: isSelected ? 'white' : '#475569', border: 'none', padding: '8px 18px', borderRadius: '10px', fontWeight: '800', fontSize: '12px', cursor: 'pointer', transition: 'all 0.2s', minWidth: '90px' }}
+                                        >
+                                          {isSelected ? '✅ Selected' : 'Select'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                  onClick={async () => {
+                                    setGeneralCatIds(generalModalTemp);
+                                    const rNum = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                                    setShowGeneralModal(false);
+                                    // Save to Supabase for cross-device sync
+                                    if (rNum) {
+                                      try {
+                                        const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                        const parts = (md ? md.place : '').split('|');
+                                        const actualPlace = parts[0] || '';
+                                        const status = parts[1] || 'approved';
+                                        const trollSt = parts[2] || 'troll_off';
+                                        const trollLng = parts[3] || 'ML';
+                                        const evName = parts[4] || '';
+                                        const evYear = parts[5] || '';
+                                        const csVal = parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : '');
+                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${encodeURIComponent(JSON.stringify(generalModalTemp))}|${csVal}`;
+                                        await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                      } catch (err) { console.error('Failed to save general cats to Supabase:', err); }
+                                    }
+                                  }}
+                                  style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
+                                >
+                                  💾 Save
+                                </button>
+                                <button
+                                  onClick={() => setShowGeneralModal(false)}
+                                  style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -5603,12 +5605,12 @@ ${pagesHtml}
                                   <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
                                 </React.Fragment>
                               ))}
-                               {generalCatIds.length > 0 && (
-                                 <React.Fragment>
-                                   <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                   <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                 </React.Fragment>
-                               )}
+                              {generalCatIds.length > 0 && (
+                                <React.Fragment>
+                                  <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                  <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                </React.Fragment>
+                              )}
                             </select>
 
                             <button type="submit" className="btn-premium-action">Add Student</button>
@@ -5625,7 +5627,7 @@ ${pagesHtml}
                               <div style={{ background: '#1e293b', borderRadius: '10px', padding: '12px', marginBottom: '14px', fontSize: '12px', color: '#94a3b8' }}>
                                 <p style={{ margin: '0 0 6px', fontWeight: '700', color: '#86efac' }}>📋 Excel Column Format (Header Row Required):</p>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                  <thead><tr style={{ borderBottom: '1px solid #334155' }}>{['Student Name','Register Number','Team','Category','Gender'].map(h => <th key={h} style={{ padding: '4px 8px', textAlign: 'left', color: '#f8fafc', fontWeight: '600', fontSize: '11px' }}>{h}</th>)}</tr></thead>
+                                  <thead><tr style={{ borderBottom: '1px solid #334155' }}>{['Student Name', 'Register Number', 'Team', 'Category', 'Gender'].map(h => <th key={h} style={{ padding: '4px 8px', textAlign: 'left', color: '#f8fafc', fontWeight: '600', fontSize: '11px' }}>{h}</th>)}</tr></thead>
                                   <tbody><tr><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Ahmed Ali</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>101</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Red Team</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Junior</td><td style={{ padding: '4px 8px', color: '#cbd5e1', fontSize: '11px' }}>Boy / Girl</td></tr></tbody>
                                 </table>
                                 <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: '11px' }}>Team name &amp; Category name must exactly match your account settings.</p>
@@ -5640,7 +5642,7 @@ ${pagesHtml}
                                   <p style={{ color: '#86efac', fontWeight: '700', fontSize: '13px', margin: '0 0 8px' }}>✅ {bulkUploadData.length} students found – preview:</p>
                                   <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #334155' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                      <thead><tr style={{ background: '#1e293b' }}>{['#','Name','Reg No','Team','Category','Gender'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: '#94a3b8', fontWeight: '600', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+                                      <thead><tr style={{ background: '#1e293b' }}>{['#', 'Name', 'Reg No', 'Team', 'Category', 'Gender'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: '#94a3b8', fontWeight: '600', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
                                       <tbody>
                                         {bulkUploadData.slice(0, 10).map((r, i) => (
                                           <tr key={i} style={{ background: i % 2 === 0 ? '#0f172a' : '#1e293b' }}>
@@ -5649,7 +5651,7 @@ ${pagesHtml}
                                             <td style={{ padding: '6px 10px', color: '#f8fafc' }}>{r.regno}</td>
                                             <td style={{ padding: '6px 10px', color: '#fbbf24' }}>{r.teamName}</td>
                                             <td style={{ padding: '6px 10px', color: '#a78bfa' }}>{r.catName}</td>
-                                            <td style={{ padding: '6px 10px', color: (r.gender||'').toUpperCase().startsWith('G') ? '#f472b6' : '#60a5fa' }}>{r.gender || 'Boy'}</td>
+                                            <td style={{ padding: '6px 10px', color: (r.gender || '').toUpperCase().startsWith('G') ? '#f472b6' : '#60a5fa' }}>{r.gender || 'Boy'}</td>
                                           </tr>
                                         ))}
                                         {bulkUploadData.length > 10 && <tr><td colSpan={6} style={{ padding: '8px 10px', color: '#64748b', fontStyle: 'italic', textAlign: 'center' }}>...and {bulkUploadData.length - 10} more rows</td></tr>}
@@ -5657,7 +5659,7 @@ ${pagesHtml}
                                     </table>
                                   </div>
                                   <button onClick={handleBulkUploadSubmit} disabled={bulkUploading} style={{ marginTop: '12px', width: '100%', padding: '14px', background: bulkUploading ? '#374151' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: bulkUploading ? 'not-allowed' : 'pointer' }}>
-                                     {bulkUploading ? '⏳ Uploading...' : ('🚀 Upload ' + bulkUploadData.length + ' Students')}
+                                    {bulkUploading ? '⏳ Uploading...' : ('🚀 Upload ' + bulkUploadData.length + ' Students')}
                                   </button>
                                 </div>
                               )}
@@ -5924,21 +5926,21 @@ ${pagesHtml}
                             return (
                               <>
                                 <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Registered Students ({filteredStudents.length})</h3>
-                                
+
                                 {/* 🔍 Interactive Filters */}
                                 <div className="student-filters-container" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', background: '#f8fafc', padding: '14px', marginBottom: '16px' }}>
                                   {/* 1. Team Filter */}
                                   <div style={{ marginBottom: '10px' }}>
                                     <div className="filter-section-title">🚩 Select Team</div>
                                     <div className="filter-chips-wrapper">
-                                      <div 
+                                      <div
                                         className={`filter-chip-box ${studentFilterTeam === 'ALL' ? 'active' : ''}`}
                                         onClick={() => setStudentFilterTeam('ALL')}
                                       >
                                         👥 All
                                       </div>
                                       {teams.map(t => (
-                                        <div 
+                                        <div
                                           key={t.id}
                                           className={`filter-chip-box ${String(studentFilterTeam) === String(t.id) ? 'active' : ''}`}
                                           onClick={() => setStudentFilterTeam(t.id)}
@@ -5953,14 +5955,14 @@ ${pagesHtml}
                                   <div style={{ marginBottom: '10px' }}>
                                     <div className="filter-section-title">📂 Select Category</div>
                                     <div className="filter-chips-wrapper">
-                                      <div 
+                                      <div
                                         className={`filter-chip-box ${studentFilterCat === 'ALL' ? 'active' : ''}`}
                                         onClick={() => setStudentFilterCat('ALL')}
                                       >
                                         📁 All
                                       </div>
                                       {categories.map(c => (
-                                        <div 
+                                        <div
                                           key={c.id}
                                           className={`filter-chip-box ${String(studentFilterCat) === String(c.id) ? 'active' : ''}`}
                                           onClick={() => setStudentFilterCat(c.id)}
@@ -5984,19 +5986,19 @@ ${pagesHtml}
                                   <div>
                                     <div className="filter-section-title">👦/👧 Select Gender</div>
                                     <div className="filter-chips-wrapper">
-                                      <div 
+                                      <div
                                         className={`filter-chip-box ${studentFilterGender === 'ALL' ? 'active' : ''}`}
                                         onClick={() => setStudentFilterGender('ALL')}
                                       >
                                         👥 All
                                       </div>
-                                      <div 
+                                      <div
                                         className={`filter-chip-box ${studentFilterGender === 'BOY' ? 'active-boy' : ''}`}
                                         onClick={() => setStudentFilterGender('BOY')}
                                       >
                                         👦 Boys
                                       </div>
-                                      <div 
+                                      <div
                                         className={`filter-chip-box ${studentFilterGender === 'GIRL' ? 'active-girl' : ''}`}
                                         onClick={() => setStudentFilterGender('GIRL')}
                                       >
@@ -6063,12 +6065,12 @@ ${pagesHtml}
                                                       <option value={`${c.id}_GIRL`}>{c.name} - Girl</option>
                                                     </React.Fragment>
                                                   ))}
-                                                   {generalCatIds.length > 0 && (
-                                                     <React.Fragment>
-                                                       <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                                       <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                                     </React.Fragment>
-                                                   )}
+                                                  {generalCatIds.length > 0 && (
+                                                    <React.Fragment>
+                                                      <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                                      <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                                    </React.Fragment>
+                                                  )}
                                                 </select>
 
                                                 <div className="action-buttons-group">
@@ -6154,41 +6156,19 @@ ${pagesHtml}
                           </form>
                         </div>
                         <div style={{ marginTop: '20px' }}>
-                        <div className="settings-list-box" style={{ maxHeight: 'none' }}>
-                          {(() => {
-                            // Helper to check if a program is a General category program
-                            const isGeneralProg = (p) => {
-                              const pCatId = String(p.catid || p.catId || '');
-                              if (pCatId === 'GENERAL') return true;
-                              const catObj = categories.find(c => String(c.id) === pCatId);
-                              if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-                              return false;
-                            };
+                          <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                            {(() => {
+                              // Helper to check if a program is a General category program
+                              const isGeneralProg = (p) => {
+                                const pCatId = String(p.catid || p.catId || '');
+                                if (pCatId === 'GENERAL') return true;
+                                const catObj = categories.find(c => String(c.id) === pCatId);
+                                if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+                                return false;
+                              };
 
-                            // Filtered programs based on selected category chip + gender chip
-                            const genderMatch = (p) => {
-                              if (programFilterGender === 'ALL') return true;
-                              const t = (p.type || '').toUpperCase();
-                              if (programFilterGender === 'BOY') return t.includes('BOY');
-                              if (programFilterGender === 'GIRL') return t.includes('GIRL');
-                              if (programFilterGender === 'COMMON') return !t.includes('BOY') && !t.includes('GIRL');
-                              return true;
-                            };
-                            const filteredPrograms = (programFilterCat === 'ALL'
-                              ? programs
-                              : programFilterCat === 'GENERAL'
-                                ? programs.filter(isGeneralProg)
-                                : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat))
-                            ).filter(genderMatch);
-
-                            // PDF generator function
-                            const generateProgramsPDF = (catIdFilter) => {
-                              const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                              const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
-                              const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-
-                              // Apply the currently active gender filter to any program list
-                              const pdfGenderMatch = (p) => {
+                              // Filtered programs based on selected category chip + gender chip
+                              const genderMatch = (p) => {
                                 if (programFilterGender === 'ALL') return true;
                                 const t = (p.type || '').toUpperCase();
                                 if (programFilterGender === 'BOY') return t.includes('BOY');
@@ -6196,25 +6176,47 @@ ${pagesHtml}
                                 if (programFilterGender === 'COMMON') return !t.includes('BOY') && !t.includes('GIRL');
                                 return true;
                               };
+                              const filteredPrograms = (programFilterCat === 'ALL'
+                                ? programs
+                                : programFilterCat === 'GENERAL'
+                                  ? programs.filter(isGeneralProg)
+                                  : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat))
+                              ).filter(genderMatch);
 
-                              const pdfGenderLabel = programFilterGender === 'BOY' ? ' — Boys' : programFilterGender === 'GIRL' ? ' — Girls' : programFilterGender === 'COMMON' ? ' — Common' : '';
+                              // PDF generator function
+                              const generateProgramsPDF = (catIdFilter) => {
+                                const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                                const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                                const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
-                              let catSections = '';
-                              let pdfTotalCount = 0;
+                                // Apply the currently active gender filter to any program list
+                                const pdfGenderMatch = (p) => {
+                                  if (programFilterGender === 'ALL') return true;
+                                  const t = (p.type || '').toUpperCase();
+                                  if (programFilterGender === 'BOY') return t.includes('BOY');
+                                  if (programFilterGender === 'GIRL') return t.includes('GIRL');
+                                  if (programFilterGender === 'COMMON') return !t.includes('BOY') && !t.includes('GIRL');
+                                  return true;
+                                };
 
-                              if (catIdFilter === 'ALL' || catIdFilter === 'GENERAL') {
-                                // 1. Standard DB Categories (for ALL)
-                                if (catIdFilter === 'ALL') {
-                                  categories.forEach(cat => {
-                                    const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(cat.id)).filter(pdfGenderMatch);
-                                    if (catProgs.length === 0) return;
-                                    pdfTotalCount += catProgs.length;
-                                    const rows = catProgs.map(p => {
-                                      const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                      const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
-                                      return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
-                                    }).join('');
-                                    catSections += `
+                                const pdfGenderLabel = programFilterGender === 'BOY' ? ' — Boys' : programFilterGender === 'GIRL' ? ' — Girls' : programFilterGender === 'COMMON' ? ' — Common' : '';
+
+                                let catSections = '';
+                                let pdfTotalCount = 0;
+
+                                if (catIdFilter === 'ALL' || catIdFilter === 'GENERAL') {
+                                  // 1. Standard DB Categories (for ALL)
+                                  if (catIdFilter === 'ALL') {
+                                    categories.forEach(cat => {
+                                      const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(cat.id)).filter(pdfGenderMatch);
+                                      if (catProgs.length === 0) return;
+                                      pdfTotalCount += catProgs.length;
+                                      const rows = catProgs.map(p => {
+                                        const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                        const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                        return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                      }).join('');
+                                      catSections += `
                                       <div class="cat-section">
                                         <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
                                         <table>
@@ -6222,32 +6224,32 @@ ${pagesHtml}
                                           <tbody>${rows}</tbody>
                                         </table>
                                       </div>`;
-                                  });
-                                }
-
-                                // 2. GENERAL Category section (for ALL or GENERAL)
-                                const genProgs = programs.filter(p => {
-                                  const pCatId = String(p.catid || p.catId || '');
-                                  if (pCatId === 'GENERAL') return true;
-                                  if ((categories.find(c => String(c.id) === pCatId)?.name || '').toLowerCase().includes('general')) {
-                                    return true;
+                                    });
                                   }
-                                  return false;
-                                }).filter(pdfGenderMatch);
 
-                                if (genProgs.length > 0) {
-                                  if (catIdFilter === 'GENERAL') pdfTotalCount = genProgs.length;
-                                  else if (catIdFilter === 'ALL' && !categories.some(c => genProgs.every(p => String(p.catid || p.catId || '') === String(c.id)))) {
-                                    // add standalone general progs count
-                                    const standaloneGen = genProgs.filter(p => !categories.some(c => String(c.id) === String(p.catid || p.catId || '')));
-                                    pdfTotalCount += standaloneGen.length;
-                                  }
-                                  const rows = genProgs.map(p => {
-                                    const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                    const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
-                                    return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
-                                  }).join('');
-                                  catSections += `
+                                  // 2. GENERAL Category section (for ALL or GENERAL)
+                                  const genProgs = programs.filter(p => {
+                                    const pCatId = String(p.catid || p.catId || '');
+                                    if (pCatId === 'GENERAL') return true;
+                                    if ((categories.find(c => String(c.id) === pCatId)?.name || '').toLowerCase().includes('general')) {
+                                      return true;
+                                    }
+                                    return false;
+                                  }).filter(pdfGenderMatch);
+
+                                  if (genProgs.length > 0) {
+                                    if (catIdFilter === 'GENERAL') pdfTotalCount = genProgs.length;
+                                    else if (catIdFilter === 'ALL' && !categories.some(c => genProgs.every(p => String(p.catid || p.catId || '') === String(c.id)))) {
+                                      // add standalone general progs count
+                                      const standaloneGen = genProgs.filter(p => !categories.some(c => String(c.id) === String(p.catid || p.catId || '')));
+                                      pdfTotalCount += standaloneGen.length;
+                                    }
+                                    const rows = genProgs.map(p => {
+                                      const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                      const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                      return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                    }).join('');
+                                    catSections += `
                                     <div class="cat-section">
                                       <div class="cat-heading">GENERAL</div>
                                       <table>
@@ -6255,18 +6257,18 @@ ${pagesHtml}
                                         <tbody>${rows}</tbody>
                                       </table>
                                     </div>`;
-                                }
-                              } else {
-                                const cat = categories.find(c => String(c.id) === String(catIdFilter));
-                                const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(catIdFilter)).filter(pdfGenderMatch);
-                                if (catProgs.length > 0 && cat) {
-                                  pdfTotalCount = catProgs.length;
-                                  const rows = catProgs.map(p => {
-                                    const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                    const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
-                                    return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
-                                  }).join('');
-                                  catSections += `
+                                  }
+                                } else {
+                                  const cat = categories.find(c => String(c.id) === String(catIdFilter));
+                                  const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(catIdFilter)).filter(pdfGenderMatch);
+                                  if (catProgs.length > 0 && cat) {
+                                    pdfTotalCount = catProgs.length;
+                                    const rows = catProgs.map(p => {
+                                      const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
+                                      const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                      return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
+                                    }).join('');
+                                    catSections += `
                                     <div class="cat-section">
                                       <div class="cat-heading">${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''}</div>
                                       <table>
@@ -6274,11 +6276,11 @@ ${pagesHtml}
                                         <tbody>${rows}</tbody>
                                       </table>
                                     </div>`;
+                                  }
                                 }
-                              }
 
-                              const printWindow = window.open('', '_blank');
-                              printWindow.document.write(`
+                                const printWindow = window.open('', '_blank');
+                                printWindow.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -6411,49 +6413,49 @@ ${pagesHtml}
   <div class="footer">Generated by Milad Fest App • Total Programs: ${pdfTotalCount}</div>
 </div>
 </body></html>`);
-                              printWindow.document.close();
-                              printWindow.print();
-                            };
+                                printWindow.document.close();
+                                printWindow.print();
+                              };
 
-                            return (
-                              <>
-                                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Programs ({programs.length})</h3>
+                              return (
+                                <>
+                                  <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Programs ({programs.length})</h3>
 
-                                {/* Category filter chips */}
-                                <div className="student-filters-container" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', background: '#f8fafc', padding: '14px', marginBottom: '16px' }}>
-                                  <div>
-                                    <div className="filter-section-title">📂 Filter by Category</div>
-                                    <div className="filter-chips-wrapper">
-                                      <div
-                                        className={`filter-chip-box ${programFilterCat === 'ALL' ? 'active' : ''}`}
-                                        onClick={() => setProgramFilterCat('ALL')}
-                                      >
-                                        📁 All
-                                      </div>
-                                      {categories.map(c => (
+                                  {/* Category filter chips */}
+                                  <div className="student-filters-container" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', background: '#f8fafc', padding: '14px', marginBottom: '16px' }}>
+                                    <div>
+                                      <div className="filter-section-title">📂 Filter by Category</div>
+                                      <div className="filter-chips-wrapper">
                                         <div
-                                          key={c.id}
-                                          className={`filter-chip-box ${String(programFilterCat) === String(c.id) ? 'active' : ''}`}
-                                          onClick={() => setProgramFilterCat(c.id)}
+                                          className={`filter-chip-box ${programFilterCat === 'ALL' ? 'active' : ''}`}
+                                          onClick={() => setProgramFilterCat('ALL')}
                                         >
-                                          {c.name}
+                                          📁 All
                                         </div>
-                                      ))}
-                                      <div
-                                        className={`filter-chip-box ${programFilterCat === 'GENERAL' ? 'active' : ''}`}
-                                        onClick={() => setProgramFilterCat('GENERAL')}
-                                        style={{
-                                          background: programFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
-                                          color: programFilterCat === 'GENERAL' ? '#fff' : '',
-                                          fontWeight: '800',
-                                          letterSpacing: '1px'
-                                        }}
-                                      >
-                                        🌟 GENERAL
+                                        {categories.map(c => (
+                                          <div
+                                            key={c.id}
+                                            className={`filter-chip-box ${String(programFilterCat) === String(c.id) ? 'active' : ''}`}
+                                            onClick={() => setProgramFilterCat(c.id)}
+                                          >
+                                            {c.name}
+                                          </div>
+                                        ))}
+                                        <div
+                                          className={`filter-chip-box ${programFilterCat === 'GENERAL' ? 'active' : ''}`}
+                                          onClick={() => setProgramFilterCat('GENERAL')}
+                                          style={{
+                                            background: programFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
+                                            color: programFilterCat === 'GENERAL' ? '#fff' : '',
+                                            fontWeight: '800',
+                                            letterSpacing: '1px'
+                                          }}
+                                        >
+                                          🌟 GENERAL
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
 
                                   {/* Gender filter chips */}
                                   <div style={{ marginTop: '10px' }}>
@@ -6485,143 +6487,171 @@ ${pagesHtml}
                                     </div>
                                   </div>
 
-                                {/* PDF Download buttons */}
+                                  {/* PDF Download buttons */}
 
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
-                                  <button
-                                    onClick={() => generateProgramsPDF('ALL')}
-                                    style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary-deep))', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
-                                  >
-                                    📄 All Programs PDF
-                                  </button>
-                                  {categories.map(c => {
-                                    const hasProgs = programs.some(p => String(p.catid || p.catId || '') === String(c.id));
-                                    if (!hasProgs) return null;
-                                    return (
-                                      <button
-                                        key={c.id}
-                                        onClick={() => generateProgramsPDF(c.id)}
-                                        style={{ background: 'linear-gradient(135deg, #022c22, #064e3b)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
-                                      >
-                                        📄 {c.name}
-                                      </button>
-                                    );
-                                  })}
-                                  <button
-                                    key="GENERAL"
-                                    onClick={() => generateProgramsPDF('GENERAL')}
-                                    style={{ background: 'linear-gradient(135deg, #b45309, #78350f)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
-                                  >
-                                    📄 GENERAL
-                                  </button>
-                                </div>
-
-                                {/* Programs grouped by category */}
-                                <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
-                                  {(() => {
-                                    const dbCatsToShow = programFilterCat === 'ALL'
-                                      ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
-                                      : programFilterCat === 'GENERAL'
-                                        ? []
-                                        : categories.filter(c => String(c.id) === String(programFilterCat));
-
-                                    const standaloneGenProgs = filteredPrograms.filter(p => {
-                                      const pCatId = String(p.catid || p.catId || '');
-                                      if (pCatId === 'GENERAL') return true;
-                                      if (programFilterCat === 'GENERAL') return isGeneralProg(p);
-                                      const catObj = categories.find(c => String(c.id) === pCatId);
-                                      if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-                                      return false;
-                                    });
-
-                                    const showGeneralBlock = (programFilterCat === 'ALL' && standaloneGenProgs.length > 0) || programFilterCat === 'GENERAL';
-
-                                    if (dbCatsToShow.length === 0 && !showGeneralBlock) {
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
+                                    <button
+                                      onClick={() => generateProgramsPDF('ALL')}
+                                      style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary-deep))', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                    >
+                                      📄 All Programs PDF
+                                    </button>
+                                    {categories.map(c => {
+                                      const hasProgs = programs.some(p => String(p.catid || p.catId || '') === String(c.id));
+                                      if (!hasProgs) return null;
                                       return (
-                                        <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
-                                          {programs.length === 0 ? 'No programs added.' : 'No programs in this category.'}
-                                        </p>
+                                        <button
+                                          key={c.id}
+                                          onClick={() => generateProgramsPDF(c.id)}
+                                          style={{ background: 'linear-gradient(135deg, #022c22, #064e3b)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                        >
+                                          📄 {c.name}
+                                        </button>
                                       );
-                                    }
+                                    })}
+                                    <button
+                                      key="GENERAL"
+                                      onClick={() => generateProgramsPDF('GENERAL')}
+                                      style={{ background: 'linear-gradient(135deg, #b45309, #78350f)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                    >
+                                      📄 GENERAL
+                                    </button>
+                                  </div>
 
-                                    const renderProgRow = (p) => (
-                                      <div key={p.id} className={`settings-item-row-v2 ${editingProgId === p.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                                        {editingProgId === p.id ? (
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                            <input type="text" className="settings-input-v2" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
-                                            <input type="text" className="settings-input-v2" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
+                                  {/* Programs grouped by category */}
+                                  <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
+                                    {(() => {
+                                      const dbCatsToShow = programFilterCat === 'ALL'
+                                        ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
+                                        : programFilterCat === 'GENERAL'
+                                          ? []
+                                          : categories.filter(c => String(c.id) === String(programFilterCat));
 
-                                            <select className="settings-input-v2" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
-                                              const val = e.target.value;
-                                              if (val) {
-                                                const [cId, g] = val.split('_');
-                                                const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
-                                                setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
-                                              }
-                                            }}>
-                                              <option value="">Select Category & Division</option>
-                                              {categories.map(c => (
-                                                <React.Fragment key={c.id}>
-                                                  <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                                  <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                                  <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                      const standaloneGenProgs = filteredPrograms.filter(p => {
+                                        const pCatId = String(p.catid || p.catId || '');
+                                        if (pCatId === 'GENERAL') return true;
+                                        if (programFilterCat === 'GENERAL') return isGeneralProg(p);
+                                        const catObj = categories.find(c => String(c.id) === pCatId);
+                                        if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+                                        return false;
+                                      });
+
+                                      const showGeneralBlock = (programFilterCat === 'ALL' && standaloneGenProgs.length > 0) || programFilterCat === 'GENERAL';
+
+                                      if (dbCatsToShow.length === 0 && !showGeneralBlock) {
+                                        return (
+                                          <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
+                                            {programs.length === 0 ? 'No programs added.' : 'No programs in this category.'}
+                                          </p>
+                                        );
+                                      }
+
+                                      const renderProgRow = (p) => (
+                                        <div key={p.id} className={`settings-item-row-v2 ${editingProgId === p.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                                          {editingProgId === p.id ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                              <input type="text" className="settings-input-v2" value={editingProgData.name || ''} onChange={e => setEditingProgData({ ...editingProgData, name: e.target.value })} placeholder="Name" />
+                                              <input type="text" className="settings-input-v2" value={editingProgData.code || ''} onChange={e => setEditingProgData({ ...editingProgData, code: e.target.value })} placeholder="Code" />
+
+                                              <select className="settings-input-v2" value={editingProgData.catid ? `${editingProgData.catid || editingProgData.catId}_${(editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON'}` : ''} onChange={e => {
+                                                const val = e.target.value;
+                                                if (val) {
+                                                  const [cId, g] = val.split('_');
+                                                  const baseType = (editingProgData.type || '').split('_')[0] || 'SINGLE';
+                                                  setEditingProgData({ ...editingProgData, catid: cId, catId: cId, type: `${baseType}_${g}` });
+                                                }
+                                              }}>
+                                                <option value="">Select Category & Division</option>
+                                                {categories.map(c => (
+                                                  <React.Fragment key={c.id}>
+                                                    <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                                    <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                                    <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                                  </React.Fragment>
+                                                ))}
+                                                <React.Fragment>
+                                                  <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                                  <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                                  <option value="GENERAL_COMMON">GENERAL - Common</option>
                                                 </React.Fragment>
-                                              ))}
-                                              <React.Fragment>
-                                                <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                                <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                                <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                              </React.Fragment>
-                                            </select>
+                                              </select>
 
-                                            <select className="settings-input-v2" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
-                                              const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
-                                              setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
-                                            }}>
-                                              <option value="SINGLE">SINGLE</option>
-                                              <option value="GROUP">GROUP</option>
-                                            </select>
+                                              <select className="settings-input-v2" value={(editingProgData.type || '').split('_')[0] || 'SINGLE'} onChange={e => {
+                                                const g = (editingProgData.type || '').includes('BOY') ? 'BOY' : (editingProgData.type || '').includes('GIRL') ? 'GIRL' : 'COMMON';
+                                                setEditingProgData({ ...editingProgData, type: `${e.target.value}_${g}` });
+                                              }}>
+                                                <option value="SINGLE">SINGLE</option>
+                                                <option value="GROUP">GROUP</option>
+                                              </select>
 
-                                            <div className="action-buttons-group">
-                                              <button onClick={handleSaveProgEdit} className="btn-premium-action-small primary">Save</button>
-                                              <button onClick={() => setEditingProgId(null)} className="btn-premium-action-small secondary">Cancel</button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                              <span style={{
-                                                background: 'var(--dash-bg)',
-                                                color: 'var(--primary-deep)',
-                                                borderRadius: '8px', padding: '4px 10px', fontWeight: '800', fontSize: '13px',
-                                                border: '1px solid #cbd5e1'
-                                              }}>{p.code}</span>
-                                              <div>
-                                                <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
-                                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
-                                                  Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
-                                                </div>
+                                              <div className="action-buttons-group">
+                                                <button onClick={handleSaveProgEdit} className="btn-premium-action-small primary">Save</button>
+                                                <button onClick={() => setEditingProgId(null)} className="btn-premium-action-small secondary">Cancel</button>
                                               </div>
                                             </div>
-                                            <div>
-                                              <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
-                                              <button onClick={() => handleDeleteProgram(p.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                          ) : (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{
+                                                  background: 'var(--dash-bg)',
+                                                  color: 'var(--primary-deep)',
+                                                  borderRadius: '8px', padding: '4px 10px', fontWeight: '800', fontSize: '13px',
+                                                  border: '1px solid #cbd5e1'
+                                                }}>{p.code}</span>
+                                                <div>
+                                                  <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
+                                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
+                                                    Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <button onClick={() => { setEditingProgId(p.id); setEditingProgData({ ...p }); }} className="btn-row-action-v2 edit" title="Edit">✏️</button>
+                                                <button onClick={() => handleDeleteProgram(p.id)} className="btn-row-action-v2 delete" title="Delete">❌</button>
+                                              </div>
                                             </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
+                                          )}
+                                        </div>
+                                      );
 
-                                    return (
-                                      <>
-                                        {dbCatsToShow.map(cat => {
-                                          const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
-                                          if (catProgs.length === 0) return null;
-                                          return (
-                                            <div key={cat.id} style={{ marginTop: '16px' }}>
+                                      return (
+                                        <>
+                                          {dbCatsToShow.map(cat => {
+                                            const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                            if (catProgs.length === 0) return null;
+                                            return (
+                                              <div key={cat.id} style={{ marginTop: '16px' }}>
+                                                {/* Category heading */}
+                                                <div style={{
+                                                  background: 'linear-gradient(90deg, var(--primary-deep), var(--primary-light))',
+                                                  color: 'white',
+                                                  padding: '10px 14px',
+                                                  borderRadius: '8px',
+                                                  fontWeight: '700',
+                                                  fontSize: '13px',
+                                                  marginBottom: '10px',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  gap: '8px',
+                                                  boxShadow: '0 2px 6px rgba(6, 78, 59, 0.12)'
+                                                }}>
+                                                  📂 {cat.name}
+                                                  {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
+                                                  <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
+                                                </div>
+                                                {/* Programs in this category */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                  {catProgs.map(renderProgRow)}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+
+                                          {showGeneralBlock && (
+                                            <div key="GENERAL" style={{ marginTop: '16px' }}>
                                               {/* Category heading */}
                                               <div style={{
-                                                background: 'linear-gradient(90deg, var(--primary-deep), var(--primary-light))',
+                                                background: 'linear-gradient(90deg, #b45309, #d97706)',
                                                 color: 'white',
                                                 padding: '10px 14px',
                                                 borderRadius: '8px',
@@ -6631,61 +6661,33 @@ ${pagesHtml}
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '8px',
-                                                boxShadow: '0 2px 6px rgba(6, 78, 59, 0.12)'
+                                                boxShadow: '0 2px 6px rgba(180, 83, 9, 0.2)'
                                               }}>
-                                                📂 {cat.name}
-                                                {cat.classrange && <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '400' }}>(Class: {cat.classrange})</span>}
-                                                <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{catProgs.length} programs</span>
+                                                🌟 GENERAL
+                                                <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{standaloneGenProgs.length} programs</span>
                                               </div>
-                                              {/* Programs in this category */}
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                {catProgs.map(renderProgRow)}
-                                              </div>
+                                              {/* Programs in GENERAL */}
+                                              {standaloneGenProgs.length === 0 ? (
+                                                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '16px 0' }}>
+                                                  No general programs added yet. Use "Add New Program" form above with GENERAL category.
+                                                </p>
+                                              ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                  {standaloneGenProgs.map(renderProgRow)}
+                                                </div>
+                                              )}
                                             </div>
-                                          );
-                                        })}
-
-                                        {showGeneralBlock && (
-                                          <div key="GENERAL" style={{ marginTop: '16px' }}>
-                                            {/* Category heading */}
-                                            <div style={{
-                                              background: 'linear-gradient(90deg, #b45309, #d97706)',
-                                              color: 'white',
-                                              padding: '10px 14px',
-                                              borderRadius: '8px',
-                                              fontWeight: '700',
-                                              fontSize: '13px',
-                                              marginBottom: '10px',
-                                              display: 'flex',
-                                              alignItems: 'center',
-                                              gap: '8px',
-                                              boxShadow: '0 2px 6px rgba(180, 83, 9, 0.2)'
-                                            }}>
-                                              🌟 GENERAL
-                                              <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{standaloneGenProgs.length} programs</span>
-                                            </div>
-                                            {/* Programs in GENERAL */}
-                                            {standaloneGenProgs.length === 0 ? (
-                                              <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '16px 0' }}>
-                                                No general programs added yet. Use "Add New Program" form above with GENERAL category.
-                                              </p>
-                                            ) : (
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                {standaloneGenProgs.map(renderProgRow)}
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </>
-                            );
-                          })()}
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
-                    </div>
                     )}
 
                     {/* REGISTER SUB-TAB */}
@@ -6723,7 +6725,7 @@ ${pagesHtml}
                         try {
                           const madrasaId = loggedInMadrasa.regNumber;
                           const studentIdInt = parseInt(regTabStudent, 10);
-                          
+
                           const { error: deleteError } = await supabase.from('program_registrations')
                             .delete()
                             .eq('madrasa_id', madrasaId)
@@ -6773,7 +6775,7 @@ ${pagesHtml}
                         const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
                         const catName = regCatObj ? regCatObj.name : (regTabCat === 'GENERAL' ? 'GENERAL' : '');
-                        
+
                         let genderLabel = '';
                         if (regTabGender === 'BOY') genderLabel = lang === 'EN' ? 'Boys' : 'ആൺകുട്ടികൾ';
                         else if (regTabGender === 'GIRL') genderLabel = lang === 'EN' ? 'Girls' : 'പെൺകുട്ടികൾ';
@@ -6795,13 +6797,13 @@ ${pagesHtml}
                             })
                             .map(g => programs.find(pr => String(pr.id) === String(g.program_id)))
                             .filter(Boolean);
-                          
-                          const progsText = sProgs.length > 0 
-                            ? sProgs.map(p => `<span class="prog-badge">${p.code} – ${p.name}</span>`).join(' ') 
+
+                          const progsText = sProgs.length > 0
+                            ? sProgs.map(p => `<span class="prog-badge">${p.code} – ${p.name}</span>`).join(' ')
                             : `<span class="no-prog">${lang === 'EN' ? 'No single programs' : 'സിംഗിൾ പ്രോഗ്രാമുകൾ ഇല്ല'}</span>`;
 
-                          const groupProgsText = sGroupProgs.length > 0 
-                            ? sGroupProgs.map(p => `<span class="prog-badge-group">${p.code} – ${p.name}</span>`).join(' ') 
+                          const groupProgsText = sGroupProgs.length > 0
+                            ? sGroupProgs.map(p => `<span class="prog-badge-group">${p.code} – ${p.name}</span>`).join(' ')
                             : `<span class="no-prog">${lang === 'EN' ? 'No group programs' : 'ഗ്രൂപ്പ് പ്രോഗ്രാമുകൾ ഇല്ല'}</span>`;
 
                           return `<tr>
@@ -6980,9 +6982,9 @@ ${pagesHtml}
                         <div className="settings-card-v2">
                           {/* Navigation Tabs for Single vs Group Registration */}
                           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-                            <button 
+                            <button
                               type="button"
-                              onClick={() => setRegTabSection('SINGLE')} 
+                              onClick={() => setRegTabSection('SINGLE')}
                               style={{
                                 padding: '10px 20px',
                                 borderRadius: '10px',
@@ -6997,9 +6999,9 @@ ${pagesHtml}
                             >
                               👤 {lang === 'EN' ? 'Single Registration' : 'സിംഗിൾ രജിസ്ട്രേഷൻ'}
                             </button>
-                            <button 
+                            <button
                               type="button"
-                              onClick={() => setRegTabSection('GROUP')} 
+                              onClick={() => setRegTabSection('GROUP')}
                               style={{
                                 padding: '10px 20px',
                                 borderRadius: '10px',
@@ -7020,7 +7022,7 @@ ${pagesHtml}
                             // ── SINGLE REGISTRATION VIEW ──
                             <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
-                                
+
                                 {/* LEFT: Step Form */}
                                 <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                   <h3>{t('registerStudentsTitle')}</h3>
@@ -7059,8 +7061,8 @@ ${pagesHtml}
                                         <div className="step-content">
                                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                             {[
-                                              { val: 'BOY',    label: t('boys') },
-                                              { val: 'GIRL',   label: t('girls') },
+                                              { val: 'BOY', label: t('boys') },
+                                              { val: 'GIRL', label: t('girls') },
                                               { val: 'COMMON', label: t('allGenders') }
                                             ].map(opt => (
                                               <button key={opt.val} type="button"
@@ -7271,7 +7273,7 @@ ${pagesHtml}
                             // ── GROUP REGISTRATION VIEW ──
                             <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
-                                
+
                                 {/* LEFT: Group Step Form */}
                                 <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                   <h3>{lang === 'EN' ? 'Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ'}</h3>
@@ -7310,8 +7312,8 @@ ${pagesHtml}
                                         <div className="step-content">
                                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                             {[
-                                              { val: 'BOY',    label: t('boys') },
-                                              { val: 'GIRL',   label: t('girls') },
+                                              { val: 'BOY', label: t('boys') },
+                                              { val: 'GIRL', label: t('girls') },
                                               { val: 'COMMON', label: t('allGenders') }
                                             ].map(opt => (
                                               <button key={opt.val} type="button"
@@ -7386,12 +7388,12 @@ ${pagesHtml}
                                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
                                               {lang === 'EN' ? 'Group / Batch Name' : 'ഗ്രൂപ്പ് പേര്'}
                                             </label>
-                                            <input 
-                                              type="text" 
-                                              className="settings-input-v2" 
-                                              placeholder={lang === 'EN' ? 'e.g. Sanghaganam Group A' : 'ഉദാ: സംഘഗാനം ഗ്രൂപ്പ് എ'} 
-                                              value={groupRegName} 
-                                              onChange={e => setGroupRegName(e.target.value)} 
+                                            <input
+                                              type="text"
+                                              className="settings-input-v2"
+                                              placeholder={lang === 'EN' ? 'e.g. Sanghaganam Group A' : 'ഉദാ: സംഘഗാനം ഗ്രൂപ്പ് എ'}
+                                              value={groupRegName}
+                                              onChange={e => setGroupRegName(e.target.value)}
                                             />
                                           </div>
                                           <div>
@@ -7444,7 +7446,7 @@ ${pagesHtml}
                                                     const isChecked = groupRegStudents.includes(String(s.id));
                                                     const isLeader = groupRegLeader ? String(groupRegLeader) === String(s.id) : (groupRegStudents.length > 0 && String(groupRegStudents[0]) === String(s.id));
                                                     const teamName = (teams.find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || '';
-                                                    
+
                                                     return (
                                                       <label key={s.id} style={{
                                                         display: 'flex', alignItems: 'center', gap: '10px',
@@ -7489,7 +7491,7 @@ ${pagesHtml}
                                                     <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                                                       <span>👑</span> {lang === 'EN' ? 'Select Team Leader (Required for Judge Sheet):' : 'ടീം ലീഡറെ തിരഞ്ഞെടുക്കുക (ജഡ്ജ് ഷീറ്റിനായി):'}
                                                     </label>
-                                                    <select 
+                                                    <select
                                                       className="settings-input-v2"
                                                       value={groupRegLeader || (groupRegStudents.length > 0 ? groupRegStudents[0] : '')}
                                                       onChange={e => setGroupRegLeader(e.target.value)}
@@ -7536,14 +7538,14 @@ ${pagesHtml}
                                     const activeGroupRegs = groupRegistrations.filter(g => {
                                       const prog = programs.find(p => String(p.id) === String(g.program_id));
                                       if (!prog || String(prog.catid || prog.catId || '') !== String(groupRegCat)) return false;
-                                      
+
                                       if (groupRegGender === 'COMMON') return true;
-                                      
+
                                       const pt = prog.type || '';
                                       const isBoyProg = pt.includes('BOY');
                                       const isGirlProg = pt.includes('GIRL');
                                       const isCommonProg = pt.includes('COMMON');
-                                      
+
                                       if (groupRegGender === 'BOY') {
                                         if (isBoyProg) return true;
                                         if (isCommonProg) {
@@ -7555,7 +7557,7 @@ ${pagesHtml}
                                         }
                                         return false;
                                       }
-                                      
+
                                       if (groupRegGender === 'GIRL') {
                                         if (isGirlProg) return true;
                                         if (isCommonProg) {
@@ -7567,7 +7569,7 @@ ${pagesHtml}
                                         }
                                         return false;
                                       }
-                                      
+
                                       return false;
                                     });
 
@@ -7578,7 +7580,7 @@ ${pagesHtml}
 
                                       const catObj = categories.find(c => String(c.id) === String(groupRegCat));
                                       const catName = catObj ? catObj.name : (groupRegCat === 'GENERAL' ? 'GENERAL' : '');
-                                      
+
                                       let genderLabel = '';
                                       if (groupRegGender === 'BOY') genderLabel = lang === 'EN' ? 'Boys' : 'ബോയ്സ്';
                                       else if (groupRegGender === 'GIRL') genderLabel = lang === 'EN' ? 'Girls' : 'ഗേൾസ്';
@@ -7590,7 +7592,7 @@ ${pagesHtml}
                                       const rows = activeGroupRegs.map((g, idx) => {
                                         const prog = programs.find(p => String(p.id) === String(g.program_id));
                                         const team = teams.find(t => String(t.id) === String(g.team_id));
-                                        
+
                                         const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
                                         const memberNames = memberIds.map(id => {
                                           const studentObj = students.find(s => String(s.id) === String(id));
@@ -7764,7 +7766,7 @@ ${pagesHtml}
                                           {activeGroupRegs.map(g => {
                                             const prog = programs.find(p => String(p.id) === String(g.program_id));
                                             const team = teams.find(t => String(t.id) === String(g.team_id));
-                                            
+
                                             // Resolve member student names
                                             const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
                                             const memberNames = memberIds.map(id => {
@@ -7943,12 +7945,12 @@ ${pagesHtml}
                                             );
                                           })}
                                         </div>
-                                        <button 
-                                          type="button" 
+                                        <button
+                                          type="button"
                                           onClick={generateGroupRegsPDF}
                                           className="btn-premium-action"
-                                          style={{ 
-                                            marginTop: '16px', 
+                                          style={{
+                                            marginTop: '16px',
                                             background: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
                                             display: 'flex',
                                             alignItems: 'center',
@@ -7975,7 +7977,7 @@ ${pagesHtml}
                       <div className="settings-card-v2">
                         {/* Navigation Tabs for Single vs Group Mark Entry */}
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
                               setMarkEntrySection('SINGLE');
@@ -7983,7 +7985,7 @@ ${pagesHtml}
                               setSelectedResultGender('ALL');
                               setSelectedResultProg('');
                               setSelectedResultStudent('');
-                            }} 
+                            }}
                             style={{
                               padding: '10px 20px',
                               borderRadius: '10px',
@@ -7998,7 +8000,7 @@ ${pagesHtml}
                           >
                             👤 {lang === 'EN' ? 'Single Entry' : 'സിംഗിൾ മാർക്ക് എൻട്രി'}
                           </button>
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
                               setMarkEntrySection('GROUP');
@@ -8006,7 +8008,7 @@ ${pagesHtml}
                               setSelectedResultGender('ALL');
                               setSelectedResultProg('');
                               setSelectedResultStudent('');
-                            }} 
+                            }}
                             style={{
                               padding: '10px 20px',
                               borderRadius: '10px',
@@ -8025,14 +8027,14 @@ ${pagesHtml}
 
                         <div className="settings-form-box-v2">
                           <h3>
-                            {markEntrySection === 'SINGLE' 
+                            {markEntrySection === 'SINGLE'
                               ? (lang === 'EN' ? '📝 Single Event Mark Entry' : '📝 സിംഗിൾ മാർക്ക് എൻട്രി')
                               : (lang === 'EN' ? '📝 Group Event Mark Entry' : '📝 ഗ്രൂപ്പ് മാർക്ക് എൻട്രി')
                             }
                           </h3>
                           <form onSubmit={handleAddResult} className="settings-form">
                             <div className="stepper-timeline">
-                              
+
                               {/* Step 1: Category & Gender */}
                               <div className={`step-box ${selectedResultCat ? 'filled' : 'active'}`}>
                                 <div className="step-header">
@@ -8061,13 +8063,13 @@ ${pagesHtml}
                                         <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                       </React.Fragment>
                                     ))}
-                                     {generalCatIds.length > 0 && (
-                                       <React.Fragment>
-                                         <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                         <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                         <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                       </React.Fragment>
-                                     )}
+                                    {generalCatIds.length > 0 && (
+                                      <React.Fragment>
+                                        <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                        <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                        <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                      </React.Fragment>
+                                    )}
                                   </select>
                                 </div>
                               </div>
@@ -8086,13 +8088,13 @@ ${pagesHtml}
                                     <option value="">{selectedResultCat ? '-- Select Program --' : 'Select Category First'}</option>
                                     {programs
                                       .filter(p => {
-                                         if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
-                                         if (markEntrySection === 'SINGLE' && (p.type || '').includes('GROUP')) return false;
-                                         if (markEntrySection === 'GROUP' && !(p.type || '').includes('GROUP')) return false;
-                                         if (!p.type || !p.type.includes('_')) return true;
-                                         if (p.type.includes('COMMON')) return true;
-                                         if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
-                                         return true;
+                                        if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
+                                        if (markEntrySection === 'SINGLE' && (p.type || '').includes('GROUP')) return false;
+                                        if (markEntrySection === 'GROUP' && !(p.type || '').includes('GROUP')) return false;
+                                        if (!p.type || !p.type.includes('_')) return true;
+                                        if (p.type.includes('COMMON')) return true;
+                                        if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
+                                        return true;
                                       })
                                       .map(p => {
                                         const pTypeBase = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
@@ -8141,8 +8143,8 @@ ${pagesHtml}
                                       // If a program is selected, filter by registered students only
                                       const regStudentIds = selectedResultProg
                                         ? new Set(programRegistrations
-                                            .filter(r => String(r.program_id) === String(selectedResultProg))
-                                            .map(r => String(r.student_id)))
+                                          .filter(r => String(r.program_id) === String(selectedResultProg))
+                                          .map(r => String(r.student_id)))
                                         : null;
 
                                       return (
@@ -8241,17 +8243,17 @@ ${pagesHtml}
                             const replacementOptions = isGroup
                               ? groupRegistrations.filter(g => String(g.program_id) === String(selectedResultProg))
                               : (() => {
-                                  const regStudentIds = new Set(
-                                    programRegistrations
-                                      .filter(r => String(r.program_id) === String(selectedResultProg))
-                                      .map(r => String(r.student_id))
-                                  );
-                                  return students.filter(s => {
-                                    if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
-                                    if (regStudentIds.size > 0) return regStudentIds.has(String(s.id));
-                                    return String(s.catid || s.catId || '') === String(selectedResultCat);
-                                  });
-                                })();
+                                const regStudentIds = new Set(
+                                  programRegistrations
+                                    .filter(r => String(r.program_id) === String(selectedResultProg))
+                                    .map(r => String(r.student_id))
+                                );
+                                return students.filter(s => {
+                                  if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
+                                  if (regStudentIds.size > 0) return regStudentIds.has(String(s.id));
+                                  return String(s.catid || s.catId || '') === String(selectedResultCat);
+                                });
+                              })();
 
                             const placeEmoji = { 'First': '🥇', 'Second': '🥈', 'Third': '🥉', 'No Place': '—' };
                             const gradeBgColor = { 'A': '#dcfce7', 'B': '#dbeafe', 'C': '#fef9c3', '-': '#f1f5f9' };
@@ -8286,14 +8288,14 @@ ${pagesHtml}
                                               <option value="">{lang === 'EN' ? `-- Keep current (${r.studentname}) --` : `-- നിലവിലുള്ളത് നിലനിർത്തുക --`}</option>
                                               {isGroup
                                                 ? replacementOptions.map(g => {
-                                                    const tName = (teams.find(t => String(t.id) === String(g.team_id)) || {}).name || '';
-                                                    return <option key={g.id} value={g.id}>{g.group_name} [{tName}]</option>;
-                                                  })
+                                                  const tName = (teams.find(t => String(t.id) === String(g.team_id)) || {}).name || '';
+                                                  return <option key={g.id} value={g.id}>{g.group_name} [{tName}]</option>;
+                                                })
                                                 : replacementOptions.map(s => {
-                                                    const sReg = s.regno || s.regNo || '';
-                                                    const tName = (teams.find(t => String(t.id) === String(s.teamid)) || {}).name || '';
-                                                    return <option key={s.id} value={s.id}>{sReg} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{tName}]</option>;
-                                                  })
+                                                  const sReg = s.regno || s.regNo || '';
+                                                  const tName = (teams.find(t => String(t.id) === String(s.teamid)) || {}).name || '';
+                                                  return <option key={s.id} value={s.id}>{sReg} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{tName}]</option>;
+                                                })
                                               }
                                             </select>
                                           </div>
@@ -8368,7 +8370,7 @@ ${pagesHtml}
                         <div className="settings-form-box-v2">
                           <h3>⚙️ Design Point Structure</h3>
                           <form onSubmit={handleSavePoints} className="settings-form">
-                            
+
                             <h4 style={{ margin: '10px 0 14px', color: 'var(--primary-light)', fontSize: '14px', fontWeight: '800', borderBottom: '2px solid #f1f5f9', paddingBottom: '6px' }}>
                               👤 Single Events Points
                             </h4>
@@ -8461,18 +8463,18 @@ ${pagesHtml}
                         if (isGroupProg) {
                           // 1. Get explicit group registrations for this program
                           const progGroupRegs = groupRegistrations.filter(g => String(g.program_id) === String(judgeSheetProg));
-                          
+
                           if (progGroupRegs.length > 0) {
                             return progGroupRegs.map(g => {
                               const teamObj = teams.find(t => String(t.id) === String(g.team_id));
                               const teamName = g.group_name || (teamObj ? teamObj.name : 'Team');
-                              const studentIds = Array.isArray(g.student_ids) 
-                                ? g.student_ids 
+                              const studentIds = Array.isArray(g.student_ids)
+                                ? g.student_ids
                                 : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
-                              
+
                               const leaderId = g.leader_id || (studentIds.length > 0 ? studentIds[0] : null);
                               const leaderStudent = students.find(s => String(s.id) === String(leaderId));
-                              const memberStudents = students.filter(s => 
+                              const memberStudents = students.filter(s =>
                                 studentIds.map(String).includes(String(s.id)) && String(s.id) !== String(leaderId)
                               );
 
@@ -8557,7 +8559,7 @@ ${pagesHtml}
 
                         const rows = judgeItems.map((item) => {
                           if (item.isGroup) {
-                            const leaderDisplay = item.leaderRegNo 
+                            const leaderDisplay = item.leaderRegNo
                               ? `<b>Reg No: ${item.leaderRegNo}</b> ${item.leaderName ? `(${item.leaderName})` : ''}`
                               : (item.leaderName || '-');
 
@@ -8778,182 +8780,182 @@ ${pagesHtml}
 
                           {/* ── JUDGE SHEET (existing) ── */}
                           {!showEntryForm && (
-                          <>
-                          <div className="settings-form-box">
-                            <h3>📋 Judge Evaluation Sheet</h3>
-                            <div className="settings-form">
+                            <>
+                              <div className="settings-form-box">
+                                <h3>📋 Judge Evaluation Sheet</h3>
+                                <div className="settings-form">
 
-                              {/* Step 1: Category & Gender */}
-                              <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
-                                <select className="settings-input" value={judgeSheetCat && judgeSheetGender ? `${judgeSheetCat}_${judgeSheetGender}` : ''} onChange={e => {
-                                  const val = e.target.value;
-                                  if (!val) { setJudgeSheetCat(''); setJudgeSheetGender(''); }
-                                  else { const [cId, g] = val.split('_'); setJudgeSheetCat(cId); setJudgeSheetGender(g); }
-                                  setJudgeSheetProg('');
-                                }}>
-                                  <option value="">-- Select Category & Division --</option>
-                                  {categories.map(c => (
-                                    <React.Fragment key={c.id}>
-                                      <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                      <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                      <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
-                                    </React.Fragment>
-                                  ))}
-                                   {generalCatIds.length > 0 && (
-                                     <React.Fragment>
-                                       <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                       <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                       <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                     </React.Fragment>
-                                   )}
-                                </select>
-                              </div>
+                                  {/* Step 1: Category & Gender */}
+                                  <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
+                                    <select className="settings-input" value={judgeSheetCat && judgeSheetGender ? `${judgeSheetCat}_${judgeSheetGender}` : ''} onChange={e => {
+                                      const val = e.target.value;
+                                      if (!val) { setJudgeSheetCat(''); setJudgeSheetGender(''); }
+                                      else { const [cId, g] = val.split('_'); setJudgeSheetCat(cId); setJudgeSheetGender(g); }
+                                      setJudgeSheetProg('');
+                                    }}>
+                                      <option value="">-- Select Category & Division --</option>
+                                      {categories.map(c => (
+                                        <React.Fragment key={c.id}>
+                                          <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                          <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                          <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                        </React.Fragment>
+                                      ))}
+                                      {generalCatIds.length > 0 && (
+                                        <React.Fragment>
+                                          <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                          <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                          <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                        </React.Fragment>
+                                      )}
+                                    </select>
+                                  </div>
 
-                              {/* Step 2: Program */}
-                              <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Program</label>
-                                <select className="settings-input" value={judgeSheetProg} onChange={e => setJudgeSheetProg(e.target.value)} disabled={!judgeSheetCat}>
-                                  <option value="">{judgeSheetCat ? '-- Select Program --' : 'Select Category First'}</option>
-                                  {judgePrograms.map(p => {
-                                    const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
-                                    const pGenderLabel = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
-                                    return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeLabel} {pGenderLabel})</option>;
-                                  })}
-                                </select>
-                              </div>
+                                  {/* Step 2: Program */}
+                                  <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Program</label>
+                                    <select className="settings-input" value={judgeSheetProg} onChange={e => setJudgeSheetProg(e.target.value)} disabled={!judgeSheetCat}>
+                                      <option value="">{judgeSheetCat ? '-- Select Program --' : 'Select Category First'}</option>
+                                      {judgePrograms.map(p => {
+                                        const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                        const pGenderLabel = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
+                                        return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeLabel} {pGenderLabel})</option>;
+                                      })}
+                                    </select>
+                                  </div>
 
-                              {/* Preview info */}
-                              {judgeSheetProg && (
-                                <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '4px' }}>📊 Preview</div>
-                                  <div style={{ fontSize: '13px', color: '#1e293b' }}>
-                                    <strong>{judgeItems.length}</strong> {isGroupProg ? 'teams' : 'participants'} registered in{' '}
-                                    <strong>{selectedProgObj ? selectedProgObj.name : ''}</strong>
+                                  {/* Preview info */}
+                                  {judgeSheetProg && (
+                                    <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '4px' }}>📊 Preview</div>
+                                      <div style={{ fontSize: '13px', color: '#1e293b' }}>
+                                        <strong>{judgeItems.length}</strong> {isGroupProg ? 'teams' : 'participants'} registered in{' '}
+                                        <strong>{selectedProgObj ? selectedProgObj.name : ''}</strong>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      onClick={handlePrintJudgeSheet}
+                                      disabled={!judgeSheetProg}
+                                      className="btn-add-action"
+                                      style={{ flex: 1, background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                    >
+                                      🖨️ Print Judge Sheet
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleDownloadJudgeSheetPDF}
+                                      disabled={!judgeSheetProg}
+                                      className="btn-add-action"
+                                      style={{ flex: 1, background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                    >
+                                      📥 Download Judge Sheet PDF
+                                    </button>
                                   </div>
                                 </div>
-                              )}
-
-                              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                <button
-                                  type="button"
-                                  onClick={handlePrintJudgeSheet}
-                                  disabled={!judgeSheetProg}
-                                  className="btn-add-action"
-                                  style={{ flex: 1, background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
-                                >
-                                  🖨️ Print Judge Sheet
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleDownloadJudgeSheetPDF}
-                                  disabled={!judgeSheetProg}
-                                  className="btn-add-action"
-                                  style={{ flex: 1, background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
-                                >
-                                  📥 Download Judge Sheet PDF
-                                </button>
                               </div>
-                            </div>
-                          </div>
 
-                          {/* Preview list */}
-                          <div className="settings-list-box" style={{ maxHeight: 'none' }}>
-                            <h3>📋 {judgeSheetProg ? `${isGroupProg ? 'Teams' : 'Participants'} – ${selectedProgObj ? selectedProgObj.name : ''}` : 'Select a Program'}</h3>
-                            {!judgeSheetProg ? (
-                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>Please select a category and program above.</p>
-                            ) : judgeItems.length === 0 ? (
-                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>No entries registered in this category/division.</p>
-                            ) : (
-                              <>
-                                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
-                                  📌 {judgeItems.length} {isGroupProg ? 'teams' : 'participants'} will appear on the sheet.
-                                </div>
-                                {judgeItems.map((item, idx) => {
-                                  if (item.isGroup) {
-                                    return (
-                                      <div key={item.id} style={{
-                                        display: 'flex', flexDirection: 'column', gap: '4px',
-                                        padding: '10px 12px', borderBottom: '1px solid #e2e8f0',
-                                        background: idx % 2 === 0 ? '#f8fafc' : '#fff'
-                                      }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                          <div style={{ fontSize: '14px', fontWeight: '800', color: '#064e3b' }}>
-                                            🚩 {item.teamName}
+                              {/* Preview list */}
+                              <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                                <h3>📋 {judgeSheetProg ? `${isGroupProg ? 'Teams' : 'Participants'} – ${selectedProgObj ? selectedProgObj.name : ''}` : 'Select a Program'}</h3>
+                                {!judgeSheetProg ? (
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>Please select a category and program above.</p>
+                                ) : judgeItems.length === 0 ? (
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>No entries registered in this category/division.</p>
+                                ) : (
+                                  <>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                                      📌 {judgeItems.length} {isGroupProg ? 'teams' : 'participants'} will appear on the sheet.
+                                    </div>
+                                    {judgeItems.map((item, idx) => {
+                                      if (item.isGroup) {
+                                        return (
+                                          <div key={item.id} style={{
+                                            display: 'flex', flexDirection: 'column', gap: '4px',
+                                            padding: '10px 12px', borderBottom: '1px solid #e2e8f0',
+                                            background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                          }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#064e3b' }}>
+                                                🚩 {item.teamName}
+                                              </div>
+                                              {item.teamCode && (
+                                                <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 6px', fontWeight: '800' }}>
+                                                  {item.teamCode}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#1e293b', fontWeight: '700' }}>
+                                              👑 Leader: <span style={{ background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px' }}>Reg No: {item.leaderRegNo || '-'}</span> {item.leaderName ? `(${item.leaderName})` : ''}
+                                            </div>
+                                            {item.memberStudents && item.memberStudents.length > 0 && (
+                                              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                👥 Members: {item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')}
+                                              </div>
+                                            )}
                                           </div>
-                                          {item.teamCode && (
-                                            <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 6px', fontWeight: '800' }}>
-                                              {item.teamCode}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#1e293b', fontWeight: '700' }}>
-                                          👑 Leader: <span style={{ background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px' }}>Reg No: {item.leaderRegNo || '-'}</span> {item.leaderName ? `(${item.leaderName})` : ''}
-                                        </div>
-                                        {item.memberStudents && item.memberStudents.length > 0 && (
-                                          <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                            👥 Members: {item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')}
+                                        );
+                                      } else {
+                                        const s = item.student;
+                                        const sRegNo = item.regNo;
+                                        const teamObj = item.teamObj;
+                                        return (
+                                          <div key={item.id} style={{
+                                            display: 'flex', alignItems: 'center', gap: '10px',
+                                            padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
+                                            background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                          }}>
+                                            <span style={{
+                                              background: '#064e3b', color: 'white', borderRadius: '6px',
+                                              padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
+                                            }}>{sRegNo}</span>
+                                            <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
+                                            <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
+                                            <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
+                                            >{s.gender === 'BOY' ? '👦' : '👧'}</span>
                                           </div>
-                                        )}
-                                      </div>
-                                    );
-                                  } else {
-                                    const s = item.student;
-                                    const sRegNo = item.regNo;
-                                    const teamObj = item.teamObj;
-                                    return (
-                                      <div key={item.id} style={{
-                                        display: 'flex', alignItems: 'center', gap: '10px',
-                                        padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
-                                        background: idx % 2 === 0 ? '#f8fafc' : '#fff'
-                                      }}>
-                                        <span style={{
-                                          background: '#064e3b', color: 'white', borderRadius: '6px',
-                                          padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
-                                        }}>{sRegNo}</span>
-                                        <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
-                                        <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
-                                        <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
-                                        >{s.gender === 'BOY' ? '👦' : '👧'}</span>
-                                      </div>
-                                    );
-                                  }
-                                })}
-                                {/* Download Participants PDF button */}
-                                <div style={{ padding: '12px 10px 4px' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const catName = selectedCatObj ? selectedCatObj.name : '';
-                                      const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
-                                      const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
-                                      const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                                      
-                                      const rows = judgeItems.map((item, idx) => {
-                                        if (item.isGroup) {
-                                          const leaderDisplay = item.leaderRegNo ? `Reg No: <b>${item.leaderRegNo}</b> (${item.leaderName})` : '-';
-                                          const membersDisplay = item.memberStudents && item.memberStudents.length > 0
-                                            ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')
-                                            : '';
+                                        );
+                                      }
+                                    })}
+                                    {/* Download Participants PDF button */}
+                                    <div style={{ padding: '12px 10px 4px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const catName = selectedCatObj ? selectedCatObj.name : '';
+                                          const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
+                                          const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
+                                          const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
 
-                                          return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
+                                          const rows = judgeItems.map((item, idx) => {
+                                            if (item.isGroup) {
+                                              const leaderDisplay = item.leaderRegNo ? `Reg No: <b>${item.leaderRegNo}</b> (${item.leaderName})` : '-';
+                                              const membersDisplay = item.memberStudents && item.memberStudents.length > 0
+                                                ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')
+                                                : '';
+
+                                              return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
                                             <td style="text-align:left;font-weight:800;font-size:13px;color:#064e3b;padding:10px 12px;border:1px solid #cbd5e1">🚩 ${item.teamName}</td>
                                             <td style="padding:10px 12px;font-size:12px;color:#1e293b;border:1px solid #cbd5e1">👑 ${leaderDisplay}</td>
                                             <td style="padding:10px 12px;font-size:11px;color:#475569;border:1px solid #cbd5e1">👥 ${membersDisplay}</td>
                                           </tr>`;
-                                        } else {
-                                          const sRegNo = item.regNo;
-                                          const sName = item.name;
-                                          const teamName = item.teamObj ? item.teamObj.name : '';
-                                          return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
+                                            } else {
+                                              const sRegNo = item.regNo;
+                                              const sName = item.name;
+                                              const teamName = item.teamObj ? item.teamObj.name : '';
+                                              return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
                                             <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5;padding:8px 10px;border:1px solid #cbd5e1">${sRegNo}</td>
                                             <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1e293b;border:1px solid #cbd5e1">${sName}</td>
                                             <td style="padding:8px 12px;font-size:12px;color:#475569;border:1px solid #cbd5e1">${teamName}</td>
                                           </tr>`;
-                                        }
-                                      }).join('');
+                                            }
+                                          }).join('');
 
-                                      const html = `<!DOCTYPE html><html><head><title>${isGroupProg ? 'Teams' : 'Participants'} - ${progName}</title>
+                                          const html = `<!DOCTYPE html><html><head><title>${isGroupProg ? 'Teams' : 'Participants'} - ${progName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 portrait; margin: 15mm; }
@@ -8987,18 +8989,18 @@ ${pagesHtml}
     <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No entries registered.</td></tr>'}</tbody></table>
   </div>
 </div></body></html>`;
-                                      downloadHtmlAsPdf(html, `Participants_${progName}.pdf`);
-                                    }}
-                                    className="btn-add-action"
-                                    style={{ width: '100%', background: '#1d4ed8' }}
-                                  >
-                                    📄 Download ${isGroupProg ? 'Teams' : 'Participants'} PDF
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                          </>
+                                          downloadHtmlAsPdf(html, `Participants_${progName}.pdf`);
+                                        }}
+                                        className="btn-add-action"
+                                        style={{ width: '100%', background: '#1d4ed8' }}
+                                      >
+                                        📄 Download ${isGroupProg ? 'Teams' : 'Participants'} PDF
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </>
                           )}
 
                           {/* ── ENTRY FORM (new) ── */}
@@ -9216,141 +9218,141 @@ ${pagesHtml}
 
                             return (
                               <>
-                              <div className="settings-form-box">
-                                <h3>📝 Entry Form</h3>
-                                <div className="settings-form">
+                                <div className="settings-form-box">
+                                  <h3>📝 Entry Form</h3>
+                                  <div className="settings-form">
 
-                                  {/* Step 1: Category & Division */}
-                                  <div style={{ background: '#eff6ff', padding: '12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
-                                    <select className="settings-input" value={entryFormCat && entryFormGender ? `${entryFormCat}_${entryFormGender}` : ''} onChange={e => {
-                                      const val = e.target.value;
-                                      if (!val) { setEntryFormCat(''); setEntryFormGender(''); }
-                                      else { const [cId, g] = val.split('_'); setEntryFormCat(cId); setEntryFormGender(g); }
-                                      setEntryFormTeam('');
-                                    }}>
-                                      <option value="">-- Select Category & Division --</option>
-                                      {categories.map(c => (
-                                        <React.Fragment key={c.id}>
-                                          <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                          <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                          <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
-                                        </React.Fragment>
-                                      ))}
-                                      {generalCatIds.length > 0 && (
-                                        <React.Fragment>
-                                          <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                          <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                          <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                        </React.Fragment>
-                                      )}
-                                    </select>
-                                  </div>
-
-                                  {/* Step 2: Team */}
-                                  <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Team</label>
-                                    <select className="settings-input" value={entryFormTeam} onChange={e => setEntryFormTeam(e.target.value)} disabled={!entryFormCat}>
-                                      <option value="">{entryFormCat ? '-- Select Team --' : 'Select Category First'}</option>
-                                      {efTeamsWithStudents.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-
-                                  {/* Preview info */}
-                                  {entryFormTeam && (
-                                    <div style={{ background: '#fefce8', padding: '12px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '6px' }}>📊 Preview</div>
-                                      <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.6' }}>
-                                        <strong>{efStudents.length}</strong> students in <strong>{efSelectedTeamObj ? efSelectedTeamObj.name : ''}</strong><br/>
-                                        <span style={{ color: '#064e3b' }}>Single Programs: <strong>{efSinglePrograms.length}</strong></span> | 
-                                        <span style={{ color: '#7c3aed' }}> Group Programs: <strong>{efGroupPrograms.length}</strong></span> | 
-                                        <span style={{ color: '#b45309' }}> Total: <strong>{efAllPrograms.length}</strong></span>
-                                      </div>
+                                    {/* Step 1: Category & Division */}
+                                    <div style={{ background: '#eff6ff', padding: '12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                      <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
+                                      <select className="settings-input" value={entryFormCat && entryFormGender ? `${entryFormCat}_${entryFormGender}` : ''} onChange={e => {
+                                        const val = e.target.value;
+                                        if (!val) { setEntryFormCat(''); setEntryFormGender(''); }
+                                        else { const [cId, g] = val.split('_'); setEntryFormCat(cId); setEntryFormGender(g); }
+                                        setEntryFormTeam('');
+                                      }}>
+                                        <option value="">-- Select Category & Division --</option>
+                                        {categories.map(c => (
+                                          <React.Fragment key={c.id}>
+                                            <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
+                                            <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
+                                            <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                          </React.Fragment>
+                                        ))}
+                                        {generalCatIds.length > 0 && (
+                                          <React.Fragment>
+                                            <option value="GENERAL_BOY">GENERAL - Boys</option>
+                                            <option value="GENERAL_GIRL">GENERAL - Girls</option>
+                                            <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                          </React.Fragment>
+                                        )}
+                                      </select>
                                     </div>
-                                  )}
 
-                                  <button
-                                    type="button"
-                                    onClick={handleDownloadEntryFormPDF}
-                                    disabled={!entryFormTeam}
-                                    className="btn-add-action"
-                                    style={{ background: entryFormTeam ? '#064e3b' : '#94a3b8', cursor: entryFormTeam ? 'pointer' : 'not-allowed' }}
-                                  >
-                                    📥 Download Entry Form PDF
-                                  </button>
-                                </div>
-                              </div>
+                                    {/* Step 2: Team */}
+                                    <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                      <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Team</label>
+                                      <select className="settings-input" value={entryFormTeam} onChange={e => setEntryFormTeam(e.target.value)} disabled={!entryFormCat}>
+                                        <option value="">{entryFormCat ? '-- Select Team --' : 'Select Category First'}</option>
+                                        {efTeamsWithStudents.map(t => (
+                                          <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
 
-                              {/* Preview table */}
-                              {entryFormTeam && efStudents.length > 0 && (
-                                <div className="settings-list-box" style={{ maxHeight: 'none', overflowX: 'auto' }}>
-                                  <h3>📝 Entry Form Preview – {efSelectedTeamObj ? efSelectedTeamObj.name : ''}</h3>
-                                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
-                                    📌 {efStudents.length} students | {efSinglePrograms.length} single + {efGroupPrograms.length} group programs
-                                  </div>
-                                  <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                                      <thead>
-                                        <tr>
-                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '6px 4px', border: '1px solid #94a3b8', width: '50px' }}>Reg</th>
-                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '6px 4px', border: '1px solid #94a3b8', textAlign: 'left', minWidth: '80px' }}>Name</th>
-                                          {efSinglePrograms.length > 0 && <th colSpan={efSinglePrograms.length} style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 2px', border: '1px solid #94a3b8', fontSize: '10px' }}>Single ({efSinglePrograms.length})</th>}
-                                          {efGroupPrograms.length > 0 && <th colSpan={efGroupPrograms.length} style={{ background: '#fce7f3', color: '#be185d', padding: '4px 2px', border: '1px solid #94a3b8', fontSize: '10px' }}>Group ({efGroupPrograms.length})</th>}
-                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '25px', fontSize: '9px' }}>S</th>
-                                          <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '25px', fontSize: '9px' }}>G</th>
-                                          <th rowSpan={2} style={{ background: '#b45309', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '30px', fontSize: '9px' }}>Total</th>
-                                        </tr>
-                                        <tr>
-                                          {[...efSinglePrograms, ...efGroupPrograms].map(p => (
-                                            <th key={p.id} style={{ background: '#f1f5f9', padding: '4px 2px', border: '1px solid #cbd5e1', fontSize: '9px', height: '80px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
-                                              <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)', whiteSpace: 'nowrap', display: 'inline-block', margin: '0 auto', lineHeight: '1.3' }}>
-                                                {p.name ? `${p.name} (${p.code})` : (p.code || '')}
-                                              </div>
-                                            </th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {efStudents.map((s, idx) => {
-                                          const sRegNo = s.regno || s.regNo || '';
-                                          let sc = 0, gc = 0;
-                                          const allProgsArr = [...efSinglePrograms, ...efGroupPrograms];
-                                          return (
-                                            <tr key={s.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                              <td style={{ textAlign: 'center', fontWeight: '700', fontSize: '11px', color: '#064e3b', background: '#ecfdf5', padding: '5px 3px', border: '1px solid #cbd5e1' }}>{sRegNo}</td>
-                                              <td style={{ padding: '5px 4px', fontWeight: '600', color: '#1e293b', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', fontSize: '10px' }}>{s.name}</td>
-                                              {allProgsArr.map(p => {
-                                                const isGroup = (p.type || '').includes('GROUP');
-                                                let isReg = false;
-                                                if (isGroup) {
-                                                  isReg = groupRegistrations.some(g => {
-                                                    if (String(g.program_id) !== String(p.id)) return false;
-                                                    const mIds = Array.isArray(g.student_ids) ? g.student_ids : [];
-                                                    return mIds.some(id => String(id) === String(s.id));
-                                                  });
-                                                  if (isReg) gc++;
-                                                } else {
-                                                  isReg = programRegistrations.some(r =>
-                                                    String(r.program_id || r.program_name) === String(p.id) &&
-                                                    String(r.student_id) === String(s.id)
-                                                  );
-                                                  if (isReg) sc++;
-                                                }
-                                                return <td key={p.id} style={{ textAlign: 'center', padding: '3px', border: '1px solid #cbd5e1', fontSize: '12px', background: isReg ? '#ecfdf5' : '' }}>{isReg ? '✓' : ''}</td>;
-                                              })}
-                                              <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#064e3b', background: '#f0fdf4', padding: '3px', border: '1px solid #cbd5e1' }}>{sc}</td>
-                                              <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', padding: '3px', border: '1px solid #cbd5e1' }}>{gc}</td>
-                                              <td style={{ textAlign: 'center', fontWeight: '900', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '3px', border: '1px solid #cbd5e1' }}>{sc + gc}</td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
+                                    {/* Preview info */}
+                                    {entryFormTeam && (
+                                      <div style={{ background: '#fefce8', padding: '12px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '6px' }}>📊 Preview</div>
+                                        <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.6' }}>
+                                          <strong>{efStudents.length}</strong> students in <strong>{efSelectedTeamObj ? efSelectedTeamObj.name : ''}</strong><br />
+                                          <span style={{ color: '#064e3b' }}>Single Programs: <strong>{efSinglePrograms.length}</strong></span> |
+                                          <span style={{ color: '#7c3aed' }}> Group Programs: <strong>{efGroupPrograms.length}</strong></span> |
+                                          <span style={{ color: '#b45309' }}> Total: <strong>{efAllPrograms.length}</strong></span>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={handleDownloadEntryFormPDF}
+                                      disabled={!entryFormTeam}
+                                      className="btn-add-action"
+                                      style={{ background: entryFormTeam ? '#064e3b' : '#94a3b8', cursor: entryFormTeam ? 'pointer' : 'not-allowed' }}
+                                    >
+                                      📥 Download Entry Form PDF
+                                    </button>
                                   </div>
                                 </div>
-                              )}
+
+                                {/* Preview table */}
+                                {entryFormTeam && efStudents.length > 0 && (
+                                  <div className="settings-list-box" style={{ maxHeight: 'none', overflowX: 'auto' }}>
+                                    <h3>📝 Entry Form Preview – {efSelectedTeamObj ? efSelectedTeamObj.name : ''}</h3>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                                      📌 {efStudents.length} students | {efSinglePrograms.length} single + {efGroupPrograms.length} group programs
+                                    </div>
+                                    <div style={{ overflowX: 'auto' }}>
+                                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                                        <thead>
+                                          <tr>
+                                            <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '6px 4px', border: '1px solid #94a3b8', width: '50px' }}>Reg</th>
+                                            <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '6px 4px', border: '1px solid #94a3b8', textAlign: 'left', minWidth: '80px' }}>Name</th>
+                                            {efSinglePrograms.length > 0 && <th colSpan={efSinglePrograms.length} style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 2px', border: '1px solid #94a3b8', fontSize: '10px' }}>Single ({efSinglePrograms.length})</th>}
+                                            {efGroupPrograms.length > 0 && <th colSpan={efGroupPrograms.length} style={{ background: '#fce7f3', color: '#be185d', padding: '4px 2px', border: '1px solid #94a3b8', fontSize: '10px' }}>Group ({efGroupPrograms.length})</th>}
+                                            <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '25px', fontSize: '9px' }}>S</th>
+                                            <th rowSpan={2} style={{ background: '#064e3b', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '25px', fontSize: '9px' }}>G</th>
+                                            <th rowSpan={2} style={{ background: '#b45309', color: 'white', padding: '4px', border: '1px solid #94a3b8', width: '30px', fontSize: '9px' }}>Total</th>
+                                          </tr>
+                                          <tr>
+                                            {[...efSinglePrograms, ...efGroupPrograms].map(p => (
+                                              <th key={p.id} style={{ background: '#f1f5f9', padding: '4px 2px', border: '1px solid #cbd5e1', fontSize: '9px', height: '80px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
+                                                <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)', whiteSpace: 'nowrap', display: 'inline-block', margin: '0 auto', lineHeight: '1.3' }}>
+                                                  {p.name ? `${p.name} (${p.code})` : (p.code || '')}
+                                                </div>
+                                              </th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {efStudents.map((s, idx) => {
+                                            const sRegNo = s.regno || s.regNo || '';
+                                            let sc = 0, gc = 0;
+                                            const allProgsArr = [...efSinglePrograms, ...efGroupPrograms];
+                                            return (
+                                              <tr key={s.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                <td style={{ textAlign: 'center', fontWeight: '700', fontSize: '11px', color: '#064e3b', background: '#ecfdf5', padding: '5px 3px', border: '1px solid #cbd5e1' }}>{sRegNo}</td>
+                                                <td style={{ padding: '5px 4px', fontWeight: '600', color: '#1e293b', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', fontSize: '10px' }}>{s.name}</td>
+                                                {allProgsArr.map(p => {
+                                                  const isGroup = (p.type || '').includes('GROUP');
+                                                  let isReg = false;
+                                                  if (isGroup) {
+                                                    isReg = groupRegistrations.some(g => {
+                                                      if (String(g.program_id) !== String(p.id)) return false;
+                                                      const mIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                                      return mIds.some(id => String(id) === String(s.id));
+                                                    });
+                                                    if (isReg) gc++;
+                                                  } else {
+                                                    isReg = programRegistrations.some(r =>
+                                                      String(r.program_id || r.program_name) === String(p.id) &&
+                                                      String(r.student_id) === String(s.id)
+                                                    );
+                                                    if (isReg) sc++;
+                                                  }
+                                                  return <td key={p.id} style={{ textAlign: 'center', padding: '3px', border: '1px solid #cbd5e1', fontSize: '12px', background: isReg ? '#ecfdf5' : '' }}>{isReg ? '✓' : ''}</td>;
+                                                })}
+                                                <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#064e3b', background: '#f0fdf4', padding: '3px', border: '1px solid #cbd5e1' }}>{sc}</td>
+                                                <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', padding: '3px', border: '1px solid #cbd5e1' }}>{gc}</td>
+                                                <td style={{ textAlign: 'center', fontWeight: '900', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '3px', border: '1px solid #cbd5e1' }}>{sc + gc}</td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
                               </>
                             );
                           })()}
@@ -9373,8 +9375,8 @@ ${pagesHtml}
                           <div className="settings-form-box-v2" style={{ maxWidth: '600px' }}>
                             <h3>👁️ {lang === 'EN' ? 'Visibility Control Panel' : 'കാഴ്ച നിയന്ത്രണ പാനൽ'}</h3>
                             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
-                              {lang === 'EN' 
-                                ? 'Toggle which sections are visible to parents/viewers (VIEW role). Admin always sees everything.' 
+                              {lang === 'EN'
+                                ? 'Toggle which sections are visible to parents/viewers (VIEW role). Admin always sees everything.'
                                 : 'രക്ഷിതാക്കൾക്ക് (VIEW റോൾ) ഏതൊക്കെ বিভাগങ്ങൾ കാണാമെന്ന് നിയന്ത്രിക്കുക. അഡ്മിന് എപ്പോഴും എല്ലാം കാണാം.'}
                             </p>
 
@@ -9394,9 +9396,9 @@ ${pagesHtml}
                                   </div>
                                 </div>
                                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={visibilityControls.scoreboard} 
+                                  <input
+                                    type="checkbox"
+                                    checked={visibilityControls.scoreboard}
                                     onChange={() => handleToggleVisibility('scoreboard')}
                                     style={{ opacity: 0, width: 0, height: 0 }}
                                   />
@@ -9438,9 +9440,9 @@ ${pagesHtml}
                                     </div>
                                   </div>
                                   <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={visibilityControls[item.key]} 
+                                    <input
+                                      type="checkbox"
+                                      checked={visibilityControls[item.key]}
                                       onChange={() => handleToggleVisibility(item.key)}
                                       style={{ opacity: 0, width: 0, height: 0 }}
                                     />
@@ -9496,7 +9498,7 @@ ${pagesHtml}
                     <p className="poster-madrasa-info">Reg No: {qrModalData.madrasa?.regNumber || ''} | {qrModalData.madrasa?.place || ''}</p>
                     <div className="poster-title-badge">MILAD FESTIVAL PARTICIPANT</div>
                   </div>
-                  
+
                   <div className="poster-body">
                     <div className="poster-student-section">
                       <div className="poster-photo-container">
@@ -9509,7 +9511,7 @@ ${pagesHtml}
                       <div className="poster-student-details">
                         <h3 className="poster-student-name">{qrModalData.student.name}</h3>
                         <div className="poster-reg-badge">Reg No: {qrModalData.student.regno || qrModalData.student.regNo || ''}</div>
-                        
+
                         <div className="poster-meta-grid">
                           <div className="poster-meta-item">
                             <span className="lbl">Group</span>
@@ -9545,12 +9547,12 @@ ${pagesHtml}
                               <span style={{ textAlign: 'center' }}>Place</span>
                               <span style={{ textAlign: 'center' }}>Grade</span>
                             </div>
-                            
+
                             {/* Individual Events */}
                             {individualList.map((r, idx) => (
                               <div key={`ind_${idx}`} className="events-table-row">
                                 <span className="event-name">
-                                  <b>{r.progname}</b> 
+                                  <b>{r.progname}</b>
                                   <span style={{ fontSize: '10px', color: '#2563eb', marginLeft: '5px', background: '#dbeafe', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
                                     Single 👤
                                   </span>
@@ -9568,7 +9570,7 @@ ${pagesHtml}
                             {groupList.map((g, idx) => (
                               <div key={`grp_${idx}`} className="events-table-row">
                                 <span className="event-name">
-                                  <b>{g.progname}</b> 
+                                  <b>{g.progname}</b>
                                   <span style={{ fontSize: '10px', color: '#d97706', marginLeft: '5px', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
                                     Group 👥 ({g.groupName})
                                   </span>
@@ -9586,7 +9588,7 @@ ${pagesHtml}
                       })()}
                     </div>
                   </div>
-                  
+
                   <div className="poster-footer">
                     <p>MILAD FEST • OFFICIAL EVENT CARD</p>
                   </div>
@@ -9648,9 +9650,9 @@ ${pagesHtml}
               const size = 6 + Math.random() * 10;
               const color = ['#f59e0b', '#fbbf24', '#10b981', '#3b82f6', '#ec4899'][Math.floor(Math.random() * 5)];
               return (
-                <div 
-                  key={i} 
-                  className="projector-confetti" 
+                <div
+                  key={i}
+                  className="projector-confetti"
                   style={{
                     left: `${left}%`,
                     animationDelay: `${delay}s`,
@@ -9710,7 +9712,7 @@ ${pagesHtml}
 
           {/* Main Slide Viewer */}
           <div className="projector-body">
-            
+
             {/* SLIDE 0: OVERALL LEADERBOARD */}
             {projectorSlide === 0 && (
               <div className="projector-slide animate-projector-slide">
@@ -9723,7 +9725,7 @@ ${pagesHtml}
                       const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
                       const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
                       const graphMax = maxPts > 0 ? maxPts : 10;
-                      
+
                       let currentRank = 1;
                       const teamRanks = sortedTeams.map((t, idx) => {
                         if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
@@ -9748,7 +9750,7 @@ ${pagesHtml}
                                 {trollMode && (() => {
                                   const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
                                   return (
-                                    <span 
+                                    <span
                                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -9836,11 +9838,11 @@ ${pagesHtml}
                     {/* Get the 3 most unique program results declared recently */}
                     {(() => {
                       const recentProgs = Array.from(new Set(resultsList.map(r => r.progid || r.progId))).slice(0, 3);
-                      
+
                       return recentProgs.map(progId => {
                         const prog = programs.find(p => String(p.id) === String(progId));
                         const progResults = resultsList.filter(r => String(r.progid || r.progId) === String(progId));
-                        
+
                         if (!prog) return null;
 
                         const firstW = progResults.find(r => r.place === 'First');
@@ -9907,13 +9909,13 @@ ${pagesHtml}
         const sRegNo = student.regno || student.regNo || '';
         const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || ''));
         const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || ''));
-        
+
         const placeText = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : result.place === 'Third' ? '3rd Place' : result.place || 'Participation';
         const gradeText = (result.grade && result.grade !== '-' && result.grade !== 'No') ? result.grade : '';
         const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
         const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
         const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-        
+
         const logoUrl = window.location.origin + '/logo192.png';
         const signatureUrl = window.location.origin + '/signature.png';
         const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -10281,8 +10283,9 @@ ${pagesHtml}
       </div>
       <div class="cert-sign-section">
         ${signatureUrl ? `<img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />` : ''}
-        <div class="cert-sign-line" style="margin-top: ${signatureUrl ? '0px' : '40px'}">
-          <div class="cert-sign-label">Programme Convener</div>
+        ${convenerSadar ? `<div style="font-size: 13px; font-weight: 700; color: #111; margin-top: 4px; margin-bottom: 2px; font-family: 'Inter', sans-serif;">${convenerSadar}</div>` : ''}
+        <div class="cert-sign-line" style="margin-top: ${(signatureUrl && !convenerSadar) ? '0px' : convenerSadar ? '2px' : '40px'}">
+          <div class="cert-sign-label">CONVENER / SADAR MUALLIM</div>
           <div class="cert-sign-role">MILAD FEST Committee</div>
         </div>
       </div>
@@ -10307,7 +10310,7 @@ ${pagesHtml}
             {/* Modal header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1050px', marginBottom: '15px', color: 'white' }}>
               <h3 style={{ fontSize: '18px', fontWeight: '800' }}>📜 Certificate Preview</h3>
-              <button 
+              <button
                 onClick={() => setActiveCertificate(null)}
                 style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700' }}
               >
@@ -10329,7 +10332,7 @@ ${pagesHtml}
               boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
               position: 'relative'
             }}>
-              <div 
+              <div
                 id="modalCertificateArea"
                 style={{
                   width: '1050px',
@@ -10344,7 +10347,7 @@ ${pagesHtml}
                 {/* Borders */}
                 <div style={{ position: 'absolute', top: '16px', left: '16px', right: '16px', bottom: '16px', border: '4px solid #1b5e20', borderRadius: '4px' }}></div>
                 <div style={{ position: 'absolute', top: '26px', left: '26px', right: '26px', bottom: '26px', border: '1.5px solid #c5a44e', borderRadius: '2px' }}></div>
-                
+
                 {/* Corner ornaments (Outer Green) */}
                 <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, top: '26px', left: '26px', borderTop: '4px solid #1b5e20', borderLeft: '4px solid #1b5e20' }}></div>
                 <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, top: '26px', right: '26px', borderTop: '4px solid #1b5e20', borderRight: '4px solid #1b5e20' }}></div>
@@ -10356,13 +10359,13 @@ ${pagesHtml}
                 <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, top: '34px', right: '34px', borderTop: '2px solid #c5a44e', borderRight: '2px solid #c5a44e' }}></div>
                 <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, bottom: '34px', left: '34px', borderBottom: '2px solid #c5a44e', borderLeft: '2px solid #c5a44e' }}></div>
                 <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, bottom: '34px', right: '34px', borderBottom: '2px solid #c5a44e', borderRight: '2px solid #c5a44e' }}></div>
-                
+
                 {/* Watermark logo */}
                 <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '350px', height: '350px', opacity: 0.035, zIndex: 0, pointerEvents: 'none' }} />
-                
+
                 {/* Certificate Content */}
                 <div style={{ position: 'relative', zIndex: 2, padding: '40px 75px 45px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
-                  
+
                   {/* Header */}
                   <div style={{ textAlign: 'center', width: '100%' }}>
                     {eventName && (
@@ -10375,25 +10378,25 @@ ${pagesHtml}
                     <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '22px', fontWeight: 800, color: '#1b5e20', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
                     <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#555', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase' }}>Reg No: {madrasaRegNo} | {madrasaPlace}</div>
                   </div>
-                  
+
                   {/* Decorative Diamond Divider */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '10px auto', width: '400px' }}>
                     <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, #c5a44e)' }}></div>
                     <div style={{ width: '8px', height: '8px', backgroundColor: '#1b5e20', transform: 'rotate(45deg)', margin: '0 10px', border: '1.5px solid #c5a44e' }}></div>
                     <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to left, transparent, #c5a44e)' }}></div>
                   </div>
-                  
+
                   {/* Title */}
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '46px', fontWeight: 900, color: '#1b5e20', letterSpacing: '8px', textTransform: 'uppercase', marginBottom: '2px', textShadow: '0 2px 4px rgba(27,94,32,0.06)' }}>Certificate</div>
                     <div style={{ fontFamily: "'Great Vibes', cursive", fontSize: '24px', color: '#b8860b', marginBottom: '2px' }}>of Achievement</div>
                   </div>
-                  
+
                   {/* Recipient and details */}
                   <div style={{ textAlign: 'center', width: '100%' }}>
                     <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#555', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '12px' }}>This is proudly presented to</div>
                     <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '38px', fontWeight: 800, color: '#111111', borderBottom: '2px solid #c5a44e', display: 'inline-block', paddingBottom: '4px', marginBottom: '14px', letterSpacing: '1px', textTransform: 'uppercase' }}>{student.name}</div>
-                    
+
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '30px', margin: '15px 0', fontFamily: "'Inter', sans-serif" }}>
                       <div>
                         <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Register No</span>
@@ -10416,7 +10419,7 @@ ${pagesHtml}
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Achievement details */}
                   <div style={{ textAlign: 'center', margin: '5px 0' }}>
                     <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#555', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '6px' }}>For Outstanding Performance in</div>
@@ -10456,7 +10459,7 @@ ${pagesHtml}
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Signatures and Date */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', padding: '0 30px' }}>
                     <div style={{ textAlign: 'left', minWidth: '150px' }}>
@@ -10465,8 +10468,13 @@ ${pagesHtml}
                     </div>
                     <div style={{ textAlign: 'center', minWidth: '180px' }}>
                       {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ width: '120px', height: '40px', objectFit: 'contain', marginBottom: '2px' }} />}
-                      <div style={{ borderTop: '1px solid #ccc', paddingTop: '4px', marginTop: signatureUrl ? '0px' : '40px' }}>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#111', fontWeight: '700' }}>Programme Convener</div>
+                      {convenerSadar && (
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#111', marginTop: '4px', marginBottom: '2px', fontFamily: "'Inter', sans-serif" }}>
+                          {convenerSadar}
+                        </div>
+                      )}
+                      <div style={{ borderTop: '1px solid #ccc', paddingTop: '4px', marginTop: (signatureUrl && !convenerSadar) ? '0px' : convenerSadar ? '2px' : '40px' }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#111', fontWeight: '700' }}>CONVENER / SADAR MUALLIM</div>
                         <div style={{ fontSize: '9px', color: '#777', letterSpacing: '0.5px', marginTop: '2px' }}>MILAD FEST Committee</div>
                       </div>
                     </div>
@@ -10477,7 +10485,7 @@ ${pagesHtml}
 
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button 
+              <button
                 onClick={handleModalDownloadPdf}
                 style={{
                   background: 'linear-gradient(135deg, #059669, #047857)',
@@ -10489,7 +10497,7 @@ ${pagesHtml}
               >
                 📄 Download PDF
               </button>
-              <button 
+              <button
                 onClick={handleModalDownload}
                 style={{
                   background: 'linear-gradient(135deg, #16a34a, #15803d)',
@@ -10501,7 +10509,7 @@ ${pagesHtml}
               >
                 🖼️ Save Image (PNG)
               </button>
-              <button 
+              <button
                 onClick={handleModalPrint}
                 style={{
                   background: 'linear-gradient(135deg, #0284c7, #0369a1)',
@@ -10542,8 +10550,8 @@ ${pagesHtml}
         const congratsEN = 'Congratulations';
         const medalEmoji = result.place === 'First' ? '🥇' : result.place === 'Second' ? '🥈' : '🥉';
         const rankBg = result.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #b45309)' :
-                       result.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #475569)' :
-                       'linear-gradient(135deg, #f97316, #9a3412)';
+          result.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #475569)' :
+            'linear-gradient(135deg, #f97316, #9a3412)';
 
         const bodyTextML = `${genderML} ${catNameML} വിഭാഗം ${progNameML} മത്സരത്തിൽ ${placeML} കരസ്ഥമാക്കി`;
         const bodyTextEN = `Secured ${placeEN} in ${genderEN} ${catNameEN} – ${progNameEN}`;
@@ -10553,10 +10561,10 @@ ${pagesHtml}
           try {
             const canvas = await html2canvas(posterRef.current, { scale: 3, useCORS: true, backgroundColor: null });
             const link = document.createElement('a');
-            link.download = `winner_poster_${namePart.replace(/\s+/g,'_')}.png`;
+            link.download = `winner_poster_${namePart.replace(/\s+/g, '_')}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
-          } catch(e) { console.error('Poster download error:', e); }
+          } catch (e) { console.error('Poster download error:', e); }
         };
 
         return (
