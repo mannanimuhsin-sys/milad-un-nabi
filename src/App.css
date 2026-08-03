@@ -2671,6 +2671,36 @@ tr:nth-child(even) {
     font-size: 16px;
     font-weight: 800;
     color: #fff;
+    margin-right: 12px;
+}
+
+.projector-category-team-row .team-gender-pts {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.projector-category-team-row .team-boy-pts {
+    color: #93c5fd;
+}
+
+.projector-category-team-row .team-boy-pts b {
+    color: #60a5fa;
+    font-weight: 700;
+}
+
+.projector-category-team-row .team-girl-pts {
+    color: #f9a8d4;
+}
+
+.projector-category-team-row .team-girl-pts b {
+    color: #f472b6;
+    font-weight: 700;
 }
 
 /* Winner Grid */

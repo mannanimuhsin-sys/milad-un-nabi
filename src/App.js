@@ -9714,11 +9714,19 @@ ${pagesHtml}
                 ) : (
                   <div className="projector-categories-grid">
                     {categories.map(c => {
-                      // Get team points breakdown for this category
+                      // Get team points breakdown for this category (including boys/girls split)
                       const teamPointsList = teams.map(t => {
                         const catResults = resultsList.filter(r => (String(r.teamId) === String(t.id) || String(r.teamid) === String(t.id)) && r.catname === c.name);
-                        const pts = catResults.reduce((sum, r) => sum + r.points, 0);
-                        return { team: t, points: pts };
+                        const pts = catResults.reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                        const boyPts = catResults.filter(r => {
+                          const g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
+                          return g === 'BOY' || g === 'BOYS' || g === 'MALE' || g === 'M';
+                        }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                        const girlPts = catResults.filter(r => {
+                          const g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
+                          return g === 'GIRL' || g === 'GIRLS' || g === 'FEMALE' || g === 'F';
+                        }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                        return { team: t, points: pts, boyPts, girlPts };
                       }).sort((a, b) => b.points - a.points);
 
                       return (
@@ -9730,6 +9738,10 @@ ${pagesHtml}
                                 <span className="team-rank-index">{idx + 1}.</span>
                                 <span className="team-title">{tp.team.name}</span>
                                 <span className="team-pts">{tp.points} <span className="score-lbl">{t('points')}</span></span>
+                                <span className="team-gender-pts">
+                                  <span className="team-boy-pts">👦 <b>{tp.boyPts}</b></span>
+                                  <span className="team-girl-pts">👧 <b>{tp.girlPts}</b></span>
+                                </span>
                               </div>
                             ))}
                           </div>
