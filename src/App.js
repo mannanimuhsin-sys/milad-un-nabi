@@ -774,8 +774,10 @@ function App() {
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
         setEventName(loadedEventName);
         setEventYear(loadedEventYear);
-        setEventNameInput(loadedEventName);
-        setEventYearInput(loadedEventYear);
+        // Only update input fields if user is not actively editing
+        // (Input fields get initialized to current values when user clicks Edit)
+        setEventNameInput(prev => prev === '' || prev === eventName ? loadedEventName : prev);
+        setEventYearInput(prev => prev === '' || prev === eventYear ? loadedEventYear : prev);
         // Load generalCatIds from Supabase (cross-device sync)
         try {
           const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
@@ -4623,7 +4625,7 @@ ${pagesHtml}
   <div class="page">
     <div class="header">
       <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#a7f3d0;text-transform:uppercase;margin-bottom:6px;">&#128332; MILAD FEST &#8211; Official Schedule</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#a7f3d0;text-transform:uppercase;margin-bottom:6px;">${eventName ? eventName + (eventYear ? ' — Milad_fest ' + eventYear : '') : '&#128332; MILAD FEST &#8211; Official Schedule'}</div>
         <h1>${madrasaName}</h1>
         <div class="sub">Reg No: <strong style="color:#fef08a;">${regNum}</strong>${placeRaw ? ` &nbsp;|&nbsp; ${placeRaw}` : ''}</div>
         <div class="tt-title">&#128197; Program Timetable</div>
@@ -5134,7 +5136,7 @@ ${pagesHtml}
                         {/* ✨ Program / Event Name Section */}
                         <div className="settings-form-box-v2" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1.5px solid #86efac', borderRadius: '14px', padding: '18px' }}>
                           <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#166534', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            🏷️ {lang === 'EN' ? 'Program Name' : 'പ്രോഗ്രാം നാമം'}
+                            🏷️ {lang === 'EN' ? 'Event Name' : 'ഇവന്റ് നാമം'}
                           </h3>
                           {eventName && !isEditingEvent ? (
                             <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '1px solid #bbf7d0', marginBottom: '10px' }}>
@@ -5152,7 +5154,7 @@ ${pagesHtml}
                               <input
                                 type="text"
                                 className="settings-input-v2"
-                                placeholder={lang === 'EN' ? 'Program / Event Name (any language)' : 'പ്രോഗ്രാമിന്റെ പേര് (ഏത് ഭാഷയിലും)'}
+                                placeholder={lang === 'EN' ? 'Event Name (any language)' : 'ഇവന്റിന്റെ പേര് (ഏത് ഭാഷയിലും)'}
                                 value={eventNameInput}
                                 onChange={e => setEventNameInput(e.target.value)}
                               />
@@ -5733,6 +5735,7 @@ ${pagesHtml}
 <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
 <div class="notice-board">
   <div class="notice-header">
+    ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
   </div>
@@ -6226,6 +6229,7 @@ ${pagesHtml}
 <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
 <div class="notice-board">
   <div class="notice-header">
+    ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
   </div>
@@ -7564,6 +7568,7 @@ ${pagesHtml}
                                     <button class="print-btn no-print" onclick="window.print()">${lang === 'EN' ? '🖨️ Print / Download PDF' : '🖨️ പ്രിന്റ് / PDF ഡൗൺലോഡ്'}</button>
                                     <div class="notice-board">
                                       <div class="notice-header">
+                                        ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
                                         <div class="madrasa-name">${madrasaName}</div>
                                         <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
                                       </div>
@@ -8509,7 +8514,8 @@ ${pagesHtml}
 <body>
 <div class="sheet-wrapper">
   <div class="sheet-header">
-    <div class="festival-title">✦ Milad Fest ✦</div>
+    <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
+    ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#a7f3d0;opacity:0.9;margin-bottom:3px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
   </div>
@@ -8797,7 +8803,7 @@ ${pagesHtml}
   td { padding:9px 10px; border:1px solid #cbd5e1; }
 </style></head><body>
 <div class="wrapper">
-  <div class="hdr"><div class="hdr-title">✦ Milad Fest ✦</div><div class="hdr-name">${madrasaName}</div></div>
+  <div class="hdr"><div class="hdr-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>${eventName ? `<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin:1px 0 2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}<div class="hdr-name">${madrasaName}</div></div>
   <div class="subtitle-bar">
     <div class="sl"><span class="sl-lbl">Category:</span><span class="sl-val">${catName} (${genderLabel})</span></div>
     <div class="sl"><span class="sl-lbl">Program:</span><span class="sl-val">${progName}</span></div>
@@ -8992,7 +8998,8 @@ ${pagesHtml}
 <body>
 <div class="sheet-wrapper">
   <div class="sheet-header">
-    <div class="festival-title">✦ Milad Fest ✦</div>
+    <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
+    ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#a7f3d0;opacity:0.9;margin-bottom:3px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-info">
       <div class="madrasa-info-item"><span class="info-label">Madrasa:</span><span class="info-value">${madrasaName}</span></div>
       <div class="madrasa-info-item"><span class="info-label">Reg No:</span><span class="info-value">${madrasaRegNo}</span></div>
@@ -9503,8 +9510,13 @@ ${pagesHtml}
                     textShadow: '0 0 20px rgba(251,191,36,0.5)',
                     textTransform: 'uppercase'
                   }}>
-                    {eventName}{eventYear ? ` ${eventYear}` : ''}
+                    {eventName}
                   </div>
+                  {eventYear && (
+                    <div style={{ fontSize: 'clamp(11px, 1.5vw, 14px)', fontWeight: '700', color: '#a7f3d0', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '2px' }}>
+                      Milad_fest {eventYear}
+                    </div>
+                  )}
                 </div>
               )}
               <h1 className="projector-title" style={{ fontSize: eventName ? 'clamp(13px, 2vw, 18px)' : undefined, opacity: eventName ? 0.85 : 1 }}>{loggedInMadrasa ? loggedInMadrasa.name : 'MILAD FESTIVAL'}</h1>
