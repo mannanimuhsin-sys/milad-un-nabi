@@ -440,6 +440,11 @@ function App() {
   const [eventYearInput, setEventYearInput] = useState('');
   const [isEditingEvent, setIsEditingEvent] = useState(false);
 
+  // Convener / Sadar Muallim States
+  const [convenerSadar, setConvenerSadar] = useState('');
+  const [convenerSadarInput, setConvenerSadarInput] = useState('');
+  const [isEditingConvenerSadar, setIsEditingConvenerSadar] = useState(false);
+
   // Troll Mode States
   const [trollMode, setTrollMode] = useState(false);
   const [trollLang, setTrollLang] = useState('ML');
@@ -764,20 +769,23 @@ function App() {
       }
       if (resultsData) setResultsList(resultsData);
       if (madrasaData) {
-        // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS
+        // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR
         const parts = (madrasaData.place || '').split('|');
-        const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats] = parts;
+        const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = parts;
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
-        // Load event name/year from Supabase (cross-device sync)
+        // Load event name/year/convener from Supabase (cross-device sync)
         const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
+        const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
         setEventName(loadedEventName);
         setEventYear(loadedEventYear);
+        setConvenerSadar(loadedConvenerSadar);
         // Only update input fields if user is not actively editing
         // (Input fields get initialized to current values when user clicks Edit)
         setEventNameInput(prev => prev === '' || prev === eventName ? loadedEventName : prev);
         setEventYearInput(prev => prev === '' || prev === eventYear ? loadedEventYear : prev);
+        setConvenerSadarInput(prev => prev === '' || prev === convenerSadar ? loadedConvenerSadar : prev);
         // Load generalCatIds from Supabase (cross-device sync)
         try {
           const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
@@ -5284,7 +5292,8 @@ ${pagesHtml}
                                         const trollSt = parts[2] || 'troll_off';
                                         const trollLng = parts[3] || 'ML';
                                         const generalCats = parts[6] || '';
-                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${encodeURIComponent(newName)}|${encodeURIComponent(newYear)}|${generalCats}`;
+                                        const csVal = parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : '');
+                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${encodeURIComponent(newName)}|${encodeURIComponent(newYear)}|${generalCats}|${csVal}`;
                                         await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
                                       } catch (err) { console.error('Failed to save event name to Supabase:', err); }
                                     }
@@ -5294,6 +5303,68 @@ ${pagesHtml}
                                 {isEditingEvent && (
                                   <button
                                     onClick={() => setIsEditingEvent(false)}
+                                    style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                  >{lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}</button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 👤 Convener / Sadar Muallim Section */}
+                        <div className="settings-form-box-v2" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1.5px solid #93c5fd', borderRadius: '14px', padding: '18px' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e40af', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            👤 convener / Sadar muallim
+                          </h3>
+                          {convenerSadar && !isEditingConvenerSadar ? (
+                            <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '1px solid #bfdbfe', marginBottom: '10px' }}>
+                              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e3a8a', letterSpacing: '0.5px' }}>{convenerSadar}</div>
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                <button
+                                  onClick={() => { setConvenerSadarInput(convenerSadar); setIsEditingConvenerSadar(true); }}
+                                  style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                >✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              <input
+                                type="text"
+                                className="settings-input-v2"
+                                placeholder={lang === 'EN' ? 'Convener / Sadar Muallim (any language)' : 'കൺവീനർ / സദ്ർ മുഅല്ലിം പേര് (ഏത് ഭാഷയിലും)'}
+                                value={convenerSadarInput}
+                                onChange={e => setConvenerSadarInput(e.target.value)}
+                              />
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={async () => {
+                                    if (!convenerSadarInput.trim()) return;
+                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const newCS = convenerSadarInput.trim();
+                                    setConvenerSadar(newCS);
+                                    setIsEditingConvenerSadar(false);
+                                    // Save to Supabase for cross-device sync
+                                    if (rNum) {
+                                      try {
+                                        const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                        const parts = (md ? md.place : '').split('|');
+                                        const actualPlace = parts[0] || '';
+                                        const status = parts[1] || 'approved';
+                                        const trollSt = parts[2] || 'troll_off';
+                                        const trollLng = parts[3] || 'ML';
+                                        const evName = parts[4] || '';
+                                        const evYear = parts[5] || '';
+                                        const generalCats = parts[6] || '';
+                                        const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${generalCats}|${encodeURIComponent(newCS)}`;
+                                        await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                      } catch (err) { console.error('Failed to save Convener / Sadar Muallim to Supabase:', err); }
+                                    }
+                                  }}
+                                  style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
+                                >💾 {isEditingConvenerSadar ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
+                                {isEditingConvenerSadar && (
+                                  <button
+                                    onClick={() => setIsEditingConvenerSadar(false)}
                                     style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                   >{lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}</button>
                                 )}
@@ -5477,7 +5548,8 @@ ${pagesHtml}
                                       const trollLng = parts[3] || 'ML';
                                       const evName = parts[4] || '';
                                       const evYear = parts[5] || '';
-                                      const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${encodeURIComponent(JSON.stringify(generalModalTemp))}`;
+                                      const csVal = parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : '');
+                                      const updatedPlace = `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${encodeURIComponent(JSON.stringify(generalModalTemp))}|${csVal}`;
                                       await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
                                     } catch (err) { console.error('Failed to save general cats to Supabase:', err); }
                                   }
