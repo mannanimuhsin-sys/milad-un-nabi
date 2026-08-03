@@ -4323,7 +4323,6 @@ ${pagesHtml}
                     const totalStudents = students.length;
                     const uploadedCount = students.filter(s => s.photo_url && s.photo_status && s.photo_status !== 'none').length;
                     const approvedCount = students.filter(s => s.photo_status === 'approved').length;
-                    const pendingCount = uploadedCount - approvedCount;
 
                     const statCards = [
                       {
