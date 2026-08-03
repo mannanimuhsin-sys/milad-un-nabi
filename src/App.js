@@ -903,6 +903,7 @@ function App() {
         window.removeEventListener('focus', handleFocus);
       };
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedInMadrasa]);
 
   // 📺 Projector Mode Synchronization & Slide Rotation Effect
@@ -935,6 +936,7 @@ function App() {
       clearInterval(slideInterval);
       window.removeEventListener('keydown', handleKeyDown);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProjectorActive, loggedInMadrasa]);
 
   // 🎭 Troll Mode Auto-Rotate: ഓരോ 10 മിനിറ്റിലും dialog cycle ആകും
