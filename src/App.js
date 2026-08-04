@@ -9981,7 +9981,6 @@ ${pagesHtml}
         const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
         const logoUrl = window.location.origin + '/logo192.png';
-        const signatureUrl = window.location.origin + '/signature.png';
         const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
         const handleModalDownloadPdf = async () => {
@@ -10100,7 +10099,7 @@ ${pagesHtml}
   .cert-content {
     position: relative;
     z-index: 2;
-    padding: 40px 75px 45px;
+    padding: 40px 75px 60px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -10254,13 +10253,12 @@ ${pagesHtml}
   .cert-date-value { font-size: 14px; font-weight: 600; color: #333; font-family: 'Inter', sans-serif; }
   .cert-date-label {
     font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888;
-    border-top: 1px solid #ccc; padding-top: 4px; margin-top: 4px; font-weight: 600;
+    border-top: 1px solid #ccc; padding-top: 3px; margin-top: 4px; font-weight: 600;
   }
   .cert-sign-section { text-align: center; min-width: 180px; }
-  .cert-signature-img { width: 120px; height: 40px; object-fit: contain; margin-bottom: 2px; }
-  .cert-sign-line { border-top: 1px solid #ccc; padding-top: 4px; }
+  .cert-sign-line { border-top: 1px solid #ccc; padding-top: 3px; }
   .cert-sign-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #111; font-weight: 700; }
-  .cert-sign-role { font-size: 9px; color: #777; letter-spacing: 0.5px; margin-top: 2px; }
+  .cert-sign-role { font-size: 9px; color: #777; letter-spacing: 0.5px; margin-top: 1px; }
   
   .cert-watermark {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -10346,9 +10344,8 @@ ${pagesHtml}
         <div class="cert-date-label">Date</div>
       </div>
       <div class="cert-sign-section">
-        ${signatureUrl ? `<img src="${signatureUrl}" class="cert-signature-img" alt="Signature" />` : ''}
-        ${convenerSadar ? `<div style="font-size: 13px; font-weight: 700; color: #111; margin-top: 4px; margin-bottom: 2px; font-family: 'Inter', sans-serif;">${convenerSadar}</div>` : ''}
-        <div class="cert-sign-line" style="margin-top: ${(signatureUrl && !convenerSadar) ? '0px' : convenerSadar ? '2px' : '40px'}">
+        ${convenerSadar ? `<div style="font-size: 13px; font-weight: 700; color: #111; margin-bottom: 6px; font-family: 'Inter', sans-serif;">${convenerSadar}</div>` : ''}
+        <div class="cert-sign-line" style="margin-top: ${convenerSadar ? '4px' : '36px'}">
           <div class="cert-sign-label">CONVENER / SADAR MUALLIM</div>
           <div class="cert-sign-role">MILAD FEST Committee</div>
         </div>
@@ -10428,7 +10425,7 @@ ${pagesHtml}
                 <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '350px', height: '350px', opacity: 0.035, zIndex: 0, pointerEvents: 'none' }} />
 
                 {/* Certificate Content */}
-                <div style={{ position: 'relative', zIndex: 2, padding: '40px 75px 45px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
+                <div style={{ position: 'relative', zIndex: 2, padding: '40px 75px 60px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
 
                   {/* Header */}
                   <div style={{ textAlign: 'center', width: '100%' }}>
@@ -10528,18 +10525,17 @@ ${pagesHtml}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', padding: '0 30px' }}>
                     <div style={{ textAlign: 'left', minWidth: '150px' }}>
                       <div style={{ fontSize: '14px', fontWeight: '600', color: '#333', fontFamily: "'Inter', sans-serif" }}>{resultDate}</div>
-                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', borderTop: '1px solid #ccc', paddingTop: '4px', marginTop: '4px', fontWeight: '600' }}>Date</div>
+                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', borderTop: '1px solid #ccc', paddingTop: '3px', marginTop: '4px', fontWeight: '600' }}>Date</div>
                     </div>
                     <div style={{ textAlign: 'center', minWidth: '180px' }}>
-                      {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ width: '120px', height: '40px', objectFit: 'contain', marginBottom: '2px' }} />}
                       {convenerSadar && (
-                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#111', marginTop: '4px', marginBottom: '2px', fontFamily: "'Inter', sans-serif" }}>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#111', marginBottom: '6px', fontFamily: "'Inter', sans-serif" }}>
                           {convenerSadar}
                         </div>
                       )}
-                      <div style={{ borderTop: '1px solid #ccc', paddingTop: '4px', marginTop: (signatureUrl && !convenerSadar) ? '0px' : convenerSadar ? '2px' : '40px' }}>
+                      <div style={{ borderTop: '1px solid #ccc', paddingTop: '3px', marginTop: convenerSadar ? '4px' : '36px' }}>
                         <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#111', fontWeight: '700' }}>CONVENER / SADAR MUALLIM</div>
-                        <div style={{ fontSize: '9px', color: '#777', letterSpacing: '0.5px', marginTop: '2px' }}>MILAD FEST Committee</div>
+                        <div style={{ fontSize: '9px', color: '#777', letterSpacing: '0.5px', marginTop: '1px' }}>MILAD FEST Committee</div>
                       </div>
                     </div>
                   </div>
