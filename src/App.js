@@ -469,6 +469,7 @@ function App() {
   const [dbHasClassRange, setDbHasClassRange] = useState(false);
   const [timetable, setTimetable] = useState([]);
   const [timetableFilterCat, setTimetableFilterCat] = useState('ALL');
+  const [timetableFilterGender, setTimetableFilterGender] = useState('ALL');
   const [timetableView, setTimetableView] = useState('GRID'); // 'GRID' | 'LIST'
   const [editingTimetableId, setEditingTimetableId] = useState(null);
   const [timetableFormData, setTimetableFormData] = useState({ scheduled_time: '', venue: '' });
@@ -4853,6 +4854,30 @@ ${pagesHtml}
                 )}
               </div>
 
+              {/* Gender Filter Chips */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                {[['ALL', '🌐 All', '#475569'], ['BOY', '👦 Boys', '#1e40af'], ['GIRL', '👧 Girls', '#be185d'], ['COMMON', '🤝 Common', '#0f766e']].map(([key, label, activeColor]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTimetableFilterGender(key)}
+                    style={{
+                      padding: '5px 14px',
+                      borderRadius: '20px',
+                      border: `2px solid ${timetableFilterGender === key ? activeColor : '#e2e8f0'}`,
+                      background: timetableFilterGender === key ? activeColor : '#fff',
+                      color: timetableFilterGender === key ? '#fff' : '#475569',
+                      fontWeight: 'bold',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               {/* Print Only Header */}
               <div className="timetable-print-only-header" style={{ display: 'none', textAlign: 'center', marginBottom: '20px' }}>
                 <h1 style={{ color: '#0f766e', margin: '0 0 5px 0' }}>{loggedInMadrasa?.name || 'MILAD FEST'}</h1>
@@ -4872,15 +4897,33 @@ ${pagesHtml}
                   };
                 });
 
+                // Helper to derive gender key from program type
+                const getGenderKey = (prog) => {
+                  const pType = (prog.type || '').toUpperCase();
+                  if (pType.includes('BOY')) return 'BOY';
+                  if (pType.includes('GIRL')) return 'GIRL';
+                  return 'COMMON';
+                };
+
                 // Filter by category
                 const filteredTimetable = mappedTimetable.filter(item => {
-                  if (timetableFilterCat === 'ALL') return true;
-                  if (timetableFilterCat === 'GENERAL') {
-                    const pCatId = String(item.program.catid || item.program.catId || '');
-                    const catObj = categories.find(c => String(c.id) === pCatId);
-                    return pCatId === 'GENERAL' || (catObj && (catObj.name || '').toLowerCase().includes('general'));
+                  // Category filter
+                  let catMatch = true;
+                  if (timetableFilterCat !== 'ALL') {
+                    if (timetableFilterCat === 'GENERAL') {
+                      const pCatId = String(item.program.catid || item.program.catId || '');
+                      const catObj = categories.find(c => String(c.id) === pCatId);
+                      catMatch = pCatId === 'GENERAL' || (catObj && (catObj.name || '').toLowerCase().includes('general'));
+                    } else {
+                      catMatch = String(item.program.catid) === String(timetableFilterCat);
+                    }
                   }
-                  return String(item.program.catid) === String(timetableFilterCat);
+                  // Gender filter
+                  let genderMatch = true;
+                  if (timetableFilterGender !== 'ALL') {
+                    genderMatch = getGenderKey(item.program) === timetableFilterGender;
+                  }
+                  return catMatch && genderMatch;
                 });
 
                 // In view mode, we hide unscheduled programs from visitors to keep the schedule tidy
@@ -4968,9 +5011,17 @@ ${pagesHtml}
                             >
                               <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                  <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px' }}>
-                                    {item.category?.name || 'Common'}
-                                  </span>
+                                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px' }}>
+                                      {item.category?.name || 'Common'}
+                                    </span>
+                                    {(() => {
+                                      const gk = getGenderKey(item.program);
+                                      const gConfig = { BOY: { label: '👦 Boys', bg: '#dbeafe', color: '#1e40af' }, GIRL: { label: '👧 Girls', bg: '#fce7f3', color: '#be185d' }, COMMON: { label: '🤝 Common', bg: '#d1fae5', color: '#065f46' } };
+                                      const gc = gConfig[gk];
+                                      return <span style={{ fontSize: '10px', fontWeight: 'bold', background: gc.bg, color: gc.color, padding: '2px 7px', borderRadius: '6px' }}>{gc.label}</span>;
+                                    })()}
+                                  </div>
                                   {getStatusBadge(item.scheduled_time)}
                                 </div>
 
@@ -5099,9 +5150,17 @@ ${pagesHtml}
                                   <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#475569' }}>{item.program.code}</td>
                                   <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#1e293b' }}>{item.program.name}</td>
                                   <td style={{ padding: '12px 16px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px' }}>
-                                      {item.category?.name || 'Common'}
-                                    </span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px', display: 'inline-block' }}>
+                                        {item.category?.name || 'Common'}
+                                      </span>
+                                      {(() => {
+                                        const gk = getGenderKey(item.program);
+                                        const gConfig = { BOY: { label: '👦 Boys', bg: '#dbeafe', color: '#1e40af' }, GIRL: { label: '👧 Girls', bg: '#fce7f3', color: '#be185d' }, COMMON: { label: '🤝 Common', bg: '#d1fae5', color: '#065f46' } };
+                                        const gc = gConfig[gk];
+                                        return <span style={{ fontSize: '10px', fontWeight: 'bold', background: gc.bg, color: gc.color, padding: '2px 7px', borderRadius: '6px', display: 'inline-block' }}>{gc.label}</span>;
+                                      })()}
+                                    </div>
                                   </td>
                                   <td style={{ padding: '12px 16px', color: '#1e293b' }}>
                                     {isEditing ? (
