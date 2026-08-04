@@ -456,6 +456,7 @@ function App() {
   const [showInstallPopup, setShowInstallPopup] = useState(false);
   const [isIosDevice, setIsIosDevice] = useState(false);
   const deferredPromptRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
@@ -477,6 +478,20 @@ function App() {
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
   const [programRegistrations, setProgramRegistrations] = useState([]);
+
+  // 📡 Network status tracking (Offline / Weak Network fallback)
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Dynamic Points system state
   const [pointSystem, setPointSystem] = useState({
@@ -726,18 +741,53 @@ function App() {
     );
   };
 
-  // 🔄 Function to load real-time data from Supabase
-  const fetchSupabaseData = async (rNum) => {
+  // 🗄️ Helper to load cached database snapshot from LocalStorage when offline or network fails
+  const loadCachedData = (rNum) => {
+    if (!rNum) return false;
     try {
-      const [
-        { data: teamsData },
-        { data: catsData },
-        { data: studentsData },
-        { data: programsData },
-        { data: resultsData },
-        { data: regData },
-        { data: madrasaData }
-      ] = await Promise.all([
+      const raw = localStorage.getItem(`cached_data_${rNum}`);
+      if (!raw) return false;
+      const cached = JSON.parse(raw);
+      if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
+      if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
+      if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms(cached.programs);
+      if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents(cached.students);
+      if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
+      if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
+      if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
+      if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
+      if (cached.eventName) setEventName(cached.eventName);
+      if (cached.eventYear) setEventYear(cached.eventYear);
+      if (cached.convenerSadar) setConvenerSadar(cached.convenerSadar);
+      return true;
+    } catch (e) {
+      console.error("Error reading cached data:", e);
+      return false;
+    }
+  };
+
+  // 🔄 Function to load real-time data from Supabase (with offline fallback & LocalStorage caching)
+  const fetchSupabaseData = async (rNum) => {
+    if (!rNum) return;
+
+    // Prevent concurrent stacked requests on weak connections
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    // If device is offline, immediately load from local cache and avoid network call
+    if (!navigator.onLine) {
+      loadCachedData(rNum);
+      isFetchingRef.current = false;
+      return;
+    }
+
+    try {
+      // 12-second network timeout wrapper to protect against hung requests on 2G/3G/poor wifi
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Network request timed out')), 12000)
+      );
+
+      const fetchPromise = Promise.all([
         supabase.from('teams').select('*').eq('madrasa_id', rNum),
         supabase.from('categories').select('*').eq('madrasa_id', rNum),
         supabase.from('students').select('*').eq('madrasa_id', rNum),
@@ -747,10 +797,31 @@ function App() {
         supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle()
       ]);
 
-      if (teamsData) setTeams(teamsData);
-      if (catsData) setCategories(catsData);
-      if (programsData) setPrograms(programsData);
-      if (studentsData) {
+      const [
+        { data: teamsData, error: err1 },
+        { data: catsData, error: err2 },
+        { data: studentsData, error: err3 },
+        { data: programsData, error: err4 },
+        { data: resultsData, error: err5 },
+        { data: regData },
+        { data: madrasaData }
+      ] = await Promise.race([fetchPromise, timeoutPromise]);
+
+      // If key queries failed (e.g. network lost mid-fetch), preserve current state (no zeroing!)
+      if (err1 || err2 || err3 || err4 || err5) {
+        console.warn("Supabase fetch encountered errors (weak connection):", err1 || err2 || err3 || err4 || err5);
+        loadCachedData(rNum);
+        return;
+      }
+
+      let parsedStudents = [];
+      let parsedRegs = [];
+
+      // Update states ONLY if valid array returned
+      if (Array.isArray(teamsData)) setTeams(teamsData);
+      if (Array.isArray(catsData)) setCategories(catsData);
+      if (Array.isArray(programsData)) setPrograms(programsData);
+      if (Array.isArray(studentsData)) {
         const uniqueMap = new Map();
         for (const s of studentsData) {
           const rKey = String(s.regno || s.regNo || '').trim();
@@ -761,26 +832,29 @@ function App() {
             if (!existing) {
               uniqueMap.set(rKey, s);
             } else if (!existing.photo_url && s.photo_url) {
-              // Prefer record with photo if duplicate exists in DB
               uniqueMap.set(rKey, s);
             }
           }
         }
-        setStudents(Array.from(uniqueMap.values()).sort(compareRegNo));
+        parsedStudents = Array.from(uniqueMap.values()).sort(compareRegNo);
+        setStudents(parsedStudents);
       }
-      if (resultsData) setResultsList(resultsData);
+      if (Array.isArray(resultsData)) setResultsList(resultsData);
+
+      let loadedEventName = '';
+      let loadedEventYear = '';
+      let loadedConvenerSadar = '';
+
       if (madrasaData) {
-        // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR
         const parts = (madrasaData.place || '').split('|');
         const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = parts;
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
 
-        const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
-        const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
-        const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
+        loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
+        loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
+        loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
 
-        // Only overwrite state if DB value exists or local state is currently empty
         setEventName(prev => loadedEventName || prev);
         setEventYear(prev => loadedEventYear || prev);
         setConvenerSadar(prev => loadedConvenerSadar || prev);
@@ -789,7 +863,6 @@ function App() {
         setEventYearInput(prev => prev === '' ? loadedEventYear : prev);
         setConvenerSadarInput(prev => prev === '' ? loadedConvenerSadar : prev);
 
-        // Load generalCatIds from Supabase
         try {
           if (dbGeneralCats) {
             const loadedGeneral = JSON.parse(decodeURIComponent(dbGeneralCats));
@@ -797,41 +870,76 @@ function App() {
               setGeneralCatIds(loadedGeneral);
             }
           }
-        } catch (e) {
-          // preserve existing generalCatIds if json parse fails
-        }
+        } catch (e) {}
       }
-      if (regData) {
-        const mappedRegs = regData.map(r => ({
+
+      if (Array.isArray(regData)) {
+        parsedRegs = regData.map(r => ({
           ...r,
           program_id: r.program_name
         }));
-        setProgramRegistrations(mappedRegs);
+        setProgramRegistrations(parsedRegs);
       }
 
-      // Fetch group registrations in a separate block so that a missing table won't block the rest of the application
+      // Fetch group registrations
+      let parsedGroupReg = [];
       try {
         const { data: gRegData } = await supabase
           .from('group_registrations')
           .select('*')
           .eq('madrasa_id', rNum);
-        if (gRegData) setGroupRegistrations(gRegData);
+        if (Array.isArray(gRegData)) {
+          parsedGroupReg = gRegData;
+          setGroupRegistrations(gRegData);
+        }
       } catch (err) {
         console.error("Group registrations fetch failed: ", err);
       }
 
-      // Fetch timetable in a separate block so that a missing table won't block the rest of the application
+      // Fetch timetable
+      let parsedTimetable = [];
       try {
         const { data: ttData } = await supabase
           .from('timetable')
           .select('*')
           .eq('madrasa_id', rNum);
-        if (ttData) setTimetable(ttData);
+        if (Array.isArray(ttData)) {
+          parsedTimetable = ttData;
+          setTimetable(ttData);
+        }
       } catch (err) {
         console.error("Timetable fetch failed: ", err);
       }
+
+      // Save fresh data snapshot to LocalStorage for offline PWA cache (ONLY if fetch returned valid arrays!)
+      if (Array.isArray(teamsData) && Array.isArray(resultsData) && Array.isArray(studentsData)) {
+        try {
+          const snapshot = {
+            teams: teamsData,
+            categories: catsData || [],
+            programs: programsData || [],
+            students: parsedStudents,
+            resultsList: resultsData,
+            programRegistrations: parsedRegs,
+            groupRegistrations: parsedGroupReg,
+            timetable: parsedTimetable,
+            eventName: loadedEventName,
+            eventYear: loadedEventYear,
+            convenerSadar: loadedConvenerSadar,
+            savedAt: new Date().toISOString()
+          };
+          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(snapshot));
+        } catch (cacheSaveErr) {
+          console.warn("Could not save offline cache:", cacheSaveErr);
+        }
+      }
+
     } catch (err) {
-      console.error("Data fetch error: ", err);
+      console.warn("Data fetch warning (slow/weak network or timeout): ", err.message);
+      // Fallback to cache without clearing current state
+      loadCachedData(rNum);
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
@@ -859,17 +967,26 @@ function App() {
       // Check schema column availability
       checkClassRangeColumn();
 
-      // Fetch data from online database
-      fetchSupabaseData(rNum);
+      // Immediately load cached data snapshot from local storage (instant offline UI!)
+      loadCachedData(rNum);
 
-      // 🔄 Realtime auto-refresh interval (every 8 seconds) so all admin phones stay in sync
-      const intervalId = setInterval(() => {
+      // Fetch fresh data from online database if online
+      if (navigator.onLine) {
         fetchSupabaseData(rNum);
-      }, 8000);
+      }
+
+      // 🔄 Realtime auto-refresh interval (every 15 seconds) only when online and not currently fetching
+      const intervalId = setInterval(() => {
+        if (navigator.onLine && !isFetchingRef.current) {
+          fetchSupabaseData(rNum);
+        }
+      }, 15000);
 
       // 🔄 Sync immediately when user switches back to this browser tab
       const handleFocus = () => {
-        fetchSupabaseData(rNum);
+        if (navigator.onLine) {
+          fetchSupabaseData(rNum);
+        }
       };
       window.addEventListener('focus', handleFocus);
 
@@ -3329,6 +3446,32 @@ ${pagesHtml}
       {/* 🕌 MAIN DASHBOARD WITH BOTTOM NAV */}
       {currentScreen === 'DASHBOARD' && (
         <div className="dashboard-container">
+
+          {/* 📡 Offline Status Banner */}
+          {!isOnline && (
+            <div style={{
+              background: 'linear-gradient(135deg, #b45309, #d97706)',
+              color: '#fff',
+              padding: '10px 16px',
+              borderRadius: '10px',
+              marginBottom: '14px',
+              textAlign: 'center',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+            }}>
+              <span>📡</span>
+              <span>
+                {lang === 'EN'
+                  ? 'Offline Mode — Showing last saved data (Network weak/disconnected)'
+                  : 'ഓഫ്‌ലൈൻ മോഡ് — സേവ് ചെയ്ത വിവരങ്ങളാണ് കാണിക്കുന്നത് (നെറ്റ്‌വർക്ക് ലഭ്യമല്ല)'}
+              </span>
+            </div>
+          )}
 
           <header className="dash-header">
             <div style={{ flex: 1, minWidth: 0, marginRight: '12px' }}>
