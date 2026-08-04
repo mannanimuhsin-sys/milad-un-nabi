@@ -463,6 +463,7 @@ function App() {
   const [pendingMadrasa, setPendingMadrasa] = useState(null);
   const [editingMadrasaId, setEditingMadrasaId] = useState(null);
   const [editingMadrasaData, setEditingMadrasaData] = useState({});
+  const [superSearchTerm, setSuperSearchTerm] = useState('');
 
   // Master data states (Supabase online database)
   const [teams, setTeams] = useState([]);
@@ -3308,7 +3309,30 @@ ${pagesHtml}
 
           {/* Madrasa List */}
           <div className="card">
-            <h2>📜 Registered Madrasas</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '15px' }}>
+              <h2 style={{ margin: 0 }}>📜 Registered Madrasas</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Register Number / Name..."
+                    value={superSearchTerm}
+                    onChange={e => setSuperSearchTerm(e.target.value)}
+                    className="settings-input"
+                    style={{ padding: '8px 30px 8px 12px', width: '260px', fontSize: '14px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                  />
+                  {superSearchTerm && (
+                    <button
+                      onClick={() => setSuperSearchTerm('')}
+                      style={{ position: 'absolute', right: '8px', background: '#94a3b8', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '11px', lineHeight: 1 }}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
               <table>
                 <thead>
@@ -3323,12 +3347,27 @@ ${pagesHtml}
                   </tr>
                 </thead>
                 <tbody>
-                  {superMadrasas.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" style={{ color: '#64748b', fontStyle: 'italic' }}>No madrasas registered.</td>
-                    </tr>
-                  ) : (
-                    superMadrasas.map(m => {
+                  {(() => {
+                    const filteredMadrasas = superMadrasas.filter(m => {
+                      if (!superSearchTerm.trim()) return true;
+                      const term = superSearchTerm.trim().toLowerCase();
+                      const regNo = (m.regNumber || '').toString().toLowerCase();
+                      const name = (m.name || '').toLowerCase();
+                      const place = ((m.place || '').split('|')[0] || '').toLowerCase();
+                      return regNo.includes(term) || name.includes(term) || place.includes(term);
+                    });
+
+                    if (filteredMadrasas.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan="7" style={{ color: '#64748b', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>
+                            {superSearchTerm ? `No madrasa found for "${superSearchTerm}".` : 'No madrasas registered.'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filteredMadrasas.map(m => {
                       const [place, status] = (m.place || '').split('|');
                       const currentStatus = status || 'approved';
                       const isEditing = editingMadrasaId === m.id;
@@ -3434,8 +3473,8 @@ ${pagesHtml}
                           </td>
                         </tr>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
