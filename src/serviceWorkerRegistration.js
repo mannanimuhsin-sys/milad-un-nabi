@@ -1,4 +1,4 @@
-﻿// serviceWorkerRegistration.js
+// serviceWorkerRegistration.js
 // Registers the CRA/Workbox service worker for offline app shell caching.
 
 const isLocalhost = Boolean(
