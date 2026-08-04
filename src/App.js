@@ -569,6 +569,8 @@ function App() {
 
   // Student search by reg number
   const [searchRegNo, setSearchRegNo] = useState('');
+  const [bulkCertCat, setBulkCertCat] = useState('ALL');
+  const [bulkCertGender, setBulkCertGender] = useState('ALL');
 
   // Champion section states
   const [champCat, setChampCat] = useState('');
@@ -3956,11 +3958,349 @@ ${pagesHtml}
                   )}
 
                   {/* ── Section 2: Student Search by Register Number ── */}
-                  {resultsSubTab === 'STUDENT_REPORT' && (
-                    <div style={{ marginBottom: '20px' }}>
-                      <div style={{ marginTop: '10px' }}>
-                        <input type="text" className="settings-input" placeholder="Enter Register Number..." value={searchRegNo} onChange={(e) => setSearchRegNo(e.target.value)} style={{ maxWidth: '400px' }} />
-                      </div>
+                  {resultsSubTab === 'STUDENT_REPORT' && (() => {
+                    const generateBulkCertificates = () => {
+                      const winnerResults = resultsList.filter(r => {
+                        const p = (r.place || '').toString().toLowerCase();
+                        const isWinner = p === 'first' || p === '1' || p === 'second' || p === '2' || p === 'third' || p === '3';
+                        if (!isWinner) return false;
+
+                        const sName = r.studentname || r.studentName || '';
+                        const dashIdx = sName.indexOf(' - ');
+                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                        const student = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === String(regPart).toLowerCase());
+
+                        // Category Filter
+                        if (bulkCertCat !== 'ALL') {
+                          const rCatId = String(r.catid || r.catId || (student ? student.catid || student.catId : ''));
+                          const catObj = categories.find(c => String(c.id) === String(bulkCertCat));
+                          const targetCatName = catObj ? catObj.name : '';
+
+                          if (rCatId !== String(bulkCertCat) && (r.catname || r.catName) !== targetCatName) {
+                            return false;
+                          }
+                        }
+
+                        // Gender Filter
+                        if (bulkCertGender !== 'ALL') {
+                          const genderVal = (student ? student.gender : (r.studentgender || r.studentGender || '')).toUpperCase();
+                          const progType = (r.progtype || r.progType || '').toUpperCase();
+
+                          if (bulkCertGender === 'BOY') {
+                            if (genderVal !== 'BOY' && !progType.includes('BOY')) return false;
+                          } else if (bulkCertGender === 'GIRL') {
+                            if (genderVal !== 'GIRL' && !progType.includes('GIRL')) return false;
+                          } else if (bulkCertGender === 'COMMON') {
+                            if (genderVal === 'BOY' || genderVal === 'GIRL' || progType.includes('BOY') || progType.includes('GIRL')) return false;
+                          }
+                        }
+
+                        return true;
+                      });
+
+                      if (winnerResults.length === 0) {
+                        alert('No 1st, 2nd, or 3rd place winners found matching the selected Category and Gender filters.');
+                        return;
+                      }
+
+                      const logoUrl = window.location.origin + '/logo192.png';
+                      const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                      const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                      const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+
+                      const certificatesPagesHtml = winnerResults.map(result => {
+                        const sName = result.studentname || result.studentName || '';
+                        const dashIdx = sName.indexOf(' - ');
+                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                        const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+
+                        const student = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === String(regPart).toLowerCase()) || {
+                          name: namePart,
+                          regno: regPart,
+                          gender: (result.studentgender || result.studentGender || 'BOY').toUpperCase()
+                        };
+
+                        const sRegNo = student.regno || student.regNo || regPart;
+                        const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || '')) || teams.find(t => t.name === (result.teamname || result.teamName));
+                        const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || '')) || categories.find(c => c.name === (result.catname || result.catName));
+
+                        const placeText = result.place === 'First' || result.place === '1' ? '1st Place' : result.place === 'Second' || result.place === '2' ? '2nd Place' : result.place === 'Third' || result.place === '3' ? '3rd Place' : result.place || 'Participation';
+                        const gradeText = (result.grade && result.grade !== '-' && result.grade !== 'No') ? result.grade : '';
+                        const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+                        return `
+<div class="certificate-wrapper">
+  <div class="cert-border-outer"></div>
+  <div class="cert-border-inner"></div>
+  
+  <div class="corner-ornament-outer tl"></div>
+  <div class="corner-ornament-outer tr"></div>
+  <div class="corner-ornament-outer bl"></div>
+  <div class="corner-ornament-outer br"></div>
+
+  <div class="corner-ornament-inner tl"></div>
+  <div class="corner-ornament-inner tr"></div>
+  <div class="corner-ornament-inner bl"></div>
+  <div class="corner-ornament-inner br"></div>
+  
+  <img src="${logoUrl}" class="cert-watermark" alt="" />
+  
+  <div class="cert-content">
+    <div class="cert-header">
+      ${eventName ? `<div class="cert-event-name">${eventName}</div><div class="cert-event-sub">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+      <img src="${logoUrl}" class="cert-logo" alt="Logo" />
+      <div class="cert-org-name">${madrasaName}</div>
+      <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
+    </div>
+    
+    <div class="cert-diamond-divider">
+      <div class="cert-diamond-line-left"></div>
+      <div class="cert-diamond-center"></div>
+      <div class="cert-diamond-line-right"></div>
+    </div>
+    
+    <div class="cert-title-wrapper">
+      <div class="cert-title">Certificate</div>
+      <div class="cert-subtitle">of Achievement</div>
+    </div>
+    
+    <div class="cert-body">
+      <div class="cert-presented">This is proudly presented to</div>
+      <div class="cert-student-name">${student.name}</div>
+      
+      <div class="cert-details-row">
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Register No</div>
+          <div class="cert-detail-val">${sRegNo}</div>
+        </div>
+        <div class="cert-detail-divider"></div>
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Team</div>
+          <div class="cert-detail-val">${teamObj ? teamObj.name : '-'}</div>
+        </div>
+        <div class="cert-detail-divider"></div>
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Category</div>
+          <div class="cert-detail-val">${catObj ? catObj.name : '-'}</div>
+        </div>
+        <div class="cert-detail-divider"></div>
+        <div class="cert-detail-col">
+          <div class="cert-detail-lbl">Gender</div>
+          <div class="cert-detail-val">${student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="cert-achievement">
+      <div class="cert-achievement-label">For Outstanding Performance in</div>
+      <div class="cert-program-name">${result.progname || result.progName}</div>
+      <div class="cert-award-ribbon">
+        <span class="cert-award-place">${placeText}</span>
+        ${gradeText ? `<span class="cert-award-grade">Grade: ${gradeText}</span>` : ''}
+      </div>
+    </div>
+    
+    <div class="cert-footer">
+      <div class="cert-date-section">
+        <div class="cert-date-value">${resultDate}</div>
+        <div class="cert-date-label">Date</div>
+      </div>
+      <div class="cert-sign-section">
+        ${convenerSadar ? `<div style="font-size: 13px; font-weight: 700; color: #111; margin-bottom: 6px; font-family: 'Inter', sans-serif;">${convenerSadar}</div>` : ''}
+        <div class="cert-sign-line" style="margin-top: ${convenerSadar ? '4px' : '36px'}">
+          <div class="cert-sign-label">CONVENER / SADAR MUALLIM</div>
+          <div class="cert-sign-role">MILAD FEST Committee</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+                      }).join('');
+
+                      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<title>Bulk Certificates (${winnerResults.length})</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; }
+  .certificate-wrapper {
+    width: 1050px;
+    height: 740px;
+    position: relative;
+    background: radial-gradient(circle, #ffffff 0%, #faf8f2 100%);
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    margin: 0 auto;
+  }
+  .cert-border-outer {
+    position: absolute; top: 16px; left: 16px; right: 16px; bottom: 16px; border: 4px solid #1b5e20; border-radius: 4px;
+  }
+  .cert-border-inner {
+    position: absolute; top: 26px; left: 26px; right: 26px; bottom: 26px; border: 1.5px solid #c5a44e; border-radius: 2px;
+  }
+  .corner-ornament-outer { position: absolute; width: 50px; height: 50px; z-index: 10; }
+  .corner-ornament-outer.tl { top: 26px; left: 26px; border-top: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
+  .corner-ornament-outer.tr { top: 26px; right: 26px; border-top: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
+  .corner-ornament-outer.bl { bottom: 26px; left: 26px; border-bottom: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
+  .corner-ornament-outer.br { bottom: 26px; right: 26px; border-bottom: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
+  .corner-ornament-inner { position: absolute; width: 36px; height: 36px; z-index: 10; }
+  .corner-ornament-inner.tl { top: 34px; left: 34px; border-top: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
+  .corner-ornament-inner.tr { top: 34px; right: 34px; border-top: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
+  .corner-ornament-inner.bl { bottom: 34px; left: 34px; border-bottom: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
+  .corner-ornament-inner.br { bottom: 34px; right: 34px; border-bottom: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
+  .cert-content {
+    position: relative; z-index: 2; padding: 40px 75px 60px; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  }
+  .cert-header { text-align: center; width: 100%; }
+  .cert-event-name {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
+    font-size: 22px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase;
+    color: #b8860b; text-shadow: 0 1px 3px rgba(184,134,11,0.25); margin-bottom: 0px;
+  }
+  .cert-event-sub {
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #888;
+    letter-spacing: 2.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .cert-logo {
+    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+    margin-bottom: 6px; border: 2.5px solid #c5a44e; box-shadow: 0 4px 12px rgba(27,94,32,0.15);
+  }
+  .cert-org-name {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 22px; font-weight: 800;
+    color: #1b5e20; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 2px;
+  }
+  .cert-org-details { font-family: 'Inter', sans-serif; font-size: 11px; color: #555; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
+  .cert-diamond-divider { display: flex; align-items: center; justify-content: center; margin: 10px auto; width: 400px; }
+  .cert-diamond-line-left { flex: 1; height: 1px; background: linear-gradient(to right, transparent, #c5a44e); }
+  .cert-diamond-line-right { flex: 1; height: 1px; background: linear-gradient(to left, transparent, #c5a44e); }
+  .cert-diamond-center { width: 8px; height: 8px; background-color: #1b5e20; transform: rotate(45deg); margin: 0 10px; border: 1.5px solid #c5a44e; }
+  .cert-title-wrapper { text-align: center; }
+  .cert-title {
+    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 46px; font-weight: 900;
+    color: #1b5e20; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 2px;
+    text-shadow: 0 2px 4px rgba(27,94,32,0.06);
+  }
+  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 24px; color: #b8860b; margin-bottom: 2px; }
+  .cert-body { text-align: center; width: 100%; }
+  .cert-presented { font-family: 'Inter', sans-serif; font-size: 13px; color: #555; letter-spacing: 2px; text-transform: uppercase; font-weight: 500; margin-bottom: 12px; }
+  .cert-student-name {
+    font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 800;
+    color: #111111; border-bottom: 2px solid #c5a44e; display: inline-block;
+    padding-bottom: 4px; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .cert-details-row { display: flex; justify-content: center; align-items: center; gap: 30px; margin: 15px 0; font-family: 'Inter', sans-serif; }
+  .cert-detail-col { text-align: center; }
+  .cert-detail-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; display: block; font-weight: 600; margin-bottom: 2px; }
+  .cert-detail-val { font-size: 15px; font-weight: 700; color: #1b5e20; }
+  .cert-detail-divider { width: 1px; height: 24px; background-color: #c5a44e; }
+  .cert-achievement { text-align: center; margin: 5px 0; }
+  .cert-achievement-label { font-family: 'Inter', sans-serif; font-size: 13px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 500; margin-bottom: 6px; }
+  .cert-program-name { font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 24px; font-weight: 700; color: #1b5e20; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  .cert-award-ribbon { display: inline-block; background: linear-gradient(135deg, #1b5e20 0%, #124016 100%); border: 2px solid #c5a44e; padding: 8px 24px; border-radius: 4px; box-shadow: 0 4px 12px rgba(27,94,32,0.15); }
+  .cert-award-place { font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: 2px; text-transform: uppercase; }
+  .cert-award-grade { font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 18px; font-weight: 700; color: #c5a44e; letter-spacing: 2px; text-transform: uppercase; margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.3); }
+  .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
+  .cert-date-section { text-align: left; min-width: 150px; }
+  .cert-date-value { font-size: 14px; font-weight: 600; color: #333; font-family: 'Inter', sans-serif; }
+  .cert-date-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; border-top: 1px solid #ccc; padding-top: 3px; margin-top: 4px; font-weight: 600; }
+  .cert-sign-section { text-align: center; min-width: 180px; }
+  .cert-sign-line { border-top: 1px solid #ccc; padding-top: 3px; }
+  .cert-sign-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #111; font-weight: 700; }
+  .cert-sign-role { font-size: 9px; color: #777; letter-spacing: 0.5px; margin-top: 1px; }
+  .cert-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 350px; opacity: 0.035; z-index: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+  ${certificatesPagesHtml}
+</body>
+</html>
+                      `;
+
+                      printHtml(html);
+                    };
+
+                    return (
+                      <div style={{ marginBottom: '20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px', marginTop: '10px', marginBottom: '20px' }}>
+                          {/* Single Student Search Card */}
+                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
+                              🔍 Student Report & Certificate
+                            </div>
+                            <input
+                              type="text"
+                              className="settings-input"
+                              placeholder="Enter Register Number..."
+                              value={searchRegNo}
+                              onChange={(e) => setSearchRegNo(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+
+                          {/* Admin Mode Bulk Certificates Card */}
+                          {loginRole === 'ADMIN' && (
+                            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '16px' }}>
+                              <div style={{ fontSize: '13px', fontWeight: '800', color: '#166534', marginBottom: '10px' }}>
+                                📜 Certificate Options (Bulk PDF / Print)
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                                <div style={{ flex: 1, minWidth: '120px' }}>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>Category</label>
+                                  <select
+                                    className="settings-input"
+                                    value={bulkCertCat}
+                                    onChange={(e) => setBulkCertCat(e.target.value)}
+                                    style={{ width: '100%', padding: '6px 8px', fontSize: '13px' }}
+                                  >
+                                    <option value="ALL">All Categories</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                  </select>
+                                </div>
+                                <div style={{ flex: 1, minWidth: '120px' }}>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>Gender</label>
+                                  <select
+                                    className="settings-input"
+                                    value={bulkCertGender}
+                                    onChange={(e) => setBulkCertGender(e.target.value)}
+                                    style={{ width: '100%', padding: '6px 8px', fontSize: '13px' }}
+                                  >
+                                    <option value="ALL">All Genders</option>
+                                    <option value="BOY">👦 Boys (ബോയ്സ്)</option>
+                                    <option value="GIRL">👧 Girls (ഗേൾസ്)</option>
+                                    <option value="COMMON">👥 Common (കോമൺ)</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <button
+                                onClick={generateBulkCertificates}
+                                style={{
+                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '9px 14px',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  fontWeight: '800',
+                                  fontSize: '12px',
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  boxShadow: '0 2px 8px rgba(22,163,74,0.2)'
+                                }}
+                              >
+                                🖨️ PDF / Print All Certificates
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
                       {searchRegNo.trim() && (() => {
                         const matchedStudent = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === searchRegNo.trim().toLowerCase());
