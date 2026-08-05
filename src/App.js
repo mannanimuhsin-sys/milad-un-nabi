@@ -411,6 +411,12 @@ function App() {
 
   const getFriendlyErrorMessage = useCallback((errorMsg) => {
     if (!errorMsg) return '';
+    const m = String(errorMsg).toLowerCase();
+    if (m.includes('schema cache') || m.includes('retrying')) {
+      return lang === 'EN'
+        ? 'Database is warming up. Please try again in a moment.'
+        : 'ഡാറ്റാബേസ് കണക്റ്റിവിറ്റി പുതുക്കുകയാണ്. ദയവായി നിമിഷങ്ങൾക്കകം വീണ്ടും ശ്രമിക്കുക.';
+    }
     if (errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch') || errorMsg.includes('NetworkError') || errorMsg.includes('network')) {
       return lang === 'EN'
         ? 'Database connection failed!\n\nIf you are using Brave browser, an Ad-blocker, or Privacy extension, please DISABLE it for this site (turn off Shields / pause blocker) and try again. Also ensure you have a stable internet connection.'
@@ -418,6 +424,24 @@ function App() {
     }
     return errorMsg;
   }, [lang]);
+
+  // 🔄 Automatic query retry helper for transient Supabase schema cache / network warm-up errors
+  const queryWithRetry = async (queryFn, retries = 3, delayMs = 600) => {
+    let lastResult = null;
+    for (let i = 0; i < retries; i++) {
+      lastResult = await queryFn();
+      const err = lastResult ? lastResult.error : null;
+      if (!err) return lastResult; // Success!
+
+      const msg = String(err.message || '').toLowerCase();
+      const isTransient = msg.includes('schema cache') || msg.includes('retrying') || msg.includes('pgrst') || msg.includes('fetch failed') || msg.includes('network');
+      if (!isTransient || i === retries - 1) {
+        return lastResult;
+      }
+      await new Promise(res => setTimeout(res, delayMs));
+    }
+    return lastResult;
+  };
 
   // ── Persistent session: restore from localStorage on first render ──
   const savedSession = (() => {
@@ -1442,17 +1466,21 @@ function App() {
 
     setIsLoggingIn(true);
     try {
-      let { data: madrasa, error } = await supabase
-        .from('madrasas')
-        .select('*')
-        .eq('regNumber', trimmedReg)
-        .maybeSingle();
+      let { data: madrasa, error } = await queryWithRetry(() =>
+        supabase
+          .from('madrasas')
+          .select('*')
+          .eq('regNumber', trimmedReg)
+          .maybeSingle()
+      );
 
       // Fallback: try matching string or integer if regNumber was saved differently
       if (!madrasa && !error) {
-        const { data: allMadrasas } = await supabase
-          .from('madrasas')
-          .select('*');
+        const { data: allMadrasas } = await queryWithRetry(() =>
+          supabase
+            .from('madrasas')
+            .select('*')
+        );
         if (allMadrasas && allMadrasas.length > 0) {
           madrasa = allMadrasas.find(m =>
             String(m.regNumber || m.regnumber || m.reg_number || '').trim().toLowerCase() === trimmedReg.toLowerCase()
@@ -1541,13 +1569,15 @@ function App() {
 
     try {
       // Check if the regNumber is unique in Supabase
-      const { data: existing, error: checkError } = await supabase
-        .from('madrasas')
-        .select('regNumber')
-        .eq('regNumber', regNumber);
+      const { data: existing, error: checkError } = await queryWithRetry(() =>
+        supabase
+          .from('madrasas')
+          .select('regNumber')
+          .eq('regNumber', regNumber)
+      );
 
       if (checkError) {
-        alert(t('alertUnexpectedError') + checkError.message);
+        alert(t('alertUnexpectedError') + getFriendlyErrorMessage(checkError.message));
         return;
       }
 
@@ -1557,17 +1587,19 @@ function App() {
       }
 
       // Insert Madrasa with pending suffix in place
-      const { error } = await supabase
-        .from('madrasas')
-        .insert([
-          {
-            name: regName,
-            regNumber: regNumber,
-            place: `${regPlace}|pending`,
-            adminPassword: adminPassword,
-            viewPassword: viewPassword
-          }
-        ]);
+      const { error } = await queryWithRetry(() =>
+        supabase
+          .from('madrasas')
+          .insert([
+            {
+              name: regName,
+              regNumber: regNumber,
+              place: `${regPlace}|pending`,
+              adminPassword: adminPassword,
+              viewPassword: viewPassword
+            }
+          ])
+      );
 
       if (error) {
         alert(t('alertUnexpectedError') + error.message);
