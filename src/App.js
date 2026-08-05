@@ -1059,6 +1059,10 @@ function App() {
 
 
   useEffect(() => {
+    fetchMadrasas();
+  }, [currentScreen]);
+
+  useEffect(() => {
     if (loggedInMadrasa) {
       const rNum = loggedInMadrasa.regNumber;
 
@@ -1616,16 +1620,33 @@ function App() {
   };
 
   const fetchMadrasas = async () => {
+    // 1. Load cached superMadrasas from LocalStorage immediately for instant UI render
     try {
-      const { data, error } = await supabase
-        .from('madrasas')
-        .select('*')
-        .order('id', { ascending: false });
+      const cached = localStorage.getItem('cached_super_madrasas');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSuperMadrasas(parsed);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Fetch fresh madrasas list from Supabase with automatic retry
+    try {
+      const { data, error } = await queryWithRetry(() =>
+        supabase
+          .from('madrasas')
+          .select('*')
+          .order('id', { ascending: false })
+      );
 
       if (error) {
-        alert('Failed to load madrasas: ' + error.message);
-      } else if (data) {
+        console.warn('Failed to load madrasas:', error.message);
+      } else if (data && Array.isArray(data)) {
         setSuperMadrasas(data);
+        try {
+          localStorage.setItem('cached_super_madrasas', JSON.stringify(data));
+        } catch (e) {}
       }
     } catch (err) {
       console.error(err);
