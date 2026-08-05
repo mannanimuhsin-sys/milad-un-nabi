@@ -1737,19 +1737,27 @@ function App() {
   const handleAddTeam = async (e) => {
     e.preventDefault();
     if (!newTeamName.trim() || !loggedInMadrasa) return;
-    // Optimistic update
     const tempId = 'temp_' + Date.now();
-    setTeams(prev => [...prev, { id: tempId, name: newTeamName, madrasa_id: loggedInMadrasa.regNumber }]);
-    const savedName = newTeamName;
+    const savedName = newTeamName.trim();
+    setTeams(prev => [...prev, { id: tempId, name: savedName, madrasa_id: loggedInMadrasa.regNumber }]);
     setNewTeamName('');
-    const { error } = await supabase
-      .from('teams')
-      .insert([{ name: savedName, madrasa_id: loggedInMadrasa.regNumber }]);
-    if (error) {
-      alert('Error: ' + error.message);
+
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .insert([{ name: savedName, madrasa_id: loggedInMadrasa.regNumber }])
+        .select();
+
+      if (error) {
+        alert('Error: ' + getFriendlyErrorMessage(error.message));
+        setTeams(prev => prev.filter(t => t.id !== tempId));
+      } else if (data && data[0]) {
+        const realTeam = data[0];
+        setTeams(prev => prev.map(t => t.id === tempId ? realTeam : t));
+      }
+    } catch (err) {
+      alert('Error: ' + getFriendlyErrorMessage(err.message));
       setTeams(prev => prev.filter(t => t.id !== tempId));
-    } else {
-      fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
 
@@ -1757,15 +1765,17 @@ function App() {
     if (!window.confirm('Remove this team?')) return;
     setTeams(prev => prev.filter(t => t.id !== id));
     const { error } = await supabase.from('teams').delete().eq('id', id);
-    if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    if (error) { alert(getFriendlyErrorMessage(error.message)); }
   };
 
   const handleSaveTeamEdit = async () => {
     if (!editingTeamName.trim()) return;
-    setTeams(prev => prev.map(t => t.id === editingTeamId ? { ...t, name: editingTeamName } : t));
+    const targetId = editingTeamId;
+    const updatedName = editingTeamName.trim();
+    setTeams(prev => prev.map(t => t.id === targetId ? { ...t, name: updatedName } : t));
     setEditingTeamId(null);
-    const { error } = await supabase.from('teams').update({ name: editingTeamName }).eq('id', editingTeamId);
-    if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    const { error } = await supabase.from('teams').update({ name: updatedName }).eq('id', targetId);
+    if (error) { alert('Error: ' + getFriendlyErrorMessage(error.message)); }
   };
 
   // 📂 2. CATEGORY ACTIONS
@@ -1773,9 +1783,9 @@ function App() {
     e.preventDefault();
     if (!newCatName.trim() || !loggedInMadrasa) return;
     const tempId = 'temp_' + Date.now();
-    setCategories(prev => [...prev, { id: tempId, name: newCatName, classrange: dbHasClassRange ? newCatClassRange : '', madrasa_id: loggedInMadrasa.regNumber }]);
-    const savedName = newCatName;
-    const savedRange = newCatClassRange;
+    const savedName = newCatName.trim();
+    const savedRange = newCatClassRange.trim();
+    setCategories(prev => [...prev, { id: tempId, name: savedName, classrange: dbHasClassRange ? savedRange : '', madrasa_id: loggedInMadrasa.regNumber }]);
     setNewCatName('');
     setNewCatClassRange('');
 
@@ -1784,14 +1794,22 @@ function App() {
       insertPayload.classrange = savedRange;
     }
 
-    const { error } = await supabase
-      .from('categories')
-      .insert([insertPayload]);
-    if (error) {
-      alert('Error: ' + error.message);
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([insertPayload])
+        .select();
+
+      if (error) {
+        alert('Error: ' + getFriendlyErrorMessage(error.message));
+        setCategories(prev => prev.filter(c => c.id !== tempId));
+      } else if (data && data[0]) {
+        const realCat = data[0];
+        setCategories(prev => prev.map(c => c.id === tempId ? realCat : c));
+      }
+    } catch (err) {
+      alert('Error: ' + getFriendlyErrorMessage(err.message));
       setCategories(prev => prev.filter(c => c.id !== tempId));
-    } else {
-      fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
 
@@ -1799,15 +1817,15 @@ function App() {
     if (!window.confirm('Remove this category?')) return;
     setCategories(prev => prev.filter(c => c.id !== id));
     const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    if (error) { alert(getFriendlyErrorMessage(error.message)); }
   };
 
   const handleSaveCatEdit = async () => {
     if (!editingCatName.trim()) return;
-    setCategories(prev => prev.map(c => c.id === editingCatId ? { ...c, name: editingCatName, classrange: dbHasClassRange ? editingCatClassRange : '' } : c));
-    const savedName = editingCatName;
-    const savedRange = editingCatClassRange;
     const targetId = editingCatId;
+    const savedName = editingCatName.trim();
+    const savedRange = editingCatClassRange.trim();
+    setCategories(prev => prev.map(c => c.id === targetId ? { ...c, name: savedName, classrange: dbHasClassRange ? savedRange : '' } : c));
     setEditingCatId(null);
 
     const updatePayload = { name: savedName };
@@ -1817,9 +1835,7 @@ function App() {
 
     const { error } = await supabase.from('categories').update(updatePayload).eq('id', targetId);
     if (error) {
-      alert('Error: ' + error.message);
-      // Roll back to server state on failure
-      fetchSupabaseData(loggedInMadrasa.regNumber);
+      alert('Error: ' + getFriendlyErrorMessage(error.message));
     }
     // On success: do NOT re-fetch — the optimistic update already placed the
     // category in the correct position. Re-fetching would return rows in DB
@@ -2315,23 +2331,39 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       madrasa_id: loggedInMadrasa.regNumber
     };
 
-    const { error } = await supabase
-      .from('results')
-      .insert([resultRecord]);
+    try {
+      const { data, error } = await supabase
+        .from('results')
+        .insert([resultRecord])
+        .select();
 
-    if (error) {
-      alert(t('alertUnexpectedError') + error.message);
-    } else {
-      alert(t('alertResultDeclared'));
-      fetchSupabaseData(loggedInMadrasa.regNumber);
+      if (error) {
+        alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
+      } else {
+        alert(t('alertResultDeclared'));
+        if (data && data[0]) {
+          setResultsList(prev => [...prev, data[0]]);
+        }
+      }
+    } catch (err) {
+      alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
     }
   };
 
   const handleDeleteResult = async (id) => {
     if (!window.confirm(lang === 'EN' ? 'Remove this result?' : 'ഈ ഫലം ഒഴിവാക്കണമെന്നുറപ്പാണോ?')) return;
-    const { error } = await supabase.from('results').delete().eq('id', id);
-    if (error) alert(t('alertUnexpectedError') + error.message);
-    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+    const originalResults = [...resultsList];
+    setResultsList(prev => prev.filter(r => r.id !== id));
+    try {
+      const { error } = await supabase.from('results').delete().eq('id', id);
+      if (error) {
+        alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
+        setResultsList(originalResults);
+      }
+    } catch (err) {
+      alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
+      setResultsList(originalResults);
+    }
   };
 
   const handleUpdateResult = async () => {
@@ -2383,25 +2415,36 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     const placeLabel = placeVal === '0' ? 'No Place' : placeVal === '1' ? 'First' : placeVal === '2' ? 'Second' : 'Third';
     const gradeLabel = gradeVal === 'No' ? '-' : gradeVal;
 
-    const { error } = await supabase
-      .from('results')
-      .update({
-        studentname: newStudentName,
-        teamid: newTeamId,
-        teamname: newTeamName,
-        studentgender: newGender,
-        place: placeLabel,
-        grade: gradeLabel,
-        points: pts
-      })
-      .eq('id', editingResultId);
+    const updatedRecord = {
+      studentname: newStudentName,
+      teamid: newTeamId,
+      teamname: newTeamName,
+      studentgender: newGender,
+      place: placeLabel,
+      grade: gradeLabel,
+      points: pts
+    };
 
-    if (error) {
-      alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + error.message);
-    } else {
-      alert(lang === 'EN' ? '✅ Result updated successfully!' : '✅ ഫലം വിജയകരമായി അപ്ഡേറ്റ് ചെയ്തു!');
-      setEditingResultId(null);
-      fetchSupabaseData(loggedInMadrasa.regNumber);
+    const originalResults = [...resultsList];
+    setResultsList(prev => prev.map(r => String(r.id) === String(editingResultId) ? { ...r, ...updatedRecord } : r));
+    const targetId = editingResultId;
+    setEditingResultId(null);
+
+    try {
+      const { error } = await supabase
+        .from('results')
+        .update(updatedRecord)
+        .eq('id', targetId);
+
+      if (error) {
+        alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + getFriendlyErrorMessage(error.message));
+        setResultsList(originalResults);
+      } else {
+        alert(lang === 'EN' ? '✅ Result updated successfully!' : '✅ ഫലം വിജയകരമായി അപ്ഡേറ്റ് ചെയ്തു!');
+      }
+    } catch (err) {
+      alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + getFriendlyErrorMessage(err.message));
+      setResultsList(originalResults);
     }
   };
 
