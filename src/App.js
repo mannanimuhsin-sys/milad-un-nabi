@@ -2097,20 +2097,41 @@ function App() {
   // 🏆 4. PROGRAM ACTIONS (DB uses lowercase: catid)
   const handleAddProgram = async (e) => {
     e.preventDefault();
-    if (!newProgName.trim() || !newProgCode.trim() || !selectedProgCat || !loggedInMadrasa) return;
+    if (!newProgName.trim() || !newProgCode.trim() || !selectedProgCat || !loggedInMadrasa) {
+      alert(lang === 'EN' ? 'Please fill in all details!' : 'ദയവായി എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!');
+      return;
+    }
+
+    let dbCatId = selectedProgCat;
+    if (String(dbCatId).toUpperCase() === 'GENERAL') {
+      if (generalCatIds.length > 0) {
+        dbCatId = generalCatIds[0];
+      } else if (categories.length > 0) {
+        dbCatId = categories[0].id;
+      }
+    }
+
     const tempId = 'temp_' + Date.now();
-    const tempProg = { id: tempId, name: newProgName, code: newProgCode, catid: selectedProgCat, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
+    const tempProg = { id: tempId, name: newProgName.trim(), code: newProgCode.trim(), catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
     setPrograms(prev => [...prev, tempProg].sort(compareProgCode));
-    const savedName = newProgName; const savedCode = newProgCode;
+    const savedName = newProgName.trim(); const savedCode = newProgCode.trim();
     setNewProgName(''); setNewProgCode('');
-    const { error } = await supabase.from('programs').insert([{
-      name: savedName, code: savedCode, catid: selectedProgCat, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber
-    }]);
-    if (error) {
-      alert('Error: ' + error.message);
+
+    try {
+      const { data, error } = await supabase.from('programs').insert([{
+        name: savedName, code: savedCode, catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber
+      }]).select();
+
+      if (error) {
+        alert('Error saving program: ' + getFriendlyErrorMessage(error.message));
+        setPrograms(prev => prev.filter(p => p.id !== tempId));
+      } else if (data && data[0]) {
+        const realProg = data[0];
+        setPrograms(prev => prev.map(p => p.id === tempId ? realProg : p).sort(compareProgCode));
+      }
+    } catch (err) {
+      alert('Error saving program: ' + getFriendlyErrorMessage(err.message));
       setPrograms(prev => prev.filter(p => p.id !== tempId));
-    } else {
-      fetchSupabaseData(loggedInMadrasa.regNumber);
     }
   };
 
@@ -2118,17 +2139,29 @@ function App() {
     if (!window.confirm('Remove this program?')) return;
     setPrograms(prev => prev.filter(p => p.id !== id));
     const { error } = await supabase.from('programs').delete().eq('id', id);
-    if (error) { alert(error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+    if (error) { alert(getFriendlyErrorMessage(error.message)); }
   };
 
   const handleSaveProgEdit = async () => {
-    setPrograms(prev => prev.map(p => p.id === editingProgId ? { ...p, ...editingProgData } : p).sort(compareProgCode));
+    let dbCatId = editingProgData.catid;
+    if (String(dbCatId).toUpperCase() === 'GENERAL') {
+      if (generalCatIds.length > 0) {
+        dbCatId = generalCatIds[0];
+      } else if (categories.length > 0) {
+        dbCatId = categories[0].id;
+      }
+    }
+
+    const updatedData = { ...editingProgData, catid: dbCatId };
+    setPrograms(prev => prev.map(p => p.id === editingProgId ? { ...p, ...updatedData } : p).sort(compareProgCode));
+    const targetId = editingProgId;
     setEditingProgId(null);
+
     const { error } = await supabase.from('programs').update({
-      name: editingProgData.name, code: editingProgData.code,
-      catid: editingProgData.catid, type: editingProgData.type
-    }).eq('id', editingProgId);
-    if (error) { alert('Error: ' + error.message); fetchSupabaseData(loggedInMadrasa.regNumber); }
+      name: updatedData.name, code: updatedData.code,
+      catid: updatedData.catid, type: updatedData.type
+    }).eq('id', targetId);
+    if (error) { alert('Error: ' + getFriendlyErrorMessage(error.message)); }
   };
 
   const handleSaveTimetableEntry = async (programId) => {
@@ -7547,19 +7580,24 @@ ${pagesHtml}
                           const dbIdInt = parseInt(sDbId, 10);
                           const regNoInt = parseInt(sRegNo, 10);
 
-                          // Delete previous registrations matching DB ID or Register Number — ALL IN PARALLEL for speed
-                          const deletePromises = [];
-                          if (!isNaN(dbIdInt)) {
-                            deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', dbIdInt));
+                          // Collect all matching student IDs (both string and integer forms) to delete in ONE atomic query
+                          const idsToDelete = Array.from(new Set([
+                            ...(!isNaN(dbIdInt) ? [dbIdInt] : []),
+                            String(sDbId),
+                            ...(sRegNo && String(sRegNo) !== String(sDbId) ? [
+                              ...(!isNaN(regNoInt) ? [regNoInt] : []),
+                              String(sRegNo)
+                            ] : [])
+                          ]));
+
+                          if (idsToDelete.length > 0) {
+                            const { error: delErr } = await supabase
+                              .from('program_registrations')
+                              .delete()
+                              .eq('madrasa_id', madrasaId)
+                              .in('student_id', idsToDelete);
+                            if (delErr) console.warn("Delete registration warning:", delErr.message);
                           }
-                          deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sDbId)));
-                          if (sRegNo && String(sRegNo) !== String(sDbId)) {
-                            if (!isNaN(regNoInt)) {
-                              deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', regNoInt));
-                            }
-                            deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sRegNo)));
-                          }
-                          await Promise.all(deletePromises);
 
                           if (regTabCheckedProgs.length > 0) {
                             const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
