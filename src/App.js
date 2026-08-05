@@ -1870,16 +1870,19 @@ function App() {
     setStudents(prev => [...prev.filter(s => String(s.regno || s.regNo || '').trim() !== trimmedRegNo), tempStudent].sort(compareRegNo));
 
     try {
-      const { error } = await supabase.from('students').insert([{
+      const { data, error } = await supabase.from('students').insert([{
         name: tempStudent.name, regno: tempStudent.regno, teamid: tempStudent.teamid,
         catid: tempStudent.catid, gender: tempStudent.gender, madrasa_id: tempStudent.madrasa_id
-      }]);
+      }]).select();
       if (error) {
         alert('Error: ' + getFriendlyErrorMessage(error.message));
         setStudents(prev => prev.filter(s => s.id !== tempId));
       } else {
         setNewStudentName(''); setStudentRegNo('');
-        fetchSupabaseData(loggedInMadrasa.regNumber);
+        if (data && data[0]) {
+          const insertedStudent = data[0];
+          setStudents(prev => prev.map(s => s.id === tempId ? { ...s, id: insertedStudent.id } : s).sort(compareRegNo));
+        }
       }
     } catch (err) {
       alert('Error: ' + getFriendlyErrorMessage(err.message));
@@ -2068,8 +2071,6 @@ function App() {
       if (error) {
         alert('Error: ' + getFriendlyErrorMessage(error.message));
         setStudents(originalStudents);
-      } else {
-        fetchSupabaseData(loggedInMadrasa.regNumber);
       }
     } catch (err) {
       alert('Error: ' + getFriendlyErrorMessage(err.message));
@@ -2086,8 +2087,6 @@ function App() {
       if (error) {
         alert('Error: ' + getFriendlyErrorMessage(error.message));
         setStudents(originalStudents);
-      } else {
-        fetchSupabaseData(loggedInMadrasa.regNumber);
       }
     } catch (err) {
       alert('Error: ' + getFriendlyErrorMessage(err.message));
@@ -7548,18 +7547,19 @@ ${pagesHtml}
                           const dbIdInt = parseInt(sDbId, 10);
                           const regNoInt = parseInt(sRegNo, 10);
 
-                          // Delete previous registrations matching DB ID or Register Number
+                          // Delete previous registrations matching DB ID or Register Number — ALL IN PARALLEL for speed
+                          const deletePromises = [];
                           if (!isNaN(dbIdInt)) {
-                            await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', dbIdInt);
+                            deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', dbIdInt));
                           }
-                          await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sDbId));
-
+                          deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sDbId)));
                           if (sRegNo && String(sRegNo) !== String(sDbId)) {
                             if (!isNaN(regNoInt)) {
-                              await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', regNoInt);
+                              deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', regNoInt));
                             }
-                            await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sRegNo));
+                            deletePromises.push(supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sRegNo)));
                           }
+                          await Promise.all(deletePromises);
 
                           if (regTabCheckedProgs.length > 0) {
                             const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
@@ -7577,6 +7577,7 @@ ${pagesHtml}
                             }
                           }
 
+                          // Fetch updated registrations and update state + cache together
                           const { data: newRegs, error: fetchError } = await supabase
                             .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
                           if (fetchError) {
@@ -7590,6 +7591,17 @@ ${pagesHtml}
                             setProgramRegistrations(mapped);
                             const updatedExisting = getStudentRegisteredProgIds(sDbId, mapped);
                             setRegTabCheckedProgs(updatedExisting);
+
+                            // Sync LocalStorage cache immediately to prevent old cache override on reload/network drop
+                            try {
+                              const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+                              if (rawCache) {
+                                const cacheObj = JSON.parse(rawCache);
+                                cacheObj.programRegistrations = mapped;
+                                cacheObj.savedAt = new Date().toISOString();
+                                localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+                              }
+                            } catch (e) {}
                           }
                           alert(t('alertSavedRegistrations')
                             .replace('{count}', regTabCheckedProgs.length)
