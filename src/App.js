@@ -618,6 +618,39 @@ function App() {
   const [regTabSaving, setRegTabSaving] = useState(false);
   const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
 
+  const getStudentRegisteredPrograms = useCallback((studentId, customRegs = null) => {
+    if (!studentId) return [];
+    const targetRegs = customRegs || programRegistrations;
+    const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
+    return sRegs.map(r => {
+      const rVal = String(r.program_id || r.program_name || '');
+      return programs.find(p =>
+        String(p.id) === rVal ||
+        String(p.id) === String(r.program_name) ||
+        String(p.id) === String(r.program_id) ||
+        p.code === rVal ||
+        p.name === rVal ||
+        p.code === r.program_name ||
+        p.name === r.program_name
+      );
+    }).filter(Boolean);
+  }, [programRegistrations, programs]);
+
+  const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
+    if (!studentId) return [];
+    const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
+    const ids = matchedProgs.map(p => String(p.id));
+    const targetRegs = customRegs || programRegistrations;
+    const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
+    sRegs.forEach(r => {
+      const val = String(r.program_id || r.program_name || '');
+      if (val && val !== 'undefined' && val !== 'null' && !ids.includes(val)) {
+        ids.push(val);
+      }
+    });
+    return Array.from(new Set(ids));
+  }, [getStudentRegisteredPrograms, programRegistrations]);
+
   // ── Group Registration States ──
   const [groupRegistrations, setGroupRegistrations] = useState([]);
   const [groupRegCat, setGroupRegCat] = useState('');
@@ -1149,11 +1182,12 @@ function App() {
       // --- Find individual programs via program_registrations (most reliable) ---
       let individualProgIds = [];
       try {
+        const targetStudentId = isNaN(parseInt(studentId, 10)) ? studentId : parseInt(studentId, 10);
         const { data: regData } = await supabase
           .from('program_registrations')
           .select('*')
           .eq('madrasa_id', madrasaReg)
-          .eq('student_id', parseInt(studentId, 10));
+          .eq('student_id', targetStudentId);
         if (regData && regData.length > 0) {
           individualProgIds = regData.map(r => String(r.program_name || r.program_id || ''));
         }
@@ -1181,7 +1215,7 @@ function App() {
         if (studentName && rName.toLowerCase().includes(studentName.toLowerCase())) return true;
         return false;
       }).map(r => {
-        const prog = progsData?.find(p => String(p.id) === String(r.progid));
+        const prog = progsData?.find(p => String(p.id) === String(r.progid) || p.code === String(r.progid) || p.name === String(r.progid));
         return {
           ...r,
           progname: r.progname || (prog ? prog.name : 'Unknown Program'),
@@ -1209,10 +1243,10 @@ function App() {
       const registeredWithNoResult = individualProgIds
         .filter(pid => pid && !resultProgIds.includes(String(pid)))
         .map(pid => {
-          const prog = progsData?.find(p => String(p.id) === String(pid));
+          const prog = progsData?.find(p => String(p.id) === String(pid) || p.code === String(pid) || p.name === String(pid));
           return {
             progid: pid,
-            progname: prog ? prog.name : 'Program #' + pid,
+            progname: prog ? `${prog.code ? prog.code + ' – ' : ''}${prog.name}` : 'Program #' + pid,
             place: null,
             grade: null,
             pending: true
@@ -7458,7 +7492,13 @@ ${pagesHtml}
 
                       // Only show SINGLE programs in Single Registration mode
                       const regPrograms = regTabCat ? programs.filter(p => {
-                        if (String(p.catid || p.catId || '') !== String(regTabCat)) return false;
+                        if (regTabCat === 'GENERAL') {
+                          if (!generalCatIds.map(String).includes(String(p.catid || p.catId || ''))) return false;
+                        } else if (isRegGeneral) {
+                          if (!generalCatIds.map(String).includes(String(p.catid || p.catId || '')) && String(p.catid || p.catId || '') !== String(regTabCat)) return false;
+                        } else {
+                          if (String(p.catid || p.catId || '') !== String(regTabCat)) return false;
+                        }
                         const pt = p.type || '';
                         if (pt.includes('GROUP')) return false;
                         if (regTabGender === 'COMMON') return true;
@@ -7475,12 +7515,14 @@ ${pagesHtml}
                         setRegTabSaving(true);
                         try {
                           const madrasaId = loggedInMadrasa.regNumber;
-                          const studentIdInt = parseInt(regTabStudent, 10);
+                          const rawStudentId = regTabStudent;
+                          const studentIdInt = parseInt(rawStudentId, 10);
+                          const targetStudentId = isNaN(studentIdInt) ? rawStudentId : studentIdInt;
 
                           const { error: deleteError } = await supabase.from('program_registrations')
                             .delete()
                             .eq('madrasa_id', madrasaId)
-                            .eq('student_id', studentIdInt);
+                            .eq('student_id', targetStudentId);
 
                           if (deleteError) {
                             throw new Error(deleteError.message);
@@ -7489,7 +7531,7 @@ ${pagesHtml}
                           if (regTabCheckedProgs.length > 0) {
                             const inserts = regTabCheckedProgs.map(pId => ({
                               madrasa_id: madrasaId,
-                              student_id: studentIdInt,
+                              student_id: targetStudentId,
                               program_name: String(pId)
                             }));
                             const { error: insertError } = await supabase.from('program_registrations').insert(inserts);
@@ -7506,9 +7548,11 @@ ${pagesHtml}
                           if (newRegs) {
                             const mapped = newRegs.map(r => ({
                               ...r,
-                              program_id: r.program_name
+                              program_id: r.program_name || r.program_id
                             }));
                             setProgramRegistrations(mapped);
+                            const updatedExisting = getStudentRegisteredProgIds(rawStudentId, mapped);
+                            setRegTabCheckedProgs(updatedExisting);
                           }
                           alert(t('alertSavedRegistrations')
                             .replace('{count}', regTabCheckedProgs.length)
@@ -7536,10 +7580,7 @@ ${pagesHtml}
 
                         const rows = regStudentsFiltered.map((s, idx) => {
                           const sRegNo = s.regno || s.regNo || '';
-                          const sProgs = programRegistrations
-                            .filter(r => String(r.student_id) === String(s.id))
-                            .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
-                            .filter(Boolean);
+                          const sProgs = getStudentRegisteredPrograms(s.id);
 
                           const sGroupProgs = groupRegistrations
                             .filter(g => {
@@ -7850,15 +7891,13 @@ ${pagesHtml}
                                             <select className="settings-input-v2" value={regTabStudent} onChange={e => {
                                               const sid = e.target.value;
                                               setRegTabStudent(sid);
-                                              const existing = programRegistrations
-                                                .filter(r => String(r.student_id) === String(sid))
-                                                .map(r => String(r.program_id));
+                                              const existing = getStudentRegisteredProgIds(sid);
                                               setRegTabCheckedProgs(existing);
                                             }}>
                                               <option value="">{t('selectStudentFirst')}</option>
                                               {regStudentsFiltered.map(s => {
                                                 const sRegNo = s.regno || s.regNo || '';
-                                                const sCount = programRegistrations.filter(r => String(r.student_id) === String(s.id)).length;
+                                                const sCount = getStudentRegisteredProgIds(s.id).length;
                                                 return (
                                                   <option key={s.id} value={s.id}>
                                                     {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} ${t('programsLabel')}]` : ''}
