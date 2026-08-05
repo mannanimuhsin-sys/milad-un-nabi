@@ -1060,6 +1060,7 @@ function App() {
 
   useEffect(() => {
     fetchMadrasas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScreen]);
 
   useEffect(() => {
