@@ -1607,50 +1607,87 @@ function App() {
       );
 
       if (error) {
-        alert(t('alertUnexpectedError') + error.message);
+        alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
       } else {
         alert(t('alertRegistrationSubmitted'));
-        const tempMadrasa = { name: regName, regNumber, place: `${regPlace}|pending` };
+        const tempMadrasa = { name: regName, regNumber, place: `${regPlace}|pending`, adminPassword, viewPassword };
         setPendingMadrasa(tempMadrasa);
+        setSuperMadrasas(prev => {
+          const updated = [tempMadrasa, ...prev.filter(m => String(m.regNumber) !== String(regNumber))];
+          try { localStorage.setItem('cached_super_madrasas', JSON.stringify(updated)); } catch(e){}
+          return updated;
+        });
         setRegName(''); setRegNumber(''); setRegPlace(''); setAdminPassword(''); setViewPassword('');
         setCurrentScreen('PENDING_APPROVAL');
       }
     } catch (err) {
-      alert(t('alertUnexpectedError') + err.message);
+      alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
     }
   };
 
   const fetchMadrasas = async () => {
-    // 1. Load cached superMadrasas from LocalStorage immediately for instant UI render
-    try {
-      const cached = localStorage.getItem('cached_super_madrasas');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSuperMadrasas(parsed);
+    // 1. Helper to extract any known local madrasas from local storage
+    const getLocalMadrasas = () => {
+      const madrasaMap = new Map();
+      try {
+        const cached = localStorage.getItem('cached_super_madrasas');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(m => { if (m && m.regNumber) madrasaMap.set(String(m.regNumber), m); });
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
 
-    // 2. Fetch fresh madrasas list from Supabase with automatic retry
+      try {
+        const session = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
+        if (session && session.madrasa && session.madrasa.regNumber) {
+          if (!madrasaMap.has(String(session.madrasa.regNumber))) {
+            madrasaMap.set(String(session.madrasa.regNumber), session.madrasa);
+          }
+        }
+      } catch (e) {}
+
+      return Array.from(madrasaMap.values());
+    };
+
+    // Load local madrasas immediately for instant UI render
+    const localList = getLocalMadrasas();
+    if (localList.length > 0) {
+      setSuperMadrasas(localList);
+    }
+
+    // 2. Fetch fresh madrasas list from Supabase with automatic retry & timeout handling
     try {
       const { data, error } = await queryWithRetry(() =>
         supabase
           .from('madrasas')
           .select('*')
-          .order('id', { ascending: false })
+          .order('id', { ascending: false }),
+        4,
+        1000
       );
 
       if (error) {
         console.warn('Failed to load madrasas:', error.message);
-      } else if (data && Array.isArray(data)) {
-        setSuperMadrasas(data);
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        const freshMap = new Map();
+        data.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
+
+        localList.forEach(m => {
+          if (m && m.regNumber && !freshMap.has(String(m.regNumber))) {
+            freshMap.set(String(m.regNumber), m);
+          }
+        });
+
+        const mergedList = Array.from(freshMap.values());
+        setSuperMadrasas(mergedList);
         try {
-          localStorage.setItem('cached_super_madrasas', JSON.stringify(data));
+          localStorage.setItem('cached_super_madrasas', JSON.stringify(mergedList));
         } catch (e) {}
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching madrasas:', err);
     }
   };
 
