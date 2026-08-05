@@ -1147,16 +1147,25 @@ function App() {
         console.warn('program_registrations fetch failed:', e);
       }
 
-      // Match results: by program_id from registrations OR by studentname field (fallback)
-      const studentRegNo = studentData.regno || studentData.regNo || '';
-      const studentResults = (resultsData || []).filter(r => {
-        const rStudentName = r.studentname || '';
-        const matchByRegNo = studentRegNo && (
-          rStudentName.startsWith(studentRegNo + ' -') ||
-          rStudentName.startsWith(studentRegNo + '-')
-        );
-        const matchByProgId = individualProgIds.length > 0 && individualProgIds.includes(String(r.progid));
-        return matchByRegNo || matchByProgId;
+      // Match results strictly for THIS student (by regNo, student_id, or name)
+      const studentRegNo = String(studentData.regno || studentData.regNo || '').trim();
+      const studentName = String(studentData.name || '').trim();
+
+      const matchedResults = (resultsData || []).filter(r => {
+        const rName = String(r.studentname || r.studentName || '').trim();
+        if (r.student_id && String(r.student_id) === String(studentData.id)) return true;
+        if (studentRegNo) {
+          if (
+            rName.startsWith(studentRegNo + ' -') ||
+            rName.startsWith(studentRegNo + '-') ||
+            rName.startsWith(studentRegNo + ' ') ||
+            rName === studentRegNo
+          ) {
+            return true;
+          }
+        }
+        if (studentName && rName.toLowerCase().includes(studentName.toLowerCase())) return true;
+        return false;
       }).map(r => {
         const prog = progsData?.find(p => String(p.id) === String(r.progid));
         return {
@@ -1165,12 +1174,28 @@ function App() {
         };
       });
 
-      // If we have registered prog IDs but no results yet, show those programs with pending result
+      // Deduplicate by progid so only 1 result per program is shown for this student
+      const resultMap = new Map();
+      matchedResults.forEach(r => {
+        const pKey = String(r.progid);
+        if (!resultMap.has(pKey)) {
+          resultMap.set(pKey, r);
+        } else {
+          // If existing is empty/no place and new one has place/grade, keep the better one
+          const existing = resultMap.get(pKey);
+          if ((!existing.place || existing.place === 'No Place') && r.place && r.place !== 'No Place') {
+            resultMap.set(pKey, r);
+          }
+        }
+      });
+      const studentResults = Array.from(resultMap.values());
+
+      // If student registered for programs that don't have results declared yet, add pending entry
       const resultProgIds = studentResults.map(r => String(r.progid));
       const registeredWithNoResult = individualProgIds
-        .filter(pid => !resultProgIds.includes(pid))
+        .filter(pid => pid && !resultProgIds.includes(String(pid)))
         .map(pid => {
-          const prog = progsData?.find(p => String(p.id) === pid);
+          const prog = progsData?.find(p => String(p.id) === String(pid));
           return {
             progid: pid,
             progname: prog ? prog.name : 'Program #' + pid,
