@@ -2145,12 +2145,33 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     else if (selectedGrade === 'B') pts += isGroup ? Number(pointSystem.gpB) : Number(pointSystem.gB);
     else if (selectedGrade === 'C') pts += isGroup ? Number(pointSystem.gpC) : Number(pointSystem.gC);
 
+    const computedStudentName = isGroup
+      ? groupObj.group_name
+      : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`;
+
+    // ── Duplicate check ──────────────────────────────────────────────────────
+    // Prevent registering the same student/group in the same program more than once.
+    const alreadyExists = resultsList.some(r =>
+      String(r.progid) === String(progObj.id) &&
+      r.studentname === computedStudentName &&
+      String(r.madrasa_id) === String(loggedInMadrasa.regNumber)
+    );
+    if (alreadyExists) {
+      alert(
+        lang === 'EN'
+          ? `⚠️ This student is already registered for "${progObj.name}".\nPlease delete or edit the existing entry first.`
+          : `⚠️ ഈ വിദ്യാർത്ഥി ഇതിനകം "${progObj.name}" മത്സരത്തിൽ രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട്.\nആദ്യം നിലവിലുള്ള എൻട്രി ഡിലീറ്റ് ചെയ്യുകയോ എഡിറ്റ് ചെയ്യുകയോ ചെയ്യുക.`
+      );
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const resultRecord = {
       progid: progObj.id,
       progname: progObj.name,
       progtype: progObj.type,
       catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
-      studentname: isGroup ? groupObj.group_name : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`,
+      studentname: computedStudentName,
       studentgender: isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : studentObj.gender,
       teamid: isGroup ? groupObj.team_id : studentObj.teamid,
       teamname: isGroup
@@ -4227,8 +4248,8 @@ ${pagesHtml}
 
                     return (
                       <div style={{ marginBottom: '20px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px', marginTop: '10px', marginBottom: '20px' }}>
-                          {/* Single Student Search Card */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px', marginTop: '10px', marginBottom: '20px' }}>
+                          {/* Student Search Card — shows register number input; Admin mode also shows bulk certificate section */}
                           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
                             <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
                               🔍 Student Report & Certificate
@@ -4241,17 +4262,19 @@ ${pagesHtml}
                               onChange={(e) => setSearchRegNo(e.target.value)}
                               style={{ width: '100%' }}
                             />
-                          </div>
 
-                          {/* Admin Mode Bulk Certificates Card */}
-                          {loginRole === 'ADMIN' && (
-                            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '16px' }}>
-                              <div style={{ fontSize: '13px', fontWeight: '800', color: '#166534', marginBottom: '10px' }}>
-                                📜 Certificate Options (Bulk PDF / Print)
-                              </div>
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                                <div style={{ flex: 1, minWidth: '120px' }}>
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>Category</label>
+                            {/* Admin-only: Bulk Certificate Section — appears right below register number input */}
+                            {loginRole === 'ADMIN' && (
+                              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '12px', fontWeight: '800', color: '#166534', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  📜 Certificate — Bulk PDF / Print
+                                </div>
+
+                                {/* Category Filter */}
+                                <div style={{ marginBottom: '8px' }}>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>
+                                    Category
+                                  </label>
                                   <select
                                     className="settings-input"
                                     value={bulkCertCat}
@@ -4262,44 +4285,51 @@ ${pagesHtml}
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                   </select>
                                 </div>
-                                <div style={{ flex: 1, minWidth: '120px' }}>
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>Gender</label>
+
+                                {/* Gender Filter */}
+                                <div style={{ marginBottom: '10px' }}>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>
+                                    Gender Filter
+                                  </label>
                                   <select
                                     className="settings-input"
                                     value={bulkCertGender}
                                     onChange={(e) => setBulkCertGender(e.target.value)}
                                     style={{ width: '100%', padding: '6px 8px', fontSize: '13px' }}
                                   >
-                                    <option value="ALL">All Genders</option>
+                                    <option value="ALL">All (എല്ലാം)</option>
                                     <option value="BOY">👦 Boys (ബോയ്സ്)</option>
                                     <option value="GIRL">👧 Girls (ഗേൾസ്)</option>
                                     <option value="COMMON">👥 Common (കോമൺ)</option>
                                   </select>
                                 </div>
+
+                                {/* PDF / Print Button */}
+                                <button
+                                  onClick={generateBulkCertificates}
+                                  style={{
+                                    background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '9px 14px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontWeight: '800',
+                                    fontSize: '12px',
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 2px 8px rgba(22,163,74,0.2)',
+                                    marginTop: '2px'
+                                  }}
+                                >
+                                  🖨️ PDF / Print All Certificates
+                                </button>
                               </div>
-                              <button
-                                onClick={generateBulkCertificates}
-                                style={{
-                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                  color: 'white',
-                                  border: 'none',
-                                  padding: '9px 14px',
-                                  borderRadius: '8px',
-                                  cursor: 'pointer',
-                                  fontWeight: '800',
-                                  fontSize: '12px',
-                                  width: '100%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '6px',
-                                  boxShadow: '0 2px 8px rgba(22,163,74,0.2)'
-                                }}
-                              >
-                                🖨️ PDF / Print All Certificates
-                              </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
 
                       {searchRegNo.trim() && (() => {
@@ -4411,7 +4441,8 @@ ${pagesHtml}
                         );
                       })()}
                     </div>
-                  )}
+                  );
+                })()}
 
                   {/* ── Section 3: Results History Table ── */}
                   {resultsSubTab === 'RESULTS_HISTORY' && (() => {
