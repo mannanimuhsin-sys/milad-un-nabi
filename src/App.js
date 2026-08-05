@@ -1429,21 +1429,36 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!loginRegNum.trim() || !loginPassword.trim()) {
+    const trimmedReg = String(loginRegNum || '').trim();
+    const trimmedPass = String(loginPassword || '').trim();
+
+    if (!trimmedReg || !trimmedPass) {
       alert(t('alertPleaseFillDetails'));
       return;
     }
 
     setIsLoggingIn(true);
     try {
-      const { data: madrasa, error } = await supabase
+      let { data: madrasa, error } = await supabase
         .from('madrasas')
         .select('*')
-        .eq('regNumber', loginRegNum)
+        .eq('regNumber', trimmedReg)
         .maybeSingle();
 
-      if (error) {
-        alert(t('alertUnexpectedError') + error.message);
+      // Fallback: try matching string or integer if regNumber was saved differently
+      if (!madrasa && !error) {
+        const { data: allMadrasas } = await supabase
+          .from('madrasas')
+          .select('*');
+        if (allMadrasas && allMadrasas.length > 0) {
+          madrasa = allMadrasas.find(m =>
+            String(m.regNumber || m.regnumber || m.reg_number || '').trim().toLowerCase() === trimmedReg.toLowerCase()
+          );
+        }
+      }
+
+      if (error && !madrasa) {
+        alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
         return;
       }
 
@@ -1452,7 +1467,10 @@ function App() {
         return;
       }
 
-      if (loginPassword === madrasa.adminPassword || loginPassword === madrasa.viewPassword) {
+      const adminPass = String(madrasa.adminPassword || madrasa.admin_password || madrasa.adminpass || '').trim();
+      const viewPass = String(madrasa.viewPassword || madrasa.view_password || madrasa.viewpass || '').trim();
+
+      if (trimmedPass === adminPass || trimmedPass === viewPass) {
         const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
@@ -1466,7 +1484,7 @@ function App() {
         }
 
         // Approved, proceed to login
-        const role = loginPassword === madrasa.adminPassword ? 'ADMIN' : 'VIEW';
+        const role = trimmedPass === adminPass ? 'ADMIN' : 'VIEW';
         const sanitizedMadrasa = { ...madrasa, place: actualPlace };
         setLoggedInMadrasa(sanitizedMadrasa);
         setLoginRole(role);
@@ -1495,6 +1513,9 @@ function App() {
         // 💾 Save session to localStorage for auto-login
         localStorage.setItem('miladfest_session', JSON.stringify({ madrasa: sanitizedMadrasa, role }));
 
+        // Load data immediately for this logged in madrasa
+        fetchSupabaseData(sanitizedMadrasa.regNumber);
+
         // Clear login form
         setLoginRegNum('');
         setLoginPassword('');
@@ -1502,7 +1523,7 @@ function App() {
         alert(t('alertIncorrectPassword'));
       }
     } catch (err) {
-      alert(t('alertUnexpectedError') + err.message);
+      alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
     } finally {
       setIsLoggingIn(false);
     }
