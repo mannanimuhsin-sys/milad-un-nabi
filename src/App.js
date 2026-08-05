@@ -445,7 +445,13 @@ function App() {
 
   // ── Persistent session: restore from localStorage on first render ──
   const savedSession = (() => {
-    try { return JSON.parse(localStorage.getItem('miladfest_session') || 'null'); } catch { return null; }
+    try {
+      const s = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
+      if (s && s.madrasa) {
+        s.madrasa.regNumber = String(s.madrasa.regNumber || s.madrasa.regnumber || s.madrasa.reg_number || '').trim();
+      }
+      return s;
+    } catch { return null; }
   })();
 
   const [currentScreen, setCurrentScreen] = useState(savedSession ? 'DASHBOARD' : 'LOGIN');
@@ -862,7 +868,8 @@ function App() {
   };
 
   // 🔄 Function to load real-time data from Supabase (with offline fallback & LocalStorage caching)
-  const fetchSupabaseData = async (rNum) => {
+  const fetchSupabaseData = async (rNumInput) => {
+    const rNum = String(rNumInput || (loggedInMadrasa ? (loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number) : '')).trim();
     if (!rNum) return;
 
     // 🚀 Load local cache immediately for instant UI render (<10ms)
@@ -880,19 +887,36 @@ function App() {
     }
 
     try {
-      // 12-second network timeout wrapper to protect against hung requests on 2G/3G/poor wifi
+      // 15-second network timeout wrapper to protect against hung requests on 2G/3G/poor wifi
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Network request timed out')), 12000)
+        setTimeout(() => reject(new Error('Network request timed out')), 15000)
       );
 
+      const numericId = parseInt(rNum, 10);
+      const isNumValid = !isNaN(numericId);
+
       const fetchPromise = Promise.all([
-        supabase.from('teams').select('*').eq('madrasa_id', rNum),
-        supabase.from('categories').select('*').eq('madrasa_id', rNum),
-        supabase.from('students').select('*').eq('madrasa_id', rNum),
-        supabase.from('programs').select('*').eq('madrasa_id', rNum),
-        supabase.from('results').select('*').eq('madrasa_id', rNum),
-        supabase.from('program_registrations').select('*').eq('madrasa_id', rNum),
-        supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle()
+        queryWithRetry(() => isNumValid
+          ? supabase.from('teams').select('*').or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+          : supabase.from('teams').select('*').eq('madrasa_id', rNum)),
+        queryWithRetry(() => isNumValid
+          ? supabase.from('categories').select('*').or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+          : supabase.from('categories').select('*').eq('madrasa_id', rNum)),
+        queryWithRetry(() => isNumValid
+          ? supabase.from('students').select('*').or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+          : supabase.from('students').select('*').eq('madrasa_id', rNum)),
+        queryWithRetry(() => isNumValid
+          ? supabase.from('programs').select('*').or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+          : supabase.from('programs').select('*').eq('madrasa_id', rNum)),
+        queryWithRetry(() => isNumValid
+          ? supabase.from('results').select('*').or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+          : supabase.from('results').select('*').eq('madrasa_id', rNum)),
+        queryWithRetry(() => isNumValid
+          ? supabase.from('program_registrations').select('*').or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+          : supabase.from('program_registrations').select('*').eq('madrasa_id', rNum)),
+        queryWithRetry(() => isNumValid
+          ? supabase.from('madrasas').select('*').or(`regNumber.eq.${rNum},regNumber.eq.${numericId},regnumber.eq.${rNum}`).maybeSingle()
+          : supabase.from('madrasas').select('*').eq('regNumber', rNum).maybeSingle())
       ]);
 
       const [
