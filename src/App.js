@@ -841,6 +841,9 @@ function App() {
   const fetchSupabaseData = async (rNum) => {
     if (!rNum) return;
 
+    // 🚀 Load local cache immediately for instant UI render (<10ms)
+    loadCachedData(rNum);
+
     // Prevent concurrent stacked requests on weak connections
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
