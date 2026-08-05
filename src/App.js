@@ -218,15 +218,30 @@ const downloadFile = async (dataUrlOrBlob, filename, mimeType = 'image/png') => 
   }
 };
 
-// Hidden iframe-based printing helper to bypass popup blockers
-const printHtml = (htmlContent) => {
+// Print HTML helper supporting Mobile/Android Chrome, Tablets, and Desktop browsers without blank page issues
+const printHtml = (htmlContent, title = 'Document') => {
+  try {
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      try { win.document.title = title; } catch (e) { }
+      return;
+    }
+  } catch (e) {
+    console.warn("window.open failed, fallback to iframe print:", e);
+  }
+
+  // Fallback for popup-blocked desktop browsers
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
-  iframe.style.left = '-9999px';
-  iframe.style.top = '-9999px';
-  iframe.style.width = '1024px';
-  iframe.style.height = '768px';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '100vw';
+  iframe.style.height = '100vh';
   iframe.style.border = 'none';
+  iframe.style.zIndex = '999999';
+  iframe.style.background = '#ffffff';
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow.document || iframe.contentDocument;
@@ -248,14 +263,13 @@ const printHtml = (htmlContent) => {
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe);
       }
-    }, 2000);
+    }, 2500);
   };
 
-  // Wait for resources to load, or fallback after 1000ms
   iframe.contentWindow.addEventListener('load', () => {
-    setTimeout(runPrint, 400);
+    setTimeout(runPrint, 500);
   });
-  setTimeout(runPrint, 1000);
+  setTimeout(runPrint, 1200);
 };
 
 // Helper to download HTML content as PDF via browser print-to-PDF
@@ -4178,21 +4192,62 @@ ${pagesHtml}
 <!DOCTYPE html>
 <html>
 <head>
-<title>Bulk Certificates (${winnerResults.length})</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk Certificates (${winnerResults.length} Winners)</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<script>
+  window.onload = function() {
+    setTimeout(function() {
+      window.print();
+    }, 800);
+  };
+</script>
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: #fff; }
+  body { font-family: 'Inter', sans-serif; background: #e2e8f0; color: #0f172a; }
+
+  @media print {
+    .no-print { display: none !important; }
+    html, body {
+      width: 297mm;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .certificate-wrapper {
+      width: 297mm !important;
+      height: 210mm !important;
+      max-width: 297mm !important;
+      max-height: 210mm !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+  }
+
+  @media screen {
+    body { padding-top: 70px; padding-bottom: 40px; }
+    .certificate-wrapper {
+      width: 1000px;
+      height: 705px;
+      margin: 25px auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      border-radius: 6px;
+    }
+  }
+
   .certificate-wrapper {
-    width: 1050px;
-    height: 740px;
     position: relative;
     background: radial-gradient(circle, #ffffff 0%, #faf8f2 100%);
     overflow: hidden;
-    page-break-after: always;
-    break-after: page;
-    margin: 0 auto;
   }
   .cert-border-outer {
     position: absolute; top: 16px; left: 16px; right: 16px; bottom: 16px; border: 4px solid #1b5e20; border-radius: 4px;
@@ -4274,12 +4329,21 @@ ${pagesHtml}
 </style>
 </head>
 <body>
+  <!-- Floating print toolbar for screen mode -->
+  <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #166534; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+    <span style="font-weight: 800; font-size: 14px; font-family: sans-serif;">📜 Certificates Preview (${winnerResults.length} Certificates)</span>
+    <div style="display: flex; gap: 10px;">
+      <button onclick="window.print()" style="background: #fbbf24; color: #78350f; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">🖨️ Save as PDF / Print</button>
+      <button onclick="window.close()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">✕ Close</button>
+    </div>
+  </div>
+
   ${certificatesPagesHtml}
 </body>
 </html>
                       `;
 
-                      printHtml(html);
+                      printHtml(html, `MiladFest_Bulk_Certificates_${winnerResults.length}`);
                     };
 
                     return (
