@@ -1594,46 +1594,68 @@ function App() {
 
   const handleApproveMadrasa = async (madrasa) => {
     const updatedPlace = makePlaceString(madrasa.place, { status: 'approved' });
-    const { error } = await supabase
-      .from('madrasas')
-      .update({ place: updatedPlace })
-      .eq('id', madrasa.id);
+    setSuperMadrasas(prev => prev.map(m => m.id === madrasa.id ? { ...m, place: updatedPlace } : m));
 
-    if (error) {
-      alert('Error approving madrasa: ' + error.message);
-    } else {
-      alert('Madrasa approved successfully!');
+    try {
+      const { error } = await supabase
+        .from('madrasas')
+        .update({ place: updatedPlace })
+        .eq('id', madrasa.id);
+
+      if (error) {
+        alert('Error approving madrasa: ' + getFriendlyErrorMessage(error.message));
+        fetchMadrasas();
+      } else {
+        alert('✅ Madrasa approved successfully!');
+      }
+    } catch (err) {
+      alert('Error approving madrasa: ' + getFriendlyErrorMessage(err.message));
       fetchMadrasas();
     }
   };
 
   const handleBlockMadrasa = async (madrasa) => {
     const updatedPlace = makePlaceString(madrasa.place, { status: 'blocked' });
-    const { error } = await supabase
-      .from('madrasas')
-      .update({ place: updatedPlace })
-      .eq('id', madrasa.id);
+    setSuperMadrasas(prev => prev.map(m => m.id === madrasa.id ? { ...m, place: updatedPlace } : m));
 
-    if (error) {
-      alert('Error blocking madrasa: ' + error.message);
-    } else {
-      alert('Madrasa blocked!');
+    try {
+      const { error } = await supabase
+        .from('madrasas')
+        .update({ place: updatedPlace })
+        .eq('id', madrasa.id);
+
+      if (error) {
+        alert('Error blocking madrasa: ' + getFriendlyErrorMessage(error.message));
+        fetchMadrasas();
+      } else {
+        alert('🛑 Madrasa blocked!');
+      }
+    } catch (err) {
+      alert('Error blocking madrasa: ' + getFriendlyErrorMessage(err.message));
       fetchMadrasas();
     }
   };
 
   const handleDeleteMadrasa = async (id) => {
     if (!window.confirm('Remove this madrasa? All registered data will be deleted.')) return;
-    const { error } = await supabase
-      .from('madrasas')
-      .delete()
-      .eq('id', id);
+    const originalSuper = [...superMadrasas];
+    setSuperMadrasas(prev => prev.filter(m => m.id !== id));
 
-    if (error) {
-      alert('Error deleting madrasa: ' + error.message);
-    } else {
-      alert('Madrasa deleted successfully!');
-      fetchMadrasas();
+    try {
+      const { error } = await supabase
+        .from('madrasas')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert('Error deleting madrasa: ' + getFriendlyErrorMessage(error.message));
+        setSuperMadrasas(originalSuper);
+      } else {
+        alert('🗑️ Madrasa deleted successfully!');
+      }
+    } catch (err) {
+      alert('Error deleting madrasa: ' + getFriendlyErrorMessage(err.message));
+      setSuperMadrasas(originalSuper);
     }
   };
 
@@ -1642,44 +1664,65 @@ function App() {
     setEditingMadrasaId(madrasa.id);
     setEditingMadrasaData({
       ...madrasa,
-      tempPlace: actualPlace
+      name: madrasa.name || '',
+      regNumber: madrasa.regNumber || madrasa.regnumber || madrasa.reg_number || '',
+      tempPlace: actualPlace || '',
+      adminPassword: madrasa.adminPassword || madrasa.admin_password || '',
+      viewPassword: madrasa.viewPassword || madrasa.view_password || ''
     });
   };
 
   const handleSaveMadrasaEdit = async () => {
-    if (!editingMadrasaData.name.trim() || !editingMadrasaData.regNumber.trim() || !editingMadrasaData.tempPlace.trim() || !editingMadrasaData.adminPassword.trim() || !editingMadrasaData.viewPassword.trim()) {
-      alert('Please fill in all details!');
+    const name = (editingMadrasaData.name || '').trim();
+    const regNumber = (editingMadrasaData.regNumber || '').trim();
+    const tempPlace = (editingMadrasaData.tempPlace || '').trim();
+    const adminPassword = (editingMadrasaData.adminPassword || '').trim();
+    const viewPassword = (editingMadrasaData.viewPassword || '').trim();
+
+    if (!name || !regNumber || !tempPlace) {
+      alert('Please fill in Name, Register Number, and Place!');
       return;
     }
 
     // Check if the regNumber is unique among other madrasas
     const duplicate = superMadrasas.find(
-      m => m.regNumber === editingMadrasaData.regNumber && m.id !== editingMadrasaId
+      m => String(m.regNumber) === String(regNumber) && m.id !== editingMadrasaId
     );
     if (duplicate) {
       alert('This register number already exists!');
       return;
     }
 
-    const updatedPlace = makePlaceString(editingMadrasaData.place, { place: editingMadrasaData.tempPlace });
+    const updatedPlace = makePlaceString(editingMadrasaData.place, { place: tempPlace });
 
-    const { error } = await supabase
-      .from('madrasas')
-      .update({
-        name: editingMadrasaData.name,
-        regNumber: editingMadrasaData.regNumber,
-        place: updatedPlace,
-        adminPassword: editingMadrasaData.adminPassword,
-        viewPassword: editingMadrasaData.viewPassword
-      })
-      .eq('id', editingMadrasaId);
+    const updatePayload = {
+      name,
+      regNumber,
+      place: updatedPlace,
+      ...(adminPassword ? { adminPassword } : {}),
+      ...(viewPassword ? { viewPassword } : {})
+    };
 
-    if (error) {
-      alert('Error updating madrasa: ' + error.message);
-    } else {
-      alert('Madrasa details updated successfully!');
-      setEditingMadrasaId(null);
-      fetchMadrasas();
+    const originalSuper = [...superMadrasas];
+    setSuperMadrasas(prev => prev.map(m => m.id === editingMadrasaId ? { ...m, ...updatePayload, place: updatedPlace } : m));
+    const targetId = editingMadrasaId;
+    setEditingMadrasaId(null);
+
+    try {
+      const { error } = await supabase
+        .from('madrasas')
+        .update(updatePayload)
+        .eq('id', targetId);
+
+      if (error) {
+        alert('Error updating madrasa: ' + getFriendlyErrorMessage(error.message));
+        setSuperMadrasas(originalSuper);
+      } else {
+        alert('✅ Madrasa details updated successfully!');
+      }
+    } catch (err) {
+      alert('Error updating madrasa: ' + getFriendlyErrorMessage(err.message));
+      setSuperMadrasas(originalSuper);
     }
   };
 
