@@ -4021,10 +4021,11 @@ ${pagesHtml}
                         const dashIdx = sName.indexOf(' - ');
                         const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
                         const student = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === String(regPart).toLowerCase());
+                        const prog = programs.find(p => String(p.id) === String(r.progid));
 
                         // Category Filter
                         if (bulkCertCat !== 'ALL') {
-                          const rCatId = String(r.catid || r.catId || (student ? student.catid || student.catId : ''));
+                          const rCatId = String(r.catid || r.catId || (prog ? prog.catid || prog.catId : '') || (student ? student.catid || student.catId : ''));
                           const catObj = categories.find(c => String(c.id) === String(bulkCertCat));
                           const targetCatName = catObj ? catObj.name : '';
 
@@ -4033,17 +4034,17 @@ ${pagesHtml}
                           }
                         }
 
-                        // Gender Filter
+                        // Gender / Division Filter
                         if (bulkCertGender !== 'ALL') {
-                          const genderVal = (student ? student.gender : (r.studentgender || r.studentGender || '')).toUpperCase();
-                          const progType = (r.progtype || r.progType || '').toUpperCase();
+                          const genderVal = (r.studentgender || r.studentGender || (student ? student.gender : '') || (prog ? prog.type : '')).toUpperCase();
+                          const progType = (r.progtype || r.progType || (prog ? prog.type : '')).toUpperCase();
 
                           if (bulkCertGender === 'BOY') {
-                            if (genderVal !== 'BOY' && !progType.includes('BOY')) return false;
+                            if (!genderVal.includes('BOY') && !progType.includes('BOY')) return false;
                           } else if (bulkCertGender === 'GIRL') {
-                            if (genderVal !== 'GIRL' && !progType.includes('GIRL')) return false;
+                            if (!genderVal.includes('GIRL') && !progType.includes('GIRL')) return false;
                           } else if (bulkCertGender === 'COMMON') {
-                            if (genderVal === 'BOY' || genderVal === 'GIRL' || progType.includes('BOY') || progType.includes('GIRL')) return false;
+                            if (!genderVal.includes('COMMON') && !progType.includes('COMMON')) return false;
                           }
                         }
 
@@ -4051,7 +4052,11 @@ ${pagesHtml}
                       });
 
                       if (winnerResults.length === 0) {
-                        alert('No 1st, 2nd, or 3rd place winners found matching the selected Category and Gender filters.');
+                        alert(
+                          lang === 'EN'
+                            ? 'No 1st, 2nd, or 3rd place winners found matching the selected Category and Gender filters.'
+                            : 'സെലക്ട് ചെയ്ത കാറ്റഗറിയിലും ജെൻഡറിലും 1, 2, 3 സ്ഥാനങ്ങൾ ലഭിച്ച വിജയികളാരും ഇല്ല.'
+                        );
                         return;
                       }
 
@@ -4279,88 +4284,127 @@ ${pagesHtml}
 
                     return (
                       <div style={{ marginBottom: '20px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px', marginTop: '10px', marginBottom: '20px' }}>
-                          {/* Student Search Card — shows register number input; Admin mode also shows bulk certificate section */}
-                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
-                            <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
-                              🔍 Student Report & Certificate
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: loginRole === 'ADMIN' ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
+                          gap: '16px',
+                          marginTop: '10px',
+                          marginBottom: '20px'
+                        }}>
+                          {/* Card 1: Single Student Register Number Search */}
+                          <div style={{
+                            background: 'white',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '16px',
+                            padding: '20px',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between'
+                          }}>
+                            <div>
+                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🔍</span>
+                                <span>{lang === 'EN' ? 'Student Report & Single Certificate' : 'സ്റ്റുഡന്റ് റിപ്പോർട്ട് & സർട്ടിഫിക്കറ്റ്'}</span>
+                              </div>
+                              <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px', lineHeight: '1.4' }}>
+                                {lang === 'EN'
+                                  ? 'Enter register number to view student performance report and print individual certificate.'
+                                  : 'വിദ്യാർത്ഥിയുടെ ഫലങ്ങളും സർട്ടിഫിക്കറ്റും കാണാൻ താഴെ രജിസ്റ്റർ നമ്പർ നൽകുക.'
+                                }
+                              </p>
                             </div>
                             <input
                               type="text"
-                              className="settings-input"
-                              placeholder="Enter Register Number..."
+                              className="settings-input-v2"
+                              placeholder={lang === 'EN' ? 'Enter Register Number (e.g. 101)...' : 'രജിസ്റ്റർ നമ്പർ നൽകുക (e.g. 101)...'}
                               value={searchRegNo}
                               onChange={(e) => setSearchRegNo(e.target.value)}
-                              style={{ width: '100%' }}
+                              style={{ width: '100%', fontSize: '14px', padding: '10px 14px' }}
                             />
+                          </div>
 
-                            {/* Admin-only: Bulk Certificate Section — appears right below register number input */}
-                            {loginRole === 'ADMIN' && (
-                              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
-                                <div style={{ fontSize: '12px', fontWeight: '800', color: '#166534', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                  📜 Certificate — Bulk PDF / Print
-                                </div>
+                          {/* Card 2 (ADMIN MODE ONLY): Bulk Certificate Generation & PDF Export */}
+                          {loginRole === 'ADMIN' && (
+                            <div style={{
+                              background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                              border: '1.5px solid #bbf7d0',
+                              borderRadius: '16px',
+                              padding: '20px',
+                              boxShadow: '0 4px 15px rgba(22,163,74,0.06)'
+                            }}>
+                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#166534', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>📜</span>
+                                <span>{lang === 'EN' ? 'Bulk Certificate (PDF / Print)' : 'സർട്ടിഫിക്കറ്റ് (Bulk PDF / പ്രിന്റ്)'}</span>
+                              </div>
+                              <p style={{ fontSize: '12px', color: '#15803d', marginBottom: '14px', lineHeight: '1.4' }}>
+                                {lang === 'EN'
+                                  ? 'Filter 1st, 2nd & 3rd place winners by category and gender division to export all certificates into PDF.'
+                                  : 'കാറ്റഗറിയും ജെൻഡറും സെലക്ട് ചെയ്ത് 1, 2, 3 വിജയികളുടെ എല്ലാ സർട്ടിഫിക്കറ്റുകളും ഒന്നിച്ച് PDF ആക്കുക.'
+                                }
+                              </p>
 
-                                {/* Category Filter */}
-                                <div style={{ marginBottom: '8px' }}>
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>
-                                    Category
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                                {/* Category Dropdown */}
+                                <div>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>
+                                    {lang === 'EN' ? 'Category' : 'കാറ്റഗറി'}
                                   </label>
                                   <select
-                                    className="settings-input"
+                                    className="settings-input-v2"
                                     value={bulkCertCat}
                                     onChange={(e) => setBulkCertCat(e.target.value)}
-                                    style={{ width: '100%', padding: '6px 8px', fontSize: '13px' }}
+                                    style={{ width: '100%', padding: '8px 10px', fontSize: '13px', background: 'white' }}
                                   >
-                                    <option value="ALL">All Categories</option>
+                                    <option value="ALL">{lang === 'EN' ? 'All Categories (എല്ലാം)' : 'All Categories (എല്ലാ കാറ്റഗറിയും)'}</option>
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                   </select>
                                 </div>
 
-                                {/* Gender Filter */}
-                                <div style={{ marginBottom: '10px' }}>
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'block', marginBottom: '3px' }}>
-                                    Gender Filter
+                                {/* Gender / Division Dropdown */}
+                                <div>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>
+                                    {lang === 'EN' ? 'Gender / Division' : 'വിഭാഗം (Division)'}
                                   </label>
                                   <select
-                                    className="settings-input"
+                                    className="settings-input-v2"
                                     value={bulkCertGender}
                                     onChange={(e) => setBulkCertGender(e.target.value)}
-                                    style={{ width: '100%', padding: '6px 8px', fontSize: '13px' }}
+                                    style={{ width: '100%', padding: '8px 10px', fontSize: '13px', background: 'white' }}
                                   >
-                                    <option value="ALL">All (എല്ലാം)</option>
-                                    <option value="BOY">👦 Boys (ബോയ്സ്)</option>
-                                    <option value="GIRL">👧 Girls (ഗേൾസ്)</option>
-                                    <option value="COMMON">👥 Common (കോമൺ)</option>
+                                    <option value="ALL">{lang === 'EN' ? 'All (എല്ലാം)' : 'All (എല്ലാം)'}</option>
+                                    <option value="BOY">👦 {lang === 'EN' ? 'Boys' : 'ബോയ്സ്'}</option>
+                                    <option value="GIRL">👧 {lang === 'EN' ? 'Girls' : 'ഗേൾസ്'}</option>
+                                    <option value="COMMON">👥 {lang === 'EN' ? 'Common' : 'കോമൺ'}</option>
                                   </select>
                                 </div>
-
-                                {/* PDF / Print Button */}
-                                <button
-                                  onClick={generateBulkCertificates}
-                                  style={{
-                                    background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '9px 14px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontWeight: '800',
-                                    fontSize: '12px',
-                                    width: '100%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 2px 8px rgba(22,163,74,0.2)',
-                                    marginTop: '2px'
-                                  }}
-                                >
-                                  🖨️ PDF / Print All Certificates
-                                </button>
                               </div>
-                            )}
-                          </div>
+
+                              {/* PDF / Print Button */}
+                              <button
+                                onClick={generateBulkCertificates}
+                                style={{
+                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '11px 16px',
+                                  borderRadius: '10px',
+                                  cursor: 'pointer',
+                                  fontWeight: '800',
+                                  fontSize: '13px',
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  boxShadow: '0 4px 12px rgba(22,163,74,0.25)',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                🖨️ {lang === 'EN' ? 'PDF / Print All Certificates' : 'PDF / പ്രിന്റ് ഓൾ സർട്ടിഫിക്കറ്റുകൾ'}
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                       {searchRegNo.trim() && (() => {
