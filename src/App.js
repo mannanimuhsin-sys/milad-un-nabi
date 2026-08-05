@@ -753,8 +753,8 @@ function App() {
       const cached = JSON.parse(raw);
       if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
       if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
-      if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms(cached.programs);
-      if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents(cached.students);
+      if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms([...cached.programs].sort(compareProgCode));
+      if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents([...cached.students].sort(compareRegNo));
       if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
       if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
       if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
@@ -823,7 +823,7 @@ function App() {
       // Update states ONLY if valid array returned
       if (Array.isArray(teamsData)) setTeams(teamsData);
       if (Array.isArray(catsData)) setCategories(catsData);
-      if (Array.isArray(programsData)) setPrograms(programsData);
+      if (Array.isArray(programsData)) setPrograms([...programsData].sort(compareProgCode));
       if (Array.isArray(studentsData)) {
         const uniqueMap = new Map();
         for (const s of studentsData) {
@@ -1180,7 +1180,13 @@ function App() {
           };
         });
 
-      const allIndividualResults = [...studentResults, ...registeredWithNoResult];
+      const allIndividualResults = [...studentResults, ...registeredWithNoResult].sort((a, b) => {
+        const progA = progsData?.find(p => String(p.id) === String(a.progid));
+        const progB = progsData?.find(p => String(p.id) === String(b.progid));
+        const codeA = progA ? String(progA.code || '') : '';
+        const codeB = progB ? String(progB.code || '') : '';
+        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      });
 
       // Safe fetch of group registrations
       let studentGroups = [];
