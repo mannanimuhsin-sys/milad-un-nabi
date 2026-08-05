@@ -618,38 +618,59 @@ function App() {
   const [regTabSaving, setRegTabSaving] = useState(false);
   const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
 
+  const isStudentMatch = useCallback((r, studentObj) => {
+    if (!r || !studentObj) return false;
+    const rSid = String(r.student_id || '').trim();
+    const sId = String(studentObj.id || '').trim();
+    const sReg = String(studentObj.regno || studentObj.regNo || '').trim();
+    return Boolean(rSid && (rSid === sId || (sReg && rSid === sReg)));
+  }, []);
+
+  const isProgramMatch = useCallback((r, p) => {
+    if (!r || !p) return false;
+    const rVal = String(r.program_id || r.program_name || '').trim();
+    const pId = String(p.id || '').trim();
+    const pCode = String(p.code || '').trim();
+    const pName = String(p.name || '').trim();
+    const rProgName = String(r.program_name || '').trim();
+    const rProgId = String(r.program_id || '').trim();
+
+    return Boolean(
+      rVal === pId || rVal === pCode || rVal === pName ||
+      rProgName === pId || rProgName === pCode || rProgName === pName ||
+      rProgId === pId || rProgId === pCode || rProgId === pName
+    );
+  }, []);
+
   const getStudentRegisteredPrograms = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const targetRegs = customRegs || programRegistrations;
-    const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
-    return sRegs.map(r => {
-      const rVal = String(r.program_id || r.program_name || '');
-      return programs.find(p =>
-        String(p.id) === rVal ||
-        String(p.id) === String(r.program_name) ||
-        String(p.id) === String(r.program_id) ||
-        p.code === rVal ||
-        p.name === rVal ||
-        p.code === r.program_name ||
-        p.name === r.program_name
-      );
-    }).filter(Boolean);
-  }, [programRegistrations, programs]);
+    const studentObj = students.find(s => String(s.id) === String(studentId) || String(s.regno || s.regNo || '').trim() === String(studentId).trim());
+    if (!studentObj) {
+      const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
+      return sRegs.map(r => programs.find(p => isProgramMatch(r, p))).filter(Boolean);
+    }
+    const sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
+    return sRegs.map(r => programs.find(p => isProgramMatch(r, p))).filter(Boolean);
+  }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch]);
 
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
     const ids = matchedProgs.map(p => String(p.id));
     const targetRegs = customRegs || programRegistrations;
-    const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
-    sRegs.forEach(r => {
-      const val = String(r.program_id || r.program_name || '');
-      if (val && val !== 'undefined' && val !== 'null' && !ids.includes(val)) {
-        ids.push(val);
-      }
-    });
+    const studentObj = students.find(s => String(s.id) === String(studentId) || String(s.regno || s.regNo || '').trim() === String(studentId).trim());
+    if (studentObj) {
+      const sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
+      sRegs.forEach(r => {
+        const val = String(r.program_id || r.program_name || '');
+        if (val && val !== 'undefined' && val !== 'null' && !ids.includes(val)) {
+          ids.push(val);
+        }
+      });
+    }
     return Array.from(new Set(ids));
-  }, [getStudentRegisteredPrograms, programRegistrations]);
+  }, [getStudentRegisteredPrograms, programRegistrations, students, isStudentMatch]);
 
   // ── Group Registration States ──
   const [groupRegistrations, setGroupRegistrations] = useState([]);
@@ -7508,32 +7529,48 @@ ${pagesHtml}
                         return false;
                       }) : [];
 
-                      const selectedStudentObj = students.find(s => String(s.id) === String(regTabStudent));
+                      const selectedStudentObj = students.find(s => String(s.id) === String(regTabStudent) || String(s.regno || s.regNo || '').trim() === String(regTabStudent).trim());
 
                       const handleSaveRegistrations = async () => {
                         if (!regTabStudent) { alert(t('alertPleaseSelectStudent')); return; }
                         setRegTabSaving(true);
                         try {
                           const madrasaId = loggedInMadrasa.regNumber;
-                          const rawStudentId = regTabStudent;
-                          const studentIdInt = parseInt(rawStudentId, 10);
-                          const targetStudentId = isNaN(studentIdInt) ? rawStudentId : studentIdInt;
+                          const studentObj = selectedStudentObj || students.find(s => String(s.id) === String(regTabStudent));
+                          if (!studentObj) {
+                            alert(t('alertStudentNotFound'));
+                            setRegTabSaving(false);
+                            return;
+                          }
 
-                          const { error: deleteError } = await supabase.from('program_registrations')
-                            .delete()
-                            .eq('madrasa_id', madrasaId)
-                            .eq('student_id', targetStudentId);
+                          const sDbId = studentObj.id;
+                          const sRegNo = studentObj.regno || studentObj.regNo;
+                          const dbIdInt = parseInt(sDbId, 10);
+                          const regNoInt = parseInt(sRegNo, 10);
 
-                          if (deleteError) {
-                            throw new Error(deleteError.message);
+                          // Delete previous registrations matching DB ID or Register Number
+                          if (!isNaN(dbIdInt)) {
+                            await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', dbIdInt);
+                          }
+                          await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sDbId));
+
+                          if (sRegNo && String(sRegNo) !== String(sDbId)) {
+                            if (!isNaN(regNoInt)) {
+                              await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', regNoInt);
+                            }
+                            await supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('student_id', String(sRegNo));
                           }
 
                           if (regTabCheckedProgs.length > 0) {
-                            const inserts = regTabCheckedProgs.map(pId => ({
-                              madrasa_id: madrasaId,
-                              student_id: targetStudentId,
-                              program_name: String(pId)
-                            }));
+                            const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
+                            const inserts = regTabCheckedProgs.map(pId => {
+                              const pObj = programs.find(p => String(p.id) === String(pId));
+                              return {
+                                madrasa_id: madrasaId,
+                                student_id: targetIdToInsert,
+                                program_name: String(pObj ? pObj.id : pId)
+                              };
+                            });
                             const { error: insertError } = await supabase.from('program_registrations').insert(inserts);
                             if (insertError) {
                               throw new Error(insertError.message);
@@ -7551,12 +7588,12 @@ ${pagesHtml}
                               program_id: r.program_name || r.program_id
                             }));
                             setProgramRegistrations(mapped);
-                            const updatedExisting = getStudentRegisteredProgIds(rawStudentId, mapped);
+                            const updatedExisting = getStudentRegisteredProgIds(sDbId, mapped);
                             setRegTabCheckedProgs(updatedExisting);
                           }
                           alert(t('alertSavedRegistrations')
                             .replace('{count}', regTabCheckedProgs.length)
-                            .replace('{studentName}', selectedStudentObj?.name || '')
+                            .replace('{studentName}', studentObj?.name || '')
                           );
                         } catch (err) {
                           alert(t('alertUploadFailed') + err.message);
