@@ -218,84 +218,103 @@ const downloadFile = async (dataUrlOrBlob, filename, mimeType = 'image/png') => 
   }
 };
 
-// Print HTML helper supporting Mobile/Android Chrome, Tablets, and Desktop browsers without blank page issues
-const printHtml = (htmlContent, title = 'Document') => {
+// Universal Mobile-Safe Print & PDF Viewer helper supporting Mobile/Android Chrome, iOS Safari, Tablets, and Desktop browsers
+const openPrintDocument = (htmlContent, title = 'Document') => {
+  let win = null;
   try {
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (win) {
-      try { win.document.title = title; } catch (e) { }
-      return;
-    }
+    // Synchronous window.open prevents popup blockers on mobile browsers
+    win = window.open('', '_blank');
   } catch (e) {
-    console.warn("window.open failed, fallback to iframe print:", e);
+    console.warn("window.open failed:", e);
   }
 
-  // Fallback for popup-blocked desktop browsers
+  if (win && !win.closed) {
+    try {
+      win.document.open();
+      win.document.write(htmlContent);
+      win.document.close();
+      try { win.document.title = title; } catch(e){}
+
+      const triggerPrint = () => {
+        try {
+          win.focus();
+          if (win.document.fonts && win.document.fonts.ready) {
+            win.document.fonts.ready.then(() => {
+              setTimeout(() => { try { win.print(); } catch(e){} }, 450);
+            });
+          } else {
+            setTimeout(() => { try { win.print(); } catch(e){} }, 650);
+          }
+        } catch(e) {}
+      };
+
+      if (win.document.readyState === 'complete') {
+        triggerPrint();
+      } else {
+        win.onload = triggerPrint;
+        setTimeout(triggerPrint, 1200);
+      }
+      return;
+    } catch(err) {
+      console.error("Failed writing to opened print window:", err);
+    }
+  }
+
+  // Universal Fallback for mobile popup blockers or in-app WebViews (Instagram/WhatsApp/Facebook browser):
+  const existingModal = document.getElementById('mobile-print-modal-container');
+  if (existingModal) existingModal.remove();
+
+  const container = document.createElement('div');
+  container.id = 'mobile-print-modal-container';
+  container.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,0.96);display:flex;flex-direction:column;font-family:Segoe UI, system-ui, sans-serif;animation:cropperFadeIn 0.2s ease-out;';
+
+  const topBar = document.createElement('div');
+  topBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#1e293b;border-bottom:1px solid #334155;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+  topBar.innerHTML = `
+    <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;color:#f8fafc;">📄 ${title}</div>
+    <div style="display:flex;gap:8px;">
+      <button id="mobile-print-btn-action" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(22,163,74,0.4);">🖨️ Print / Save PDF</button>
+      <button id="mobile-print-btn-close" style="background:#475569;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">✕ Close</button>
+    </div>
+  `;
+
   const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '100vw';
-  iframe.style.height = '100vh';
-  iframe.style.border = 'none';
-  iframe.style.zIndex = '999999';
-  iframe.style.background = '#ffffff';
-  document.body.appendChild(iframe);
+  iframe.style.cssText = 'flex:1;width:100%;height:100%;border:none;background:#ffffff;';
+
+  container.appendChild(topBar);
+  container.appendChild(iframe);
+  document.body.appendChild(container);
 
   const doc = iframe.contentWindow.document || iframe.contentDocument;
   doc.open();
   doc.write(htmlContent);
   doc.close();
 
-  let printed = false;
-  const runPrint = () => {
-    if (printed) return;
-    printed = true;
+  const doIframePrint = () => {
     try {
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
-    } catch (e) {
-      console.error('Print failed:', e);
+    } catch(e) {
+      alert("Please tap 'Print / Save PDF' button to save or print.");
     }
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
-      }
-    }, 2500);
   };
 
-  iframe.contentWindow.addEventListener('load', () => {
-    setTimeout(runPrint, 500);
-  });
-  setTimeout(runPrint, 1200);
+  const btnAction = document.getElementById('mobile-print-btn-action');
+  const btnClose = document.getElementById('mobile-print-btn-close');
+  if (btnAction) btnAction.onclick = doIframePrint;
+  if (btnClose) btnClose.onclick = () => container.remove();
+
+  setTimeout(doIframePrint, 800);
+};
+
+// Print HTML helper supporting Mobile/Android Chrome, iOS Safari, Tablets, and Desktop browsers
+const printHtml = (htmlContent, title = 'Document') => {
+  openPrintDocument(htmlContent, title);
 };
 
 // Helper to download HTML content as PDF via browser print-to-PDF
 const downloadHtmlAsPdf = (htmlContent, filename = 'document.pdf') => {
-  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (win) {
-    win.onload = () => {
-      setTimeout(() => {
-        // Set the document title to control the filename in Save dialog
-        win.document.title = filename.replace('.pdf', '');
-        win.focus();
-        win.print();
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-      }, 600);
-    };
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  } else {
-    // Fallback: direct download as HTML
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename.replace('.pdf', '.html');
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+  openPrintDocument(htmlContent, filename.replace('.pdf', ''));
 };
 
 const getTrollReaction = (rank, teamName, lang, offset = 0) => {
@@ -11440,8 +11459,7 @@ ${pagesHtml}
                           </tr>`;
                         }).join('');
 
-                        const printWin = window.open('', '_blank');
-                        printWin.document.write(`<!DOCTYPE html>
+                        const encouragementHtml = `<!DOCTYPE html>
 <html>
 <head>
 <title>Encouragement List - ${madrasaName}</title>
@@ -11492,9 +11510,8 @@ ${pagesHtml}
 </table>
 <div class="footer">Generated by Milad Fest Management App • Total Students: ${contestantList.length}</div>
 </body>
-</html>`);
-                        printWin.document.close();
-                        printWin.print();
+</html>`;
+                        openPrintDocument(encouragementHtml, 'Encouragement_List');
                       };
 
                       return (
