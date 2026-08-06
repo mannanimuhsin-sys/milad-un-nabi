@@ -2335,17 +2335,43 @@ function App() {
       return;
     }
 
+    let studentCatId = editingStudentData.catid;
+    if (String(studentCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(studentCatId, 10))) {
+      const genCat = categories.find(c => c.name.toLowerCase().includes('general')) || categories[0];
+      if (genCat) studentCatId = genCat.id;
+    }
+    const finalStudentCatId = !isNaN(parseInt(studentCatId, 10)) ? parseInt(studentCatId, 10) : (categories[0]?.id || 1);
+
+    const updatedStudentObj = {
+      ...editingStudentData,
+      regno: trimmedReg,
+      catid: finalStudentCatId
+    };
+
     const originalStudents = [...students];
-    setStudents(prev => prev.map(s => s.id === editingStudentId ? { ...s, ...editingStudentData, regno: trimmedReg } : s).sort(compareRegNo));
+    setStudents(prev => {
+      const updated = prev.map(s => s.id === editingStudentId ? { ...s, ...updatedStudentObj } : s).sort(compareRegNo);
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.students = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch (e) {}
+      return updated;
+    });
+
     const targetId = editingStudentId;
     setEditingStudentId(null);
+
     try {
       const { error } = await supabase.from('students').update({
-        name: editingStudentData.name,
-        regno: editingStudentData.regno,
-        gender: editingStudentData.gender,
-        teamid: editingStudentData.teamid,
-        catid: editingStudentData.catid
+        name: updatedStudentObj.name,
+        regno: updatedStudentObj.regno,
+        gender: updatedStudentObj.gender,
+        teamid: updatedStudentObj.teamid,
+        catid: updatedStudentObj.catid
       }).eq('id', targetId);
       if (error) {
         alert('Error: ' + getFriendlyErrorMessage(error.message));
@@ -2382,18 +2408,20 @@ function App() {
     }
 
     let dbCatId = selectedProgCat;
-    if (String(dbCatId).toUpperCase() === 'GENERAL') {
-      if (generalCatIds.length > 0) {
+    if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
+      const genCat = categories.find(c => c.name.toLowerCase().includes('general')) || categories[0];
+      if (genCat) {
+        dbCatId = genCat.id;
+      } else if (generalCatIds.length > 0) {
         dbCatId = generalCatIds[0];
-      } else if (categories.length > 0) {
-        dbCatId = categories[0].id;
       }
     }
+    const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : (categories[0]?.id || 1);
 
     const savedName = newProgName.trim();
     const savedCode = newProgCode.trim();
     const tempId = 'temp_' + Date.now();
-    const tempProg = { id: tempId, name: savedName, code: savedCode, catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
+    const tempProg = { id: tempId, name: savedName, code: savedCode, catid: finalProgCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
 
     // 🚀 Instant state + LocalStorage cache update (<1ms)
     setPrograms(prev => {
@@ -2413,7 +2441,7 @@ function App() {
 
     try {
       const { data, error } = await supabase.from('programs').insert([{
-        name: savedName, code: savedCode, catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber
+        name: savedName, code: savedCode, catid: finalProgCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber
       }]).select();
 
       if (error) {
@@ -2449,15 +2477,17 @@ function App() {
 
   const handleSaveProgEdit = async () => {
     let dbCatId = editingProgData.catid;
-    if (String(dbCatId).toUpperCase() === 'GENERAL') {
-      if (generalCatIds.length > 0) {
+    if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
+      const genCat = categories.find(c => c.name.toLowerCase().includes('general')) || categories[0];
+      if (genCat) {
+        dbCatId = genCat.id;
+      } else if (generalCatIds.length > 0) {
         dbCatId = generalCatIds[0];
-      } else if (categories.length > 0) {
-        dbCatId = categories[0].id;
       }
     }
+    const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : (categories[0]?.id || 1);
 
-    const updatedData = { ...editingProgData, catid: dbCatId };
+    const updatedData = { ...editingProgData, catid: finalProgCatId };
     setPrograms(prev => {
       const updated = prev.map(p => p.id === editingProgId ? { ...p, ...updatedData } : p).sort(compareProgCode);
       try {
@@ -2475,8 +2505,10 @@ function App() {
     setEditingProgId(null);
 
     const { error } = await supabase.from('programs').update({
-      name: updatedData.name, code: updatedData.code,
-      catid: updatedData.catid, type: updatedData.type
+      name: updatedData.name,
+      code: updatedData.code,
+      catid: updatedData.catid,
+      type: updatedData.type
     }).eq('id', targetId);
     if (error) { alert('Error: ' + getFriendlyErrorMessage(error.message)); }
   };
