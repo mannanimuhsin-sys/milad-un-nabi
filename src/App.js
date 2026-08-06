@@ -2475,20 +2475,40 @@ function App() {
     setNewProgName(''); setNewProgCode('');
 
     try {
-      const { data, error } = await supabase.from('programs').insert([{
-        name: savedName, code: savedCode, catid: finalProgCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber
-      }]).select();
+      const { data, error } = await queryWithRetry(() =>
+        supabase.from('programs').insert([{
+          name: savedName,
+          code: savedCode,
+          catid: finalProgCatId,
+          type: `${progType}_${progGender}`,
+          madrasa_id: loggedInMadrasa.regNumber
+        }]).select()
+      );
 
       if (error) {
-        alert('Error saving program: ' + getFriendlyErrorMessage(error.message));
-        setPrograms(prev => prev.filter(p => p.id !== tempId));
+        console.error('Program insert error:', error);
+        const errMsg = getFriendlyErrorMessage(error.message || JSON.stringify(error));
+        alert((lang === 'EN' ? 'Error saving program:\n' : 'പ്രോഗ്രാം സേവ് ചെയ്യൽ പരാജയപ്പെട്ടു:\n') + errMsg);
+        // Keep program in local state but mark as failed so user knows
+        setPrograms(prev => prev.map(p => p.id === tempId ? { ...p, _saveError: true } : p));
       } else if (data && data[0]) {
         const realProg = data[0];
         setPrograms(prev => prev.map(p => p.id === tempId ? realProg : p).sort(compareProgCode));
+        // Update cache with real program
+        try {
+          const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa.regNumber}`);
+          if (rawCache) {
+            const cacheObj = JSON.parse(rawCache);
+            cacheObj.programs = (cacheObj.programs || []).map(p => p.id === tempId ? realProg : p);
+            localStorage.setItem(`cached_data_${loggedInMadrasa.regNumber}`, JSON.stringify(cacheObj));
+          }
+        } catch (e) {}
       }
     } catch (err) {
-      alert('Error saving program: ' + getFriendlyErrorMessage(err.message));
-      setPrograms(prev => prev.filter(p => p.id !== tempId));
+      console.error('Program insert exception:', err);
+      const errMsg = getFriendlyErrorMessage(err.message || String(err));
+      alert((lang === 'EN' ? 'Error saving program:\n' : 'പ്രോഗ്രാം സേവ് ചെയ്യൽ പരാജയപ്പെട്ടു:\n') + errMsg);
+      setPrograms(prev => prev.map(p => p.id === tempId ? { ...p, _saveError: true } : p));
     }
   };
 
@@ -3232,20 +3252,82 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfileUploading(false);
   };
 
-  // Admin: Approve photo
+  // Admin: Approve photo (1-second instant approval)
   const handleApprovePhoto = async (studentId) => {
-    const { error } = await supabase.from('students').update({ photo_status: 'approved' }).eq('id', studentId);
-    if (error) alert(t('alertUnexpectedError') + error.message);
-    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+    // 🚀 Instant optimistic UI update (<10ms)
+    setStudents(prev => prev.map(s => String(s.id) === String(studentId) ? { ...s, photo_status: 'approved' } : s));
+
+    try {
+      const { error } = await queryWithRetry(() =>
+        supabase.from('students').update({ photo_status: 'approved' }).eq('id', studentId)
+      );
+      if (error) console.error("Approve failed:", error.message);
+    } catch (err) {
+      console.error("Approve photo error:", err);
+    }
+  };
+
+  // Admin: Approve All Pending Photos (Single Click Instant Bulk Approve)
+  const handleApproveAllPendingPhotos = async () => {
+    const pendingStudents = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'pending');
+    if (pendingStudents.length === 0) {
+      alert(lang === 'EN' ? 'No pending photos to approve!' : 'അപ്പ്രൂവ് ചെയ്യാൻ പാൻഡിങ് ഫോട്ടോകൾ ഒന്നുമില്ല!');
+      return;
+    }
+
+    const pendingIds = pendingStudents.map(s => s.id);
+
+    // 🚀 Instant optimistic UI update (<10ms for all!)
+    setStudents(prev => prev.map(s => pendingIds.map(String).includes(String(s.id)) ? { ...s, photo_status: 'approved' } : s));
+
+    try {
+      const { error } = await queryWithRetry(() =>
+        supabase.from('students').update({ photo_status: 'approved' }).in('id', pendingIds)
+      );
+      if (error) {
+        alert('⚠️ Cloud update warning: ' + getFriendlyErrorMessage(error.message));
+      } else {
+        alert(lang === 'EN' ? `✅ Approved ${pendingStudents.length} photo(s) instantly!` : `✅ ${pendingStudents.length} ഫോട്ടോകൾ ഒറ്റ സെക്കന്റിൽ അപ്പ്രൂവ് ചെയ്തു!`);
+      }
+    } catch (err) {
+      alert('Approve error: ' + getFriendlyErrorMessage(err.message));
+    }
+  };
+
+  // Admin: Clean Corrupted/Broken Photos
+  const handleCleanCorruptedPhotos = async () => {
+    const corrupted = students.filter(s => (s.photo_url && String(s.photo_url).trim().length <= 30) || (s.photo_status === 'pending' && !s.photo_url));
+    if (corrupted.length === 0) {
+      alert(lang === 'EN' ? 'All uploaded photos are healthy!' : 'എല്ലാ ഫോട്ടോകളും കൃത്യമാണ്, തകരാറുള്ള ഫോട്ടോകൾ ഒന്നുമില്ല!');
+      return;
+    }
+    const corruptedIds = corrupted.map(s => s.id);
+    setStudents(prev => prev.map(s => corruptedIds.map(String).includes(String(s.id)) ? { ...s, photo_url: null, photo_status: 'none' } : s));
+
+    try {
+      const { error } = await queryWithRetry(() =>
+        supabase.from('students').update({ photo_url: null, photo_status: 'none' }).in('id', corruptedIds)
+      );
+      if (!error) {
+        alert(lang === 'EN' ? `Cleaned ${corrupted.length} corrupted photo(s)!` : `${corrupted.length} തകരാറുള്ള ഫോട്ടോകൾ ക്ലിയർ ചെയ്തു!`);
+      }
+    } catch (e) {}
   };
 
   // Admin: Delete photo
   const handleDeletePhoto = async (student) => {
     if (!window.confirm(lang === 'EN' ? "Delete this student's photo?" : 'ഈ വിദ്യാർത്ഥിയുടെ ഫോട്ടോ ഇല്ലാതാക്കണമെന്നുറപ്പാണോ?')) return;
-    // Photo stored as base64 in DB — just null it out
-    const { error } = await supabase.from('students').update({ photo_url: null, photo_status: 'none' }).eq('id', student.id);
-    if (error) alert(t('alertUnexpectedError') + error.message);
-    else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+    // 🚀 Instant optimistic UI update
+    setStudents(prev => prev.map(s => String(s.id) === String(student.id) ? { ...s, photo_url: null, photo_status: 'none' } : s));
+
+    try {
+      const { error } = await queryWithRetry(() =>
+        supabase.from('students').update({ photo_url: null, photo_status: 'none' }).eq('id', student.id)
+      );
+      if (error) console.error("Delete photo error:", error.message);
+    } catch (err) {
+      console.error("Delete photo error:", err);
+    }
   };
 
   // Admin: Edit photo (re-upload as base64)
@@ -3260,9 +3342,18 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         canvas.height = 300;
         canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
         const base64DataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        const { error } = await supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'pending' }).eq('id', studentId);
-        if (error) alert(t('alertUnexpectedError') + error.message);
-        else if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+
+        // 🚀 Instant optimistic UI update (<10ms)
+        setStudents(prev => prev.map(s => String(s.id) === String(studentId) ? { ...s, photo_url: base64DataUrl, photo_status: 'pending' } : s));
+
+        try {
+          const { error } = await queryWithRetry(() =>
+            supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'pending' }).eq('id', studentId)
+          );
+          if (error) alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
+        } catch (err) {
+          console.error("Re-upload error:", err);
+        }
       };
       img.src = ev.target.result;
     };
@@ -5589,8 +5680,8 @@ ${pagesHtml}
                   {/* ── Photo Stats Summary Cards ── */}
                   {(() => {
                     const totalStudents = students.length;
-                    const uploadedCount = students.filter(s => s.photo_url && s.photo_status && s.photo_status !== 'none').length;
-                    const approvedCount = students.filter(s => s.photo_status === 'approved').length;
+                    const uploadedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status !== 'none').length;
+                    const approvedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'approved').length;
 
                     const statCards = [
                       {
@@ -5656,27 +5747,64 @@ ${pagesHtml}
                     );
                   })()}
 
-                  {/* Pending badge */}
+                  {/* Pending Action Bar */}
                   {(() => {
-                    const uploadedCount = students.filter(s => s.photo_url && s.photo_status && s.photo_status !== 'none').length;
-                    const approvedCount = students.filter(s => s.photo_status === 'approved').length;
+                    const uploadedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status !== 'none').length;
+                    const approvedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'approved').length;
                     const pendingCount = uploadedCount - approvedCount;
-                    if (pendingCount <= 0) return null;
+
                     return (
-                      <div style={{
-                        background: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
-                        border: '1.5px solid #fca5a5',
-                        borderRadius: '10px',
-                        padding: '10px 16px',
-                        marginBottom: '14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        color: '#b91c1c',
-                      }}>
-                        ⏳ <span>{pendingCount} {lang === 'EN' ? 'photo(s) pending approval' : 'ഫോട്ടോ അപ്‌പ്രൂവൽ ബാക്കിയുണ്ട്'}</span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                        {pendingCount > 0 ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '800', color: '#b91c1c' }}>
+                            ⏳ <span>{pendingCount} {lang === 'EN' ? 'photo(s) pending approval' : 'ഫോട്ടോകൾ അപ്‌പ്രൂവലിനായി കാത്തിരിക്കുന്നു'}</span>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '800', color: '#15803d' }}>
+                            🎉 <span>{lang === 'EN' ? 'All uploaded photos are approved!' : 'എല്ലാ ഫോട്ടോകളും അപ്‌പ്രൂവ് ചെയ്തു കഴിഞ്ഞു!'}</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {pendingCount > 0 && (
+                            <button
+                              onClick={handleApproveAllPendingPhotos}
+                              style={{
+                                background: 'linear-gradient(135deg, #059669, #047857)',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 18px',
+                                borderRadius: '10px',
+                                fontWeight: '800',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(5,150,105,0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              ⚡ {lang === 'EN' ? `Approve All Pending (${pendingCount})` : `ഒറ്റ ക്ലിക്കിൽ എല്ലാം അപ്പ്രൂവ് ചെയ്യുക (${pendingCount})`}
+                            </button>
+                          )}
+
+                          <button
+                            onClick={handleCleanCorruptedPhotos}
+                            style={{
+                              background: '#f8fafc',
+                              color: '#64748b',
+                              border: '1px solid #cbd5e1',
+                              padding: '10px 14px',
+                              borderRadius: '10px',
+                              fontWeight: '700',
+                              fontSize: '12px',
+                              cursor: 'pointer'
+                            }}
+                            title="Clean corrupted photos"
+                          >
+                            🧹 {lang === 'EN' ? 'Clean Bad Photos' : 'ക്ലിയർ ചെയ്യുക'}
+                          </button>
+                        </div>
                       </div>
                     );
                   })()}
@@ -5701,7 +5829,17 @@ ${pagesHtml}
 
                       {/* Approval list */}
                       <div className="settings-list-box" style={{ maxHeight: 'none' }}>
-                        <h3>📋 Students Photo Approval</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                          <h3 style={{ margin: 0 }}>📋 Students Photo Approval</h3>
+                          {students.some(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'pending') && (
+                            <button
+                              onClick={handleApproveAllPendingPhotos}
+                              style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}
+                            >
+                              ⚡ {lang === 'EN' ? 'Approve All' : 'എല്ലാം അപ്പ്രൂവ് ചെയ്യുക'}
+                            </button>
+                          )}
+                        </div>
                         {(() => {
                           const filtered = students.filter(s => {
                             const matchCat = profileAdminCatFilter === 'ALL'
@@ -8280,19 +8418,40 @@ ${pagesHtml}
                           }
 
                           if (regTabCheckedProgs.length > 0) {
-                            const inserts = regTabCheckedProgs.map(pId => {
+                            const makeFallbackInserts = (useProgramId) => regTabCheckedProgs.map(pId => {
                               const pObj = programs.find(p => String(p.id) === String(pId));
-                              return {
+                              const progIdVal = pObj ? String(pObj.id) : String(pId);
+                              const row = {
                                 madrasa_id: madrasaId,
                                 student_id: targetIdToInsert,
-                                program_name: String(pObj ? pObj.id : pId)
+                                program_name: progIdVal
                               };
+                              if (useProgramId) row.program_id = progIdVal;
+                              return row;
                             });
-                            const { error: insertError } = await supabase.from('program_registrations').insert(inserts);
+
+                            // Try with program_id first, fallback to program_name only
+                            let { error: insertError } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
                             if (insertError) {
-                              console.warn("Insert registration warning:", insertError.message);
+                              const errMsg = String(insertError.message || '');
+                              const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
+                              if (isColumnMissing) {
+                                // Table doesn't have program_id column - use program_name only
+                                const { error: fallbackErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
+                                if (fallbackErr) console.error("Registration insert fallback failed:", fallbackErr.message);
+                              } else {
+                                // Network/transient error - retry once
+                                await new Promise(res => setTimeout(res, 800));
+                                const { error: retryErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
+                                if (retryErr) {
+                                  // Last resort: try without program_id
+                                  const { error: lastErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
+                                  if (lastErr) console.error("Registration insert all retries failed:", lastErr.message);
+                                }
+                              }
                             }
                           }
+
 
                           // Refresh registrations silently in background
                           const { data: newRegs } = await supabase
