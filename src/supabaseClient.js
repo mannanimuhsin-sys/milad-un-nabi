@@ -6,4 +6,23 @@ const supabaseUrl = 'https://bwxtqprzmcabslixbtjo.supabase.co';
 // Provide the anon key copy-pasted from the Supabase dashboard here
 const supabaseAnonKey = 'sb_publishable_csYLcyRnlSZpYnKQEES1Yg_Uvg1bRWo'; 
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// ⚡ Optimized client: reduces connection exhaustion & egress usage
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      // Prefer cached responses where possible
+      'Cache-Control': 'max-age=60',
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    // Limit realtime connections to reduce resource usage
+    timeout: 10000,
+  },
+});

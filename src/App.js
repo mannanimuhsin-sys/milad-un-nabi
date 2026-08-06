@@ -1570,10 +1570,11 @@ function App() {
       }
 
       // 2. Fallback: Search all madrasas if regNumber format differs
+      // ⚡ EGRESS FIX: Only fetch login-required columns (NO photos/heavy data)
       if (!madrasa) {
         try {
           const { data: allMadrasas } = await queryWithRetry(() =>
-            supabase.from('madrasas').select('*')
+            supabase.from('madrasas').select('id,regNumber,regnumber,reg_number,name,place,adminPassword,admin_password,adminpass,viewPassword,view_password,viewpass,status')
           );
           if (allMadrasas && allMadrasas.length > 0) {
             madrasa = allMadrasas.find(m =>
@@ -1800,14 +1801,14 @@ function App() {
   // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR
   const makePlaceString = (rawPlace, overrides = {}) => {
     const parts = (rawPlace || '').split('|');
-    const actualPlace = overrides.place !== undefined ? overrides.place : (parts[0] || '');
+    const actualPlace = overrides.place !== undefined ? overrides.place : (parts[0] || (loggedInMadrasa ? loggedInMadrasa.place : ''));
     const status = overrides.status !== undefined ? overrides.status : (parts[1] || 'approved');
     const trollSt = overrides.trollStatus !== undefined ? overrides.trollStatus : (parts[2] || (trollMode ? 'troll_on' : 'troll_off'));
     const trollLng = overrides.trollLang !== undefined ? overrides.trollLang : (parts[3] || (trollLang === 'EN' ? 'EN' : 'ML'));
-    const evName = overrides.eventName !== undefined ? overrides.eventName : (parts[4] || (eventName ? encodeURIComponent(eventName) : ''));
-    const evYear = overrides.eventYear !== undefined ? overrides.eventYear : (parts[5] || (eventYear ? encodeURIComponent(eventYear) : ''));
-    const genCats = overrides.generalCats !== undefined ? overrides.generalCats : (parts[6] || (generalCatIds.length > 0 ? encodeURIComponent(JSON.stringify(generalCatIds)) : ''));
-    const csVal = overrides.convenerSadar !== undefined ? overrides.convenerSadar : (parts[7] || (convenerSadar ? encodeURIComponent(convenerSadar) : ''));
+    const evName = overrides.eventName !== undefined ? overrides.eventName : (parts[4] ? parts[4] : (eventName ? encodeURIComponent(eventName) : ''));
+    const evYear = overrides.eventYear !== undefined ? overrides.eventYear : (parts[5] ? parts[5] : (eventYear ? encodeURIComponent(eventYear) : ''));
+    const genCats = overrides.generalCats !== undefined ? overrides.generalCats : (parts[6] ? parts[6] : (generalCatIds.length > 0 ? encodeURIComponent(JSON.stringify(generalCatIds)) : ''));
+    const csVal = overrides.convenerSadar !== undefined ? overrides.convenerSadar : (parts[7] ? parts[7] : (convenerSadar ? encodeURIComponent(convenerSadar) : ''));
 
     return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}`;
   };
@@ -6693,16 +6694,30 @@ ${pagesHtml}
                                     setEventName(newName);
                                     setEventYear(newYear);
                                     setIsEditingEvent(false);
-                                    // Save to Supabase for cross-device sync
+                                    // Save to local cache immediately
                                     if (rNum) {
                                       try {
-                                        const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                        const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
+                                        if (cachedRaw) {
+                                          const cached = JSON.parse(cachedRaw);
+                                          cached.eventName = newName;
+                                          cached.eventYear = newYear;
+                                          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
+                                        }
+                                      } catch(e){}
+                                      try {
+                                        const { data: md } = await queryWithRetry(() => supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle());
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           eventName: encodeURIComponent(newName),
                                           eventYear: encodeURIComponent(newYear)
                                         });
-                                        await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
-                                      } catch (err) { console.error('Failed to save event name to Supabase:', err); }
+                                        const { error } = await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                        if (error) {
+                                          alert('⚠️ Cloud Save Error: ' + getFriendlyErrorMessage(error.message));
+                                        } else {
+                                          alert(lang === 'EN' ? '✅ Event Name saved!' : '✅ ഇവന്റ് പേര് സേവ് ചെയ്തു!');
+                                        }
+                                      } catch (err) { alert('Save Error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
@@ -6750,15 +6765,28 @@ ${pagesHtml}
                                     const newCS = convenerSadarInput.trim();
                                     setConvenerSadar(newCS);
                                     setIsEditingConvenerSadar(false);
-                                    // Save to Supabase for cross-device sync
+                                    // Save to local cache immediately
                                     if (rNum) {
                                       try {
-                                        const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                        const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
+                                        if (cachedRaw) {
+                                          const cached = JSON.parse(cachedRaw);
+                                          cached.convenerSadar = newCS;
+                                          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
+                                        }
+                                      } catch(e){}
+                                      try {
+                                        const { data: md } = await queryWithRetry(() => supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle());
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           convenerSadar: encodeURIComponent(newCS)
                                         });
-                                        await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
-                                      } catch (err) { console.error('Failed to save Convener / Sadar Muallim to Supabase:', err); }
+                                        const { error } = await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                        if (error) {
+                                          alert('⚠️ Cloud Save Error: ' + getFriendlyErrorMessage(error.message));
+                                        } else {
+                                          alert(lang === 'EN' ? '✅ Convener / Sadar Muallim saved!' : '✅ സദ്ർ മുഅല്ലിം പേര് സേവ് ചെയ്തു!');
+                                        }
+                                      } catch (err) { alert('Save Error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
@@ -6938,15 +6966,19 @@ ${pagesHtml}
                                     setGeneralCatIds(generalModalTemp);
                                     const rNum = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
                                     setShowGeneralModal(false);
-                                    // Save to Supabase for cross-device sync
                                     if (rNum) {
                                       try {
-                                        const { data: md } = await supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle();
+                                        const { data: md } = await queryWithRetry(() => supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle());
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           generalCats: encodeURIComponent(JSON.stringify(generalModalTemp))
                                         });
-                                        await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
-                                      } catch (err) { console.error('Failed to save general cats to Supabase:', err); }
+                                        const { error } = await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                        if (error) {
+                                          alert('⚠️ Cloud Save Error: ' + getFriendlyErrorMessage(error.message));
+                                        } else {
+                                          alert(lang === 'EN' ? '✅ GENERAL Categories saved!' : '✅ ജനറൽ കാറ്റഗറികൾ സേവ് ചെയ്തു!');
+                                        }
+                                      } catch (err) { alert('Save Error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
