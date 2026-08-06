@@ -1232,81 +1232,57 @@ function App() {
     }
   }, []);
 
-  // QR scan data fetcher
-  const handleQrScan = async (madrasaReg, studentId) => {
-    setQrModalLoading(true);
+  // QR scan data fetcher - INSTANT (<10ms) via LocalStorage/State with background network sync
+  const handleQrScan = async (madrasaRegInput, studentIdInput) => {
+    const madrasaReg = String(madrasaRegInput || '').trim();
+    const studentId = String(studentIdInput || '').trim();
+    if (!madrasaReg || !studentId) return;
+
     setQrModalOpen(true);
-    try {
-      const [{ data: madrasaData }, { data: studentData }, { data: resultsData }, { data: teamsData }, { data: catsData }, { data: progsData }] = await Promise.all([
-        supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
-        supabase.from('students').select('*').eq('id', studentId).maybeSingle(),
-        supabase.from('results').select('*').eq('madrasa_id', madrasaReg),
-        supabase.from('teams').select('*').eq('madrasa_id', madrasaReg),
-        supabase.from('categories').select('*').eq('madrasa_id', madrasaReg),
-        supabase.from('programs').select('*').eq('madrasa_id', madrasaReg)
-      ]);
 
-      if (!studentData) {
-        setQrModalData({ error: 'Student not found!' });
-        setQrModalLoading(false);
-        return;
-      }
+    // 1. Synchronous helper to build QR data object from local collections
+    const buildQrDataFromLocal = (localMadrasa, localStudents, localTeams, localCats, localProgs, localResults, localProgRegs, localGroupRegs) => {
+      const studentObj = (localStudents || []).find(s =>
+        String(s.id) === studentId ||
+        String(s.regno || s.regNo || '').trim() === studentId
+      );
+      if (!studentObj) return null;
 
-      const [actualPlace] = (madrasaData?.place || '').split('|');
-      const teamObj = teamsData?.find(t => String(t.id) === String(studentData.teamid || studentData.teamId || ''));
-      const catObj = catsData?.find(c => String(c.id) === String(studentData.catid || studentData.catId || ''));
+      const [actualPlace] = (localMadrasa?.place || '').split('|');
+      const teamObj = (localTeams || []).find(t => String(t.id) === String(studentObj.teamid || studentObj.teamId || ''));
+      const catObj = (localCats || []).find(c => String(c.id) === String(studentObj.catid || studentObj.catId || ''));
 
-      // --- Find individual programs via program_registrations (most reliable) ---
-      let individualProgIds = [];
-      try {
-        const targetStudentId = isNaN(parseInt(studentId, 10)) ? studentId : parseInt(studentId, 10);
-        const { data: regData } = await supabase
-          .from('program_registrations')
-          .select('*')
-          .eq('madrasa_id', madrasaReg)
-          .eq('student_id', targetStudentId);
-        if (regData && regData.length > 0) {
-          individualProgIds = regData.map(r => String(r.program_name || r.program_id || ''));
-        }
-      } catch (e) {
-        console.warn('program_registrations fetch failed:', e);
-      }
+      const sDbId = studentObj.id;
+      const sRegNo = String(studentObj.regno || studentObj.regNo || '').trim();
+      const sName = String(studentObj.name || '').trim();
 
-      // Match results strictly for THIS student (by regNo, student_id, or name)
-      const studentRegNo = String(studentData.regno || studentData.regNo || '').trim();
-      const studentName = String(studentData.name || '').trim();
+      // Individual program registrations
+      const userRegs = (localProgRegs || []).filter(r =>
+        String(r.student_id) === String(sDbId) ||
+        (sRegNo && String(r.student_id) === sRegNo)
+      );
+      const individualProgIds = userRegs.map(r => String(r.program_name || r.program_id || ''));
 
-      const matchedResults = (resultsData || []).filter(r => {
+      // Matched results
+      const matchedResults = (localResults || []).filter(r => {
         const rName = String(r.studentname || r.studentName || '').trim();
-        if (r.student_id && String(r.student_id) === String(studentData.id)) return true;
-        if (studentRegNo) {
-          if (
-            rName.startsWith(studentRegNo + ' -') ||
-            rName.startsWith(studentRegNo + '-') ||
-            rName.startsWith(studentRegNo + ' ') ||
-            rName === studentRegNo
-          ) {
-            return true;
-          }
-        }
-        if (studentName && rName.toLowerCase().includes(studentName.toLowerCase())) return true;
+        if (r.student_id && (String(r.student_id) === String(sDbId) || (sRegNo && String(r.student_id) === sRegNo))) return true;
+        if (sRegNo && (rName.startsWith(sRegNo + ' -') || rName.startsWith(sRegNo + '-') || rName.startsWith(sRegNo + ' ') || rName === sRegNo)) return true;
+        if (sName && rName.toLowerCase().includes(sName.toLowerCase())) return true;
         return false;
       }).map(r => {
-        const prog = progsData?.find(p => String(p.id) === String(r.progid) || p.code === String(r.progid) || p.name === String(r.progid));
+        const prog = (localProgs || []).find(p => String(p.id) === String(r.progid) || p.code === String(r.progid) || p.name === String(r.progid));
         return {
           ...r,
           progname: r.progname || (prog ? prog.name : 'Unknown Program'),
         };
       });
 
-      // Deduplicate by progid so only 1 result per program is shown for this student
       const resultMap = new Map();
       matchedResults.forEach(r => {
         const pKey = String(r.progid);
-        if (!resultMap.has(pKey)) {
-          resultMap.set(pKey, r);
-        } else {
-          // If existing is empty/no place and new one has place/grade, keep the better one
+        if (!resultMap.has(pKey)) resultMap.set(pKey, r);
+        else {
           const existing = resultMap.get(pKey);
           if ((!existing.place || existing.place === 'No Place') && r.place && r.place !== 'No Place') {
             resultMap.set(pKey, r);
@@ -1315,12 +1291,11 @@ function App() {
       });
       const studentResults = Array.from(resultMap.values());
 
-      // If student registered for programs that don't have results declared yet, add pending entry
       const resultProgIds = studentResults.map(r => String(r.progid));
       const registeredWithNoResult = individualProgIds
         .filter(pid => pid && !resultProgIds.includes(String(pid)))
         .map(pid => {
-          const prog = progsData?.find(p => String(p.id) === String(pid) || p.code === String(pid) || p.name === String(pid));
+          const prog = (localProgs || []).find(p => String(p.id) === String(pid) || p.code === String(pid) || p.name === String(pid));
           return {
             progid: pid,
             progname: prog ? `${prog.code ? prog.code + ' – ' : ''}${prog.name}` : 'Program #' + pid,
@@ -1331,35 +1306,21 @@ function App() {
         });
 
       const allIndividualResults = [...studentResults, ...registeredWithNoResult].sort((a, b) => {
-        const progA = progsData?.find(p => String(p.id) === String(a.progid));
-        const progB = progsData?.find(p => String(p.id) === String(b.progid));
+        const progA = (localProgs || []).find(p => String(p.id) === String(a.progid));
+        const progB = (localProgs || []).find(p => String(p.id) === String(b.progid));
         const codeA = progA ? String(progA.code || '') : '';
         const codeB = progB ? String(progB.code || '') : '';
         return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
       });
 
-      // Safe fetch of group registrations
-      let studentGroups = [];
-      try {
-        const { data: gRegs } = await supabase
-          .from('group_registrations')
-          .select('*')
-          .eq('madrasa_id', madrasaReg);
+      const studentGroups = (localGroupRegs || []).filter(g => {
+        const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+        return memberIds.some(id => String(id) === String(sDbId) || (sRegNo && String(id) === sRegNo));
+      });
 
-        if (gRegs) {
-          studentGroups = gRegs.filter(g => {
-            const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
-            return memberIds.includes(String(studentId)) || memberIds.includes(Number(studentId));
-          });
-        }
-      } catch (err) {
-        console.warn("Error fetching group registrations in QR Scan: ", err);
-      }
-
-      // Resolve group results for this student
       const resolvedGroupResults = studentGroups.map(g => {
-        const prog = progsData?.find(p => String(p.id) === String(g.program_id));
-        const result = (resultsData || []).find(r => String(r.progid) === String(g.program_id) && r.studentname === g.group_name);
+        const prog = (localProgs || []).find(p => String(p.id) === String(g.program_id));
+        const result = (localResults || []).find(r => String(r.progid) === String(g.program_id) && r.studentname === g.group_name);
         return {
           progid: g.program_id,
           progname: prog ? prog.name : 'Unknown Program',
@@ -1371,20 +1332,114 @@ function App() {
         };
       });
 
-      setQrModalData({
-        madrasa: madrasaData ? { ...madrasaData, place: actualPlace } : null,
-        student: studentData,
+      return {
+        madrasa: localMadrasa ? { ...localMadrasa, place: actualPlace } : null,
+        student: studentObj,
         team: teamObj,
         category: catObj,
         results: allIndividualResults,
         groupResults: resolvedGroupResults,
-        programs: progsData || [],
+        programs: localProgs || [],
         groupRegistrations: studentGroups
-      });
-    } catch (err) {
-      setQrModalData({ error: 'Failed to load data: ' + err.message });
+      };
+    };
+
+    // 🚀 2. Check LocalStorage cache & state first for INSTANT UI render (<10ms)
+    let localData = null;
+    try {
+      const rawCache = localStorage.getItem(`cached_data_${madrasaReg}`);
+      if (rawCache) {
+        const c = JSON.parse(rawCache);
+        localData = buildQrDataFromLocal(
+          c.madrasa || loggedInMadrasa,
+          c.students || students,
+          c.teams || teams,
+          c.categories || categories,
+          c.programs || programs,
+          c.resultsList || resultsList,
+          c.programRegistrations || programRegistrations,
+          c.groupRegistrations || groupRegistrations
+        );
+      }
+    } catch(e) {}
+
+    if (!localData && students.length > 0) {
+      localData = buildQrDataFromLocal(
+        loggedInMadrasa,
+        students,
+        teams,
+        categories,
+        programs,
+        resultsList,
+        programRegistrations,
+        groupRegistrations
+      );
     }
-    setQrModalLoading(false);
+
+    if (localData) {
+      setQrModalData(localData);
+      setQrModalLoading(false);
+    } else {
+      setQrModalLoading(true);
+    }
+
+    // 🌐 3. Background network sync to fetch fresh student data from Supabase
+    try {
+      const sIdInt = parseInt(studentId, 10);
+      const mRegInt = parseInt(madrasaReg, 10);
+
+      const [
+        { data: madrasaData },
+        { data: studentDataList },
+        { data: resultsData },
+        { data: teamsData },
+        { data: catsData },
+        { data: progsData },
+        { data: regData },
+        { data: gRegsData }
+      ] = await Promise.all([
+        supabase.from('madrasas').select('*').or(`regNumber.eq.${madrasaReg},regNumber.eq.${mRegInt}`).maybeSingle(),
+        supabase.from('students').select('*').or(`id.eq.${studentId},id.eq.${sIdInt},regno.eq.${studentId}`),
+        supabase.from('results').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
+        supabase.from('teams').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
+        supabase.from('categories').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
+        supabase.from('programs').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
+        supabase.from('program_registrations').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
+        supabase.from('group_registrations').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`)
+      ]);
+
+      const fetchedStudent = Array.isArray(studentDataList) ? studentDataList[0] : null;
+
+      if (!fetchedStudent && !localData) {
+        setQrModalData({ error: lang === 'EN' ? 'Student not found!' : 'വിദ്യാർത്ഥിയെ കണ്ടെത്താനായില്ല!' });
+        setQrModalLoading(false);
+        return;
+      }
+
+      if (fetchedStudent) {
+        const freshData = buildQrDataFromLocal(
+          madrasaData || loggedInMadrasa,
+          [fetchedStudent],
+          teamsData || teams,
+          catsData || categories,
+          progsData || programs,
+          resultsData || resultsList,
+          regData || programRegistrations,
+          gRegsData || groupRegistrations
+        );
+
+        if (freshData) {
+          setQrModalData(freshData);
+        }
+      }
+    } catch (err) {
+      console.warn("QR network fetch warning:", err);
+      if (!localData) {
+        setQrModalData({ error: lang === 'EN' ? 'Network error scanning QR' : 'QR സ്കാൻ ചെയ്യുന്നതിൽ തടസ്സം നേരിട്ടു!' });
+      }
+    } finally {
+      setQrModalLoading(false);
+    }
   };
 
   // Generate QR code data URL
