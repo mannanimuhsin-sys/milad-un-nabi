@@ -518,7 +518,7 @@ function App() {
   const [timetableFilterGender, setTimetableFilterGender] = useState('ALL');
   const [timetableView, setTimetableView] = useState('GRID'); // 'GRID' | 'LIST'
   const [editingTimetableId, setEditingTimetableId] = useState(null);
-  const [timetableFormData, setTimetableFormData] = useState({ scheduled_time: '', venue: '' });
+  const [timetableFormData, setTimetableFormData] = useState({ scheduled_time: '', date: '', hour12: '09', minute: '00', ampm: 'AM', venue: '' });
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [resultsList, setResultsList] = useState([]);
@@ -2365,14 +2365,26 @@ function App() {
   const handleSaveTimetableEntry = async (programId) => {
     if (!loggedInMadrasa) return;
     const madrasaId = loggedInMadrasa.regNumber;
-    const { scheduled_time, venue } = timetableFormData;
+    const { date, hour12, minute, ampm, scheduled_time, venue } = timetableFormData;
+
+    let finalScheduledTime = null;
+    if (date) {
+      let h = parseInt(hour12 || '12', 10);
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      const hStr = String(h).padStart(2, '0');
+      const minStr = String(minute || '00').padStart(2, '0');
+      finalScheduledTime = new Date(`${date}T${hStr}:${minStr}:00`).toISOString();
+    } else if (scheduled_time) {
+      finalScheduledTime = new Date(scheduled_time).toISOString();
+    }
 
     // Optimistic update
     const updatedEntry = {
       madrasa_id: madrasaId,
       program_id: String(programId),
-      scheduled_time: scheduled_time ? new Date(scheduled_time).toISOString() : null,
-      venue: venue.trim()
+      scheduled_time: finalScheduledTime,
+      venue: (venue || '').trim()
     };
 
     setTimetable(prev => {
@@ -5955,6 +5967,47 @@ ${pagesHtml}
                   );
                 }
 
+                const startEditingTimetable = (item) => {
+                  setEditingTimetableId(item.program.id);
+                  let dateVal = '';
+                  let h12Val = '09';
+                  let minVal = '00';
+                  let ampmVal = 'AM';
+
+                  if (item.scheduled_time) {
+                    const d = new Date(item.scheduled_time);
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    dateVal = `${yyyy}-${mm}-${dd}`;
+
+                    let hours = d.getHours();
+                    ampmVal = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12;
+                    if (hours === 0) hours = 12;
+                    h12Val = String(hours).padStart(2, '0');
+
+                    let mins = d.getMinutes();
+                    let roundedMins = Math.round(mins / 5) * 5;
+                    if (roundedMins >= 60) roundedMins = 55;
+                    minVal = String(roundedMins).padStart(2, '0');
+                  } else {
+                    const d = new Date();
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    dateVal = `${yyyy}-${mm}-${dd}`;
+                  }
+
+                  setTimetableFormData({
+                    date: dateVal,
+                    hour12: h12Val,
+                    minute: minVal,
+                    ampm: ampmVal,
+                    venue: item.venue || ''
+                  });
+                };
+
                 // Function to format date & time nicely
                 const formatDateTime = (isoString) => {
                   if (!isoString) return '';
@@ -6038,38 +6091,94 @@ ${pagesHtml}
 
                                 {isEditing ? (
                                   /* Admin Editing Form */
-                                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     <div>
-                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>⏰ {t('setTime')}</label>
+                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>📅 Date</label>
                                       <input
-                                        type="datetime-local"
-                                        value={timetableFormData.scheduled_time}
-                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
-                                        style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                                        type="date"
+                                        value={timetableFormData.date || ''}
+                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, date: e.target.value }))}
+                                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff' }}
                                       />
+                                    </div>
+                                    <div>
+                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>⏰ Time (12-Hour AM/PM)</label>
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <select
+                                          value={timetableFormData.hour12 || '09'}
+                                          onChange={(e) => setTimetableFormData(prev => ({ ...prev, hour12: e.target.value }))}
+                                          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 'bold', background: '#fff' }}
+                                        >
+                                          {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
+                                            <option key={h} value={h}>{h}</option>
+                                          ))}
+                                        </select>
+                                        <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#475569' }}>:</span>
+                                        <select
+                                          value={timetableFormData.minute || '00'}
+                                          onChange={(e) => setTimetableFormData(prev => ({ ...prev, minute: e.target.value }))}
+                                          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 'bold', background: '#fff' }}
+                                        >
+                                          {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                          ))}
+                                        </select>
+                                        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #0284c7' }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'AM' }))}
+                                            style={{
+                                              padding: '6px 10px',
+                                              fontSize: '13px',
+                                              fontWeight: 'bold',
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                              background: (timetableFormData.ampm || 'AM') === 'AM' ? '#0284c7' : '#f0f9ff',
+                                              color: (timetableFormData.ampm || 'AM') === 'AM' ? '#ffffff' : '#0369a1'
+                                            }}
+                                          >
+                                            AM
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'PM' }))}
+                                            style={{
+                                              padding: '6px 10px',
+                                              fontSize: '13px',
+                                              fontWeight: 'bold',
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                              background: timetableFormData.ampm === 'PM' ? '#0284c7' : '#f0f9ff',
+                                              color: timetableFormData.ampm === 'PM' ? '#ffffff' : '#0369a1'
+                                            }}
+                                          >
+                                            PM
+                                          </button>
+                                        </div>
+                                      </div>
                                     </div>
                                     <div>
                                       <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>📍 {t('setVenue')}</label>
                                       <input
                                         type="text"
                                         placeholder={t('venuePlaceholder')}
-                                        value={timetableFormData.venue}
+                                        value={timetableFormData.venue || ''}
                                         onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
-                                        style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
                                       />
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
                                       <button
                                         onClick={() => handleSaveTimetableEntry(item.program.id)}
                                         className="btn-add-action"
-                                        style={{ padding: '4px 8px', fontSize: '12px', flex: 1, background: '#10b981' }}
+                                        style={{ padding: '6px 12px', fontSize: '12px', flex: 1, background: '#10b981', color: '#fff', fontWeight: 'bold' }}
                                       >
                                         💾 Save
                                       </button>
                                       <button
                                         onClick={() => setEditingTimetableId(null)}
                                         className="btn-add-action"
-                                        style={{ padding: '4px 8px', fontSize: '12px', flex: 1, background: '#64748b' }}
+                                        style={{ padding: '6px 12px', fontSize: '12px', flex: 1, background: '#64748b', color: '#fff' }}
                                       >
                                         Cancel
                                       </button>
@@ -6095,19 +6204,7 @@ ${pagesHtml}
                               {loginRole === 'ADMIN' && !isEditing && (
                                 <div style={{ display: 'flex', gap: '8px', marginTop: '14px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
                                   <button
-                                    onClick={() => {
-                                      setEditingTimetableId(item.program.id);
-                                      let localDateTime = '';
-                                      if (item.scheduled_time) {
-                                        const d = new Date(item.scheduled_time);
-                                        const tzoffset = d.getTimezoneOffset() * 60000;
-                                        localDateTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
-                                      }
-                                      setTimetableFormData({
-                                        scheduled_time: localDateTime,
-                                        venue: item.venue
-                                      });
-                                    }}
+                                    onClick={() => startEditingTimetable(item)}
                                     className="btn-add-action"
                                     style={{ flex: 1, padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                                   >
@@ -6168,12 +6265,67 @@ ${pagesHtml}
                                   </td>
                                   <td style={{ padding: '12px 16px', color: '#1e293b' }}>
                                     {isEditing ? (
-                                      <input
-                                        type="datetime-local"
-                                        value={timetableFormData.scheduled_time}
-                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
-                                        style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                                      />
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
+                                        <input
+                                          type="date"
+                                          value={timetableFormData.date || ''}
+                                          onChange={(e) => setTimetableFormData(prev => ({ ...prev, date: e.target.value }))}
+                                          style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }}
+                                        />
+                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                          <select
+                                            value={timetableFormData.hour12 || '09'}
+                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, hour12: e.target.value }))}
+                                            style={{ flex: 1, padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                          >
+                                            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
+                                              <option key={h} value={h}>{h}</option>
+                                            ))}
+                                          </select>
+                                          <span style={{ fontWeight: 'bold' }}>:</span>
+                                          <select
+                                            value={timetableFormData.minute || '00'}
+                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, minute: e.target.value }))}
+                                            style={{ flex: 1, padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                          >
+                                            {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                                              <option key={m} value={m}>{m}</option>
+                                            ))}
+                                          </select>
+                                          <div style={{ display: 'flex', borderRadius: '4px', overflow: 'hidden', border: '1px solid #0284c7' }}>
+                                            <button
+                                              type="button"
+                                              onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'AM' }))}
+                                              style={{
+                                                padding: '3px 6px',
+                                                fontSize: '11px',
+                                                fontWeight: 'bold',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                background: (timetableFormData.ampm || 'AM') === 'AM' ? '#0284c7' : '#f0f9ff',
+                                                color: (timetableFormData.ampm || 'AM') === 'AM' ? '#ffffff' : '#0369a1'
+                                              }}
+                                            >
+                                              AM
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'PM' }))}
+                                              style={{
+                                                padding: '3px 6px',
+                                                fontSize: '11px',
+                                                fontWeight: 'bold',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                background: timetableFormData.ampm === 'PM' ? '#0284c7' : '#f0f9ff',
+                                                color: timetableFormData.ampm === 'PM' ? '#ffffff' : '#0369a1'
+                                              }}
+                                            >
+                                              PM
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
                                     ) : hasTime ? (
                                       formatDateTime(item.scheduled_time)
                                     ) : (
@@ -6216,19 +6368,7 @@ ${pagesHtml}
                                       ) : (
                                         <div style={{ display: 'flex', gap: '6px' }}>
                                           <button
-                                            onClick={() => {
-                                              setEditingTimetableId(item.program.id);
-                                              let localDateTime = '';
-                                              if (item.scheduled_time) {
-                                                const d = new Date(item.scheduled_time);
-                                                const tzoffset = d.getTimezoneOffset() * 60000;
-                                                localDateTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
-                                              }
-                                              setTimetableFormData({
-                                                scheduled_time: localDateTime,
-                                                venue: item.venue
-                                              });
-                                            }}
+                                            onClick={() => startEditingTimetable(item)}
                                             className="btn-add-action"
                                             style={{ padding: '3px 6px', fontSize: '11px' }}
                                           >
