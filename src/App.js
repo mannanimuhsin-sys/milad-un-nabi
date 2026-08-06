@@ -2309,6 +2309,8 @@ function App() {
       }
     }
 
+    const savedName = newProgName.trim();
+    const savedCode = newProgCode.trim();
     const tempId = 'temp_' + Date.now();
     const tempProg = { id: tempId, name: savedName, code: savedCode, catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
 
@@ -2326,7 +2328,6 @@ function App() {
       return updated;
     });
 
-    const savedName = newProgName.trim(); const savedCode = newProgCode.trim();
     setNewProgName(''); setNewProgCode('');
 
     try {
