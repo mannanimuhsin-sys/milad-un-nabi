@@ -2444,14 +2444,19 @@ function App() {
 
     let dbCatId = selectedProgCat;
     if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
-      const genCat = categories.find(c => c.name.toLowerCase().includes('general')) || categories[0];
-      if (genCat) {
-        dbCatId = genCat.id;
-      } else if (generalCatIds.length > 0) {
+      // Priority: 1) generalCatIds[0], 2) category with 'general' name, 3) stay as string (no categories fallback!)
+      if (generalCatIds.length > 0) {
         dbCatId = generalCatIds[0];
+      } else {
+        const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
+        if (genCat) {
+          dbCatId = genCat.id;
+        }
+        // Do NOT fall back to categories[0] - that would save GENERAL program under wrong category
       }
     }
-    const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : (categories[0]?.id || 1);
+    // If still not numeric (no GENERAL category configured), use -1 as special GENERAL marker
+    const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : -1;
 
     const savedName = newProgName.trim();
     const savedCode = newProgCode.trim();
@@ -2533,14 +2538,14 @@ function App() {
   const handleSaveProgEdit = async () => {
     let dbCatId = editingProgData.catid;
     if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
-      const genCat = categories.find(c => c.name.toLowerCase().includes('general')) || categories[0];
-      if (genCat) {
-        dbCatId = genCat.id;
-      } else if (generalCatIds.length > 0) {
+      if (generalCatIds.length > 0) {
         dbCatId = generalCatIds[0];
+      } else {
+        const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
+        if (genCat) dbCatId = genCat.id;
       }
     }
-    const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : (categories[0]?.id || 1);
+    const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : -1;
 
     const updatedData = { ...editingProgData, catid: finalProgCatId };
     setPrograms(prev => {
@@ -6098,6 +6103,16 @@ ${pagesHtml}
                                       </tr>`).join('')}
                                   </tbody>
                                 </table>
+              const isGeneralProg = (p) => {
+                const pCatId = String(p.catid || p.catId || '');
+                if (pCatId === 'GENERAL') return true;
+                if (pCatId === '-1') return true; // special GENERAL marker
+                // Check if this category ID is in generalCatIds
+                if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
+                const catObj = categories.find(c => String(c.id) === pCatId);
+                if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+                return false;
+              };
                               </div>`;
                             });
                             sectionsHtml += '</div>';
@@ -7781,6 +7796,9 @@ ${pagesHtml}
                               const isGeneralProg = (p) => {
                                 const pCatId = String(p.catid || p.catId || '');
                                 if (pCatId === 'GENERAL') return true;
+                                if (pCatId === '-1') return true; // special GENERAL marker
+                                // Check if this category ID is in generalCatIds array
+                                if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
                                 const catObj = categories.find(c => String(c.id) === pCatId);
                                 if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
                                 return false;
@@ -8146,14 +8164,7 @@ ${pagesHtml}
                                           ? []
                                           : categories.filter(c => String(c.id) === String(programFilterCat));
 
-                                      const standaloneGenProgs = filteredPrograms.filter(p => {
-                                        const pCatId = String(p.catid || p.catId || '');
-                                        if (pCatId === 'GENERAL') return true;
-                                        if (programFilterCat === 'GENERAL') return isGeneralProg(p);
-                                        const catObj = categories.find(c => String(c.id) === pCatId);
-                                        if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-                                        return false;
-                                      });
+                                      const standaloneGenProgs = filteredPrograms.filter(p => isGeneralProg(p));
 
                                       const showGeneralBlock = (programFilterCat === 'ALL' && standaloneGenProgs.length > 0) || programFilterCat === 'GENERAL';
 
