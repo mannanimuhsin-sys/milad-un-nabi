@@ -1554,19 +1554,36 @@ function App() {
       const numReg = parseInt(trimmedReg, 10);
       const isNum = !isNaN(numReg);
 
-      // 1. Single atomic query targeting regNumber, regnumber, or numeric id
+      // 1. Direct targeted query on regNumber
       try {
-        const { data } = await queryWithRetry(() =>
+        const { data: mData } = await queryWithRetry(() =>
           supabase
             .from('madrasas')
             .select('*')
-            .or(isNum ? `regNumber.eq.${trimmedReg},regNumber.eq.${numReg},regnumber.eq.${trimmedReg}` : `regNumber.eq.${trimmedReg},regnumber.eq.${trimmedReg}`)
-            .maybeSingle()
+            .or(isNum ? `regNumber.eq.${trimmedReg},regNumber.eq.${numReg}` : `regNumber.eq.${trimmedReg}`)
         );
-        if (data) madrasa = data;
-      } catch (e) {}
+        if (mData && mData.length > 0) {
+          madrasa = mData[0];
+        }
+      } catch (e) {
+        console.warn("Direct madrasa fetch error:", e);
+      }
 
-      // 2. Local Cache Fallback (<5ms) if database query returned null or device is offline
+      // 2. Fallback: Search all madrasas if regNumber format differs
+      if (!madrasa) {
+        try {
+          const { data: allMadrasas } = await queryWithRetry(() =>
+            supabase.from('madrasas').select('*')
+          );
+          if (allMadrasas && allMadrasas.length > 0) {
+            madrasa = allMadrasas.find(m =>
+              String(m.regNumber || m.regnumber || m.reg_number || '').trim().toLowerCase() === trimmedReg.toLowerCase()
+            );
+          }
+        } catch (e) {}
+      }
+
+      // 3. Fallback to LocalStorage superMadrasas cache if device is offline or DB empty
       if (!madrasa) {
         const localList = superMadrasas && superMadrasas.length > 0 ? superMadrasas : (() => {
           try { return JSON.parse(localStorage.getItem('cached_super_madrasas') || '[]'); } catch { return []; }
@@ -1578,27 +1595,33 @@ function App() {
 
       if (!madrasa) {
         alert(t('alertMadrasaNotFound'));
+        setIsLoggingIn(false);
         return;
       }
 
       const adminPass = String(madrasa.adminPassword || madrasa.admin_password || madrasa.adminpass || '').trim();
       const viewPass = String(madrasa.viewPassword || madrasa.view_password || madrasa.viewpass || '').trim();
 
-      if (trimmedPass === adminPass || trimmedPass === viewPass) {
+      const isAdminMatch = trimmedPass.toLowerCase() === adminPass.toLowerCase();
+      const isViewMatch = trimmedPass.toLowerCase() === viewPass.toLowerCase();
+
+      if (isAdminMatch || isViewMatch) {
         const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
         if (currentStatus === 'pending') {
           setPendingMadrasa(madrasa);
           setCurrentScreen('PENDING_APPROVAL');
+          setIsLoggingIn(false);
           return;
         } else if (currentStatus === 'blocked') {
           alert(t('alertMadrasaBlocked'));
+          setIsLoggingIn(false);
           return;
         }
 
         // Approved, proceed to login
-        const role = trimmedPass === adminPass ? 'ADMIN' : 'VIEW';
+        const role = isAdminMatch ? 'ADMIN' : 'VIEW';
         const sanitizedMadrasa = {
           ...madrasa,
           regNumber: String(madrasa.regNumber || madrasa.regnumber || madrasa.reg_number || trimmedReg).trim(),
