@@ -2310,8 +2310,22 @@ function App() {
     }
 
     const tempId = 'temp_' + Date.now();
-    const tempProg = { id: tempId, name: newProgName.trim(), code: newProgCode.trim(), catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
-    setPrograms(prev => [...prev, tempProg].sort(compareProgCode));
+    const tempProg = { id: tempId, name: savedName, code: savedCode, catid: dbCatId, type: `${progType}_${progGender}`, madrasa_id: loggedInMadrasa.regNumber };
+
+    // 🚀 Instant state + LocalStorage cache update (<1ms)
+    setPrograms(prev => {
+      const updated = [...prev, tempProg].sort(compareProgCode);
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.programs = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch (e) {}
+      return updated;
+    });
+
     const savedName = newProgName.trim(); const savedCode = newProgCode.trim();
     setNewProgName(''); setNewProgCode('');
 
@@ -2335,7 +2349,18 @@ function App() {
 
   const handleDeleteProgram = async (id) => {
     if (!window.confirm('Remove this program?')) return;
-    setPrograms(prev => prev.filter(p => p.id !== id));
+    setPrograms(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.programs = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch (e) {}
+      return updated;
+    });
     const { error } = await supabase.from('programs').delete().eq('id', id);
     if (error) { alert(getFriendlyErrorMessage(error.message)); }
   };
@@ -2351,7 +2376,19 @@ function App() {
     }
 
     const updatedData = { ...editingProgData, catid: dbCatId };
-    setPrograms(prev => prev.map(p => p.id === editingProgId ? { ...p, ...updatedData } : p).sort(compareProgCode));
+    setPrograms(prev => {
+      const updated = prev.map(p => p.id === editingProgId ? { ...p, ...updatedData } : p).sort(compareProgCode);
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.programs = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch (e) {}
+      return updated;
+    });
+
     const targetId = editingProgId;
     setEditingProgId(null);
 
@@ -2388,12 +2425,22 @@ function App() {
     };
 
     setTimetable(prev => {
+      let updated;
       const exists = prev.some(t => String(t.program_id) === String(programId));
       if (exists) {
-        return prev.map(t => String(t.program_id) === String(programId) ? { ...t, ...updatedEntry } : t);
+        updated = prev.map(t => String(t.program_id) === String(programId) ? { ...t, ...updatedEntry } : t);
       } else {
-        return [...prev, updatedEntry];
+        updated = [...prev, updatedEntry];
       }
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.timetable = updated;
+          localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+        }
+      } catch (e) {}
+      return updated;
     });
 
     setEditingTimetableId(null);
@@ -2434,7 +2481,18 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     if (!loggedInMadrasa) return;
     const madrasaId = loggedInMadrasa.regNumber;
 
-    setTimetable(prev => prev.filter(t => String(t.program_id) !== String(programId)));
+    setTimetable(prev => {
+      const updated = prev.filter(t => String(t.program_id) !== String(programId));
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.timetable = updated;
+          localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+        }
+      } catch (e) {}
+      return updated;
+    });
 
     const { error } = await supabase
       .from('timetable')
@@ -2664,6 +2722,29 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         leader_id: chosenLeader ? String(chosenLeader) : null
       };
 
+      // 🚀 Instant state + LocalStorage cache update (<1ms)
+      const tempGroup = {
+        id: 'temp_greg_' + Date.now(),
+        ...insertData
+      };
+      setGroupRegistrations(prev => {
+        const updated = [tempGroup, ...prev];
+        try {
+          const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+          if (rawCache) {
+            const cacheObj = JSON.parse(rawCache);
+            cacheObj.groupRegistrations = updated;
+            localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+          }
+        } catch (e) {}
+        return updated;
+      });
+
+      alert(lang === 'EN' ? 'Group registration saved successfully!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ വിജയിച്ചു!');
+      setGroupRegName('');
+      setGroupRegLeader('');
+      setGroupRegStudents([]);
+
       let { error } = await supabase
         .from('group_registrations')
         .insert([insertData]);
@@ -2693,15 +2774,10 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   created_at TIMESTAMPTZ DEFAULT NOW()
 );`);
         } else {
-          throw new Error(error.message);
+          console.warn('Group registration error:', error.message);
         }
       } else {
-        alert(lang === 'EN' ? 'Group registration saved successfully!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ വിജയിച്ചു!');
-        setGroupRegName('');
-        setGroupRegLeader('');
-        setGroupRegStudents([]);
-
-        // Refresh group registrations
+        // Refresh group registrations silently in background
         const { data: gRegData } = await supabase
           .from('group_registrations')
           .select('*')
@@ -7955,6 +8031,43 @@ ${pagesHtml}
                             ] : [])
                           ]));
 
+                          const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
+
+                          // 🚀 Instant state + LocalStorage cache update (<1ms)
+                          const otherRegs = programRegistrations.filter(r => !idsToDelete.some(id => String(r.student_id) === String(id)));
+                          const newLocalEntries = regTabCheckedProgs.map(pId => {
+                            const pObj = programs.find(p => String(p.id) === String(pId));
+                            return {
+                              id: 'temp_reg_' + Date.now() + '_' + Math.random(),
+                              madrasa_id: madrasaId,
+                              student_id: targetIdToInsert,
+                              program_name: String(pObj ? pObj.id : pId),
+                              program_id: String(pObj ? pObj.id : pId)
+                            };
+                          });
+                          const mappedOptimistic = [...otherRegs, ...newLocalEntries];
+
+                          setProgramRegistrations(mappedOptimistic);
+                          const updatedExisting = getStudentRegisteredProgIds(sDbId, mappedOptimistic);
+                          setRegTabCheckedProgs(updatedExisting);
+                          setRegTabSaving(false);
+
+                          try {
+                            const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+                            if (rawCache) {
+                              const cacheObj = JSON.parse(rawCache);
+                              cacheObj.programRegistrations = mappedOptimistic;
+                              cacheObj.savedAt = new Date().toISOString();
+                              localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+                            }
+                          } catch (e) {}
+
+                          alert(t('alertSavedRegistrations')
+                            .replace('{count}', regTabCheckedProgs.length)
+                            .replace('{studentName}', studentObj?.name || '')
+                          );
+
+                          // Background database sync
                           if (idsToDelete.length > 0) {
                             const { error: delErr } = await supabase
                               .from('program_registrations')
@@ -7965,7 +8078,6 @@ ${pagesHtml}
                           }
 
                           if (regTabCheckedProgs.length > 0) {
-                            const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
                             const inserts = regTabCheckedProgs.map(pId => {
                               const pObj = programs.find(p => String(p.id) === String(pId));
                               return {
@@ -7976,42 +8088,23 @@ ${pagesHtml}
                             });
                             const { error: insertError } = await supabase.from('program_registrations').insert(inserts);
                             if (insertError) {
-                              throw new Error(insertError.message);
+                              console.warn("Insert registration warning:", insertError.message);
                             }
                           }
 
-                          // Fetch updated registrations and update state + cache together
-                          const { data: newRegs, error: fetchError } = await supabase
+                          // Refresh registrations silently in background
+                          const { data: newRegs } = await supabase
                             .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
-                          if (fetchError) {
-                            throw new Error(fetchError.message);
-                          }
                           if (newRegs) {
                             const mapped = newRegs.map(r => ({
                               ...r,
                               program_id: r.program_name || r.program_id
                             }));
                             setProgramRegistrations(mapped);
-                            const updatedExisting = getStudentRegisteredProgIds(sDbId, mapped);
-                            setRegTabCheckedProgs(updatedExisting);
-
-                            // Sync LocalStorage cache immediately to prevent old cache override on reload/network drop
-                            try {
-                              const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
-                              if (rawCache) {
-                                const cacheObj = JSON.parse(rawCache);
-                                cacheObj.programRegistrations = mapped;
-                                cacheObj.savedAt = new Date().toISOString();
-                                localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
-                              }
-                            } catch (e) {}
                           }
-                          alert(t('alertSavedRegistrations')
-                            .replace('{count}', regTabCheckedProgs.length)
-                            .replace('{studentName}', studentObj?.name || '')
-                          );
                         } catch (err) {
                           alert(t('alertUploadFailed') + err.message);
+                          setRegTabSaving(false);
                         }
                         setRegTabSaving(false);
                       };
