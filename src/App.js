@@ -648,6 +648,13 @@ function App() {
   const [regTabSaving, setRegTabSaving] = useState(false);
   const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
 
+  // ── Prizes Tab States ──
+  const [prizesCatFilter, setPrizesCatFilter] = useState('ALL');
+  const [prizesPlaceFilter, setPrizesPlaceFilter] = useState('ALL'); // 'ALL' | 'FIRST' | 'SECOND' | 'THIRD'
+  const [prizesStudentSearch, setPrizesStudentSearch] = useState('');
+  const [prizesActiveTab, setPrizesActiveTab] = useState('WINNERS'); // 'WINNERS' | 'ENCOURAGEMENT'
+  const [encouragementSubMode, setEncouragementSubMode] = useState('CONTESTANTS'); // 'CONTESTANTS' | 'ALL_STUDENTS'
+
   const isStudentMatch = useCallback((r, studentObj) => {
     if (!r || !studentObj) return false;
     const rSid = String(r.student_id || '').trim();
@@ -6825,6 +6832,10 @@ ${pagesHtml}
                       <div className="tile-icon-wrapper">🔏</div>
                       <div className="tile-label">Control</div>
                     </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'PRIZES' ? 'active' : ''}`} onClick={() => setSettingsSubTab('PRIZES')}>
+                      <div className="tile-icon-wrapper">🎁</div>
+                      <div className="tile-label">{lang === 'EN' ? 'Prizes' : 'സമ്മാനങ്ങൾ'}</div>
+                    </div>
                   </div>
 
                   <div className="settings-content">
@@ -11172,6 +11183,694 @@ ${pagesHtml}
                         </div>
                       );
                     })()}
+
+                    {/* 🎁 PRIZES SUB-TAB */}
+                    {settingsSubTab === 'PRIZES' && (() => {
+                      const getNormPlace = (placeStr) => {
+                        if (!placeStr) return null;
+                        const str = String(placeStr).trim().toLowerCase();
+                        if (str === 'first' || str === '1' || str === '1st') return 'First';
+                        if (str === 'second' || str === '2' || str === '2nd') return 'Second';
+                        if (str === 'third' || str === '3' || str === '3rd') return 'Third';
+                        return null;
+                      };
+
+                      // Filter results by selected category
+                      const catFilteredResults = resultsList.filter(r => {
+                        if (!r.place || r.place === 'No Place') return false;
+                        const norm = getNormPlace(r.place);
+                        if (!norm) return false;
+
+                        if (prizesCatFilter === 'ALL') return true;
+                        const rCatId = String(r.catid || r.catId || '');
+                        if (prizesCatFilter === 'GENERAL') {
+                          if (generalCatIds.map(String).includes(rCatId)) return true;
+                          const pObj = programs.find(p => String(p.id) === String(r.progid));
+                          if (pObj && generalCatIds.map(String).includes(String(pObj.catid || pObj.catId || ''))) return true;
+                          return false;
+                        }
+                        if (rCatId === String(prizesCatFilter)) return true;
+                        const pObj = programs.find(p => String(p.id) === String(r.progid));
+                        if (pObj && String(pObj.catid || pObj.catId || '') === String(prizesCatFilter)) return true;
+                        return false;
+                      });
+
+                      const firstWinners = catFilteredResults.filter(r => getNormPlace(r.place) === 'First');
+                      const secondWinners = catFilteredResults.filter(r => getNormPlace(r.place) === 'Second');
+                      const thirdWinners = catFilteredResults.filter(r => getNormPlace(r.place) === 'Third');
+
+                      const displayWinners = catFilteredResults.filter(r => {
+                        const norm = getNormPlace(r.place);
+                        if (prizesPlaceFilter === 'FIRST') return norm === 'First';
+                        if (prizesPlaceFilter === 'SECOND') return norm === 'Second';
+                        if (prizesPlaceFilter === 'THIRD') return norm === 'Third';
+                        return true;
+                      });
+
+                      // PDF Generator for Winners List
+                      const generatePrizesPDF = () => {
+                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                        const activeCatObj = categories.find(c => String(c.id) === String(prizesCatFilter));
+                        const catLabel = prizesCatFilter === 'ALL' ? (lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും') : prizesCatFilter === 'GENERAL' ? 'GENERAL' : (activeCatObj ? activeCatObj.name : '');
+
+                        const printRows = displayWinners.map((r, idx) => {
+                          const norm = getNormPlace(r.place);
+                          const placeBadge = norm === 'First' ? '🥇 1st Place' : norm === 'Second' ? '🥈 2nd Place' : '🥉 3rd Place';
+                          const pObj = programs.find(p => String(p.id) === String(r.progid));
+                          const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
+                          const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
+                          const cName = r.catname || (cObj ? cObj.name : '—');
+                          const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim());
+                          const regNo = sObj ? (sObj.regno || sObj.regNo || '—') : '—';
+                          const studentName = r.studentname || (sObj ? sObj.name : '—');
+                          const teamName = r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+
+                          return `<tr>
+                            <td style="font-weight:700;text-align:center;">${idx + 1}</td>
+                            <td style="font-weight:700;color:#1e40af;">${regNo}</td>
+                            <td style="font-weight:700;">${studentName}</td>
+                            <td>${cName}</td>
+                            <td style="font-weight:600;">${pName}</td>
+                            <td style="font-weight:800;color:${norm === 'First' ? '#92400e' : norm === 'Second' ? '#475569' : '#9a3412'};">${placeBadge}</td>
+                            <td>${teamName}</td>
+                          </tr>`;
+                        }).join('');
+
+                        const printWin = window.open('', '_blank');
+                        printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<title>Prizes & Winners List - ${madrasaName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #0f172a; padding: 10px; }
+  .header { text-align: center; border-bottom: 3px double #1e3a8a; padding-bottom: 12px; margin-bottom: 16px; }
+  .header h1 { font-size: 24px; color: #1e3a8a; font-weight: 800; }
+  .header p { font-size: 13px; color: #475569; margin-top: 3px; font-weight: 600; }
+  .sub-header { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .sub-title { font-size: 16px; font-weight: 800; color: #1e40af; }
+  .sub-meta { font-size: 12px; color: #334155; font-weight: 700; }
+  .summary-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .sum-box { flex: 1; padding: 10px; text-align: center; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; }
+  .sum-val { font-size: 20px; font-weight: 900; }
+  .sum-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: #1e3a8a; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; text-align: left; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+<button onclick="window.print()" class="no-print" style="margin-bottom:14px;padding:10px 24px;background:#1e40af;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Print / Download Winners PDF</button>
+<div class="header">
+  ${eventName ? `<div style="font-size:12px;font-weight:800;color:#d97706;letter-spacing:1px;margin-bottom:4px;">${eventName} ${eventYear || ''}</div>` : ''}
+  <h1>${madrasaName}</h1>
+  <p>${madrasaPlace} | Reg No: ${madrasaRegNo}</p>
+</div>
+<div class="sub-header">
+  <div class="sub-title">🎁 ${lang === 'EN' ? 'Prizes & Winners List' : 'സമ്മാനങ്ങളും വിജയികളുടെ ലിസ്റ്റും'}</div>
+  <div class="sub-meta">📂 Category: <strong>${catLabel}</strong> | Total: <strong>${displayWinners.length}</strong></div>
+</div>
+<div class="summary-bar">
+  <div class="sum-box" style="background:#fffbeb;border-color:#fcd34d;"><div class="sum-val" style="color:#b45309;">🥇 ${firstWinners.length}</div><div class="sum-lbl" style="color:#b45309;">First Place</div></div>
+  <div class="sum-box" style="background:#f8fafc;border-color:#cbd5e1;"><div class="sum-val" style="color:#475569;">🥈 ${secondWinners.length}</div><div class="sum-lbl" style="color:#475569;">Second Place</div></div>
+  <div class="sum-box" style="background:#fff7ed;border-color:#fdba74;"><div class="sum-val" style="color:#c2410c;">🥉 ${thirdWinners.length}</div><div class="sum-lbl" style="color:#c2410c;">Third Place</div></div>
+  <div class="sum-box" style="background:#f0fdf4;border-color:#86efac;"><div class="sum-val" style="color:#15803d;">🏆 ${catFilteredResults.length}</div><div class="sum-lbl" style="color:#15803d;">Total Winners</div></div>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:40px;text-align:center;">#</th>
+      <th style="width:70px;">Reg No</th>
+      <th>Student Name</th>
+      <th>Category</th>
+      <th>Competition / Program</th>
+      <th>Position</th>
+      <th>Team</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${printRows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">No winner records found.</td></tr>'}
+  </tbody>
+</table>
+<div class="footer">Generated by Milad Fest Management App • Total Entries: ${displayWinners.length}</div>
+</body>
+</html>`);
+                        printWin.document.close();
+                        printWin.print();
+                      };
+
+                      // PDF Generator for Encouragement List
+                      const generateEncouragementPDF = (contestantList, modeTitle) => {
+                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                        const activeCatObj = categories.find(c => String(c.id) === String(prizesCatFilter));
+                        const catLabel = prizesCatFilter === 'ALL' ? (lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും') : prizesCatFilter === 'GENERAL' ? 'GENERAL' : (activeCatObj ? activeCatObj.name : '');
+
+                        const printRows = contestantList.map((s, idx) => {
+                          const regNo = s.regno || s.regNo || '—';
+                          const cObj = categories.find(c => String(c.id) === String(s.catid || s.catId || ''));
+                          const cName = cObj ? cObj.name : '—';
+                          const tObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                          const tName = tObj ? tObj.name : '—';
+                          const sProgs = getStudentRegisteredPrograms(s.id);
+                          const progNames = sProgs.map(p => p.name).join(', ') || '—';
+
+                          return `<tr>
+                            <td style="font-weight:700;text-align:center;">${idx + 1}</td>
+                            <td style="font-weight:700;color:#1e40af;">${regNo}</td>
+                            <td style="font-weight:700;">${s.name}</td>
+                            <td>${cName}</td>
+                            <td style="font-size:11px;">${progNames}</td>
+                            <td>${tName}</td>
+                          </tr>`;
+                        }).join('');
+
+                        const printWin = window.open('', '_blank');
+                        printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<title>Encouragement List - ${madrasaName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #0f172a; padding: 10px; }
+  .header { text-align: center; border-bottom: 3px double #065f46; padding-bottom: 12px; margin-bottom: 16px; }
+  .header h1 { font-size: 24px; color: #065f46; font-weight: 800; }
+  .header p { font-size: 13px; color: #475569; margin-top: 3px; font-weight: 600; }
+  .sub-header { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .sub-title { font-size: 16px; font-weight: 800; color: #047857; }
+  .sub-meta { font-size: 12px; color: #064e3b; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: #047857; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; text-align: left; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+<button onclick="window.print()" class="no-print" style="margin-bottom:14px;padding:10px 24px;background:#047857;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Print / Download Encouragement PDF</button>
+<div class="header">
+  ${eventName ? `<div style="font-size:12px;font-weight:800;color:#d97706;letter-spacing:1px;margin-bottom:4px;">${eventName} ${eventYear || ''}</div>` : ''}
+  <h1>${madrasaName}</h1>
+  <p>${madrasaPlace} | Reg No: ${madrasaRegNo}</p>
+</div>
+<div class="sub-header">
+  <div class="sub-title">🎗️ ${modeTitle}</div>
+  <div class="sub-meta">📂 Category: <strong>${catLabel}</strong> | Total: <strong>${contestantList.length}</strong></div>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:40px;text-align:center;">#</th>
+      <th style="width:80px;">Reg No</th>
+      <th>Student Name</th>
+      <th>Category</th>
+      <th>Registered Competitions</th>
+      <th>Team</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${printRows || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#94a3b8;">No student records found.</td></tr>'}
+  </tbody>
+</table>
+<div class="footer">Generated by Milad Fest Management App • Total Students: ${contestantList.length}</div>
+</body>
+</html>`);
+                        printWin.document.close();
+                        printWin.print();
+                      };
+
+                      return (
+                        <div className="settings-card-v2" style={{ maxWidth: '1000px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              🎁 {lang === 'EN' ? 'Prizes & Awards Control' : 'സമ്മാനങ്ങളും പ്രോത്സാഹനവും (Prizes Panel)'}
+                            </h3>
+                          </div>
+
+                          {/* ── Category Filter Chips ── */}
+                          <div className="student-filters-container" style={{ marginBottom: '18px', background: '#fff', padding: '14px 16px', borderRadius: '14px', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                            <div className="filter-section-title" style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
+                              📂 {lang === 'EN' ? 'Filter by Category' : 'കാറ്റഗറി അനുസരിച്ച് തിരിക്കുക'}
+                            </div>
+                            <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <div
+                                className={`filter-chip-box ${prizesCatFilter === 'ALL' ? 'active' : ''}`}
+                                onClick={() => setPrizesCatFilter('ALL')}
+                              >
+                                📁 {lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും (All)'}
+                              </div>
+                              {categories.map(c => (
+                                <div
+                                  key={c.id}
+                                  className={`filter-chip-box ${String(prizesCatFilter) === String(c.id) ? 'active' : ''}`}
+                                  onClick={() => setPrizesCatFilter(c.id)}
+                                >
+                                  {c.name}
+                                </div>
+                              ))}
+                              {generalCatIds.length > 0 && (
+                                <div
+                                  className={`filter-chip-box ${prizesCatFilter === 'GENERAL' ? 'active' : ''}`}
+                                  onClick={() => setPrizesCatFilter('GENERAL')}
+                                  style={{
+                                    background: prizesCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
+                                    color: prizesCatFilter === 'GENERAL' ? '#fff' : '',
+                                    fontWeight: '800'
+                                  }}
+                                >
+                                  🌟 GENERAL
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ── Sub Tab Navigation ── */}
+                          <div className="sub-tab-nav" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+                            <button
+                              className={`sub-nav-item ${prizesActiveTab === 'WINNERS' ? 'active' : ''}`}
+                              onClick={() => setPrizesActiveTab('WINNERS')}
+                              style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '800' }}
+                            >
+                              🏆 {lang === 'EN' ? 'Winners List (1st, 2nd, 3rd)' : 'വിജയികളുടെ ലിസ്റ്റ് (1st, 2nd, 3rd)'}
+                            </button>
+                            <button
+                              className={`sub-nav-item ${prizesActiveTab === 'ENCOURAGEMENT' ? 'active' : ''}`}
+                              onClick={() => setPrizesActiveTab('ENCOURAGEMENT')}
+                              style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '800' }}
+                            >
+                              🎗️ {lang === 'EN' ? 'Encouragement / Participation' : 'പ്രോത്സാഹനം (പങ്കെടുത്തവർ)'}
+                            </button>
+                          </div>
+
+                          {/* ── SECTION 1: WINNERS LIST ── */}
+                          {prizesActiveTab === 'WINNERS' && (
+                            <div>
+                              {/* ── Summary Stat Cards ── */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                                <div style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1.5px solid #fcd34d', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🥇</div>
+                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#b45309', lineHeight: 1 }}>{firstWinners.length}</div>
+                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#92400e', marginTop: '4px' }}>{lang === 'EN' ? 'First Place' : 'ഫസ്റ്റ് (1st)'}</div>
+                                </div>
+                                <div style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', border: '1.5px solid #cbd5e1', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🥈</div>
+                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#475569', lineHeight: 1 }}>{secondWinners.length}</div>
+                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#334155', marginTop: '4px' }}>{lang === 'EN' ? 'Second Place' : 'സെക്കൻഡ് (2nd)'}</div>
+                                </div>
+                                <div style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', border: '1.5px solid #fdba74', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🥉</div>
+                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#c2410c', lineHeight: 1 }}>{thirdWinners.length}</div>
+                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#9a3412', marginTop: '4px' }}>{lang === 'EN' ? 'Third Place' : 'തേർഡ് (3rd)'}</div>
+                                </div>
+                                <div style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1.5px solid #86efac', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🏆</div>
+                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', lineHeight: 1 }}>{catFilteredResults.length}</div>
+                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#166534', marginTop: '4px' }}>{lang === 'EN' ? 'Total Winners' : 'ആകെ വിജയികൾ'}</div>
+                                </div>
+                              </div>
+
+                              {/* ── Student Prize Search Box ── */}
+                              <div style={{ background: 'linear-gradient(135deg, #f8fafc, #eff6ff)', border: '1.5px solid #bfdbfe', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e40af', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  🔍 {lang === 'EN' ? 'Search Student Prizes by Reg No / Name' : 'രജിസ്റ്റർ നമ്പർ നൽകി ഒരു വിദ്യാർത്ഥിയുടെ സമ്മാനങ്ങൾ തിരയുക'}
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <input
+                                    type="text"
+                                    className="settings-input-v2"
+                                    placeholder={lang === 'EN' ? 'Enter Register No (eg: 101) or Student Name...' : 'രജിസ്റ്റർ നമ്പർ അല്ലെങ്കിൽ പേര് ടൈപ്പ് ചെയ്യുക...'}
+                                    value={prizesStudentSearch}
+                                    onChange={(e) => setPrizesStudentSearch(e.target.value)}
+                                    style={{ flex: 1, minWidth: '220px', margin: 0 }}
+                                  />
+                                  {prizesStudentSearch && (
+                                    <button onClick={() => setPrizesStudentSearch('')} style={{ background: '#cbd5e1', border: 'none', borderRadius: '8px', padding: '10px 16px', fontWeight: '700', cursor: 'pointer' }}>
+                                      ✕ Clear
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Results of Student Search */}
+                                {(() => {
+                                  if (!prizesStudentSearch.trim()) return null;
+                                  const term = prizesStudentSearch.trim().toLowerCase();
+
+                                  const matchedStudent = students.find(s => {
+                                    const rNo = String(s.regno || s.regNo || '').trim().toLowerCase();
+                                    const sName = String(s.name || '').trim().toLowerCase();
+                                    return rNo === term || rNo.includes(term) || sName.includes(term);
+                                  });
+
+                                  const matchedResults = resultsList.filter(r => {
+                                    const rSid = String(r.studentid || '').trim().toLowerCase();
+                                    const rSName = String(r.studentname || '').trim().toLowerCase();
+                                    if (matchedStudent) {
+                                      const sDbId = String(matchedStudent.id).toLowerCase();
+                                      const sRegNo = String(matchedStudent.regno || matchedStudent.regNo || '').toLowerCase();
+                                      if (rSid === sDbId || rSid === sRegNo) return true;
+                                    }
+                                    return rSid === term || rSName.includes(term);
+                                  });
+
+                                  if (!matchedStudent && matchedResults.length === 0) {
+                                    return (
+                                      <div style={{ marginTop: '12px', color: '#dc2626', fontStyle: 'italic', fontSize: '13px', fontWeight: '600' }}>
+                                        ⚠️ {lang === 'EN' ? 'No records found for this Reg No/Name.' : 'ഈ രജിസ്റ്റർ നമ്പറിൽ/പേരിൽ വിവരങ്ങൾ ലഭ്യമല്ല.'}
+                                      </div>
+                                    );
+                                  }
+
+                                  const sTeamObj = matchedStudent ? teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || '')) : null;
+                                  const sCatObj = matchedStudent ? categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || '')) : null;
+
+                                  return (
+                                    <div style={{ marginTop: '14px', background: '#fff', borderRadius: '12px', border: '1px solid #93c5fd', padding: '14px 16px', boxShadow: '0 2px 8px rgba(30,64,175,0.08)' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                                        <div>
+                                          <div style={{ fontSize: '16px', fontWeight: '900', color: '#1e3a8a' }}>
+                                            🧑‍🎓 {matchedStudent ? matchedStudent.name : matchedResults[0]?.studentname}
+                                          </div>
+                                          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', marginTop: '2px' }}>
+                                            🆔 Reg No: <strong>{matchedStudent ? (matchedStudent.regno || matchedStudent.regNo) : prizesStudentSearch}</strong> | 
+                                            📂 Category: <strong>{sCatObj ? sCatObj.name : '—'}</strong> | 
+                                            🚩 Team: <strong>{sTeamObj ? sTeamObj.name : (matchedResults[0]?.teamname || '—')}</strong>
+                                          </div>
+                                        </div>
+                                        <div style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '800' }}>
+                                          🏆 {matchedResults.length} {lang === 'EN' ? 'Prizes Won' : 'സമ്മാനങ്ങൾ'}
+                                        </div>
+                                      </div>
+
+                                      {matchedResults.length === 0 ? (
+                                        <div style={{ color: '#64748b', fontStyle: 'italic', fontSize: '13px' }}>
+                                          {lang === 'EN' ? 'No prizes recorded yet for this student.' : 'ഈ വിദ്യാർത്ഥിക്ക് ഇതുവരെ സമ്മാനങ്ങൾ ഒന്നും ലഭിച്ചിട്ടില്ല.'}
+                                        </div>
+                                      ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                          {matchedResults.map((res, i) => {
+                                            const normPlace = getNormPlace(res.place);
+                                            const badgeBg = normPlace === 'First' ? '#fef3c7' : normPlace === 'Second' ? '#e2e8f0' : normPlace === 'Third' ? '#ffedd5' : '#f1f5f9';
+                                            const badgeBorder = normPlace === 'First' ? '#fcd34d' : normPlace === 'Second' ? '#94a3b8' : normPlace === 'Third' ? '#fdba74' : '#cbd5e1';
+                                            const badgeColor = normPlace === 'First' ? '#92400e' : normPlace === 'Second' ? '#334155' : normPlace === 'Third' ? '#9a3412' : '#475569';
+                                            const icon = normPlace === 'First' ? '🥇' : normPlace === 'Second' ? '🥈' : normPlace === 'Third' ? '🥉' : '🎗️';
+
+                                            return (
+                                              <div key={res.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: badgeBg, border: `1px solid ${badgeBorder}`, borderRadius: '10px', padding: '10px 14px' }}>
+                                                <div>
+                                                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
+                                                    🎭 {res.progname || res.progcode}
+                                                  </div>
+                                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                                    Grade: <strong>{res.grade || '-'}</strong> | Points: <strong>{res.points || 0}</strong>
+                                                  </div>
+                                                </div>
+                                                <div style={{ fontSize: '14px', fontWeight: '900', color: badgeColor, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                  <span>{icon}</span> <span>{normPlace || res.place}</span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+
+                              {/* ── Place Filter Chips + PDF Button Bar ── */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                                <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '6px' }}>
+                                  {[
+                                    { key: 'ALL', label: 'All Prizes' },
+                                    { key: 'FIRST', label: '🥇 First' },
+                                    { key: 'SECOND', label: '🥈 Second' },
+                                    { key: 'THIRD', label: '🥉 Third' },
+                                  ].map(f => (
+                                    <div
+                                      key={f.key}
+                                      className={`filter-chip-box ${prizesPlaceFilter === f.key ? 'active' : ''}`}
+                                      onClick={() => setPrizesPlaceFilter(f.key)}
+                                      style={{ padding: '6px 14px', fontSize: '12px' }}
+                                    >
+                                      {f.label}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <button
+                                  onClick={generatePrizesPDF}
+                                  style={{
+                                    background: 'linear-gradient(135deg, #1e40af, #1d4ed8)',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '9px 18px',
+                                    borderRadius: '10px',
+                                    fontWeight: '800',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 4px 12px rgba(30,64,175,0.25)'
+                                  }}
+                                >
+                                  📄 {lang === 'EN' ? 'Download Winners PDF' : 'വിജയികളുടെ പിഡിഎഫ് (PDF)'}
+                                </button>
+                              </div>
+
+                              {/* ── Winners Table ── */}
+                              <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                  <thead>
+                                    <tr style={{ background: '#1e3a8a', color: 'white', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
+                                      <th style={{ padding: '10px 12px', textAlignment: 'center', width: '50px' }}>#</th>
+                                      <th style={{ padding: '10px 12px', width: '80px' }}>Reg No</th>
+                                      <th style={{ padding: '10px 12px' }}>Student Name</th>
+                                      <th style={{ padding: '10px 12px' }}>Category</th>
+                                      <th style={{ padding: '10px 12px' }}>Competition</th>
+                                      <th style={{ padding: '10px 12px' }}>Position</th>
+                                      <th style={{ padding: '10px 12px' }}>Team</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {displayWinners.length === 0 ? (
+                                      <tr>
+                                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontStyle: 'italic' }}>
+                                          {lang === 'EN' ? 'No winners recorded for this filter.' : 'ഈ ഫിൽട്ടറിൽ സമ്മാനാർഹർ ലഭ്യമല്ല.'}
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      displayWinners.map((r, idx) => {
+                                        const norm = getNormPlace(r.place);
+                                        const pObj = programs.find(p => String(p.id) === String(r.progid));
+                                        const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
+                                        const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
+                                        const cName = r.catname || (cObj ? cObj.name : '—');
+                                        const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim());
+                                        const regNo = sObj ? (sObj.regno || sObj.regNo || '—') : '—';
+                                        const studentName = r.studentname || (sObj ? sObj.name : '—');
+                                        const teamName = r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+
+                                        const badgeBg = norm === 'First' ? '#fef3c7' : norm === 'Second' ? '#e2e8f0' : '#ffedd5';
+                                        const badgeColor = norm === 'First' ? '#92400e' : norm === 'Second' ? '#334155' : '#9a3412';
+                                        const icon = norm === 'First' ? '🥇' : norm === 'Second' ? '🥈' : '🥉';
+
+                                        return (
+                                          <tr key={r.id || idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                            <td style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
+                                            <td style={{ padding: '10px 12px', fontWeight: '800', color: '#1e40af' }}>{regNo}</td>
+                                            <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>{studentName}</td>
+                                            <td style={{ padding: '10px 12px', color: '#475569' }}>{cName}</td>
+                                            <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>{pName}</td>
+                                            <td style={{ padding: '10px 12px' }}>
+                                              <span style={{ background: badgeBg, color: badgeColor, padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                <span>{icon}</span> <span>{norm}</span>
+                                              </span>
+                                            </td>
+                                            <td style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>{teamName}</td>
+                                          </tr>
+                                        );
+                                      })
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ── SECTION 2: ENCOURAGEMENT (PROTSAHANAM) ── */}
+                          {prizesActiveTab === 'ENCOURAGEMENT' && (() => {
+                            // Find students who registered in programs but didn't win 1st, 2nd, 3rd
+                            const winnerStudentIds = new Set(
+                              resultsList
+                                .filter(r => getNormPlace(r.place) !== null)
+                                .map(r => String(r.studentid || '').trim())
+                            );
+
+                            const registeredStudentIds = new Set(
+                              programRegistrations.map(pr => String(pr.student_id || '').trim())
+                            );
+
+                            // Non-prize contestants
+                            const nonPrizeContestants = students.filter(s => {
+                              const sCat = String(s.catid || s.catId || '');
+                              if (prizesCatFilter !== 'ALL') {
+                                if (prizesCatFilter === 'GENERAL') {
+                                  if (!generalCatIds.map(String).includes(sCat)) return false;
+                                } else if (sCat !== String(prizesCatFilter)) {
+                                  return false;
+                                }
+                              }
+                              const sId = String(s.id);
+                              const sRegNo = String(s.regno || s.regNo || '');
+                              const isReg = registeredStudentIds.has(sId) || registeredStudentIds.has(sRegNo);
+                              const isWinner = winnerStudentIds.has(sId) || winnerStudentIds.has(sRegNo) || winnerStudentIds.has(s.name);
+                              return isReg && !isWinner;
+                            });
+
+                            // All category students
+                            const allCategoryStudents = students.filter(s => {
+                              if (prizesCatFilter === 'ALL') return true;
+                              const sCat = String(s.catid || s.catId || '');
+                              if (prizesCatFilter === 'GENERAL') {
+                                return generalCatIds.map(String).includes(sCat);
+                              }
+                              return sCat === String(prizesCatFilter);
+                            });
+
+                            const activeList = encouragementSubMode === 'CONTESTANTS' ? nonPrizeContestants : allCategoryStudents;
+                            const titleLabel = encouragementSubMode === 'CONTESTANTS'
+                              ? (lang === 'EN' ? 'Non-prize Contestants (Registered in Competitions)' : 'മത്സരത്തിൽ പങ്കെടുത്തവർ (ഫസ്റ്റ്, സെക്കൻഡ്, തേർഡ് ലഭിക്കാത്തവർ)')
+                              : (lang === 'EN' ? 'All Registered Students' : 'സ്റ്റുഡന്റ് ലിസ്റ്റിൽ രജിസ്റ്റർ ചെയ്തവർ');
+
+                            return (
+                              <div>
+                                {/* Sub Mode Selection Chips */}
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                                  <button
+                                    onClick={() => setEncouragementSubMode('CONTESTANTS')}
+                                    style={{
+                                      flex: 1,
+                                      padding: '10px 14px',
+                                      borderRadius: '10px',
+                                      border: encouragementSubMode === 'CONTESTANTS' ? '2px solid #059669' : '1px solid #cbd5e1',
+                                      background: encouragementSubMode === 'CONTESTANTS' ? 'linear-gradient(135deg, #ecfdf5, #d1fae5)' : '#fff',
+                                      color: encouragementSubMode === 'CONTESTANTS' ? '#047857' : '#475569',
+                                      fontWeight: '800',
+                                      fontSize: '13px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    🎭 {lang === 'EN' ? 'Registered in Competitions' : 'മത്സരത്തിൽ പങ്കെടുത്തവർ'} ({nonPrizeContestants.length})
+                                  </button>
+                                  <button
+                                    onClick={() => setEncouragementSubMode('ALL_STUDENTS')}
+                                    style={{
+                                      flex: 1,
+                                      padding: '10px 14px',
+                                      borderRadius: '10px',
+                                      border: encouragementSubMode === 'ALL_STUDENTS' ? '2px solid #0284c7' : '1px solid #cbd5e1',
+                                      background: encouragementSubMode === 'ALL_STUDENTS' ? 'linear-gradient(135deg, #f0f9ff, #e0f2fe)' : '#fff',
+                                      color: encouragementSubMode === 'ALL_STUDENTS' ? '#0369a1' : '#475569',
+                                      fontWeight: '800',
+                                      fontSize: '13px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    🧑‍🎓 {lang === 'EN' ? 'Registered in Student List' : 'സ്റ്റുഡന്റ് ലിസ്റ്റിൽ ഉള്ളവർ'} ({allCategoryStudents.length})
+                                  </button>
+                                </div>
+
+                                {/* encouragement Top Action Bar */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px', background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                                    🎗️ {titleLabel} — <span style={{ color: '#059669' }}>{activeList.length} Students</span>
+                                  </div>
+
+                                  <button
+                                    onClick={() => generateEncouragementPDF(activeList, titleLabel)}
+                                    style={{
+                                      background: 'linear-gradient(135deg, #059669, #047857)',
+                                      color: 'white',
+                                      border: 'none',
+                                      padding: '9px 18px',
+                                      borderRadius: '10px',
+                                      fontWeight: '800',
+                                      fontSize: '13px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      boxShadow: '0 4px 12px rgba(5,150,105,0.25)'
+                                    }}
+                                  >
+                                    📄 {lang === 'EN' ? 'Download Encouragement PDF' : 'പ്രോത്സാഹന പിഡിഎഫ് (PDF)'}
+                                  </button>
+                                </div>
+
+                                {/* Encouragement Table */}
+                                <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                      <tr style={{ background: '#047857', color: 'white', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
+                                        <th style={{ padding: '10px 12px', textAlign: 'center', width: '50px' }}>#</th>
+                                        <th style={{ padding: '10px 12px', width: '80px' }}>Reg No</th>
+                                        <th style={{ padding: '10px 12px' }}>Student Name</th>
+                                        <th style={{ padding: '10px 12px' }}>Category</th>
+                                        <th style={{ padding: '10px 12px' }}>Registered Competitions</th>
+                                        <th style={{ padding: '10px 12px' }}>Team</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {activeList.length === 0 ? (
+                                        <tr>
+                                          <td colSpan="6" style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontStyle: 'italic' }}>
+                                            {lang === 'EN' ? 'No students found in this list.' : 'വിവരങ്ങൾ ലഭ്യമല്ല.'}
+                                          </td>
+                                        </tr>
+                                      ) : (
+                                        activeList.map((s, idx) => {
+                                          const regNo = s.regno || s.regNo || '—';
+                                          const cObj = categories.find(c => String(c.id) === String(s.catid || s.catId || ''));
+                                          const cName = cObj ? cObj.name : '—';
+                                          const tObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                                          const tName = tObj ? tObj.name : '—';
+                                          const sProgs = getStudentRegisteredPrograms(s.id);
+                                          const progNames = sProgs.map(p => p.name).join(', ') || '—';
+
+                                          return (
+                                            <tr key={s.id || idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                              <td style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
+                                              <td style={{ padding: '10px 12px', fontWeight: '800', color: '#047857' }}>{regNo}</td>
+                                              <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>{s.name}</td>
+                                              <td style={{ padding: '10px 12px', color: '#475569' }}>{cName}</td>
+                                              <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>{progNames}</td>
+                                              <td style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>{tName}</td>
+                                            </tr>
+                                          );
+                                        })
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      );
+                    })()}
+
                   </div>
                 </div>
               )}
