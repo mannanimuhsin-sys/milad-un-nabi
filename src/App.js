@@ -1550,31 +1550,30 @@ function App() {
 
     setIsLoggingIn(true);
     try {
-      let { data: madrasa, error } = await queryWithRetry(() =>
-        supabase
-          .from('madrasas')
-          .select('*')
-          .eq('regNumber', trimmedReg)
-          .maybeSingle()
-      );
+      let madrasa = null;
+      const numReg = parseInt(trimmedReg, 10);
+      const isNum = !isNaN(numReg);
 
-      // Fallback: try matching string or integer if regNumber was saved differently
-      if (!madrasa && !error) {
-        const { data: allMadrasas } = await queryWithRetry(() =>
+      // 1. Single atomic query targeting regNumber, regnumber, or numeric id
+      try {
+        const { data } = await queryWithRetry(() =>
           supabase
             .from('madrasas')
             .select('*')
+            .or(isNum ? `regNumber.eq.${trimmedReg},regNumber.eq.${numReg},regnumber.eq.${trimmedReg}` : `regNumber.eq.${trimmedReg},regnumber.eq.${trimmedReg}`)
+            .maybeSingle()
         );
-        if (allMadrasas && allMadrasas.length > 0) {
-          madrasa = allMadrasas.find(m =>
-            String(m.regNumber || m.regnumber || m.reg_number || '').trim().toLowerCase() === trimmedReg.toLowerCase()
-          );
-        }
-      }
+        if (data) madrasa = data;
+      } catch (e) {}
 
-      if (error && !madrasa) {
-        alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
-        return;
+      // 2. Local Cache Fallback (<5ms) if database query returned null or device is offline
+      if (!madrasa) {
+        const localList = superMadrasas && superMadrasas.length > 0 ? superMadrasas : (() => {
+          try { return JSON.parse(localStorage.getItem('cached_super_madrasas') || '[]'); } catch { return []; }
+        })();
+        madrasa = localList.find(m =>
+          String(m.regNumber || m.regnumber || m.reg_number || '').trim().toLowerCase() === trimmedReg.toLowerCase()
+        );
       }
 
       if (!madrasa) {
@@ -1600,7 +1599,11 @@ function App() {
 
         // Approved, proceed to login
         const role = trimmedPass === adminPass ? 'ADMIN' : 'VIEW';
-        const sanitizedMadrasa = { ...madrasa, place: actualPlace };
+        const sanitizedMadrasa = {
+          ...madrasa,
+          regNumber: String(madrasa.regNumber || madrasa.regnumber || madrasa.reg_number || trimmedReg).trim(),
+          place: actualPlace
+        };
         setLoggedInMadrasa(sanitizedMadrasa);
         setLoginRole(role);
         setCurrentScreen('DASHBOARD');
