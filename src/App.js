@@ -847,19 +847,38 @@ function App() {
     if (!rNum) return false;
     try {
       const raw = localStorage.getItem(`cached_data_${rNum}`);
-      if (!raw) return false;
-      const cached = JSON.parse(raw);
-      if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
-      if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
-      if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms([...cached.programs].sort(compareProgCode));
-      if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents([...cached.students].sort(compareRegNo));
-      if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
-      if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
-      if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
-      if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
-      if (cached.eventName) setEventName(cached.eventName);
-      if (cached.eventYear) setEventYear(cached.eventYear);
-      if (cached.convenerSadar) setConvenerSadar(cached.convenerSadar);
+      const localEv = localStorage.getItem(`event_name_${rNum}`);
+      const localYr = localStorage.getItem(`event_year_${rNum}`);
+      const localCS = localStorage.getItem(`convener_sadar_${rNum}`);
+      const localGen = localStorage.getItem(`general_cats_${rNum}`);
+
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
+        if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
+        if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms([...cached.programs].sort(compareProgCode));
+        if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents([...cached.students].sort(compareRegNo));
+        if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
+        if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
+        if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
+        if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
+
+        const evToSet = localEv || cached.eventName || '';
+        const yrToSet = localYr || cached.eventYear || '';
+        const csToSet = localCS || cached.convenerSadar || '';
+
+        if (evToSet) { setEventName(evToSet); setEventNameInput(evToSet); }
+        if (yrToSet) { setEventYear(yrToSet); setEventYearInput(yrToSet); }
+        if (csToSet) { setConvenerSadar(csToSet); setConvenerSadarInput(csToSet); }
+      } else {
+        if (localEv) { setEventName(localEv); setEventNameInput(localEv); }
+        if (localYr) { setEventYear(localYr); setEventYearInput(localYr); }
+        if (localCS) { setConvenerSadar(localCS); setConvenerSadarInput(localCS); }
+      }
+
+      if (localGen) {
+        try { setGeneralCatIds(JSON.parse(localGen)); } catch(e){}
+      }
       return true;
     } catch (e) {
       console.error("Error reading cached data:", e);
@@ -966,6 +985,12 @@ function App() {
       let loadedEventName = '';
       let loadedEventYear = '';
       let loadedConvenerSadar = '';
+      let loadedGenCats = [];
+
+      const localEv = localStorage.getItem(`event_name_${rNum}`) || '';
+      const localYr = localStorage.getItem(`event_year_${rNum}`) || '';
+      const localCS = localStorage.getItem(`convener_sadar_${rNum}`) || '';
+      const localGen = localStorage.getItem(`general_cats_${rNum}`);
 
       if (madrasaData) {
         const parts = (madrasaData.place || '').split('|');
@@ -973,26 +998,35 @@ function App() {
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
 
-        loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
-        loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
-        loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
+        loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : localEv;
+        loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : localYr;
+        loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : localCS;
 
-        setEventName(prev => loadedEventName || prev);
-        setEventYear(prev => loadedEventYear || prev);
-        setConvenerSadar(prev => loadedConvenerSadar || prev);
+        if (dbGeneralCats) {
+          try { loadedGenCats = JSON.parse(decodeURIComponent(dbGeneralCats)); } catch(e){}
+        } else if (localGen) {
+          try { loadedGenCats = JSON.parse(localGen); } catch(e){}
+        }
 
-        setEventNameInput(prev => prev === '' ? loadedEventName : prev);
-        setEventYearInput(prev => prev === '' ? loadedEventYear : prev);
-        setConvenerSadarInput(prev => prev === '' ? loadedConvenerSadar : prev);
-
-        try {
-          if (dbGeneralCats) {
-            const loadedGeneral = JSON.parse(decodeURIComponent(dbGeneralCats));
-            if (Array.isArray(loadedGeneral)) {
-              setGeneralCatIds(loadedGeneral);
-            }
-          }
-        } catch (e) {}
+        if (loadedEventName) {
+          setEventName(loadedEventName);
+          setEventNameInput(prev => prev === '' ? loadedEventName : prev);
+          try { localStorage.setItem(`event_name_${rNum}`, loadedEventName); } catch(e){}
+        }
+        if (loadedEventYear) {
+          setEventYear(loadedEventYear);
+          setEventYearInput(prev => prev === '' ? loadedEventYear : prev);
+          try { localStorage.setItem(`event_year_${rNum}`, loadedEventYear); } catch(e){}
+        }
+        if (loadedConvenerSadar) {
+          setConvenerSadar(loadedConvenerSadar);
+          setConvenerSadarInput(prev => prev === '' ? loadedConvenerSadar : prev);
+          try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
+        }
+        if (Array.isArray(loadedGenCats) && loadedGenCats.length > 0) {
+          setGeneralCatIds(loadedGenCats);
+          try { localStorage.setItem(`general_cats_${rNum}`, JSON.stringify(loadedGenCats)); } catch(e){}
+        }
       }
 
       if (Array.isArray(regData)) {
@@ -1045,9 +1079,9 @@ function App() {
             programRegistrations: parsedRegs,
             groupRegistrations: parsedGroupReg,
             timetable: parsedTimetable,
-            eventName: loadedEventName,
-            eventYear: loadedEventYear,
-            convenerSadar: loadedConvenerSadar,
+            eventName: loadedEventName || localEv,
+            eventYear: loadedEventYear || localYr,
+            convenerSadar: loadedConvenerSadar || localCS,
             savedAt: new Date().toISOString()
           };
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(snapshot));
@@ -6694,9 +6728,10 @@ ${pagesHtml}
                                     setEventName(newName);
                                     setEventYear(newYear);
                                     setIsEditingEvent(false);
-                                    // Save to local cache immediately
                                     if (rNum) {
                                       try {
+                                        localStorage.setItem(`event_name_${rNum}`, newName);
+                                        localStorage.setItem(`event_year_${rNum}`, newYear);
                                         const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
                                         if (cachedRaw) {
                                           const cached = JSON.parse(cachedRaw);
@@ -6706,18 +6741,24 @@ ${pagesHtml}
                                         }
                                       } catch(e){}
                                       try {
-                                        const { data: md } = await queryWithRetry(() => supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle());
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg);
+                                        const { data: md } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').select('place').or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`).maybeSingle()
+                                        );
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           eventName: encodeURIComponent(newName),
                                           eventYear: encodeURIComponent(newYear)
                                         });
-                                        const { error } = await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                        const { error } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`)
+                                        );
                                         if (error) {
-                                          alert('⚠️ Cloud Save Error: ' + getFriendlyErrorMessage(error.message));
+                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
                                         } else {
                                           alert(lang === 'EN' ? '✅ Event Name saved!' : '✅ ഇവന്റ് പേര് സേവ് ചെയ്തു!');
                                         }
-                                      } catch (err) { alert('Save Error: ' + getFriendlyErrorMessage(err.message)); }
+                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
@@ -6765,9 +6806,9 @@ ${pagesHtml}
                                     const newCS = convenerSadarInput.trim();
                                     setConvenerSadar(newCS);
                                     setIsEditingConvenerSadar(false);
-                                    // Save to local cache immediately
                                     if (rNum) {
                                       try {
+                                        localStorage.setItem(`convener_sadar_${rNum}`, newCS);
                                         const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
                                         if (cachedRaw) {
                                           const cached = JSON.parse(cachedRaw);
@@ -6776,17 +6817,23 @@ ${pagesHtml}
                                         }
                                       } catch(e){}
                                       try {
-                                        const { data: md } = await queryWithRetry(() => supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle());
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg);
+                                        const { data: md } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').select('place').or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`).maybeSingle()
+                                        );
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           convenerSadar: encodeURIComponent(newCS)
                                         });
-                                        const { error } = await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                        const { error } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`)
+                                        );
                                         if (error) {
-                                          alert('⚠️ Cloud Save Error: ' + getFriendlyErrorMessage(error.message));
+                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
                                         } else {
                                           alert(lang === 'EN' ? '✅ Convener / Sadar Muallim saved!' : '✅ സദ്ർ മുഅല്ലിം പേര് സേവ് ചെയ്തു!');
                                         }
-                                      } catch (err) { alert('Save Error: ' + getFriendlyErrorMessage(err.message)); }
+                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
@@ -6968,17 +7015,26 @@ ${pagesHtml}
                                     setShowGeneralModal(false);
                                     if (rNum) {
                                       try {
-                                        const { data: md } = await queryWithRetry(() => supabase.from('madrasas').select('place').eq('regNumber', rNum).maybeSingle());
+                                        localStorage.setItem(`general_cats_${rNum}`, JSON.stringify(generalModalTemp));
+                                      } catch(e){}
+                                      try {
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg);
+                                        const { data: md } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').select('place').or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`).maybeSingle()
+                                        );
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           generalCats: encodeURIComponent(JSON.stringify(generalModalTemp))
                                         });
-                                        const { error } = await supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', rNum);
+                                        const { error } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`)
+                                        );
                                         if (error) {
-                                          alert('⚠️ Cloud Save Error: ' + getFriendlyErrorMessage(error.message));
+                                          alert('⚠️ Cloud Save Warning (Saved locally): ' + getFriendlyErrorMessage(error.message));
                                         } else {
                                           alert(lang === 'EN' ? '✅ GENERAL Categories saved!' : '✅ ജനറൽ കാറ്റഗറികൾ സേവ് ചെയ്തു!');
                                         }
-                                      } catch (err) { alert('Save Error: ' + getFriendlyErrorMessage(err.message)); }
+                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
