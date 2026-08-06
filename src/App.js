@@ -762,6 +762,8 @@ function App() {
   const [cropperZoom, setCropperZoom] = useState(1);
   const [cropperImageDims, setCropperImageDims] = useState(null);
   const [cropperFilename, setCropperFilename] = useState('photo.jpg');
+  const [cropperTargetStudent, setCropperTargetStudent] = useState(null);
+  
 
   const cropperImageRef = useRef(null);
   const dragStateRef = useRef({
@@ -3129,88 +3131,174 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfileCropMode(false);
   };
 
-  // Handle photo file selection — open manual cropper
-  const handleProfilePhotoSelect = (e) => {
-    const file = e.target.files[0];
+  // Helper to dynamically update photo cropper transform & clamped position
+  const updateCropperTransform = useCallback((zoomValue, offX, offY) => {
+    if (!cropperImageRef.current || !cropperImageDims) return;
+    const { displayW, displayH } = cropperImageDims;
+    const VIEWPORT = 320;
+
+    const curZoom = zoomValue !== undefined ? zoomValue : cropperZoom;
+    const curW = displayW * curZoom;
+    const curH = displayH * curZoom;
+
+    // Maximum drag offsets to prevent white space gaps inside the 320px viewport
+    const maxOffX = Math.max(0, (curW - VIEWPORT) / 2);
+    const maxOffY = Math.max(0, (curH - VIEWPORT) / 2);
+
+    const targetX = offX !== undefined ? offX : dragStateRef.current.offsetX;
+    const targetY = offY !== undefined ? offY : dragStateRef.current.offsetY;
+
+    const clampedX = Math.min(maxOffX, Math.max(-maxOffX, targetX));
+    const clampedY = Math.min(maxOffY, Math.max(-maxOffY, targetY));
+
+    dragStateRef.current.offsetX = clampedX;
+    dragStateRef.current.offsetY = clampedY;
+
+    cropperImageRef.current.style.transform =
+      `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px)) scale(${curZoom})`;
+  }, [cropperImageDims, cropperZoom]);
+
+  // Handle photo file selection — open manual cropper (supports Admin mode student re-upload!)
+  const handleProfilePhotoSelect = (e, targetStudent = null) => {
+    const file = e.target.files ? e.target.files[0] : null;
     if (!file) return;
-    // Reset the input so the same file can be re-selected after cancel
+    // Reset file input value so selecting the same file again triggers onChange
     e.target.value = '';
+
+    setCropperTargetStudent(targetStudent || null);
+    setCropperFilename(file.name || 'photo.jpg');
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
       img.onload = () => {
-        // Store filename for later use
-        setCropperFilename(file.name || 'photo.jpg');
-        // Set image source — triggers the cropper modal
-        setCropperSrc(ev.target.result);
-        // Compute initial dims so we can centre the image in the viewport
-        setCropperImageDims({ width: img.width, height: img.height });
-        // Reset zoom & drag offset
+        const naturalW = img.width;
+        const naturalH = img.height;
+        const VIEWPORT = 320;
+        const baseScale = VIEWPORT / Math.min(naturalW, naturalH);
+        const displayW = naturalW * baseScale;
+        const displayH = naturalH * baseScale;
+
+        // Head-friendly initial offset: for portrait photos, move UP so face/head is visible
+        // Negative offsetY moves image upward → top of photo (face/head) shown first
+        const initOffsetX = 0;
+        const initOffsetY = naturalH > naturalW ? -((displayH - VIEWPORT) * 0.28) : 0;
+
+        setCropperImageDims({ width: naturalW, height: naturalH, baseScale, displayW, displayH });
         setCropperZoom(1);
-        dragStateRef.current = { isDragging: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0 };
+
+        dragStateRef.current = {
+          isDragging: false,
+          startX: 0,
+          startY: 0,
+          offsetX: initOffsetX,
+          offsetY: initOffsetY,
+          initialPinchDist: 0,
+          initialZoom: 1
+        };
+
+        setCropperSrc(ev.target.result);
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   };
 
-  // Confirm crop: draw whatever is visible in the 260x260 viewport onto a 300x300 canvas
+  // Reset cropper alignment to initial position
+  const handleResetPosition = () => {
+    if (!cropperImageDims) return;
+    const { width: naturalW, height: naturalH, displayH } = cropperImageDims;
+    const VIEWPORT = 320;
+    const initOffsetX = 0;
+    // Negative: move image UP so face/head appears at the top of the circle
+    const initOffsetY = naturalH > naturalW ? -((displayH - VIEWPORT) * 0.28) : 0;
+
+    setCropperZoom(1);
+    dragStateRef.current.offsetX = initOffsetX;
+    dragStateRef.current.offsetY = initOffsetY;
+    updateCropperTransform(1, initOffsetX, initOffsetY);
+  };
+
+  // Confirm crop: draw viewport selection onto 400x400 output canvas
   const handleCropConfirm = () => {
-    const imgEl = cropperImageRef.current;
-    if (!imgEl || !cropperSrc || !cropperImageDims) return;
+    if (!cropperSrc || !cropperImageDims) return;
 
-    // The circular viewport on screen is 260 px wide/tall
-    const VIEWPORT = 260;
-
-    // Current rendered size of the image element (zoom applied via CSS transform)
-    const naturalW = cropperImageDims.width;
-    const naturalH = cropperImageDims.height;
-
-    // Compute the rendered size (longest side fills viewport * zoom)
-    const scale = (VIEWPORT / Math.min(naturalW, naturalH)) * cropperZoom;
-    const renderedW = naturalW * scale;
-    const renderedH = naturalH * scale;
-
-    // Drag offsets are in CSS pixels relative to rendered image centre
+    const VIEWPORT = 320;
+    const { width: naturalW, height: naturalH, baseScale } = cropperImageDims;
+    const zoom = cropperZoom;
     const { offsetX, offsetY } = dragStateRef.current;
 
-    // Centre of viewport in rendered-image coordinates
-    const centreX = renderedW / 2 - offsetX;
-    const centreY = renderedH / 2 - offsetY;
+    // Total scale factor S (natural -> viewport pixels)
+    const S = baseScale * zoom;
+    const cropSizeInNatural = VIEWPORT / S;
 
-    // Top-left of the crop square in natural-image coordinates
-    const cropSize = VIEWPORT / scale;   // natural pixels covered by viewport
-    const srcX = (centreX / scale) - cropSize / 2;
-    const srcY = (centreY / scale) - cropSize / 2;
+    // Center coordinates in natural image space
+    const centerX_nat = (naturalW / 2) - (offsetX / S);
+    const centerY_nat = (naturalH / 2) - (offsetY / S);
 
-    // Draw onto 300×300 output canvas
+    // Top-left corner coordinates in natural image space
+    let srcX = centerX_nat - (cropSizeInNatural / 2);
+    let srcY = centerY_nat - (cropSizeInNatural / 2);
+
+    srcX = Math.max(0, Math.min(naturalW - cropSizeInNatural, srcX));
+    srcY = Math.max(0, Math.min(naturalH - cropSizeInNatural, srcY));
+
     const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = 400;
+    canvas.height = 400;
     const ctx = canvas.getContext('2d');
 
     const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, srcX, srcY, cropSize, cropSize, 0, 0, 300, 300);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const croppedFile = new File([blob], cropperFilename, { type: 'image/jpeg' });
-          setProfilePhotoFile(croppedFile);
-          setProfilePhotoPreview(canvas.toDataURL('image/jpeg', 0.9));
-          setProfileCropMode(true);
+    img.onload = async () => {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, srcX, srcY, cropSizeInNatural, cropSizeInNatural, 0, 0, 400, 400);
+
+      const base64DataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+      if (cropperTargetStudent) {
+        // Admin Mode re-upload: update DB & local state immediately with approved status
+        const sId = cropperTargetStudent.id;
+        const sName = cropperTargetStudent.name;
+
+        setStudents(prev => prev.map(s => String(s.id) === String(sId) ? { ...s, photo_url: base64DataUrl, photo_status: 'approved' } : s));
+
+        try {
+          const { error } = await queryWithRetry(() =>
+            supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'approved' }).eq('id', sId)
+          );
+          if (error) {
+            alert('Cloud update warning: ' + getFriendlyErrorMessage(error.message));
+          } else {
+            alert(lang === 'EN' ? `✅ Photo updated and approved for ${sName}!` : `✅ ${sName} എന്ന വിദ്യാർത്ഥിയുടെ ഫോട്ടോ സക്സസ്ഫുളായി ക്രോപ്പ് ചെയ്ത് സേവ് ചെയ്തു!`);
+          }
+        } catch (err) {
+          console.error("Admin photo crop error:", err);
         }
-        // Close cropper
-        setCropperSrc(null);
-        setCropperImageDims(null);
-      }, 'image/jpeg', 0.9);
+      } else {
+        // View Mode photo upload preview
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const croppedFile = new File([blob], cropperFilename, { type: 'image/jpeg' });
+            setProfilePhotoFile(croppedFile);
+            setProfilePhotoPreview(base64DataUrl);
+            setProfileCropMode(true);
+          }
+        }, 'image/jpeg', 0.88);
+      }
+
+      // Close cropper modal
+      handleCropCancel();
     };
     img.src = cropperSrc;
   };
 
-  // Cancel cropper without keeping anything
+  // Cancel cropper
   const handleCropCancel = () => {
     setCropperSrc(null);
     setCropperImageDims(null);
+    setCropperTargetStudent(null);
+    setCropperZoom(1);
   };
 
   // Upload photo — stored as base64 directly in DB (no Storage bucket needed)
@@ -3342,34 +3430,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     }
   };
 
-  // Admin: Edit photo (re-upload as base64)
+  // Admin: Edit photo (re-upload with cropper)
   const handleAdminPhotoReUpload = async (studentId, file) => {
     if (!file || !loggedInMadrasa) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 300;
-        canvas.height = 300;
-        canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
-        const base64DataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-        // 🚀 Instant optimistic UI update (<10ms)
-        setStudents(prev => prev.map(s => String(s.id) === String(studentId) ? { ...s, photo_url: base64DataUrl, photo_status: 'pending' } : s));
-
-        try {
-          const { error } = await queryWithRetry(() =>
-            supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'pending' }).eq('id', studentId)
-          );
-          if (error) alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
-        } catch (err) {
-          console.error("Re-upload error:", err);
-        }
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
+    const targetStudent = students.find(s => String(s.id) === String(studentId));
+    handleProfilePhotoSelect({ target: { files: [file], value: '' } }, targetStudent || { id: studentId });
   };
 
   // Download single ID card as image
@@ -3610,145 +3675,174 @@ ${pagesHtml}
   return (
     <div className="main-container">
 
-      {/* ✂️ MANUAL PHOTO CROPPER MODAL */}
-      {cropperSrc && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.92)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '8px', textAlign: 'center' }}>
-            📸 Move & Zoom to Crop
-          </div>
-          <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '16px', textAlign: 'center' }}>
-            Drag to reposition • Scroll/pinch to zoom
-          </div>
+      {/* ✂️ PROFESSIONAL MANUAL PHOTO CROPPER MODAL */}
+      {cropperSrc && cropperImageDims && (
+        <div className="cropper-modal-overlay">
+          <div className="cropper-modal-card">
+            {/* Header */}
+            <div className="cropper-modal-header">
+              <div className="cropper-modal-title">
+                ✂️ {lang === 'EN' ? 'Crop & Position Photo' : 'ഫോട്ടോ ക്രോപ്പ് ചെയ്യുക'}
+              </div>
+              <div className="cropper-modal-subtitle">
+                {lang === 'EN'
+                  ? '👆 Drag to move  •  🔍 Pinch or slider to zoom  •  🎯 Center your face'
+                  : 'ഡ്രാഗ് ചെയ്ത് മുഖം നടുക്ക് ആക്കുക • സൂം ചെയ്യുക'}
+              </div>
+              {cropperTargetStudent && (
+                <div className="cropper-target-badge">
+                  👤 {cropperTargetStudent.name} ({cropperTargetStudent.regno || cropperTargetStudent.regNo || ''})
+                </div>
+              )}
+            </div>
 
-          {/* Circular viewport */}
-          <div
-            style={{
-              width: '260px', height: '260px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              border: '3px solid #22c55e',
-              boxShadow: '0 0 0 9999px rgba(0,0,0,0.75)',
-              position: 'relative',
-              cursor: 'grab',
-              touchAction: 'none',
-              userSelect: 'none'
-            }}
-            onMouseDown={(e) => {
-              dragStateRef.current.isDragging = true;
-              dragStateRef.current.startX = e.clientX;
-              dragStateRef.current.startY = e.clientY;
-            }}
-            onMouseMove={(e) => {
-              if (!dragStateRef.current.isDragging) return;
-              const dx = e.clientX - dragStateRef.current.startX;
-              const dy = e.clientY - dragStateRef.current.startY;
-              dragStateRef.current.startX = e.clientX;
-              dragStateRef.current.startY = e.clientY;
-              dragStateRef.current.offsetX += dx;
-              dragStateRef.current.offsetY += dy;
-              if (cropperImageRef.current) {
-                cropperImageRef.current.style.transform =
-                  `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${cropperZoom})`;
-              }
-            }}
-            onMouseUp={() => { dragStateRef.current.isDragging = false; }}
-            onMouseLeave={() => { dragStateRef.current.isDragging = false; }}
-            onWheel={(e) => {
-              e.preventDefault();
-              const delta = e.deltaY > 0 ? -0.1 : 0.1;
-              setCropperZoom(prev => {
-                const next = Math.min(5, Math.max(0.5, prev + delta));
-                if (cropperImageRef.current) {
-                  cropperImageRef.current.style.transform =
-                    `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${next})`;
-                }
-                return next;
-              });
-            }}
-            onTouchStart={(e) => {
-              if (e.touches.length === 1) {
+            {/* Circular Viewport */}
+            <div
+              className="cropper-viewport-container"
+              onMouseDown={(e) => {
                 dragStateRef.current.isDragging = true;
-                dragStateRef.current.startX = e.touches[0].clientX;
-                dragStateRef.current.startY = e.touches[0].clientY;
-              }
-            }}
-            onTouchMove={(e) => {
-              e.preventDefault();
-              if (e.touches.length === 1 && dragStateRef.current.isDragging) {
-                const dx = e.touches[0].clientX - dragStateRef.current.startX;
-                const dy = e.touches[0].clientY - dragStateRef.current.startY;
-                dragStateRef.current.startX = e.touches[0].clientX;
-                dragStateRef.current.startY = e.touches[0].clientY;
-                dragStateRef.current.offsetX += dx;
-                dragStateRef.current.offsetY += dy;
-                if (cropperImageRef.current) {
-                  cropperImageRef.current.style.transform =
-                    `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${cropperZoom})`;
+                dragStateRef.current.startX = e.clientX;
+                dragStateRef.current.startY = e.clientY;
+              }}
+              onMouseMove={(e) => {
+                if (!dragStateRef.current.isDragging) return;
+                const dx = e.clientX - dragStateRef.current.startX;
+                const dy = e.clientY - dragStateRef.current.startY;
+                dragStateRef.current.startX = e.clientX;
+                dragStateRef.current.startY = e.clientY;
+                updateCropperTransform(cropperZoom, dragStateRef.current.offsetX + dx, dragStateRef.current.offsetY + dy);
+              }}
+              onMouseUp={() => { dragStateRef.current.isDragging = false; }}
+              onMouseLeave={() => { dragStateRef.current.isDragging = false; }}
+              onWheel={(e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                setCropperZoom(prev => {
+                  const next = Math.min(3.5, Math.max(1.0, prev + delta));
+                  updateCropperTransform(next);
+                  return next;
+                });
+              }}
+              onTouchStart={(e) => {
+                if (e.touches.length === 1) {
+                  dragStateRef.current.isDragging = true;
+                  dragStateRef.current.startX = e.touches[0].clientX;
+                  dragStateRef.current.startY = e.touches[0].clientY;
+                } else if (e.touches.length === 2) {
+                  dragStateRef.current.isDragging = false;
+                  const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                  );
+                  dragStateRef.current.initialPinchDist = dist;
+                  dragStateRef.current.initialZoom = cropperZoom;
                 }
-              }
-            }}
-            onTouchEnd={() => { dragStateRef.current.isDragging = false; }}
-          >
-            <img
-              ref={cropperImageRef}
-              src={cropperSrc}
-              alt="crop"
-              style={{
-                width: '260px',
-                height: '260px',
-                objectFit: 'cover',
-                transform: `translate(0px, 0px) scale(${cropperZoom})`,
-                transformOrigin: 'center center',
+              }}
+              onTouchMove={(e) => {
+                if (e.touches.length === 1 && dragStateRef.current.isDragging) {
+                  e.preventDefault();
+                  const dx = e.touches[0].clientX - dragStateRef.current.startX;
+                  const dy = e.touches[0].clientY - dragStateRef.current.startY;
+                  dragStateRef.current.startX = e.touches[0].clientX;
+                  dragStateRef.current.startY = e.touches[0].clientY;
+                  updateCropperTransform(cropperZoom, dragStateRef.current.offsetX + dx, dragStateRef.current.offsetY + dy);
+                } else if (e.touches.length === 2 && dragStateRef.current.initialPinchDist > 0) {
+                  e.preventDefault();
+                  const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                  );
+                  const scaleFactor = dist / dragStateRef.current.initialPinchDist;
+                  const nextZoom = Math.min(3.5, Math.max(1.0, dragStateRef.current.initialZoom * scaleFactor));
+                  setCropperZoom(nextZoom);
+                  updateCropperTransform(nextZoom);
+                }
+              }}
+              onTouchEnd={(e) => {
+                if (e.touches.length < 2) dragStateRef.current.initialPinchDist = 0;
+                if (e.touches.length === 0) dragStateRef.current.isDragging = false;
+              }}
+            >
+              {/* Scaled Image */}
+              <img
+                ref={cropperImageRef}
+                src={cropperSrc}
+                alt="crop view"
+                style={{
+                  width: `${cropperImageDims.displayW}px`,
+                  height: `${cropperImageDims.displayH}px`,
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(calc(-50% + ${dragStateRef.current.offsetX}px), calc(-50% + ${dragStateRef.current.offsetY}px)) scale(${cropperZoom})`,
+                  transformOrigin: 'center center',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  maxWidth: 'none',
+                  maxHeight: 'none',
+                  display: 'block'
+                }}
+                draggable={false}
+              />
+              {/* Face position guide - dashed oval showing ideal face placement */}
+              <div style={{
+                position: 'absolute',
+                top: '8%',
+                left: '22%',
+                width: '56%',
+                height: '50%',
+                borderRadius: '50%',
+                border: '1.5px dashed rgba(250, 204, 21, 0.55)',
                 pointerEvents: 'none',
-                display: 'block'
-              }}
-              draggable={false}
-            />
-          </div>
+                zIndex: 5
+              }} />
+              {/* Circular border ring */}
+              <div className="cropper-ring-overlay" />
+              {/* Subtle alignment crosshair grid */}
+              <div className="cropper-grid-overlay" />
+            </div>
 
-          {/* Zoom slider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', width: '260px' }}>
-            <span style={{ color: '#94a3b8', fontSize: '14px' }}>🔍−</span>
-            <input
-              type="range" min="0.5" max="3" step="0.05"
-              value={cropperZoom}
-              onChange={(e) => {
-                const z = parseFloat(e.target.value);
-                setCropperZoom(z);
-                if (cropperImageRef.current) {
-                  cropperImageRef.current.style.transform =
-                    `translate(${dragStateRef.current.offsetX}px, ${dragStateRef.current.offsetY}px) scale(${z})`;
-                }
-              }}
-              style={{ flex: 1, accentColor: '#22c55e' }}
-            />
-            <span style={{ color: '#94a3b8', fontSize: '14px' }}>+</span>
-          </div>
+            {/* Zoom hint */}
+            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', textAlign: 'center' }}>
+              {lang === 'EN' ? '💛 Align face within the dashed guide' : '💛 മുഖം ഡോട്ടഡ് ഗൈഡിൽ ഒതുക്കുക'}
+            </div>
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-            <button
-              onClick={handleCropCancel}
-              style={{
-                padding: '12px 28px', borderRadius: '10px', border: 'none',
-                background: '#475569', color: '#fff', fontWeight: '700',
-                fontSize: '14px', cursor: 'pointer'
-              }}
-            >✕ Cancel</button>
-            <button
-              onClick={handleCropConfirm}
-              style={{
-                padding: '12px 28px', borderRadius: '10px', border: 'none',
-                background: '#16a34a', color: '#fff', fontWeight: '700',
-                fontSize: '14px', cursor: 'pointer'
-              }}
-            >✓ Crop & Use</button>
+            {/* Slider & Controls */}
+            <div className="cropper-slider-wrapper">
+              <span className="cropper-slider-icon">🔍−</span>
+              <input
+                type="range"
+                min="1.0"
+                max="3.0"
+                step="0.02"
+                value={cropperZoom}
+                onChange={(e) => {
+                  const z = parseFloat(e.target.value);
+                  setCropperZoom(z);
+                  updateCropperTransform(z);
+                }}
+                className="cropper-range-input"
+              />
+              <span className="cropper-slider-icon">+</span>
+              <span className="cropper-zoom-badge">{Math.round(cropperZoom * 100)}%</span>
+            </div>
+
+            {/* Reset alignment button */}
+            <div className="cropper-reset-row">
+              <button onClick={handleResetPosition} className="cropper-btn-reset">
+                🔄 {lang === 'EN' ? 'Reset to Top' : 'തല ഭാഗം കാണിക്കുക'}
+              </button>
+            </div>
+
+            {/* Action buttons */}
+            <div className="cropper-actions-row">
+              <button onClick={handleCropCancel} className="cropper-btn-cancel">
+                ✕ {lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}
+              </button>
+              <button onClick={handleCropConfirm} className="cropper-btn-confirm">
+                ✓ {lang === 'EN' ? 'Crop & Use Photo' : 'ക്രോപ്പ് ചെയ്ത് നൽകുക'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -5597,29 +5691,34 @@ ${pagesHtml}
                         <div className="photo-upload-area">
                           {!profilePhotoPreview ? (
                             <>
-                              <div style={{ fontSize: '40px', marginBottom: '8px' }}>📷</div>
-                              <p style={{ color: '#475569', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Upload Your Photo</p>
-                              <label className="btn-add-action" style={{ display: 'inline-block', cursor: 'pointer', padding: '10px 24px', width: 'auto' }}>
-                                Select Photo
+                              <div style={{ fontSize: '48px', marginBottom: '10px', filter: 'drop-shadow(0 2px 6px rgba(22,163,74,0.3))' }}>📸</div>
+                              <p style={{ color: '#15803d', fontSize: '15px', fontWeight: '700', marginBottom: '6px' }}>
+                                {lang === 'EN' ? 'Upload Your Photo' : 'ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക'}
+                              </p>
+                              <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '16px', lineHeight: 1.4 }}>
+                                {lang === 'EN' ? 'Select a clear front-facing photo. You can crop & adjust after selecting.' : 'ക്രോപ്പ് ചെയ്ത് ശരിയായ ഭാഗം തിരഞ്ഞെടുക്കാം'}
+                              </p>
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '12px 28px', width: 'auto', background: 'linear-gradient(135deg, #16a34a, #15803d)', color: '#fff', fontWeight: '700', fontSize: '14px', borderRadius: '12px', boxShadow: '0 4px 14px rgba(22,163,74,0.4)', transition: 'all 0.2s ease' }}>
+                                📷 {lang === 'EN' ? 'Select Photo' : 'ഫോട്ടോ തിരഞ്ഞെടുക്കുക'}
                                 <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
                               </label>
                             </>
                           ) : (
                             <>
-                              <div style={{ width: '140px', height: '140px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #064e3b', margin: '0 auto 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
+                              <div style={{ width: '150px', height: '150px', borderRadius: '50%', overflow: 'hidden', border: '4px solid #16a34a', margin: '0 auto 14px', boxShadow: '0 4px 20px rgba(22,163,74,0.25), 0 0 0 6px rgba(22,163,74,0.1)' }}>
                                 <img src={profilePhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               </div>
                               {profileCropMode && (
-                                <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600', marginBottom: '8px', textAlign: 'center' }}>
-                                  ✂️ Manually Cropped — Ready to Upload
+                                <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700', marginBottom: '10px', textAlign: 'center', background: 'rgba(22,163,74,0.1)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(22,163,74,0.25)' }}>
+                                  ✂️ {lang === 'EN' ? 'Cropped — Ready to Upload' : 'ക്രോപ്പ് ചെയ്തു — അപ്‌ലോഡ് ചെയ്യാം'}
                                 </div>
                               )}
-                              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                <button onClick={handleProfilePhotoUpload} className="btn-add-action" style={{ width: 'auto', padding: '10px 24px' }} disabled={profileUploading}>
-                                  {profileUploading ? '⏳ Uploading...' : '✅ Upload'}
+                              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <button onClick={handleProfilePhotoUpload} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', cursor: 'pointer', padding: '12px 26px', background: 'linear-gradient(135deg, #16a34a, #15803d)', color: '#fff', fontWeight: '800', fontSize: '14px', borderRadius: '12px', border: 'none', boxShadow: '0 4px 14px rgba(22,163,74,0.4)' }} disabled={profileUploading}>
+                                  {profileUploading ? '⏳ Uploading...' : '✅ ' + (lang === 'EN' ? 'Upload Photo' : 'ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക')}
                                 </button>
-                                <label className="btn-add-action" style={{ width: 'auto', padding: '10px 24px', background: '#64748b', cursor: 'pointer' }}>
-                                  🔄 Change
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', cursor: 'pointer', padding: '12px 22px', background: 'linear-gradient(135deg, #475569, #334155)', color: '#f1f5f9', fontWeight: '700', fontSize: '13px', borderRadius: '12px', border: 'none', boxShadow: '0 3px 10px rgba(0,0,0,0.15)' }}>
+                                  ✂️ {lang === 'EN' ? 'Re-crop' : 'വീണ്ടും ക്രോപ്പ്'}
                                   <input type="file" accept="image/*" onChange={handleProfilePhotoSelect} style={{ display: 'none' }} />
                                 </label>
                               </div>
@@ -5627,7 +5726,7 @@ ${pagesHtml}
                           )}
                         </div>
 
-                        <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
+                        <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← {lang === 'EN' ? 'Back' : 'തിരിച്ചു'}</button>
                       </div>
                     );
                   })()}
@@ -5899,7 +5998,7 @@ ${pagesHtml}
                                   )}
                                   <label className="approval-btn edit-btn" title="Re-upload Photo">
                                     ✏️
-                                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleAdminPhotoReUpload(s.id, e.target.files[0]); }} />
+                                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleProfilePhotoSelect(e, s)} />
                                   </label>
                                   <button onClick={() => handleDeletePhoto(s)} className="approval-btn delete-btn" title="Delete Photo">🗑️</button>
                                 </div>
@@ -6110,16 +6209,6 @@ ${pagesHtml}
                                       </tr>`).join('')}
                                   </tbody>
                                 </table>
-              const isGeneralProg = (p) => {
-                const pCatId = String(p.catid || p.catId || '');
-                if (pCatId === 'GENERAL') return true;
-                if (pCatId === '-1') return true; // special GENERAL marker
-                // Check if this category ID is in generalCatIds
-                if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
-                const catObj = categories.find(c => String(c.id) === pCatId);
-                if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-                return false;
-              };
                               </div>`;
                             });
                             sectionsHtml += '</div>';
@@ -7808,8 +7897,6 @@ ${pagesHtml}
                                 const pCatId = String(p.catid || p.catId || '');
                                 if (pCatId === 'GENERAL') return true;
                                 if (pCatId === '-1') return true; // special GENERAL marker
-                                // Check if this category ID is in generalCatIds array
-                                if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
                                 const catObj = categories.find(c => String(c.id) === pCatId);
                                 if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
                                 return false;
