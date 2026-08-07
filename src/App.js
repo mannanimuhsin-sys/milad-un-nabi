@@ -2491,18 +2491,13 @@ function App() {
 
     let dbCatId = selectedProgCat;
     if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
-      // Priority: 1) generalCatIds[0], 2) category with 'general' name, 3) stay as string (no categories fallback!)
-      if (generalCatIds.length > 0) {
-        dbCatId = generalCatIds[0];
+      const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
+      if (genCat) {
+        dbCatId = genCat.id;
       } else {
-        const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
-        if (genCat) {
-          dbCatId = genCat.id;
-        }
-        // Do NOT fall back to categories[0] - that would save GENERAL program under wrong category
+        dbCatId = -1;
       }
     }
-    // If still not numeric (no GENERAL category configured), use -1 as special GENERAL marker
     const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : -1;
 
     const savedName = newProgName.trim();
@@ -2585,12 +2580,9 @@ function App() {
   const handleSaveProgEdit = async () => {
     let dbCatId = editingProgData.catid;
     if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
-      if (generalCatIds.length > 0) {
-        dbCatId = generalCatIds[0];
-      } else {
-        const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
-        if (genCat) dbCatId = genCat.id;
-      }
+      const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
+      if (genCat) dbCatId = genCat.id;
+      else dbCatId = -1;
     }
     const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : -1;
 
@@ -7935,8 +7927,6 @@ ${pagesHtml}
                                 const pCatId = String(p.catid || p.catId || '');
                                 if (pCatId === 'GENERAL') return true;
                                 if (pCatId === '-1') return true; // special GENERAL marker
-                                // Check if this program's catid is one of the generalCatIds
-                                if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
                                 const catObj = categories.find(c => String(c.id) === pCatId);
                                 if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
                                 return false;
@@ -8476,9 +8466,9 @@ ${pagesHtml}
                       // Only show SINGLE programs in Single Registration mode
                       const regPrograms = regTabCat ? programs.filter(p => {
                         if (regTabCat === 'GENERAL') {
-                          if (!generalCatIds.map(String).includes(String(p.catid || p.catId || ''))) return false;
+                          if (!isGeneralProg(p)) return false;
                         } else if (isRegGeneral) {
-                          if (!generalCatIds.map(String).includes(String(p.catid || p.catId || '')) && String(p.catid || p.catId || '') !== String(regTabCat)) return false;
+                          if (!isGeneralProg(p) && String(p.catid || p.catId || '') !== String(regTabCat)) return false;
                         } else {
                           if (String(p.catid || p.catId || '') !== String(regTabCat)) return false;
                         }
@@ -9191,7 +9181,7 @@ ${pagesHtml}
                                         <div className="step-content">
                                           {(() => {
                                             const groupProgs = programs.filter(p => {
-                                              if (String(p.catid || p.catId || '') !== String(groupRegCat)) return false;
+                                              if (groupRegCat === 'GENERAL') { if (!isGeneralProg(p)) return false; } else if (String(p.catid || p.catId || '') !== String(groupRegCat)) return false;
                                               const pt = p.type || '';
                                               if (!pt.includes('GROUP')) return false;
                                               if (groupRegGender === 'COMMON') return true;
@@ -9272,7 +9262,6 @@ ${pagesHtml}
                                               if (groupRegCat === 'GENERAL') {
                                                 return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
                                               }
-                                              if (isGeneral) return true;
                                               return String(s.catid || s.catId || '') === String(groupRegCat);
                                             }) : [];
 
@@ -9382,7 +9371,7 @@ ${pagesHtml}
                                   ) : (() => {
                                     const activeGroupRegs = groupRegistrations.filter(g => {
                                       const prog = programs.find(p => String(p.id) === String(g.program_id));
-                                      if (!prog || String(prog.catid || prog.catId || '') !== String(groupRegCat)) return false;
+                                      if (!prog) return false; if (groupRegCat === 'GENERAL') { if (!isGeneralProg(prog)) return false; } else if (String(prog.catid || prog.catId || '') !== String(groupRegCat)) return false;
 
                                       if (groupRegGender === 'COMMON') return true;
 
