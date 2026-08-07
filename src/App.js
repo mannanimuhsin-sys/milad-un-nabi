@@ -9922,7 +9922,11 @@ ${pagesHtml}
                                     <option value="">{selectedResultCat ? '-- Select Program --' : 'Select Category First'}</option>
                                     {programs
                                       .filter(p => {
-                                        if (String(p.catid || p.catId || '') !== String(selectedResultCat)) return false;
+                                        if (selectedResultCat === 'GENERAL') {
+                                           if (!isGeneralProg(p)) return false;
+                                         } else if (String(p.catid || p.catId || '') !== String(selectedResultCat)) {
+                                           return false;
+                                         }
                                         if (markEntrySection === 'SINGLE' && (p.type || '').includes('GROUP')) return false;
                                         if (markEntrySection === 'GROUP' && !(p.type || '').includes('GROUP')) return false;
                                         if (!p.type || !p.type.includes('_')) return true;
@@ -10278,9 +10282,18 @@ ${pagesHtml}
                     {/* JUDGE SHEET SUB-TAB */}
                     {settingsSubTab === 'JUDGE_SHEET' && (() => {
                       // Filter programs based on selected category and gender
+                      const judgeCatObj = categories.find(c => String(c.id) === String(judgeSheetCat));
+                      const isJudgeGeneral = judgeCatObj && judgeCatObj.name.toLowerCase().includes('general');
+
                       const judgePrograms = programs.filter(p => {
                         if (!judgeSheetCat) return false;
-                        if (String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
+                        if (judgeSheetCat === 'GENERAL') {
+                          if (!isGeneralProg(p)) return false;
+                        } else if (isJudgeGeneral) {
+                          if (!isGeneralProg(p) && String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
+                        } else {
+                          if (String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
+                        }
                         if (!judgeSheetGender) return true;
                         if ((p.type || '').includes('COMMON')) return true;
                         return (p.type || '').includes(judgeSheetGender);
@@ -10862,7 +10875,13 @@ ${pagesHtml}
 
                             // Get programs for this category+gender (both single and group)
                             const efAllPrograms = entryFormCat ? programs.filter(p => {
-                              if (String(p.catid || p.catId || '') !== String(entryFormCat)) return false;
+                              if (entryFormCat === 'GENERAL') {
+                                 if (!isGeneralProg(p)) return false;
+                               } else if (isEfGeneral) {
+                                 if (!isGeneralProg(p) && String(p.catid || p.catId || '') !== String(entryFormCat)) return false;
+                               } else {
+                                 if (String(p.catid || p.catId || '') !== String(entryFormCat)) return false;
+                               }
                               if (!entryFormGender || entryFormGender === 'COMMON') return true;
                               if ((p.type || '').includes('COMMON')) return true;
                               return (p.type || '').includes(entryFormGender);
