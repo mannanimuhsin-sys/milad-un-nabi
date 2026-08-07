@@ -560,10 +560,24 @@ function App() {
     if (!p) return false;
     const pCatId = String(p.catid ?? p.catId ?? '');
     if (pCatId === '-1' || pCatId === 'GENERAL') return true;
+    if (generalCatIds.map(String).includes(pCatId)) return true;
     const catObj = categories.find(c => String(c.id) === pCatId);
     if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
     return false;
-  }, [categories]);
+  }, [categories, generalCatIds]);
+
+  // Helper: check if a result record belongs to the GENERAL category
+  const isGeneralResult = useCallback((r) => {
+    if (!r) return false;
+    const rCatId = String(r.catid || r.catId || '');
+    if (rCatId === '-1' || rCatId === 'GENERAL') return true;
+    if (generalCatIds.map(String).includes(rCatId)) return true;
+    const rCatName = (r.catname || r.catName || '').toLowerCase();
+    if (rCatName === 'general' || rCatName.includes('general')) return true;
+    const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
+    if (prog && isGeneralProg(prog)) return true;
+    return false;
+  }, [programs, isGeneralProg, generalCatIds]);
   const [dbHasClassRange, setDbHasClassRange] = useState(false);
   const [timetable, setTimetable] = useState(() => {
     try { return (_initCache && Array.isArray(_initCache.timetable)) ? _initCache.timetable : []; } catch { return []; }
@@ -4813,7 +4827,7 @@ ${pagesHtml}
                           <select className="settings-input" value={filterCat} onChange={(e) => { setFilterCat(e.target.value); setFilterProg(''); }}>
                             <option value="">-- Select --</option>
                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
+                            <option value="GENERAL">🌟 GENERAL</option>
                           </select>
                         </div>
 
@@ -4823,7 +4837,7 @@ ${pagesHtml}
                           <select className="settings-input" value={filterProg} onChange={(e) => setFilterProg(e.target.value)} disabled={!filterCat}>
                             <option value="">-- Select --</option>
                             {programs.filter(p => {
-                              const catMatch = String(p.catid || p.catId || '') === String(filterCat);
+                              const catMatch = filterCat === 'GENERAL' ? isGeneralProg(p) : String(p.catid || p.catId || '') === String(filterCat);
                               if (!catMatch) return false;
                               if (filterGender === 'ALL') return true;
                               const pType = (p.type || '').toUpperCase();
@@ -4982,12 +4996,16 @@ ${pagesHtml}
 
                         // Category Filter
                         if (bulkCertCat !== 'ALL') {
-                          const rCatId = String(r.catid || r.catId || (prog ? prog.catid || prog.catId : '') || (student ? student.catid || student.catId : ''));
-                          const catObj = categories.find(c => String(c.id) === String(bulkCertCat));
-                          const targetCatName = catObj ? catObj.name : '';
+                          if (bulkCertCat === 'GENERAL') {
+                            if (!isGeneralResult(r)) return false;
+                          } else {
+                            const rCatId = String(r.catid || r.catId || (prog ? prog.catid || prog.catId : '') || (student ? student.catid || student.catId : ''));
+                            const catObj = categories.find(c => String(c.id) === String(bulkCertCat));
+                            const targetCatName = catObj ? catObj.name : '';
 
-                          if (rCatId !== String(bulkCertCat) && (r.catname || r.catName) !== targetCatName) {
-                            return false;
+                            if (rCatId !== String(bulkCertCat) && (r.catname || r.catName) !== targetCatName) {
+                              return false;
+                            }
                           }
                         }
 
@@ -5365,6 +5383,7 @@ ${pagesHtml}
                                   >
                                     <option value="ALL">{lang === 'EN' ? 'All Categories (എല്ലാം)' : 'All Categories (എല്ലാ കാറ്റഗറിയും)'}</option>
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    <option value="GENERAL">🌟 GENERAL (പൊതുവിഭാഗം)</option>
                                   </select>
                                 </div>
 
@@ -5625,7 +5644,7 @@ ${pagesHtml}
                         <select className="settings-input" value={champCat} onChange={(e) => { setChampCat(e.target.value); setChampGender('BOYS'); }}>
                           <option value="">-- Select Category --</option>
                           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          {generalCatIds.length > 0 && <option value="GENERAL">🌟 GENERAL</option>}
+                          <option value="GENERAL">🌟 GENERAL</option>
                         </select>
                       </div>
 
@@ -5661,15 +5680,11 @@ ${pagesHtml}
 
                         // Filter results for this category and exclude group events
                         const isChampGeneral = champCat === 'GENERAL';
-                        const generalCatNames = generalCatIds.map(id => {
-                          const cObj = categories.find(c => String(c.id) === String(id));
-                          return cObj ? cObj.name : '';
-                        }).filter(Boolean);
 
                         const catResults = resultsList.filter(r => {
                           const rCatName = r.catname || r.catName || '';
                           const matchCat = isChampGeneral
-                            ? (rCatName === 'GENERAL' || generalCatNames.includes(rCatName))
+                            ? isGeneralResult(r)
                             : rCatName === catName;
                           return matchCat && !(r.progtype || '').includes('GROUP');
                         });
@@ -6129,9 +6144,7 @@ ${pagesHtml}
                           {categories.map(c => (
                             <div key={c.id} className={`filter-chip-box ${String(profileAdminCatFilter) === String(c.id) ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter(c.id)}>{c.name}</div>
                           ))}
-                          {generalCatIds.length > 0 && (
-                            <div className={`filter-chip-box ${profileAdminCatFilter === 'GENERAL' ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter('GENERAL')} style={{ background: profileAdminCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '', fontWeight: 'bold' }}>🌟 GENERAL</div>
-                          )}
+                          <div className={`filter-chip-box ${profileAdminCatFilter === 'GENERAL' ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter('GENERAL')} style={{ background: profileAdminCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '', fontWeight: 'bold' }}>🌟 GENERAL</div>
                         </div>
                       </div>
 
@@ -6150,8 +6163,9 @@ ${pagesHtml}
                         </div>
                         {(() => {
                           const filtered = students.filter(s => {
+                            const sCat = String(s.catid || s.catId || '');
                             const matchCat = profileAdminCatFilter === 'ALL'
-                              || (profileAdminCatFilter === 'GENERAL' ? generalCatIds.map(String).includes(String(s.catid || s.catId || '')) : String(s.catid || s.catId || '') === String(profileAdminCatFilter));
+                              || (profileAdminCatFilter === 'GENERAL' ? (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat)) : sCat === String(profileAdminCatFilter));
                             const hasPhoto = s.photo_url && s.photo_status && s.photo_status !== 'none';
                             return matchCat && hasPhoto;
                           });
@@ -6219,6 +6233,7 @@ ${pagesHtml}
                             {categories.map(c => (
                               <div key={c.id} className={`filter-chip-box ${String(profileAdminCatFilter) === String(c.id) ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter(c.id)}>{c.name}</div>
                             ))}
+                            <div className={`filter-chip-box ${profileAdminCatFilter === 'GENERAL' ? 'active' : ''}`} onClick={() => setProfileAdminCatFilter('GENERAL')} style={{ background: profileAdminCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '', fontWeight: 'bold' }}>🌟 GENERAL</div>
                           </div>
                         </div>
                         <div>
@@ -6243,8 +6258,9 @@ ${pagesHtml}
                       {/* PDF Export Button */}
                       {(() => {
                         const approvedFiltered = students.filter(s => {
+                          const sCat = String(s.catid || s.catId || '');
                           const matchCat = profileAdminCatFilter === 'ALL'
-                            || (profileAdminCatFilter === 'GENERAL' ? generalCatIds.map(String).includes(String(s.catid || s.catId || '')) : String(s.catid || s.catId || '') === String(profileAdminCatFilter));
+                            || (profileAdminCatFilter === 'GENERAL' ? (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat)) : sCat === String(profileAdminCatFilter));
                           const matchTeam = profileAdminTeamFilter === 'ALL' || String(s.teamid || s.teamId || '') === String(profileAdminTeamFilter);
                           const matchGender = profileAdminGenderFilter === 'ALL' || (s.gender || '') === profileAdminGenderFilter;
                           return matchCat && matchTeam && matchGender;
@@ -6576,11 +6592,16 @@ ${pagesHtml}
               {(() => {
                 const mappedTimetable = programs.map(p => {
                   const entry = timetable.find(t => String(t.program_id) === String(p.id));
+                  let cat = categories.find(c => String(c.id) === String(p.catid));
+                  // For General programs (catid=-1), provide a synthetic category
+                  if (!cat && isGeneralProg(p)) {
+                    cat = { id: -1, name: 'GENERAL', color: '#d97706' };
+                  }
                   return {
                     program: p,
                     scheduled_time: entry?.scheduled_time || null,
                     venue: entry?.venue || '',
-                    category: categories.find(c => String(c.id) === String(p.catid))
+                    category: cat
                   };
                 });
 
@@ -6598,9 +6619,7 @@ ${pagesHtml}
                   let catMatch = true;
                   if (timetableFilterCat !== 'ALL') {
                     if (timetableFilterCat === 'GENERAL') {
-                      const pCatId = String(item.program.catid || item.program.catId || '');
-                      const catObj = categories.find(c => String(c.id) === pCatId);
-                      catMatch = pCatId === 'GENERAL' || (catObj && (catObj.name || '').toLowerCase().includes('general'));
+                      catMatch = isGeneralProg(item.program);
                     } else {
                       catMatch = String(item.program.catid) === String(timetableFilterCat);
                     }
@@ -7613,8 +7632,9 @@ ${pagesHtml}
                           {(() => {
                             const filteredStudents = students.filter(s => {
                               const matchTeam = studentFilterTeam === 'ALL' || String(s.teamid || s.teamId || '') === String(studentFilterTeam);
+                              const sCat = String(s.catid || s.catId || '');
                               const matchCat = studentFilterCat === 'ALL'
-                                || (studentFilterCat === 'GENERAL' ? generalCatIds.map(String).includes(String(s.catid || s.catId || '')) : String(s.catid || s.catId || '') === String(studentFilterCat));
+                                || (studentFilterCat === 'GENERAL' ? (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat)) : sCat === String(studentFilterCat));
                               const matchGender = studentFilterGender === 'ALL' || (s.gender || '') === studentFilterGender;
                               return matchTeam && matchCat && matchGender;
                             });
@@ -11596,9 +11616,7 @@ ${pagesHtml}
                         if (prizesCatFilter === 'ALL') return true;
                         const rCatId = String(r.catid || r.catId || '');
                         if (prizesCatFilter === 'GENERAL') {
-                          if (generalCatIds.map(String).includes(rCatId)) return true;
-                          const pObj = programs.find(p => String(p.id) === String(r.progid));
-                          if (pObj && generalCatIds.map(String).includes(String(pObj.catid || pObj.catId || ''))) return true;
+                          if (isGeneralResult(r)) return true;
                           return false;
                         }
                         if (rCatId === String(prizesCatFilter)) return true;
@@ -11829,19 +11847,17 @@ ${pagesHtml}
                                   {c.name}
                                 </div>
                               ))}
-                              {generalCatIds.length > 0 && (
-                                <div
-                                  className={`filter-chip-box ${prizesCatFilter === 'GENERAL' ? 'active' : ''}`}
-                                  onClick={() => setPrizesCatFilter('GENERAL')}
-                                  style={{
-                                    background: prizesCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
-                                    color: prizesCatFilter === 'GENERAL' ? '#fff' : '',
-                                    fontWeight: '800'
-                                  }}
-                                >
-                                  🌟 GENERAL
-                                </div>
-                              )}
+                              <div
+                                className={`filter-chip-box ${prizesCatFilter === 'GENERAL' ? 'active' : ''}`}
+                                onClick={() => setPrizesCatFilter('GENERAL')}
+                                style={{
+                                  background: prizesCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
+                                  color: prizesCatFilter === 'GENERAL' ? '#fff' : '',
+                                  fontWeight: '800'
+                                }}
+                              >
+                                🌟 GENERAL
+                              </div>
                             </div>
                           </div>
 
@@ -12117,7 +12133,7 @@ ${pagesHtml}
                               const sCat = String(s.catid || s.catId || '');
                               if (prizesCatFilter !== 'ALL') {
                                 if (prizesCatFilter === 'GENERAL') {
-                                  if (!generalCatIds.map(String).includes(sCat)) return false;
+                                  if (sCat !== '-1' && sCat !== 'GENERAL' && !generalCatIds.map(String).includes(sCat)) return false;
                                 } else if (sCat !== String(prizesCatFilter)) {
                                   return false;
                                 }
@@ -12134,7 +12150,7 @@ ${pagesHtml}
                               if (prizesCatFilter === 'ALL') return true;
                               const sCat = String(s.catid || s.catId || '');
                               if (prizesCatFilter === 'GENERAL') {
-                                return generalCatIds.map(String).includes(sCat);
+                                return (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat));
                               }
                               return sCat === String(prizesCatFilter);
                             });
