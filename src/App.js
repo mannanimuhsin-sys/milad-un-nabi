@@ -554,30 +554,6 @@ function App() {
     try { return (_initCache && Array.isArray(_initCache.categories) && _initCache.categories.length > 0) ? _initCache.categories : []; } catch { return []; }
   });
 
-  // Helper: check if a program belongs to the GENERAL category
-  // catid === -1 means explicitly saved as GENERAL (our sentinel value)
-  const isGeneralProg = useCallback((p) => {
-    if (!p) return false;
-    const pCatId = String(p.catid ?? p.catId ?? '');
-    if (pCatId === '-1' || pCatId === 'GENERAL') return true;
-    if (generalCatIds.map(String).includes(pCatId)) return true;
-    const catObj = categories.find(c => String(c.id) === pCatId);
-    if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-    return false;
-  }, [categories, generalCatIds]);
-
-  // Helper: check if a result record belongs to the GENERAL category
-  const isGeneralResult = useCallback((r) => {
-    if (!r) return false;
-    const rCatId = String(r.catid || r.catId || '');
-    if (rCatId === '-1' || rCatId === 'GENERAL') return true;
-    if (generalCatIds.map(String).includes(rCatId)) return true;
-    const rCatName = (r.catname || r.catName || '').toLowerCase();
-    if (rCatName === 'general' || rCatName.includes('general')) return true;
-    const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
-    if (prog && isGeneralProg(prog)) return true;
-    return false;
-  }, [programs, isGeneralProg, generalCatIds]);
   const [dbHasClassRange, setDbHasClassRange] = useState(false);
   const [timetable, setTimetable] = useState(() => {
     try { return (_initCache && Array.isArray(_initCache.timetable)) ? _initCache.timetable : []; } catch { return []; }
@@ -694,6 +670,31 @@ function App() {
   const [generalCatIds, setGeneralCatIds] = useState([]); // IDs of categories included in GENERAL
   const [showGeneralModal, setShowGeneralModal] = useState(false); // show/hide GENERAL options modal
   const [generalModalTemp, setGeneralModalTemp] = useState([]); // temp selection inside modal
+
+  // Helper: check if a program belongs to the GENERAL category
+  // catid === -1 means explicitly saved as GENERAL (our sentinel value)
+  const isGeneralProg = useCallback((p) => {
+    if (!p) return false;
+    const pCatId = String(p.catid ?? p.catId ?? '');
+    if (pCatId === '-1' || pCatId === 'GENERAL') return true;
+    if (generalCatIds.map(String).includes(pCatId)) return true;
+    const catObj = categories.find(c => String(c.id) === pCatId);
+    if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+    return false;
+  }, [categories, generalCatIds]);
+
+  // Helper: check if a result record belongs to the GENERAL category
+  const isGeneralResult = useCallback((r) => {
+    if (!r) return false;
+    const rCatId = String(r.catid || r.catId || '');
+    if (rCatId === '-1' || rCatId === 'GENERAL') return true;
+    if (generalCatIds.map(String).includes(rCatId)) return true;
+    const rCatName = (r.catname || r.catName || '').toLowerCase();
+    if (rCatName === 'general' || rCatName.includes('general')) return true;
+    const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
+    if (prog && isGeneralProg(prog)) return true;
+    return false;
+  }, [programs, isGeneralProg, generalCatIds]);
 
   // Filter states for Results tab
   const [filterCat, setFilterCat] = useState('');
@@ -1279,6 +1280,87 @@ function App() {
   };
 
 
+  // Code to add default categories to Supabase
+  const checkAndInsertDefaultCategories = async (rNum) => {
+    const { data } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
+    if (data && data.length === 0) {
+      const defaultCats = [
+        { name: 'Kiddies', madrasa_id: rNum }, { name: 'Sub Junior', madrasa_id: rNum },
+        { name: 'Junior', madrasa_id: rNum }, { name: 'Senior', madrasa_id: rNum },
+        { name: 'Super Senior', madrasa_id: rNum }, { name: 'General', madrasa_id: rNum }
+      ];
+      await supabase.from('categories').insert(defaultCats);
+      const { data: updatedCats } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
+      if (updatedCats) setCategories(updatedCats);
+    }
+  };
+
+  const fetchMadrasas = async () => {
+    // 1. Helper to extract any known local madrasas from local storage
+    const getLocalMadrasas = () => {
+      const madrasaMap = new Map();
+      try {
+        const cached = localStorage.getItem('cached_super_madrasas');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(m => { if (m && m.regNumber) madrasaMap.set(String(m.regNumber), m); });
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const session = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
+        if (session && session.madrasa && session.madrasa.regNumber) {
+          if (!madrasaMap.has(String(session.madrasa.regNumber))) {
+            madrasaMap.set(String(session.madrasa.regNumber), session.madrasa);
+          }
+        }
+      } catch (e) {}
+
+      return Array.from(madrasaMap.values());
+    };
+
+    // Load local madrasas immediately for instant UI render
+    const localList = getLocalMadrasas();
+    if (localList.length > 0) {
+      setSuperMadrasas(localList);
+    }
+
+    // 2. Fetch fresh madrasas list from Supabase with automatic retry & timeout handling
+    try {
+      const { data, error } = await queryWithRetry(() =>
+        supabase
+          .from('madrasas')
+          .select('*')
+          .order('id', { ascending: false }),
+        4,
+        1000
+      );
+
+      if (error) {
+        console.warn('Failed to load madrasas:', error.message);
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        const freshMap = new Map();
+        data.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
+
+        localList.forEach(m => {
+          if (m && m.regNumber && !freshMap.has(String(m.regNumber))) {
+            freshMap.set(String(m.regNumber), m);
+          }
+        });
+
+        const mergedList = Array.from(freshMap.values());
+        setSuperMadrasas(mergedList);
+        try {
+          localStorage.setItem('cached_super_madrasas', JSON.stringify(mergedList));
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error('Error fetching madrasas:', err);
+    }
+  };
+
   useEffect(() => {
     fetchMadrasas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1715,20 +1797,7 @@ function App() {
     setShowInstallPopup(false);
   };
 
-  // Code to add default categories to Supabase
-  const checkAndInsertDefaultCategories = async (rNum) => {
-    const { data } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
-    if (data && data.length === 0) {
-      const defaultCats = [
-        { name: 'Kiddies', madrasa_id: rNum }, { name: 'Sub Junior', madrasa_id: rNum },
-        { name: 'Junior', madrasa_id: rNum }, { name: 'Senior', madrasa_id: rNum },
-        { name: 'Super Senior', madrasa_id: rNum }, { name: 'General', madrasa_id: rNum }
-      ];
-      await supabase.from('categories').insert(defaultCats);
-      const { data: updatedCats } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
-      if (updatedCats) setCategories(updatedCats);
-    }
-  };
+
 
   const saveToStorage = (key, data) => {
     if (!loggedInMadrasa) return;
@@ -1928,71 +1997,7 @@ function App() {
     }
   };
 
-  const fetchMadrasas = async () => {
-    // 1. Helper to extract any known local madrasas from local storage
-    const getLocalMadrasas = () => {
-      const madrasaMap = new Map();
-      try {
-        const cached = localStorage.getItem('cached_super_madrasas');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) {
-            parsed.forEach(m => { if (m && m.regNumber) madrasaMap.set(String(m.regNumber), m); });
-          }
-        }
-      } catch (e) {}
 
-      try {
-        const session = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
-        if (session && session.madrasa && session.madrasa.regNumber) {
-          if (!madrasaMap.has(String(session.madrasa.regNumber))) {
-            madrasaMap.set(String(session.madrasa.regNumber), session.madrasa);
-          }
-        }
-      } catch (e) {}
-
-      return Array.from(madrasaMap.values());
-    };
-
-    // Load local madrasas immediately for instant UI render
-    const localList = getLocalMadrasas();
-    if (localList.length > 0) {
-      setSuperMadrasas(localList);
-    }
-
-    // 2. Fetch fresh madrasas list from Supabase with automatic retry & timeout handling
-    try {
-      const { data, error } = await queryWithRetry(() =>
-        supabase
-          .from('madrasas')
-          .select('*')
-          .order('id', { ascending: false }),
-        4,
-        1000
-      );
-
-      if (error) {
-        console.warn('Failed to load madrasas:', error.message);
-      } else if (data && Array.isArray(data) && data.length > 0) {
-        const freshMap = new Map();
-        data.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
-
-        localList.forEach(m => {
-          if (m && m.regNumber && !freshMap.has(String(m.regNumber))) {
-            freshMap.set(String(m.regNumber), m);
-          }
-        });
-
-        const mergedList = Array.from(freshMap.values());
-        setSuperMadrasas(mergedList);
-        try {
-          localStorage.setItem('cached_super_madrasas', JSON.stringify(mergedList));
-        } catch (e) {}
-      }
-    } catch (err) {
-      console.error('Error fetching madrasas:', err);
-    }
-  };
 
   // Helper to safely construct full 8-part place string for Supabase:
   // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR
