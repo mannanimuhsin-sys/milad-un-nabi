@@ -12579,29 +12579,71 @@ ${pagesHtml}
             {projectorSlide === 1 && (
               <div className="projector-slide animate-projector-slide">
                 <h2 className="projector-slide-title">📂 {lang === 'EN' ? 'CATEGORY STANDINGS' : 'വിഭാഗം തിരിച്ചുള്ള പോയിന്റ് നിലവാരം'}</h2>
-                {categories.length === 0 ? (
+                {categories.length === 0 && generalCatIds.length === 0 ? (
                   <div className="projector-empty">{lang === 'EN' ? 'No categories added.' : 'വിഭാഗങ്ങൾ ഒന്നും ചേർത്തിട്ടില്ല.'}</div>
                 ) : (
                   <div className="projector-categories-grid">
-                    {categories.map(c => {
+                    {[
+                      ...categories,
+                      { id: 'GENERAL', name: 'GENERAL', isGeneral: true }
+                    ].map(c => {
                       // Get team points breakdown for this category (including boys/girls split)
                       const teamPointsList = teams.map(t => {
-                        const catResults = resultsList.filter(r => (String(r.teamId) === String(t.id) || String(r.teamid) === String(t.id)) && r.catname === c.name);
+                        const catResults = resultsList.filter(r => {
+                          const teamMatch = String(r.teamId || r.teamid || '') === String(t.id);
+                          if (!teamMatch) return false;
+
+                          if (c.isGeneral) {
+                            const rCatName = r.catname || r.catName || '';
+                            const rCatId = String(r.catid || r.catId || '');
+                            if (rCatName === 'GENERAL' || rCatId === '-1' || rCatId === 'GENERAL' || (generalCatIds && generalCatIds.map(String).includes(rCatId))) return true;
+                            const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
+                            if (prog && isGeneralProg(prog)) return true;
+                            return false;
+                          } else {
+                            const rCatName = r.catname || r.catName || '';
+                            const rCatId = String(r.catid || r.catId || '');
+                            if (rCatName === c.name || rCatId === String(c.id)) return true;
+                            const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
+                            if (prog && String(prog.catid || prog.catId || '') === String(c.id) && !isGeneralProg(prog)) return true;
+                            return false;
+                          }
+                        });
+
                         const pts = catResults.reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+
                         const boyPts = catResults.filter(r => {
-                          const g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
-                          return g === 'BOY' || g === 'BOYS' || g === 'MALE' || g === 'M';
+                          let g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
+                          if (!g) {
+                            const st = students.find(s => String(s.id) === String(r.studentid || r.studentId || ''));
+                            if (st && st.gender) g = String(st.gender).toUpperCase();
+                          }
+                          if (!g) {
+                            const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
+                            if (prog && prog.type) g = String(prog.type).toUpperCase();
+                          }
+                          return g.includes('BOY') || g === 'MALE' || g === 'M';
                         }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+
                         const girlPts = catResults.filter(r => {
-                          const g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
-                          return g === 'GIRL' || g === 'GIRLS' || g === 'FEMALE' || g === 'F';
+                          let g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
+                          if (!g) {
+                            const st = students.find(s => String(s.id) === String(r.studentid || r.studentId || ''));
+                            if (st && st.gender) g = String(st.gender).toUpperCase();
+                          }
+                          if (!g) {
+                            const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
+                            if (prog && prog.type) g = String(prog.type).toUpperCase();
+                          }
+                          return g.includes('GIRL') || g === 'FEMALE' || g === 'F';
                         }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+
                         return { team: t, points: pts, boyPts, girlPts };
                       }).sort((a, b) => b.points - a.points);
 
                       return (
                         <div key={c.id} className="projector-category-card">
-                          <h3 className="projector-category-name">📁 {c.name}</h3>
+                          <h3 className="projector-category-name">{c.isGeneral ? '📁 🌟 GENERAL' : `📁 ${c.name}`}</h3>
                           <div className="projector-category-teams-list">
                             {teamPointsList.map((tp, idx) => (
                               <div key={tp.team.id} className="projector-category-team-row">
