@@ -677,24 +677,22 @@ function App() {
     if (!p) return false;
     const pCatId = String(p.catid ?? p.catId ?? '');
     if (pCatId === '-1' || pCatId === 'GENERAL') return true;
-    if (generalCatIds.map(String).includes(pCatId)) return true;
     const catObj = categories.find(c => String(c.id) === pCatId);
     if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
     return false;
-  }, [categories, generalCatIds]);
+  }, [categories]);
 
   // Helper: check if a result record belongs to the GENERAL category
   const isGeneralResult = useCallback((r) => {
     if (!r) return false;
     const rCatId = String(r.catid || r.catId || '');
     if (rCatId === '-1' || rCatId === 'GENERAL') return true;
-    if (generalCatIds.map(String).includes(rCatId)) return true;
     const rCatName = (r.catname || r.catName || '').toLowerCase();
     if (rCatName === 'general' || rCatName.includes('general')) return true;
     const prog = programs.find(p => String(p.id) === String(r.progid || r.progId || ''));
     if (prog && isGeneralProg(prog)) return true;
     return false;
-  }, [programs, isGeneralProg, generalCatIds]);
+  }, [programs, isGeneralProg]);
 
   // Filter states for Results tab
   const [filterCat, setFilterCat] = useState('');
