@@ -461,20 +461,6 @@ function App() {
     }
     return lastResult;
   };
-
-  // Helper to check if a program belongs to the GENERAL category
-  // Works everywhere in the component. catid === -1 means explicitly saved as GENERAL.
-  const isGeneralProg = useCallback((p) => {
-    if (!p) return false;
-    const pCatId = String(p.catid ?? p.catId ?? '');
-    // Explicitly stored as GENERAL (our sentinel value)
-    if (pCatId === '-1' || pCatId === 'GENERAL') return true;
-    // Look up by categories array: if the category name contains 'general'
-    const catObj = categories.find(c => String(c.id) === pCatId);
-    if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-    return false;
-  }, [categories]);
-
   // ── Persistent session: restore from localStorage on first render ──
   const savedSession = (() => {
     try {
@@ -544,6 +530,17 @@ function App() {
   // Master data states (Supabase online database)
   const [teams, setTeams] = useState([]);
   const [categories, setCategories] = useState([]);
+
+  // Helper: check if a program belongs to the GENERAL category
+  // catid === -1 means explicitly saved as GENERAL (our sentinel value)
+  const isGeneralProg = useCallback((p) => {
+    if (!p) return false;
+    const pCatId = String(p.catid ?? p.catId ?? '');
+    if (pCatId === '-1' || pCatId === 'GENERAL') return true;
+    const catObj = categories.find(c => String(c.id) === pCatId);
+    if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+    return false;
+  }, [categories]);
   const [dbHasClassRange, setDbHasClassRange] = useState(false);
   const [timetable, setTimetable] = useState([]);
   const [timetableFilterCat, setTimetableFilterCat] = useState('ALL');
