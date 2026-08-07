@@ -462,6 +462,19 @@ function App() {
     return lastResult;
   };
 
+  // Helper to check if a program belongs to the GENERAL category
+  // Works everywhere in the component. catid === -1 means explicitly saved as GENERAL.
+  const isGeneralProg = useCallback((p) => {
+    if (!p) return false;
+    const pCatId = String(p.catid ?? p.catId ?? '');
+    // Explicitly stored as GENERAL (our sentinel value)
+    if (pCatId === '-1' || pCatId === 'GENERAL') return true;
+    // Look up by categories array: if the category name contains 'general'
+    const catObj = categories.find(c => String(c.id) === pCatId);
+    if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
+    return false;
+  }, [categories]);
+
   // ── Persistent session: restore from localStorage on first render ──
   const savedSession = (() => {
     try {
@@ -2490,13 +2503,10 @@ function App() {
     }
 
     let dbCatId = selectedProgCat;
+    // GENERAL programs always get catid = -1 (our sentinel for General category)
+    // This ensures isGeneralProg() reliably identifies them everywhere
     if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
-      const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
-      if (genCat) {
-        dbCatId = genCat.id;
-      } else {
-        dbCatId = -1;
-      }
+      dbCatId = -1;
     }
     const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : -1;
 
@@ -2579,10 +2589,9 @@ function App() {
 
   const handleSaveProgEdit = async () => {
     let dbCatId = editingProgData.catid;
+    // GENERAL programs always get catid = -1 (sentinel value)
     if (String(dbCatId).toUpperCase() === 'GENERAL' || isNaN(parseInt(dbCatId, 10))) {
-      const genCat = categories.find(c => c.name.toLowerCase().includes('general'));
-      if (genCat) dbCatId = genCat.id;
-      else dbCatId = -1;
+      dbCatId = -1;
     }
     const finalProgCatId = !isNaN(parseInt(dbCatId, 10)) ? parseInt(dbCatId, 10) : -1;
 
@@ -7922,15 +7931,7 @@ ${pagesHtml}
                         <div style={{ marginTop: '20px' }}>
                           <div className="settings-list-box" style={{ maxHeight: 'none' }}>
                             {(() => {
-                              // Helper to check if a program is a General category program
-                              const isGeneralProg = (p) => {
-                                const pCatId = String(p.catid || p.catId || '');
-                                if (pCatId === 'GENERAL') return true;
-                                if (pCatId === '-1') return true; // special GENERAL marker
-                                const catObj = categories.find(c => String(c.id) === pCatId);
-                                if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
-                                return false;
-                              };
+                              // isGeneralProg is defined at component level (useCallback) — accessible here via closure
 
                               // Filtered programs based on selected category chip + gender chip
                               const genderMatch = (p) => {
@@ -7993,14 +7994,7 @@ ${pagesHtml}
                                   }
 
                                   // 2. GENERAL Category section (for ALL or GENERAL)
-                                  const genProgs = programs.filter(p => {
-                                    const pCatId = String(p.catid || p.catId || '');
-                                    if (pCatId === 'GENERAL') return true;
-                                    if ((categories.find(c => String(c.id) === pCatId)?.name || '').toLowerCase().includes('general')) {
-                                      return true;
-                                    }
-                                    return false;
-                                  }).filter(pdfGenderMatch);
+                                  const genProgs = programs.filter(isGeneralProg).filter(pdfGenderMatch);
 
                                   if (genProgs.length > 0) {
                                     if (catIdFilter === 'GENERAL') pdfTotalCount = genProgs.length;
@@ -10883,8 +10877,9 @@ ${pagesHtml}
                                  if (String(p.catid || p.catId || '') !== String(entryFormCat)) return false;
                                }
                               if (!entryFormGender || entryFormGender === 'COMMON') return true;
-                              if ((p.type || '').includes('COMMON')) return true;
-                              return (p.type || '').includes(entryFormGender);
+                              const pt = (p.type || '').toUpperCase();
+                              if (pt.includes('COMMON') || (!pt.includes('BOY') && !pt.includes('GIRL'))) return true;
+                              return pt.includes((entryFormGender || '').toUpperCase());
                             }) : [];
 
                             const efSinglePrograms = efAllPrograms.filter(p => !(p.type || '').includes('GROUP'));
