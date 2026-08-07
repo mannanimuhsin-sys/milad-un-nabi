@@ -9802,7 +9802,8 @@ ${pagesHtml}
                                             {lang === 'EN' ? 'No group registrations found matching selected filter.' : 'തിരഞ്ഞെടുത്ത ഫിൽട്ടറിന് അനുയോജ്യമായ ഗ്രൂപ്പ് രജിസ്ട്രേഷനുകൾ ഒന്നും കണ്ടെത്തിയില്ല.'}
                                           </p>
                                         ) : (
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
+                                          <>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
                                             {displayedGroupRegs.map(g => {
                                             const prog = programs.find(p => String(p.id) === String(g.program_id));
                                             const team = teams.find(t => String(t.id) === String(g.team_id));
@@ -10001,7 +10002,9 @@ ${pagesHtml}
                                           📄 {lang === 'EN' ? 'Download PDF' : 'PDF ഡൗൺലോഡ് ചെയ്യുക'}
                                         </button>
                                       </>
-                                    );
+                                    )}
+                                  </>
+                                );
                                   })()}
                                 </div>
                               </div>
