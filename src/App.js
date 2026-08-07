@@ -1052,15 +1052,9 @@ function App() {
         queryWithRetry(() => makeFilter(supabase.from('categories').select('*'))),
         queryWithRetry(() => makeFilter(supabase.from('programs').select('*'))),
         queryWithRetry(() => makeFilter(supabase.from('results').select('*'))),
-        // Large tables — paginated to handle 300+ rows
-        (async () => {
-          const rows = await fetchAllRows('students', makeFilter, rNum);
-          return { data: rows, error: null };
-        })(),
-        (async () => {
-          const rows = await fetchAllRows('program_registrations', makeFilter, rNum);
-          return { data: rows, error: null };
-        })(),
+        // Students — use high-limit range query (more reliable than pagination)
+        queryWithRetry(() => makeFilter(supabase.from('students').select('*').range(0, 4999))),
+        queryWithRetry(() => makeFilter(supabase.from('program_registrations').select('*').range(0, 9999))),
         // Madrasa settings
         queryWithRetry(() => isNumValid
           ? supabase.from('madrasas').select('*').or(`regNumber.eq.${rNum},regNumber.eq.${numericId},regnumber.eq.${rNum}`).maybeSingle()
@@ -1201,19 +1195,35 @@ function App() {
       }
 
       // Save fresh data snapshot to LocalStorage for offline PWA cache
-      // Only save if we got meaningful data back (not partial zero-result failures)
-      const gotValidData = (Array.isArray(teamsData) || Array.isArray(studentsData));
+      // CRITICAL: Never overwrite students/programs with empty results from transient failures
+      const gotValidData = (Array.isArray(teamsData) && teamsData !== null);
       if (gotValidData) {
         try {
+          // Read existing cache to preserve students/programs if new fetch returned empty
+          let existingCached = null;
+          try {
+            const existingRaw = localStorage.getItem(`cached_data_${rNum}`);
+            if (existingRaw) existingCached = JSON.parse(existingRaw);
+          } catch(e) {}
+
+          const existingStudents = (existingCached && Array.isArray(existingCached.students)) ? existingCached.students : [];
+          const existingPrograms = (existingCached && Array.isArray(existingCached.programs)) ? existingCached.programs : [];
+          const existingRegs = (existingCached && Array.isArray(existingCached.programRegistrations)) ? existingCached.programRegistrations : [];
+
+          // Only use fresh data if it's non-empty OR if we had nothing before
+          const freshStudents = parsedStudents.length > 0 ? parsedStudents : existingStudents;
+          const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData : existingPrograms;
+          const freshRegs = (parsedRegs.length > 0 || existingRegs.length === 0) ? parsedRegs : existingRegs;
+
           const snapshot = {
             teams: teamsData || [],
             categories: catsData || [],
-            programs: programsData || [],
-            students: parsedStudents.length > 0 ? parsedStudents : (studentsData || []),
+            programs: freshPrograms,
+            students: freshStudents,
             resultsList: resultsData || [],
-            programRegistrations: parsedRegs,
-            groupRegistrations: parsedGroupReg,
-            timetable: parsedTimetable,
+            programRegistrations: freshRegs,
+            groupRegistrations: parsedGroupReg.length > 0 ? parsedGroupReg : ((existingCached && existingCached.groupRegistrations) || []),
+            timetable: parsedTimetable.length > 0 ? parsedTimetable : ((existingCached && existingCached.timetable) || []),
             eventName: loadedEventName || localEv,
             eventYear: loadedEventYear || localYr,
             convenerSadar: loadedConvenerSadar || localCS,
