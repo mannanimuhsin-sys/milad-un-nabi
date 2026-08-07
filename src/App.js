@@ -527,9 +527,32 @@ function App() {
   const [editingMadrasaData, setEditingMadrasaData] = useState({});
   const [superSearchTerm, setSuperSearchTerm] = useState('');
 
+  // ── Synchronous cache reader (used for lazy useState initialization) ──
+  const _rNum = (() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
+      return s && s.madrasa ? String(s.madrasa.regNumber || s.madrasa.regnumber || s.madrasa.reg_number || '').trim() : '';
+    } catch { return ''; }
+  })();
+  const _initCache = (() => {
+    if (!_rNum) return null;
+    try {
+      const raw = localStorage.getItem(`cached_data_${_rNum}`);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      return (c && typeof c === 'object') ? c : null;
+    } catch { return null; }
+  })();
+
   // Master data states (Supabase online database)
-  const [teams, setTeams] = useState([]);
-  const [categories, setCategories] = useState([]);
+  // ✅ Lazy initializers read from localStorage cache BEFORE first render
+  // This eliminates the "flash of 0" when refreshing the page
+  const [teams, setTeams] = useState(() => {
+    try { return (_initCache && Array.isArray(_initCache.teams) && _initCache.teams.length > 0) ? _initCache.teams : []; } catch { return []; }
+  });
+  const [categories, setCategories] = useState(() => {
+    try { return (_initCache && Array.isArray(_initCache.categories) && _initCache.categories.length > 0) ? _initCache.categories : []; } catch { return []; }
+  });
 
   // Helper: check if a program belongs to the GENERAL category
   // catid === -1 means explicitly saved as GENERAL (our sentinel value)
@@ -542,16 +565,44 @@ function App() {
     return false;
   }, [categories]);
   const [dbHasClassRange, setDbHasClassRange] = useState(false);
-  const [timetable, setTimetable] = useState([]);
+  const [timetable, setTimetable] = useState(() => {
+    try { return (_initCache && Array.isArray(_initCache.timetable)) ? _initCache.timetable : []; } catch { return []; }
+  });
   const [timetableFilterCat, setTimetableFilterCat] = useState('ALL');
   const [timetableFilterGender, setTimetableFilterGender] = useState('ALL');
   const [timetableView, setTimetableView] = useState('GRID'); // 'GRID' | 'LIST'
   const [editingTimetableId, setEditingTimetableId] = useState(null);
   const [timetableFormData, setTimetableFormData] = useState({ scheduled_time: '', date: '', hour12: '09', minute: '00', ampm: 'AM', venue: '' });
-  const [students, setStudents] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [resultsList, setResultsList] = useState([]);
-  const [programRegistrations, setProgramRegistrations] = useState([]);
+  const [students, setStudents] = useState(() => {
+    try {
+      if (_initCache && Array.isArray(_initCache.students) && _initCache.students.length > 0) {
+        return [..._initCache.students].sort((a, b) => {
+          const aR = parseInt(a.regno || a.regNo || '0') || 0;
+          const bR = parseInt(b.regno || b.regNo || '0') || 0;
+          return aR - bR;
+        });
+      }
+    } catch {}
+    return [];
+  });
+  const [programs, setPrograms] = useState(() => {
+    try {
+      if (_initCache && Array.isArray(_initCache.programs) && _initCache.programs.length > 0) {
+        return [..._initCache.programs].sort((a, b) => {
+          const aC = parseInt(a.code) || 0;
+          const bC = parseInt(b.code) || 0;
+          return aC - bC || String(a.code || '').localeCompare(String(b.code || ''));
+        });
+      }
+    } catch {}
+    return [];
+  });
+  const [resultsList, setResultsList] = useState(() => {
+    try { return (_initCache && Array.isArray(_initCache.resultsList)) ? _initCache.resultsList : []; } catch { return []; }
+  });
+  const [programRegistrations, setProgramRegistrations] = useState(() => {
+    try { return (_initCache && Array.isArray(_initCache.programRegistrations)) ? _initCache.programRegistrations : []; } catch { return []; }
+  });
 
   // 📡 Network status tracking (Offline / Weak Network fallback)
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
