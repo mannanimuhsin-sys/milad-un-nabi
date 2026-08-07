@@ -799,6 +799,7 @@ function App() {
   const [groupRegLeader, setGroupRegLeader] = useState('');
   const [groupRegStudents, setGroupRegStudents] = useState([]); // array of student IDs
   const [groupRegSummaryFilterProg, setGroupRegSummaryFilterProg] = useState('ALL');
+  const [groupRegMemberSearch, setGroupRegMemberSearch] = useState('');
   const [groupRegSaving, setGroupRegSaving] = useState(false);
   // Edit states for group registration
   const [editingGroupRegId, setEditingGroupRegId] = useState(null);
@@ -9386,7 +9387,12 @@ ${pagesHtml}
                                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
                                               {lang === 'EN' ? 'Competing Team (Points go here)' : 'മത്സരിക്കുന്ന ടീം (പോയിന്റുകൾ ഇവിടെ ലഭിക്കും)'}
                                             </label>
-                                            <select className="settings-input-v2" value={groupRegTeam} onChange={e => setGroupRegTeam(e.target.value)}>
+                                            <select className="settings-input-v2" value={groupRegTeam} onChange={e => {
+                                              setGroupRegTeam(e.target.value);
+                                              setGroupRegStudents([]);
+                                              setGroupRegLeader('');
+                                              setGroupRegMemberSearch('');
+                                            }}>
                                               <option value="">-- {lang === 'EN' ? 'Select Team' : 'ടീം തിരഞ്ഞെടുക്കുക'} --</option>
                                               {teams.map(t => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -9405,28 +9411,68 @@ ${pagesHtml}
                                           <div className="step-title">{lang === 'EN' ? 'Select Member Students' : 'അംഗങ്ങളായ വിദ്യാർത്ഥികളെ തിരഞ്ഞെടുക്കുക'}</div>
                                         </div>
                                         <div className="step-content">
-                                          {(() => {
+                                          {!groupRegTeam ? (
+                                            <div style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '10px', padding: '12px', fontSize: '13px', fontWeight: '700' }}>
+                                              ⚠️ {lang === 'EN' ? 'Please select a Competing Team in Step 04 first.' : 'ദയവായി ഘട്ടം 04-ൽ ഒരു മത്സരിക്കുന്ന ടീമിനെ തിരഞ്ഞെടുക്കുക.'}
+                                            </div>
+                                          ) : (() => {
                                             const catObj = categories.find(c => String(c.id) === String(groupRegCat));
                                             const isGeneral = catObj && catObj.name.toLowerCase().includes('general');
+
+                                            // Filter by category, gender AND team
                                             const groupStudentsFiltered = groupRegCat ? students.filter(s => {
                                               if (groupRegGender !== 'COMMON' && s.gender !== groupRegGender) return false;
                                               if (groupRegCat === 'GENERAL') {
-                                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                                if (!generalCatIds.map(String).includes(String(s.catid || s.catId || ''))) return false;
+                                              } else if (String(s.catid || s.catId || '') !== String(groupRegCat)) {
+                                                return false;
                                               }
-                                              return String(s.catid || s.catId || '') === String(groupRegCat);
+                                              // ONLY show students from the selected competing team
+                                              if (groupRegTeam && String(s.teamid || s.teamId || '') !== String(groupRegTeam)) return false;
+                                              return true;
                                             }) : [];
+
+                                            // Filter by student search query (reg number / name)
+                                            const searchFilteredStudents = groupRegMemberSearch.trim()
+                                              ? groupStudentsFiltered.filter(s => {
+                                                  const q = groupRegMemberSearch.trim().toLowerCase();
+                                                  const reg = String(s.regno || s.regNo || '').toLowerCase();
+                                                  const name = String(s.name || '').toLowerCase();
+                                                  return reg.includes(q) || name.includes(q);
+                                                })
+                                              : groupStudentsFiltered;
+
+                                            const selectedTeamObj = teams.find(t => String(t.id) === String(groupRegTeam));
 
                                             return groupStudentsFiltered.length === 0 ? (
                                               <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>
-                                                {lang === 'EN' ? 'No students available.' : 'വിദ്യാർത്ഥികൾ ലഭ്യമല്ല.'}
+                                                {lang === 'EN' ? 'No students found in the selected team.' : 'തിരഞ്ഞെടുത്ത ടീമിൽ വിദ്യാർത്ഥികൾ ആരുമില്ല.'}
                                               </p>
                                             ) : (
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
-                                                  {lang === 'EN' ? 'Selected: ' : 'തിരഞ്ഞെടുത്തവർ: '} <b>{groupRegStudents.length}</b> {lang === 'EN' ? 'students' : 'വിദ്യാർത്ഥികൾ'}
+                                                {/* 🔍 Search box for member students */}
+                                                <div>
+                                                  <input
+                                                    type="text"
+                                                    className="settings-input-v2"
+                                                    placeholder={lang === 'EN' ? '🔍 Search student by Reg No or Name...' : '🔍 രജിസ്റ്റർ നമ്പർ / പേര് നൽകി സെർച്ച് ചെയ്യുക...'}
+                                                    value={groupRegMemberSearch}
+                                                    onChange={e => setGroupRegMemberSearch(e.target.value)}
+                                                    style={{ margin: 0, padding: '8px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #94a3b8', background: '#fff' }}
+                                                  />
                                                 </div>
+
+                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                  <span>{lang === 'EN' ? 'Selected: ' : 'തിരഞ്ഞെടുത്തവർ: '} <b>{groupRegStudents.length}</b> {lang === 'EN' ? 'students' : 'വിദ്യാർത്ഥികൾ'}</span>
+                                                  <span style={{ background: '#fef3c7', color: '#d97706', padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>🚩 {selectedTeamObj?.name}</span>
+                                                </div>
+
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '250px', overflowY: 'auto', paddingRight: '2px', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '10px', background: '#fff' }}>
-                                                  {groupStudentsFiltered.map(s => {
+                                                  {searchFilteredStudents.length === 0 ? (
+                                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px', margin: 0, textAlign: 'center', padding: '10px 0' }}>
+                                                      {lang === 'EN' ? 'No matching students found.' : 'സെർച്ച് ഫിൽട്ടറിന് അനുയോജ്യമായ വിദ്യാർത്ഥികൾ ലഭ്യമല്ല.'}
+                                                    </p>
+                                                  ) : searchFilteredStudents.map(s => {
                                                     const sRegNo = s.regno || s.regNo || '';
                                                     const isChecked = groupRegStudents.includes(String(s.id));
                                                     const isLeader = groupRegLeader ? String(groupRegLeader) === String(s.id) : (groupRegStudents.length > 0 && String(groupRegStudents[0]) === String(s.id));
@@ -9505,6 +9551,7 @@ ${pagesHtml}
                                             {groupRegSaving ? `⏳ ${t('saving')}` : `💾 ${lang === 'EN' ? 'Save Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ സേവ് ചെയ്യുക'}`}
                                           </button>
                                         </div>
+                                      )})()}
                                       </div>
                                     )}
                                   </div>
@@ -9821,10 +9868,11 @@ ${pagesHtml}
                                             const editStudentsFiltered = editProg ? students.filter(s => {
                                               const sCatId = String(s.catid || s.catId || '');
                                               const sPCatId = String(editProg.catid || editProg.catId || '');
-                                              if (sCatId !== sPCatId) return false;
+                                              if (sCatId !== sPCatId && groupRegCat !== 'GENERAL') return false;
                                               const sGender = String(s.gender || '').toUpperCase();
                                               if (editProgType.includes('BOY') && sGender !== 'BOY') return false;
                                               if (editProgType.includes('GIRL') && sGender !== 'GIRL') return false;
+                                              if (g.team_id && String(s.teamid || s.teamId || '') !== String(g.team_id)) return false;
                                               return true;
                                             }) : [];
 
