@@ -1017,9 +1017,6 @@ function App() {
     const rNum = String(rNumInput || (loggedInMadrasa ? (loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number) : '')).trim();
     if (!rNum) return;
 
-    // 🚀 Load local cache immediately for instant UI render (<10ms)
-    loadCachedData(rNum);
-
     // Prevent concurrent stacked requests on weak connections
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -1210,10 +1207,15 @@ function App() {
           const existingPrograms = (existingCached && Array.isArray(existingCached.programs)) ? existingCached.programs : [];
           const existingRegs = (existingCached && Array.isArray(existingCached.programRegistrations)) ? existingCached.programRegistrations : [];
 
-          // Only use fresh data if it's non-empty OR if we had nothing before
-          const freshStudents = parsedStudents.length > 0 ? parsedStudents : existingStudents;
-          const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData : existingPrograms;
-          const freshRegs = (parsedRegs.length > 0 || existingRegs.length === 0) ? parsedRegs : existingRegs;
+          // Only use fresh data if it's non-empty; preserve existing ONLY if fetch failed (null result)
+          // If DB returns [] (empty array), trust it — it might be a legitimate empty state
+          // Only fall back to existing if DB returned null (meaning fetch failed entirely)
+          const freshStudents = (studentsData !== null && parsedStudents.length > 0) ? parsedStudents
+            : (studentsData === null ? existingStudents : parsedStudents);
+          const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData
+            : (programsData === null ? existingPrograms : programsData || []);
+          const freshRegs = (parsedRegs.length > 0) ? parsedRegs
+            : (regData === null ? existingRegs : parsedRegs);
 
           const snapshot = {
             teams: teamsData || [],
@@ -2206,16 +2208,52 @@ function App() {
 
   const handleDeleteTeam = async (id) => {
     if (!window.confirm('Remove this team?')) return;
-    setTeams(prev => prev.filter(t => t.id !== id));
+    const originalTeams = [...teams];
+    setTeams(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.teams = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch(e) {}
+      return updated;
+    });
     const { error } = await supabase.from('teams').delete().eq('id', id);
-    if (error) { alert(getFriendlyErrorMessage(error.message)); }
+    if (error) {
+      alert(getFriendlyErrorMessage(error.message));
+      setTeams(prev => {
+        try {
+          const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+          if (rawCache) {
+            const cacheObj = JSON.parse(rawCache);
+            cacheObj.teams = originalTeams;
+            localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+          }
+        } catch(e) {}
+        return originalTeams;
+      });
+    }
   };
 
   const handleSaveTeamEdit = async () => {
     if (!editingTeamName.trim()) return;
     const targetId = editingTeamId;
     const updatedName = editingTeamName.trim();
-    setTeams(prev => prev.map(t => t.id === targetId ? { ...t, name: updatedName } : t));
+    setTeams(prev => {
+      const updated = prev.map(t => t.id === targetId ? { ...t, name: updatedName } : t);
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.teams = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch(e) {}
+      return updated;
+    });
     setEditingTeamId(null);
     const { error } = await supabase.from('teams').update({ name: updatedName }).eq('id', targetId);
     if (error) { alert('Error: ' + getFriendlyErrorMessage(error.message)); }
@@ -2566,16 +2604,49 @@ function App() {
   const handleDeleteStudent = async (id) => {
     if (!window.confirm('Remove this student?')) return;
     const originalStudents = [...students];
-    setStudents(prev => prev.filter(s => s.id !== id));
+    setStudents(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      // Update cache immediately so 15s interval doesn't re-introduce deleted student
+      try {
+        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+        if (rawCache) {
+          const cacheObj = JSON.parse(rawCache);
+          cacheObj.students = updated;
+          localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+        }
+      } catch(e) {}
+      return updated;
+    });
     try {
       const { error } = await supabase.from('students').delete().eq('id', id);
       if (error) {
         alert('Error: ' + getFriendlyErrorMessage(error.message));
-        setStudents(originalStudents);
+        // Rollback state and cache
+        setStudents(prev => {
+          try {
+            const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+            if (rawCache) {
+              const cacheObj = JSON.parse(rawCache);
+              cacheObj.students = originalStudents;
+              localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+            }
+          } catch(e) {}
+          return originalStudents;
+        });
       }
     } catch (err) {
       alert('Error: ' + getFriendlyErrorMessage(err.message));
-      setStudents(originalStudents);
+      setStudents(prev => {
+        try {
+          const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+          if (rawCache) {
+            const cacheObj = JSON.parse(rawCache);
+            cacheObj.students = originalStudents;
+            localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+          }
+        } catch(e) {}
+        return originalStudents;
+      });
     }
   };
 
