@@ -9551,7 +9551,6 @@ ${pagesHtml}
                                             {groupRegSaving ? `⏳ ${t('saving')}` : `💾 ${lang === 'EN' ? 'Save Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ സേവ് ചെയ്യുക'}`}
                                           </button>
                                         </div>
-                                      )})()}
                                       </div>
                                     )}
                                   </div>
