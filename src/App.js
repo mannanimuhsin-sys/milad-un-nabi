@@ -881,23 +881,34 @@ function App() {
       const localGen = localStorage.getItem(`general_cats_${rNum}`);
 
       if (raw) {
-        const cached = JSON.parse(raw);
-        if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
-        if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
-        if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms([...cached.programs].sort(compareProgCode));
-        if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents([...cached.students].sort(compareRegNo));
-        if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
-        if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
-        if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
-        if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
+        let cached;
+        try {
+          cached = JSON.parse(raw);
+        } catch (parseErr) {
+          // Corrupted cache — auto-clear to prevent repeated crashes on computers
+          console.warn('Corrupted cache detected, auto-clearing...', parseErr);
+          try { localStorage.removeItem(`cached_data_${rNum}`); } catch(e){}
+          return false;
+        }
+        // Validate cached object before using it
+        if (cached && typeof cached === 'object') {
+          if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
+          if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
+          if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms([...cached.programs].sort(compareProgCode));
+          if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents([...cached.students].sort(compareRegNo));
+          if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
+          if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
+          if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
+          if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
 
-        const evToSet = localEv || cached.eventName || '';
-        const yrToSet = localYr || cached.eventYear || '';
-        const csToSet = localCS || cached.convenerSadar || '';
+          const evToSet = localEv || cached.eventName || '';
+          const yrToSet = localYr || cached.eventYear || '';
+          const csToSet = localCS || cached.convenerSadar || '';
 
-        if (evToSet) { setEventName(evToSet); setEventNameInput(evToSet); }
-        if (yrToSet) { setEventYear(yrToSet); setEventYearInput(yrToSet); }
-        if (csToSet) { setConvenerSadar(csToSet); setConvenerSadarInput(csToSet); }
+          if (evToSet) { setEventName(evToSet); setEventNameInput(evToSet); }
+          if (yrToSet) { setEventYear(yrToSet); setEventYearInput(yrToSet); }
+          if (csToSet) { setConvenerSadar(csToSet); setConvenerSadarInput(csToSet); }
+        }
       } else {
         if (localEv) { setEventName(localEv); setEventNameInput(localEv); }
         if (localYr) { setEventYear(localYr); setEventYearInput(localYr); }
@@ -905,11 +916,19 @@ function App() {
       }
 
       if (localGen) {
-        try { setGeneralCatIds(JSON.parse(localGen)); } catch(e){}
+        try {
+          const parsedGen = JSON.parse(localGen);
+          if (Array.isArray(parsedGen)) setGeneralCatIds(parsedGen);
+        } catch(e){
+          // Corrupted general_cats cache — clear it
+          try { localStorage.removeItem(`general_cats_${rNum}`); } catch(e2){}
+        }
       }
       return true;
     } catch (e) {
       console.error("Error reading cached data:", e);
+      // If outer try fails (e.g. localStorage quota or access error), clean up if possible
+      try { localStorage.removeItem(`cached_data_${rNum}`); } catch(e2){}
       return false;
     }
   };
@@ -7916,6 +7935,8 @@ ${pagesHtml}
                                 const pCatId = String(p.catid || p.catId || '');
                                 if (pCatId === 'GENERAL') return true;
                                 if (pCatId === '-1') return true; // special GENERAL marker
+                                // Check if this program's catid is one of the generalCatIds
+                                if (generalCatIds.length > 0 && generalCatIds.map(String).includes(pCatId)) return true;
                                 const catObj = categories.find(c => String(c.id) === pCatId);
                                 if (catObj && (catObj.name || '').toLowerCase().includes('general')) return true;
                                 return false;
