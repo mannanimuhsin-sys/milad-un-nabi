@@ -8701,22 +8701,16 @@ ${pagesHtml}
                             return;
                           }
 
-                          const sDbId = studentObj.id;
-                          const sRegNo = studentObj.regno || studentObj.regNo;
-                          const dbIdInt = parseInt(sDbId, 10);
-                          const regNoInt = parseInt(sRegNo, 10);
+                          const sDbId = String(studentObj.id);
+                          const sRegNo = String(studentObj.regno || studentObj.regNo || '');
 
-                          // Collect all matching student IDs (both string and integer forms) to delete in ONE atomic query
+                          // Collect string representations of matching student IDs to delete in ONE atomic query
                           const idsToDelete = Array.from(new Set([
-                            ...(!isNaN(dbIdInt) ? [dbIdInt] : []),
-                            String(sDbId),
-                            ...(sRegNo && String(sRegNo) !== String(sDbId) ? [
-                              ...(!isNaN(regNoInt) ? [regNoInt] : []),
-                              String(sRegNo)
-                            ] : [])
-                          ]));
+                            sDbId,
+                            ...(sRegNo ? [sRegNo] : [])
+                          ])).filter(Boolean).map(String);
 
-                          const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
+                          const targetIdToInsert = sDbId;
 
                           // Normalize checked programs to database IDs
                           const normalizedCheckedProgs = regTabCheckedProgs.map(pId => {
@@ -8774,7 +8768,7 @@ ${pagesHtml}
                                 const progIdVal = pObj ? String(pObj.id) : String(pId);
                                 const row = {
                                   madrasa_id: madrasaId,
-                                  student_id: targetIdToInsert,
+                                  student_id: String(targetIdToInsert),
                                   program_name: progIdVal
                                 };
                                 if (useProgramId) row.program_id = progIdVal;
