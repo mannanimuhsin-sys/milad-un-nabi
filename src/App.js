@@ -8688,25 +8688,28 @@ ${pagesHtml}
 
                           const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
 
-                          // 🚀 Instant state + LocalStorage cache update (<1ms)
-                          const otherRegs = programRegistrations.filter(r => !isStudentMatch(r, studentObj));
-                          const newLocalEntries = regTabCheckedProgs.map(pId => {
+                          // Normalize checked programs to database IDs
+                          const normalizedCheckedProgs = regTabCheckedProgs.map(pId => {
                             const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
-                            const progIdVal = pObj ? String(pObj.id) : String(pId);
-                            const progCodeVal = pObj ? String(pObj.code) : String(pId);
+                            return pObj ? String(pObj.id) : String(pId);
+                          });
+
+                          // Build optimistic local entries using normalized IDs
+                          const otherRegs = programRegistrations.filter(r => !idsToDelete.some(id => String(r.student_id) === String(id)));
+                          const newLocalEntries = normalizedCheckedProgs.map(pId => {
+                            const pObj = programs.find(p => String(p.id) === String(pId));
                             return {
                               id: 'temp_reg_' + Date.now() + '_' + Math.random(),
                               madrasa_id: madrasaId,
                               student_id: targetIdToInsert,
-                              program_name: progCodeVal || progIdVal,
-                              program_id: progIdVal
+                              program_name: String(pObj ? pObj.id : pId),
+                              program_id: String(pObj ? pObj.id : pId)
                             };
                           });
                           const mappedOptimistic = [...otherRegs, ...newLocalEntries];
 
                           setProgramRegistrations(mappedOptimistic);
-                          const updatedExisting = getStudentRegisteredProgIds(sDbId, mappedOptimistic);
-                          setRegTabCheckedProgs(updatedExisting);
+                          setRegTabCheckedProgs(normalizedCheckedProgs);
                           setRegTabSaving(false);
 
                           try {
@@ -8720,67 +8723,76 @@ ${pagesHtml}
                           } catch (e) {}
 
                           alert(t('alertSavedRegistrations')
-                            .replace('{count}', regTabCheckedProgs.length)
+                            .replace('{count}', normalizedCheckedProgs.length)
                             .replace('{studentName}', studentObj?.name || '')
                           );
 
-                          // Background database sync
-                          if (idsToDelete.length > 0) {
-                            const { error: delErr } = await supabase
-                              .from('program_registrations')
-                              .delete()
-                              .eq('madrasa_id', madrasaId)
-                              .in('student_id', idsToDelete);
-                            if (delErr) console.warn("Delete registration warning:", delErr.message);
-                          }
+                          // Background database sync - DELETE then INSERT
+                          try {
+                            if (idsToDelete.length > 0) {
+                              const { error: delErr } = await supabase
+                                .from('program_registrations')
+                                .delete()
+                                .eq('madrasa_id', madrasaId)
+                                .in('student_id', idsToDelete);
+                              if (delErr) console.warn('Delete registration warning:', delErr.message);
+                            }
 
-                          if (regTabCheckedProgs.length > 0) {
-                            const makeFallbackInserts = (useProgramId) => regTabCheckedProgs.map(pId => {
-                              const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
-                              const progIdVal = pObj ? String(pObj.id) : String(pId);
-                              const progCodeVal = pObj ? String(pObj.code) : String(pId);
-                              const row = {
-                                madrasa_id: madrasaId,
-                                student_id: targetIdToInsert,
-                                program_name: progCodeVal || progIdVal
-                              };
-                              if (useProgramId) row.program_id = progIdVal;
-                              return row;
-                            });
+                            if (normalizedCheckedProgs.length > 0) {
+                              const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
+                                const pObj = programs.find(p => String(p.id) === String(pId));
+                                const progIdVal = pObj ? String(pObj.id) : String(pId);
+                                const row = {
+                                  madrasa_id: madrasaId,
+                                  student_id: targetIdToInsert,
+                                  program_name: progIdVal
+                                };
+                                if (useProgramId) row.program_id = progIdVal;
+                                return row;
+                              });
 
-                            // Try with program_id first, fallback to program_name only
-                            let { error: insertError } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
-                            if (insertError) {
-                              const errMsg = String(insertError.message || '');
-                              const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
-                              if (isColumnMissing) {
-                                // Table doesn't have program_id column - use program_name only
-                                const { error: fallbackErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
-                                if (fallbackErr) console.error("Registration insert fallback failed:", fallbackErr.message);
-                              } else {
-                                // Network/transient error - retry once
-                                await new Promise(res => setTimeout(res, 800));
-                                const { error: retryErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
-                                if (retryErr) {
-                                  // Last resort: try without program_id
-                                  const { error: lastErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
-                                  if (lastErr) console.error("Registration insert all retries failed:", lastErr.message);
+                              let { error: insertError } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
+                              if (insertError) {
+                                const errMsg = String(insertError.message || '');
+                                const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
+                                if (isColumnMissing) {
+                                  const { error: fallbackErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
+                                  if (fallbackErr) console.error('Registration insert fallback failed:', fallbackErr.message);
+                                } else {
+                                  await new Promise(res => setTimeout(res, 800));
+                                  const { error: retryErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
+                                  if (retryErr) {
+                                    const { error: lastErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
+                                    if (lastErr) console.error('Registration insert all retries failed:', lastErr.message);
+                                  }
                                 }
                               }
                             }
-                          }
 
-
-                          // Refresh registrations silently in background
-                          const { data: newRegs } = await supabase
-                            .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
-                          if (newRegs) {
-                            const mapped = newRegs.map(r => ({
-                              ...r,
-                              program_id: String(r.program_id || r.program_name || ''),
-                              program_name: String(r.program_name || r.program_id || '')
-                            }));
-                            setProgramRegistrations(mapped);
+                            // Refresh registrations from DB to sync
+                            const { data: newRegs } = await supabase
+                              .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
+                            if (newRegs && newRegs.length > 0) {
+                              const mapped = newRegs.map(r => ({
+                                ...r,
+                                program_id: String(r.program_id || r.program_name || ''),
+                                program_name: String(r.program_name || r.program_id || '')
+                              }));
+                              setProgramRegistrations(mapped);
+                              // Also update localStorage cache
+                              try {
+                                const rawCache2 = localStorage.getItem(`cached_data_${madrasaId}`);
+                                if (rawCache2) {
+                                  const cacheObj2 = JSON.parse(rawCache2);
+                                  cacheObj2.programRegistrations = mapped;
+                                  cacheObj2.savedAt = new Date().toISOString();
+                                  localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj2));
+                                }
+                              } catch (e) {}
+                            }
+                            // If newRegs is empty/null, keep optimistic data (don't overwrite)
+                          } catch (syncErr) {
+                            console.warn('Background sync error (optimistic state preserved):', syncErr.message);
                           }
                         } catch (err) {
                           alert(t('alertUploadFailed') + err.message);
@@ -9116,7 +9128,14 @@ ${pagesHtml}
                                             <select className="settings-input-v2" value={regTabStudent} onChange={e => {
                                               const sid = e.target.value;
                                               setRegTabStudent(sid);
+                                              const sObj = students.find(s2 => String(s2.id) === String(sid));
+                                              console.log('[REG-DEBUG] Student selected via dropdown:', { sid, studentId: sObj?.id, regNo: sObj?.regno || sObj?.regNo });
+                                              console.log('[REG-DEBUG] All programRegistrations for this student:', programRegistrations.filter(r => {
+                                                if (!sObj) return String(r.student_id) === String(sid);
+                                                return String(r.student_id) === String(sObj.id) || String(r.student_id) === String(sObj.regno || sObj.regNo || '');
+                                              }));
                                               const existing = getStudentRegisteredProgIds(sid);
+                                              console.log('[REG-DEBUG] getStudentRegisteredProgIds returned:', existing);
                                               setRegTabCheckedProgs(existing);
                                             }}>
                                               <option value="">{t('selectStudentFirst')}</option>
@@ -9231,7 +9250,11 @@ ${pagesHtml}
                                               onClick={() => {
                                                 const sid = String(s.id);
                                                 setRegTabStudent(sid);
+                                                console.log('[REG-DEBUG] Student clicked in summary:', { sid, regNo: s.regno || s.regNo });
+                                                console.log('[REG-DEBUG] programRegistrations state length:', programRegistrations.length);
+                                                console.log('[REG-DEBUG] Matching regs for this student:', programRegistrations.filter(r => String(r.student_id) === String(sid) || String(r.student_id) === String(s.regno || s.regNo || '')));
                                                 const existing = getStudentRegisteredProgIds(sid);
+                                                console.log('[REG-DEBUG] getStudentRegisteredProgIds returned:', existing);
                                                 setRegTabCheckedProgs(existing);
                                               }}>
                                               <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
