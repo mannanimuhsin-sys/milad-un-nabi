@@ -1823,7 +1823,8 @@ function App() {
     try {
       let madrasa = null;
       const numReg = parseInt(trimmedReg, 10);
-      const isNum = !isNaN(numReg);
+      const isNum = !isNaN(numReg) && String(numReg) === String(trimmedReg).trim();
+      const loginFilterStr = isNum ? `regNumber.eq."${trimmedReg}",regNumber.eq.${numReg}` : `regNumber.eq."${trimmedReg}"`;
 
       // 1. Direct targeted query on regNumber
       try {
@@ -1831,7 +1832,7 @@ function App() {
           supabase
             .from('madrasas')
             .select('*')
-            .or(isNum ? `regNumber.eq.${trimmedReg},regNumber.eq.${numReg}` : `regNumber.eq.${trimmedReg}`)
+            .or(loginFilterStr)
         );
         if (mData && mData.length > 0) {
           madrasa = mData[0];
