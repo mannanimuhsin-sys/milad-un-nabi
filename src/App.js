@@ -1045,11 +1045,11 @@ function App() {
 
     try {
       const numericId = parseInt(rNum, 10);
-      const isNumValid = !isNaN(numericId);
+      const isNumValid = !isNaN(numericId) && String(numericId) === String(rNum).trim();
 
       // Build filter function for each table (supports both string and numeric madrasa_id)
       const makeFilter = (q) => isNumValid
-        ? q.or(`madrasa_id.eq.${rNum},madrasa_id.eq.${numericId}`)
+        ? q.or(`madrasa_id.eq."${rNum}",madrasa_id.eq.${numericId}`)
         : q.eq('madrasa_id', rNum);
 
       // Use Promise.allSettled so that a failure in one table does NOT wipe out others
@@ -1069,7 +1069,7 @@ function App() {
         queryWithRetry(() => makeFilter(supabase.from('program_registrations').select('*').range(0, 9999))),
         // Madrasa settings
         queryWithRetry(() => isNumValid
-          ? supabase.from('madrasas').select('*').or(`regNumber.eq.${rNum},regNumber.eq.${numericId},regnumber.eq.${rNum}`).maybeSingle()
+          ? supabase.from('madrasas').select('*').or(`regNumber.eq."${rNum}",regNumber.eq.${numericId}`).maybeSingle()
           : supabase.from('madrasas').select('*').eq('regNumber', rNum).maybeSingle()),
       ]);
 
@@ -1664,7 +1664,13 @@ function App() {
     // 🌐 3. Background network sync to fetch fresh student data from Supabase
     try {
       const sIdInt = parseInt(studentId, 10);
+      const isSIdNum = !isNaN(sIdInt) && String(sIdInt) === String(studentId).trim();
       const mRegInt = parseInt(madrasaReg, 10);
+      const isMRegNum = !isNaN(mRegInt) && String(mRegInt) === String(madrasaReg).trim();
+
+      const mFilter = isMRegNum
+        ? `madrasa_id.eq."${madrasaReg}",madrasa_id.eq.${mRegInt}`
+        : `madrasa_id.eq."${madrasaReg}"`;
 
       const [
         { data: madrasaData },
@@ -1676,14 +1682,14 @@ function App() {
         { data: regData },
         { data: gRegsData }
       ] = await Promise.all([
-        supabase.from('madrasas').select('*').or(`regNumber.eq.${madrasaReg},regNumber.eq.${mRegInt}`).maybeSingle(),
-        supabase.from('students').select('*').or(`id.eq.${studentId},id.eq.${sIdInt},regno.eq.${studentId}`),
-        supabase.from('results').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
-        supabase.from('teams').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
-        supabase.from('categories').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
-        supabase.from('programs').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
-        supabase.from('program_registrations').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`),
-        supabase.from('group_registrations').select('*').or(`madrasa_id.eq.${madrasaReg},madrasa_id.eq.${mRegInt}`)
+        isMRegNum ? supabase.from('madrasas').select('*').or(`regNumber.eq."${madrasaReg}",regNumber.eq.${mRegInt}`).maybeSingle() : supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
+        isSIdNum ? supabase.from('students').select('*').or(`id.eq.${sIdInt},regno.eq."${studentId}"`) : supabase.from('students').select('*').or(`id.eq."${studentId}",regno.eq."${studentId}"`),
+        supabase.from('results').select('*').or(mFilter),
+        supabase.from('teams').select('*').or(mFilter),
+        supabase.from('categories').select('*').or(mFilter),
+        supabase.from('programs').select('*').or(mFilter),
+        supabase.from('program_registrations').select('*').or(mFilter),
+        supabase.from('group_registrations').select('*').or(mFilter)
       ]);
 
       const fetchedStudent = Array.isArray(studentDataList) ? studentDataList[0] : null;
@@ -7052,7 +7058,27 @@ ${pagesHtml}
                                             Save
                                           </button>
                                           <button
-                                            onClick={() => setEditingTimetableId(null)}
+                                            onClick={() => {
+                                              const rNum = loggedInMadrasa?.regNumber;
+                                              const newName = eventNameInput.trim();
+                                              const newYear = eventYearInput.trim();
+                                              const numReg = parseInt(rNum, 10);
+                                              const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                              const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+                                              (async () => {
+                                                const { data: md } = await queryWithRetry(() =>
+                                                  supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
+                                                );
+                                                const updatedPlace = makePlaceString(md ? md.place : '', {
+                                                  eventName: encodeURIComponent(newName),
+                                                  eventYear: encodeURIComponent(newYear)
+                                                });
+                                                const { error } = await queryWithRetry(() =>
+                                                  supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                                );
+                                              })();
+                                              setEditingTimetableId(null);
+                                            }}
                                             className="btn-add-action"
                                             style={{ padding: '3px 6px', fontSize: '11px', background: '#64748b' }}
                                           >
@@ -7215,16 +7241,17 @@ ${pagesHtml}
                                       } catch(e){}
                                       try {
                                         const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
                                         const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`).maybeSingle()
+                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
                                         );
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           eventName: encodeURIComponent(newName),
                                           eventYear: encodeURIComponent(newYear)
                                         });
                                         const { error } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`)
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
                                         );
                                         if (error) {
                                           alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
@@ -7291,15 +7318,16 @@ ${pagesHtml}
                                       } catch(e){}
                                       try {
                                         const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
                                         const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`).maybeSingle()
+                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
                                         );
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           convenerSadar: encodeURIComponent(newCS)
                                         });
                                         const { error } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`)
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
                                         );
                                         if (error) {
                                           alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
@@ -7492,15 +7520,16 @@ ${pagesHtml}
                                       } catch(e){}
                                       try {
                                         const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
                                         const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`).maybeSingle()
+                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
                                         );
                                         const updatedPlace = makePlaceString(md ? md.place : '', {
                                           generalCats: encodeURIComponent(JSON.stringify(generalModalTemp))
                                         });
                                         const { error } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(isNumValid ? `regNumber.eq.${rNum},regNumber.eq.${numReg}` : `regNumber.eq.${rNum}`)
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
                                         );
                                         if (error) {
                                           alert('⚠️ Cloud Save Warning (Saved locally): ' + getFriendlyErrorMessage(error.message));

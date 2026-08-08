@@ -12,9 +12,8 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for offline/PWA support
-// App shell (JS/CSS/HTML) will be cached for use on weak/no network
-serviceWorkerRegistration.register();
+// Unregister service worker in development to prevent missing service-worker.js MIME errors
+serviceWorkerRegistration.unregister();
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
