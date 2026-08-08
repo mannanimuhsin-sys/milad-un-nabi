@@ -11258,9 +11258,9 @@ ${pagesHtml}
                               const allProgs = [...efSinglePrograms, ...efGroupPrograms];
 
                               // Build column headers for programs
-                              const progHeaders = allProgs.map((p, idx) => {
+                              const progHeaders = allProgs.map((p) => {
                                 const headerLabel = p.name ? `${p.name} (${p.code})` : (p.code || '');
-                                return `<th style="background:#f1f5f9;border:1px solid #94a3b8;padding:4px 2px;font-size:9px;min-width:22px;max-width:32px;height:80px;vertical-align:middle;text-align:center;box-sizing:border-box;"><div style="writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;display:inline-block;margin:0 auto;line-height:1.3;transform:rotate(180deg);">${headerLabel}</div></th>`;
+                                return `<th style="background:#f1f5f9;color:#0f172a;border:1px solid #94a3b8;padding:4px 2px;font-size:9px;min-width:24px;max-width:34px;height:85px;vertical-align:middle;text-align:center;box-sizing:border-box;"><div style="writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;display:inline-block;margin:0 auto;line-height:1.3;transform:rotate(180deg);color:#0f172a;font-weight:700;">${headerLabel}</div></th>`;
                               }).join('');
 
                               // Single/Group separator header
@@ -11287,23 +11287,21 @@ ${pagesHtml}
                                   let isRegistered = false;
 
                                   if (isGroup) {
-                                    // Check group_registrations: student_ids contains this student
-                                    isRegistered = groupRegistrations.some(g => {
-                                      if (String(g.program_id) !== String(p.id)) return false;
-                                      const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
-                                      return memberIds.some(id => String(id) === String(s.id));
+                                    const inGroupTable = groupRegistrations.some(g => {
+                                      const pMatch = String(g.program_id) === String(p.id) || String(g.program_id) === String(p.code) || String(g.program_id) === String(p.name);
+                                      if (!pMatch) return false;
+                                      const mIds = Array.isArray(g.student_ids) ? g.student_ids : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
+                                      return mIds.some(id => String(id) === String(s.id) || String(id) === String(s.regno || s.regNo || '').trim());
                                     });
+                                    const inProgRegTable = programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s));
+                                    isRegistered = inGroupTable || inProgRegTable;
                                     if (isRegistered) groupCount++;
                                   } else {
-                                    // Check program_registrations
-                                    isRegistered = programRegistrations.some(r =>
-                                      String(r.program_id || r.program_name) === String(p.id) &&
-                                      String(r.student_id) === String(s.id)
-                                    );
+                                    isRegistered = programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s));
                                     if (isRegistered) singleCount++;
                                   }
 
-                                  return `<td style="text-align:center;padding:4px 2px;font-size:14px;border:1px solid #cbd5e1;${isRegistered ? 'background:#ecfdf5;' : ''}">${isRegistered ? '✓' : ''}</td>`;
+                                  return `<td style="text-align:center;padding:4px 2px;font-size:14px;font-weight:800;color:#064e3b;border:1px solid #cbd5e1;${isRegistered ? 'background:#dcfce7;' : ''}">${isRegistered ? '✓' : ''}</td>`;
                                 }).join('');
 
                                 const totalCount = singleCount + groupCount;
@@ -11348,7 +11346,7 @@ ${pagesHtml}
   .sheet-body { padding: 10px 12px 14px; }
   table { width: 100%; border-collapse: collapse; }
   thead tr.group-header th { border: 1px solid #94a3b8; }
-  thead tr.prog-header th { border: 1px solid #94a3b8; }
+  tr.prog-header th { border: 1px solid #94a3b8; }
   th { padding: 6px 4px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; text-align: center; }
   .main-header th { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; border: 1px solid rgba(255,255,255,0.2); }
   tbody tr:nth-child(even) { background: #f8fafc; }
