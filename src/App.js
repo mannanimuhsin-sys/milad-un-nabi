@@ -1077,7 +1077,7 @@ function App() {
 
   // Helper: fetch ALL rows of a table with automatic pagination (handles 300+ students & 1000+ registrations)
   const fetchAllRows = async (table, filter) => {
-    const PAGE = 500; // fetch 500 rows at a time
+    const PAGE = 1000; // fetch 1000 rows at a time (max Supabase batch size)
     let allRows = [];
     let from = 0;
     let hasMore = true;
