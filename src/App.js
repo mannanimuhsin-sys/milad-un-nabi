@@ -10642,10 +10642,13 @@ ${pagesHtml}
                       const isGroupProg = selectedProgObj && (selectedProgObj.type || '').includes('GROUP');
 
                       // Build items for Judge Sheet (Single student vs Group/Team)
-                      const judgeItems = judgeSheetProg ? (() => {
+                      const judgeItems = (judgeSheetProg && selectedProgObj) ? (() => {
                         if (isGroupProg) {
                           // 1. Get explicit group registrations for this program
-                          const progGroupRegs = groupRegistrations.filter(g => String(g.program_id) === String(judgeSheetProg));
+                          const progGroupRegs = groupRegistrations.filter(g =>
+                            String(g.program_id) === String(selectedProgObj.id) ||
+                            String(g.program_id) === String(selectedProgObj.code)
+                          );
 
                           if (progGroupRegs.length > 0) {
                             return progGroupRegs.map(g => {
@@ -10656,9 +10659,10 @@ ${pagesHtml}
                                 : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
 
                               const leaderId = g.leader_id || (studentIds.length > 0 ? studentIds[0] : null);
-                              const leaderStudent = students.find(s => String(s.id) === String(leaderId));
+                              const leaderStudent = students.find(s => String(s.id) === String(leaderId) || String(s.regno || s.regNo || '').trim() === String(leaderId).trim());
                               const memberStudents = students.filter(s =>
-                                studentIds.map(String).includes(String(s.id)) && String(s.id) !== String(leaderId)
+                                studentIds.map(String).some(id => String(s.id) === String(id) || String(s.regno || s.regNo || '').trim() === String(id).trim()) &&
+                                String(s.id) !== String(leaderId)
                               );
 
                               return {
@@ -10676,12 +10680,8 @@ ${pagesHtml}
                             });
                           } else {
                             // Group program fallback: filter registered students for this group program
-                            const regStudentIds = new Set(
-                              programRegistrations
-                                .filter(r => String(r.program_id || r.program_name || '') === String(judgeSheetProg))
-                                .map(r => String(r.student_id))
-                            );
-                            const baseStudents = students.filter(s => regStudentIds.has(String(s.id)));
+                            const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
+                            const baseStudents = students.filter(s => matchingRegs.some(r => isStudentMatch(r, s)));
 
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
@@ -10712,12 +10712,21 @@ ${pagesHtml}
                           }
                         } else {
                           // Single program: Individual students registered for this program ONLY
-                          const regStudentIds = new Set(
-                            programRegistrations
-                              .filter(r => String(r.program_id || r.program_name || '') === String(judgeSheetProg))
-                              .map(r => String(r.student_id))
-                          );
-                          const baseStudents = students.filter(s => regStudentIds.has(String(s.id)));
+                          const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
+                          const baseStudents = students.filter(s => {
+                            // Category filter matching
+                            if (judgeSheetCat === 'GENERAL') {
+                              if (!isGeneralProg(selectedProgObj)) return false;
+                            } else if (isJudgeGeneral) {
+                              if (!isGeneralProg(selectedProgObj) && String(selectedProgObj.catid || selectedProgObj.catId || '') !== String(judgeSheetCat)) return false;
+                            } else {
+                              if (String(s.catid || s.catId || '') !== String(judgeSheetCat)) return false;
+                            }
+                            // Gender filter matching
+                            if (judgeSheetGender && judgeSheetGender !== 'COMMON' && s.gender !== judgeSheetGender) return false;
+
+                            return matchingRegs.some(r => isStudentMatch(r, s));
+                          });
 
                           return baseStudents
                             .sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0))
@@ -10740,7 +10749,7 @@ ${pagesHtml}
                         const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
                         const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
 
-                        const rows = judgeItems.map((item) => {
+                        const rows = judgeItems.map((item, idx) => {
                           if (item.isGroup) {
                             const leaderDisplay = item.leaderRegNo
                               ? `<b>Reg No: ${item.leaderRegNo}</b> ${item.leaderName ? `(${item.leaderName})` : ''}`
@@ -10750,33 +10759,42 @@ ${pagesHtml}
                               ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''}${m.name ? ` (${m.name})` : ''}`).join(', ')
                               : (item.memberRegNos.length > 0 ? `Reg Nos: ${item.memberRegNos.join(', ')}` : '');
 
-                            return `<tr style="min-height:55px; height:55px;">
-                              <td style="text-align:left; padding:8px 12px; border:1.5px solid #cbd5e1; vertical-align:middle;">
-                                <div style="font-weight:800; font-size:13px; color:#064e3b; margin-bottom:3px; display:flex; align-items:center; justify-space-between;">
-                                  <span>🚩 ${item.teamName}</span>
-                                  ${item.teamCode ? `<span style="font-size:11px; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px; margin-left:8px;">${item.teamCode}</span>` : ''}
+                            return `<tr style="min-height:50px; height:50px;">
+                              <td style="text-align:center; font-weight:700; border:1.5px solid #cbd5e1;">${idx + 1}</td>
+                              <td style="text-align:center; font-weight:800; font-size:12px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.leaderRegNo || '-'}</td>
+                              <td style="text-align:left; padding:6px 10px; border:1.5px solid #cbd5e1; vertical-align:middle;">
+                                <div style="font-weight:800; font-size:13px; color:#064e3b; margin-bottom:2px;">
+                                  🚩 ${item.teamName} ${item.teamCode ? `<span style="font-size:11px; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px; margin-left:6px;">${item.teamCode}</span>` : ''}
                                 </div>
                                 <div style="font-size:11px; font-weight:700; color:#1e293b;">
                                   👑 Leader: ${leaderDisplay}
                                 </div>
-                                ${membersDisplay ? `
-                                  <div style="font-size:10px; color:#64748b; margin-top:2px;">
-                                    👥 Members: ${membersDisplay}
-                                  </div>
-                                ` : ''}
+                                ${membersDisplay ? `<div style="font-size:10px; color:#64748b; margin-top:2px;">👥 Members: ${membersDisplay}</div>` : ''}
                               </td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                             </tr>`;
                           } else {
-                            return `<tr>
-                              <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5">${item.regNo}</td>
-                              <td style="text-align:center"></td>
-                              <td style="text-align:center"></td>
-                              <td style="text-align:center"></td>
-                              <td style="text-align:center"></td>
+                            const s = item.student;
+                            const teamName = item.teamObj ? item.teamObj.name : '';
+                            return `<tr style="min-height:45px; height:45px;">
+                              <td style="text-align:center; font-weight:700; border:1.5px solid #cbd5e1;">${idx + 1}</td>
+                              <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.regNo}</td>
+                              <td style="text-align:left; padding:6px 10px; font-size:13px; font-weight:700; color:#1e293b; border:1.5px solid #cbd5e1;">
+                                ${s ? s.name : item.name} ${teamName ? `<span style="font-size:11px; font-weight:600; color:#64748b; margin-left:6px;">(${teamName})</span>` : ''}
+                              </td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
+                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                             </tr>`;
                           }
                         }).join('');
@@ -10788,7 +10806,7 @@ ${pagesHtml}
 <title>Judge Sheet - ${progName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4 landscape; margin: 15mm 15mm; }
+  @page { size: A4 landscape; margin: 12mm 12mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
   .sheet-wrapper { border: 3px solid #064e3b; border-radius: 10px; overflow: hidden; }
@@ -10796,7 +10814,7 @@ ${pagesHtml}
     background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
     color: white;
     text-align: center;
-    padding: 18px 20px 14px;
+    padding: 16px 20px 12px;
   }
   .festival-title {
     font-size: 13px;
@@ -10832,7 +10850,7 @@ ${pagesHtml}
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   thead tr { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; }
   th {
-    padding: 9px 8px;
+    padding: 8px 6px;
     font-weight: 700;
     font-size: 11px;
     text-transform: uppercase;
@@ -10840,7 +10858,7 @@ ${pagesHtml}
     border: 1px solid rgba(255,255,255,0.2);
     text-align: center;
   }
-  td { padding: 10px 8px; border: 1.5px solid #cbd5e1; min-height: 36px; }
+  td { padding: 8px 6px; border: 1.5px solid #cbd5e1; min-height: 36px; }
   tbody tr:nth-child(even) { background: #f8fafc; }
   .sheet-footer {
     margin-top: 28px;
@@ -10893,15 +10911,20 @@ ${pagesHtml}
     <table>
       <thead>
         <tr>
-          <th style="${isGroupProg ? 'width:320px;text-align:left;padding-left:12px;' : 'width:110px;'}">${isGroupProg ? 'Team & Members (ടീം & അംഗങ്ങൾ)' : 'Reg. No'}</th>
-          <th style="width:100px">Chance No</th>
-          <th style="width:120px">Marks (1)</th>
-          <th style="width:120px">Marks (2)</th>
-          <th style="width:110px">Position</th>
+          <th style="width:40px; text-align:center;">Sl.No</th>
+          <th style="width:75px; text-align:center;">Reg. No</th>
+          <th style="text-align:left; padding-left:8px;">${isGroupProg ? 'Team Name & Members' : 'Student Name & Team'}</th>
+          <th style="width:70px; text-align:center;">Chance No</th>
+          <th style="width:65px; text-align:center;">Judge 1</th>
+          <th style="width:65px; text-align:center;">Judge 2</th>
+          <th style="width:65px; text-align:center;">Total</th>
+          <th style="width:55px; text-align:center;">Grade</th>
+          <th style="width:55px; text-align:center;">Rank</th>
+          <th style="width:85px; text-align:center;">Remarks</th>
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">No entries registered.</td></tr>'}
+        ${rows || '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:30px">No entries registered.</td></tr>'}
       </tbody>
     </table>
     <div class="sheet-footer">
