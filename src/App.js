@@ -1170,7 +1170,7 @@ function App() {
         }
       }
 
-      if (Array.isArray(regData)) {
+      if (Array.isArray(regData) && (regData.length > 0 || programRegistrations.length === 0)) {
         parsedRegs = regData.map(r => ({
           ...r,
           program_id: String(r.program_id || r.program_name || ''),
@@ -8732,97 +8732,83 @@ ${pagesHtml}
                           });
                           const mappedOptimistic = [...otherRegs, ...newLocalEntries];
 
-                          setProgramRegistrations(mappedOptimistic);
-                          setRegTabCheckedProgs(normalizedCheckedProgs);
-                          setRegTabSaving(false);
+                          // Save to DB synchronously with retry before alerting success
+                          const numMadrasaId = parseInt(madrasaId, 10);
+                          const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
+                          const mFilter = isMIdNum
+                            ? `madrasa_id.eq."${madrasaId}",madrasa_id.eq."${numMadrasaId}"`
+                            : `madrasa_id.eq."${madrasaId}"`;
 
-                          try {
-                            const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
-                            if (rawCache) {
-                              const cacheObj = JSON.parse(rawCache);
-                              cacheObj.programRegistrations = mappedOptimistic;
-                              cacheObj.savedAt = new Date().toISOString();
-                              localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
-                            }
-                          } catch (e) {}
-
-                          alert(t('alertSavedRegistrations')
-                            .replace('{count}', normalizedCheckedProgs.length)
-                            .replace('{studentName}', studentObj?.name || '')
-                          );
-
-                          // Background database sync - DELETE then INSERT
-                          try {
-                            if (idsToDelete.length > 0) {
-                              const { error: delErr } = await supabase
+                          if (idsToDelete.length > 0) {
+                            const { error: delErr } = await queryWithRetry(() =>
+                              supabase
                                 .from('program_registrations')
                                 .delete()
-                                .eq('madrasa_id', madrasaId)
-                                .in('student_id', idsToDelete);
-                              if (delErr) console.warn('Delete registration warning:', delErr.message);
-                            }
+                                .or(mFilter)
+                                .in('student_id', idsToDelete)
+                            );
+                            if (delErr) console.warn('Delete registration warning:', delErr.message);
+                          }
 
-                            if (normalizedCheckedProgs.length > 0) {
-                              const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
-                                const pObj = programs.find(p => String(p.id) === String(pId));
-                                const progIdVal = pObj ? String(pObj.id) : String(pId);
-                                const row = {
-                                  madrasa_id: madrasaId,
-                                  student_id: String(targetIdToInsert),
-                                  program_name: progIdVal
-                                };
-                                if (useProgramId) row.program_id = progIdVal;
-                                return row;
-                              });
+                          let syncSuccess = true;
+                          if (normalizedCheckedProgs.length > 0) {
+                            const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
+                              const pObj = programs.find(p => String(p.id) === String(pId));
+                              const progIdVal = pObj ? String(pObj.id) : String(pId);
+                              const row = {
+                                madrasa_id: madrasaId,
+                                student_id: String(targetIdToInsert),
+                                program_name: progIdVal
+                              };
+                              if (useProgramId) row.program_id = progIdVal;
+                              return row;
+                            });
 
-                              let { error: insertError } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
-                              if (insertError) {
-                                const errMsg = String(insertError.message || '');
-                                const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
-                                if (isColumnMissing) {
-                                  const { error: fallbackErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
-                                  if (fallbackErr) console.error('Registration insert fallback failed:', fallbackErr.message);
-                                } else {
-                                  await new Promise(res => setTimeout(res, 800));
-                                  const { error: retryErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(true));
-                                  if (retryErr) {
-                                    const { error: lastErr } = await supabase.from('program_registrations').insert(makeFallbackInserts(false));
-                                    if (lastErr) console.error('Registration insert all retries failed:', lastErr.message);
-                                  }
+                            let { error: insertError } = await queryWithRetry(() =>
+                              supabase.from('program_registrations').insert(makeFallbackInserts(true))
+                            );
+                            if (insertError) {
+                              const errMsg = String(insertError.message || '');
+                              const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
+                              if (isColumnMissing) {
+                                const { error: fallbackErr } = await queryWithRetry(() =>
+                                  supabase.from('program_registrations').insert(makeFallbackInserts(false))
+                                );
+                                if (fallbackErr) {
+                                  syncSuccess = false;
+                                  alert('⚠️ Database Insert Error: ' + getFriendlyErrorMessage(fallbackErr.message));
                                 }
+                              } else {
+                                syncSuccess = false;
+                                alert('⚠️ Database Insert Error: ' + getFriendlyErrorMessage(insertError.message));
                               }
                             }
+                          }
 
-                            // Refresh registrations from DB to sync
-                            const { data: newRegs } = await supabase
-                              .from('program_registrations').select('*').eq('madrasa_id', madrasaId);
-                            if (newRegs && newRegs.length > 0) {
-                              const mapped = newRegs.map(r => ({
-                                ...r,
-                                program_id: String(r.program_id || r.program_name || ''),
-                                program_name: String(r.program_name || r.program_id || '')
-                              }));
-                              setProgramRegistrations(mapped);
-                              // Also update localStorage cache
-                              try {
-                                const rawCache2 = localStorage.getItem(`cached_data_${madrasaId}`);
-                                if (rawCache2) {
-                                  const cacheObj2 = JSON.parse(rawCache2);
-                                  cacheObj2.programRegistrations = mapped;
-                                  cacheObj2.savedAt = new Date().toISOString();
-                                  localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj2));
-                                }
-                              } catch (e) {}
-                            }
-                            // If newRegs is empty/null, keep optimistic data (don't overwrite)
-                          } catch (syncErr) {
-                            console.warn('Background sync error (optimistic state preserved):', syncErr.message);
+                          if (syncSuccess) {
+                            setProgramRegistrations(mappedOptimistic);
+                            setRegTabCheckedProgs(normalizedCheckedProgs);
+
+                            try {
+                              const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+                              if (rawCache) {
+                                const cacheObj = JSON.parse(rawCache);
+                                cacheObj.programRegistrations = mappedOptimistic;
+                                cacheObj.savedAt = new Date().toISOString();
+                                localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+                              }
+                            } catch (e) {}
+
+                            alert(t('alertSavedRegistrations')
+                              .replace('{count}', normalizedCheckedProgs.length)
+                              .replace('{studentName}', studentObj?.name || '')
+                            );
                           }
                         } catch (err) {
-                          alert(t('alertUploadFailed') + err.message);
+                          alert(t('alertUploadFailed') + getFriendlyErrorMessage(err.message));
+                        } finally {
                           setRegTabSaving(false);
                         }
-                        setRegTabSaving(false);
                       };
 
                       const handleDownloadRegSummaryPDF = () => {
