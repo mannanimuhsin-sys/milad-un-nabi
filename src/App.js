@@ -10751,26 +10751,9 @@ ${pagesHtml}
 
                         const rows = judgeItems.map((item, idx) => {
                           if (item.isGroup) {
-                            const leaderDisplay = item.leaderRegNo
-                              ? `<b>Reg No: ${item.leaderRegNo}</b> ${item.leaderName ? `(${item.leaderName})` : ''}`
-                              : (item.leaderName || '-');
-
-                            const membersDisplay = item.memberStudents && item.memberStudents.length > 0
-                              ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''}${m.name ? ` (${m.name})` : ''}`).join(', ')
-                              : (item.memberRegNos.length > 0 ? `Reg Nos: ${item.memberRegNos.join(', ')}` : '');
-
                             return `<tr style="min-height:50px; height:50px;">
                               <td style="text-align:center; font-weight:700; border:1.5px solid #cbd5e1;">${idx + 1}</td>
-                              <td style="text-align:center; font-weight:800; font-size:12px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.leaderRegNo || '-'}</td>
-                              <td style="text-align:left; padding:6px 10px; border:1.5px solid #cbd5e1; vertical-align:middle;">
-                                <div style="font-weight:800; font-size:13px; color:#064e3b; margin-bottom:2px;">
-                                  🚩 ${item.teamName} ${item.teamCode ? `<span style="font-size:11px; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px; margin-left:6px;">${item.teamCode}</span>` : ''}
-                                </div>
-                                <div style="font-size:11px; font-weight:700; color:#1e293b;">
-                                  👑 Leader: ${leaderDisplay}
-                                </div>
-                                ${membersDisplay ? `<div style="font-size:10px; color:#64748b; margin-top:2px;">👥 Members: ${membersDisplay}</div>` : ''}
-                              </td>
+                              <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.leaderRegNo || '-'}</td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
@@ -10780,14 +10763,9 @@ ${pagesHtml}
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                             </tr>`;
                           } else {
-                            const s = item.student;
-                            const teamName = item.teamObj ? item.teamObj.name : '';
                             return `<tr style="min-height:45px; height:45px;">
                               <td style="text-align:center; font-weight:700; border:1.5px solid #cbd5e1;">${idx + 1}</td>
                               <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.regNo}</td>
-                              <td style="text-align:left; padding:6px 10px; font-size:13px; font-weight:700; color:#1e293b; border:1.5px solid #cbd5e1;">
-                                ${s ? s.name : item.name} ${teamName ? `<span style="font-size:11px; font-weight:600; color:#64748b; margin-left:6px;">(${teamName})</span>` : ''}
-                              </td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
                               <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
@@ -10911,20 +10889,19 @@ ${pagesHtml}
     <table>
       <thead>
         <tr>
-          <th style="width:40px; text-align:center;">Sl.No</th>
-          <th style="width:75px; text-align:center;">Reg. No</th>
-          <th style="text-align:left; padding-left:8px;">${isGroupProg ? 'Team Name & Members' : 'Student Name & Team'}</th>
-          <th style="width:70px; text-align:center;">Chance No</th>
-          <th style="width:65px; text-align:center;">Judge 1</th>
-          <th style="width:65px; text-align:center;">Judge 2</th>
-          <th style="width:65px; text-align:center;">Total</th>
-          <th style="width:55px; text-align:center;">Grade</th>
-          <th style="width:55px; text-align:center;">Rank</th>
-          <th style="width:85px; text-align:center;">Remarks</th>
+          <th style="width:45px; text-align:center;">Sl.No</th>
+          <th style="width:90px; text-align:center;">Reg. No</th>
+          <th style="width:80px; text-align:center;">Chance No</th>
+          <th style="width:75px; text-align:center;">Judge 1</th>
+          <th style="width:75px; text-align:center;">Judge 2</th>
+          <th style="width:75px; text-align:center;">Total</th>
+          <th style="width:65px; text-align:center;">Grade</th>
+          <th style="width:65px; text-align:center;">Rank</th>
+          <th style="text-align:center;">Remarks</th>
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:30px">No entries registered.</td></tr>'}
+        ${rows || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:30px">No entries registered.</td></tr>'}
       </tbody>
     </table>
     <div class="sheet-footer">
