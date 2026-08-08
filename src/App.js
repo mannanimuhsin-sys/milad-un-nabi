@@ -8815,11 +8815,15 @@ ${pagesHtml}
                               const mIds = isMIdNum ? [madrasaId, numMadrasaId] : [madrasaId];
 
                               if (idsToDelete.length > 0) {
-                                await supabase
-                                  .from('program_registrations')
-                                  .delete()
-                                  .in('madrasa_id', Array.from(new Set(mIds)))
-                                  .in('student_id', idsToDelete);
+                                for (const idVal of idsToDelete) {
+                                  try {
+                                    await supabase
+                                      .from('program_registrations')
+                                      .delete()
+                                      .in('madrasa_id', Array.from(new Set(mIds)))
+                                      .eq('student_id', idVal);
+                                  } catch (e) {}
+                                }
                               }
 
                               if (normalizedCheckedProgs.length > 0) {
