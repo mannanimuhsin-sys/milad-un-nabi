@@ -8724,7 +8724,7 @@ ${pagesHtml}
                             ...(sRegNo ? [sRegNo] : [])
                           ])).filter(Boolean).map(String);
 
-                          const targetIdToInsert = sDbId;
+                          const targetIdToInsert = sRegNo ? sRegNo : sDbId;
 
                           // Normalize checked programs to database IDs
                           const normalizedCheckedProgs = regTabCheckedProgs.map(pId => {
