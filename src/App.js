@@ -1075,8 +1075,8 @@ function App() {
     }
   };
 
-  // Helper: fetch ALL rows of a table with automatic pagination (handles 300+ students)
-  const fetchAllRows = async (table, filter, rNum) => {
+  // Helper: fetch ALL rows of a table with automatic pagination (handles 300+ students & 1000+ registrations)
+  const fetchAllRows = async (table, filter) => {
     const PAGE = 500; // fetch 500 rows at a time
     let allRows = [];
     let from = 0;
@@ -1085,12 +1085,12 @@ function App() {
       const { data, error } = await filter(
         supabase.from(table).select('*').range(from, from + PAGE - 1)
       );
-      if (error) throw error;
+      if (error) return { data: allRows.length > 0 ? allRows : null, error };
       if (!data || data.length === 0) { hasMore = false; break; }
       allRows = [...allRows, ...data];
       if (data.length < PAGE) { hasMore = false; } else { from += PAGE; }
     }
-    return allRows;
+    return { data: allRows, error: null };
   };
 
   // 🔄 Function to load real-time data from Supabase (with offline fallback & LocalStorage caching)
@@ -1132,10 +1132,11 @@ function App() {
         queryWithRetry(() => makeFilter(supabase.from('teams').select('*'))),
         queryWithRetry(() => makeFilter(supabase.from('categories').select('*'))),
         queryWithRetry(() => makeFilter(supabase.from('programs').select('*'))),
-        queryWithRetry(() => makeFilter(supabase.from('results').select('*'))),
-        // Students — use high-limit range query (more reliable than pagination)
-        queryWithRetry(() => makeFilter(supabase.from('students').select('*').range(0, 4999))),
-        queryWithRetry(() => makeFilter(supabase.from('program_registrations').select('*').range(0, 9999))),
+        queryWithRetry(() => fetchAllRows('results', makeFilter)),
+        // Tables that can exceed Supabase's default 1000 row PostgREST limit
+        queryWithRetry(() => fetchAllRows('students', makeFilter)),
+        queryWithRetry(() => fetchAllRows('program_registrations', makeFilter)),
+        queryWithRetry(() => fetchAllRows('group_registrations', makeFilter)),
         // Madrasa settings
         queryWithRetry(() => isNumValid
           ? supabase.from('madrasas').select('*').in('regNumber', Array.from(new Set([rNum, numericId]))).maybeSingle()
@@ -1151,6 +1152,7 @@ function App() {
         resultsResult,
         studentsResult,
         regResult,
+        gRegResult,
         madrasaResult,
       ] = results;
 
@@ -1163,6 +1165,7 @@ function App() {
       const resultsData = safe(resultsResult).data;
       const studentsData = safe(studentsResult).data;
       const regData = safe(regResult).data;
+      const groupRegData = safe(gRegResult).data;
       const madrasaData = safe(madrasaResult).data;
 
       let parsedStudents = [];
@@ -1191,6 +1194,7 @@ function App() {
         setStudents(parsedStudents);
       }
       if (Array.isArray(resultsData) && resultsData.length >= 0) setResultsList(resultsData);
+      if (Array.isArray(groupRegData) && groupRegData.length >= 0) setGroupRegistrations(groupRegData);
 
       let loadedEventName = '';
       let loadedEventYear = '';
@@ -1257,7 +1261,7 @@ function App() {
         }
       } catch (e) {}
 
-      if (Array.isArray(regData) && regData.length > 0) {
+      if (Array.isArray(regData)) {
         loadedRegs = regData.map(r => ({
           ...r,
           program_id: String(r.program_id || r.program_name || ''),
@@ -1265,26 +1269,10 @@ function App() {
         }));
       }
 
-      // Merge DB rows and LocalStorage cache rows so no saved registration is EVER lost on refresh or error!
-      const mergedMap = new Map();
-      if (Array.isArray(cachedRegs)) {
-        cachedRegs.forEach(r => {
-          const sKey = String(r.student_id || '').trim();
-          const pKey = String(r.program_id || r.program_name || '').trim();
-          if (sKey && pKey) mergedMap.set(`${sKey}_${pKey}`, r);
-        });
-      }
-      if (Array.isArray(loadedRegs)) {
-        loadedRegs.forEach(r => {
-          const sKey = String(r.student_id || '').trim();
-          const pKey = String(r.program_id || r.program_name || '').trim();
-          if (sKey && pKey) mergedMap.set(`${sKey}_${pKey}`, r);
-        });
-      }
+      // If DB query succeeded and returned rows, use loadedRegs as authority. Otherwise fallback to cache.
+      const finalRegs = (Array.isArray(regData)) ? loadedRegs : cachedRegs;
 
-      const finalRegs = Array.from(mergedMap.values());
-
-      if (finalRegs.length > 0) {
+      if (finalRegs && finalRegs.length >= 0) {
         try {
           localStorage.setItem(`cached_regs_${rNum}`, JSON.stringify(finalRegs));
           const rawCache = localStorage.getItem(`cached_data_${rNum}`);
@@ -1298,20 +1286,6 @@ function App() {
         setProgramRegistrations(finalRegs);
       }
 
-      // Fetch group registrations (separate - not in allSettled above to keep it clean)
-      let parsedGroupReg = [];
-      try {
-        const gRegPages = await fetchAllRows('group_registrations',
-          q => isNumValid
-            ? q.or(`madrasa_id.eq.${numericId},madrasa_id.eq.${rNum}`)
-            : q.eq('madrasa_id', rNum), rNum);
-        if (Array.isArray(gRegPages)) {
-          parsedGroupReg = gRegPages;
-          setGroupRegistrations(gRegPages);
-        }
-      } catch (err) {
-        console.error("Group registrations fetch failed: ", err);
-      }
 
       // Fetch timetable
       let parsedTimetable = [];
