@@ -760,7 +760,7 @@ function App() {
     return Boolean(rSid && (rSid === sId || (sReg && rSid === sReg) || isNumMatch));
   }, []);
 
-  const isProgramMatch = useCallback((r, p) => {
+  const isProgramMatch = useCallback((r, p, exactOnly = false) => {
     if (!r || !p) return false;
     const pId = String(p.id || '').trim().toLowerCase();
     const pCode = String(p.code || '').trim().toLowerCase();
@@ -769,11 +769,13 @@ function App() {
     const rProgName = String(r.program_name || '').trim().toLowerCase();
     const rProgId = String(r.program_id || '').trim().toLowerCase();
 
-    // 1. Direct Exact Program ID / Code Match
+    // 1. Direct Exact Program ID / Code Match (Highest Accuracy)
     if ((rProgId && (rProgId === pId || rProgId === pCode)) ||
         (rProgName && (rProgName === pId || rProgName === pCode))) {
       return true;
     }
+
+    if (exactOnly) return false;
 
     // 2. Direct Exact Program Name Match
     if (rProgName && pName && (rProgName === pName || rProgName.includes(pName) || pName.includes(rProgName))) {
@@ -795,17 +797,46 @@ function App() {
     const targetRegs = customRegs || programRegistrations;
     const studentObj = students.find(s => String(s.id) === String(studentId) || String(s.regno || s.regNo || '').trim() === String(studentId).trim());
 
-    const findProgForReg = (r, studentCatId = null) => {
+    const findProgForReg = (r, studentCatId = null, studentGender = null) => {
+      const isGenderMatch = (p) => {
+        if (!studentGender || !p.type) return true;
+        const pt = String(p.type).toUpperCase();
+        const sg = String(studentGender).toUpperCase();
+        if (sg === 'BOY' && pt.includes('GIRL') && !pt.includes('BOY')) return false;
+        if (sg === 'GIRL' && pt.includes('BOY') && !pt.includes('GIRL')) return false;
+        return true;
+      };
+
+      // Priority 1: Exact ID / Code match within student's Category + Gender match
       if (studentCatId) {
-        // Priority 1: Match program within student's specific category
-        const catMatch = programs.find(p =>
+        const exactCatGenMatch = programs.find(p =>
           (String(p.catid || p.catId || '') === String(studentCatId) || String(p.category || '').toLowerCase() === String(studentCatId).toLowerCase()) &&
-          isProgramMatch(r, p)
+          isGenderMatch(p) &&
+          isProgramMatch(r, p, true)
         );
-        if (catMatch) return catMatch;
+        if (exactCatGenMatch) return exactCatGenMatch;
       }
-      // Priority 2: Fallback match across all programs
-      return programs.find(p => isProgramMatch(r, p));
+
+      // Priority 2: Exact ID / Code match across all programs + Gender match
+      const exactGenMatch = programs.find(p => isGenderMatch(p) && isProgramMatch(r, p, true));
+      if (exactGenMatch) return exactGenMatch;
+
+      // Priority 3: Name / Code match within student's Category + Gender match
+      if (studentCatId) {
+        const catGenMatch = programs.find(p =>
+          (String(p.catid || p.catId || '') === String(studentCatId) || String(p.category || '').toLowerCase() === String(studentCatId).toLowerCase()) &&
+          isGenderMatch(p) &&
+          isProgramMatch(r, p, false)
+        );
+        if (catGenMatch) return catGenMatch;
+      }
+
+      // Priority 4: Name / Code match across all programs + Gender match
+      const genMatch = programs.find(p => isGenderMatch(p) && isProgramMatch(r, p, false));
+      if (genMatch) return genMatch;
+
+      // Priority 5: Fallback match across all programs
+      return programs.find(p => isProgramMatch(r, p, false));
     };
 
     if (!studentObj) {
@@ -813,8 +844,9 @@ function App() {
       return sRegs.map(r => findProgForReg(r)).filter(Boolean);
     }
     const studentCatId = studentObj.catid || studentObj.catId || studentObj.category || '';
+    const studentGender = studentObj.gender || '';
     const sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
-    return sRegs.map(r => findProgForReg(r, studentCatId)).filter(Boolean);
+    return sRegs.map(r => findProgForReg(r, studentCatId, studentGender)).filter(Boolean);
   }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch]);
 
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
@@ -8851,11 +8883,11 @@ ${pagesHtml}
                               if (normalizedCheckedProgs.length > 0) {
                                 const buildRows = (mId, sId) => normalizedCheckedProgs.map(pId => {
                                   const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
-                                  const progIdVal = pObj ? String(pObj.id) : String(pId);
+                                  const progCodeOrId = pObj ? String(pObj.code || pObj.id) : String(pId);
                                   return {
                                     madrasa_id: String(mId),
                                     student_id: String(sId),
-                                    program_name: progIdVal
+                                    program_name: progCodeOrId
                                   };
                                 });
 
