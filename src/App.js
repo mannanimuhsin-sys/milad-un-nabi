@@ -740,6 +740,7 @@ function App() {
   const [regTabCheckedProgs, setRegTabCheckedProgs] = useState([]);
   const [regTabSaving, setRegTabSaving] = useState(false);
   const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
+  const regTabDirtyRef = React.useRef(false); // true when user has unsaved checkbox changes
 
   // ── Prizes Tab States ──
   const [prizesCatFilter, setPrizesCatFilter] = useState('ALL');
@@ -1178,14 +1179,19 @@ function App() {
             program_id: String(r.program_id || r.program_name || ''),
             program_name: String(r.program_name || r.program_id || '')
           }));
-          setProgramRegistrations(parsedRegs);
+          // Only update programRegistrations state if user has no unsaved checkbox changes
+          if (!regTabDirtyRef.current) {
+            setProgramRegistrations(parsedRegs);
+          }
         } else {
           try {
             const rawCache = localStorage.getItem(`cached_data_${rNum}`);
             if (rawCache) {
               const cacheObj = JSON.parse(rawCache);
               if (Array.isArray(cacheObj.programRegistrations) && cacheObj.programRegistrations.length > 0) {
-                setProgramRegistrations(cacheObj.programRegistrations);
+                if (!regTabDirtyRef.current) {
+                  setProgramRegistrations(cacheObj.programRegistrations);
+                }
                 parsedRegs = cacheObj.programRegistrations;
               }
             }
@@ -8802,6 +8808,7 @@ ${pagesHtml}
                           }
 
                           if (syncSuccess) {
+                            regTabDirtyRef.current = false;
                             setProgramRegistrations(mappedOptimistic);
                             setRegTabCheckedProgs(normalizedCheckedProgs);
 
