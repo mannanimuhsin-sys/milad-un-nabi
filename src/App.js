@@ -769,29 +769,22 @@ function App() {
     const rProgName = String(r.program_name || '').trim().toLowerCase();
     const rProgId = String(r.program_id || '').trim().toLowerCase();
 
-    // 1. Direct Exact Program ID Match
-    if (rProgId && (rProgId === pId || rProgId === pCode)) {
-      if (rProgName && pName && rProgName !== pName && !rProgName.includes(pName) && !pName.includes(rProgName)) {
-        // Name mismatch: keep searching
-      } else {
-        return true;
-      }
-    }
-
-    // 2. Direct Exact Program Name Match
-    if (rProgName && pName && rProgName === pName) {
+    // 1. Direct Exact Program ID / Code Match
+    if ((rProgId && (rProgId === pId || rProgId === pCode)) ||
+        (rProgName && (rProgName === pId || rProgName === pCode))) {
       return true;
     }
 
-    // 3. Numeric Code match with name verification
+    // 2. Direct Exact Program Name Match
+    if (rProgName && pName && (rProgName === pName || rProgName.includes(pName) || pName.includes(rProgName))) {
+      return true;
+    }
+
+    // 3. Numeric Code match
     const pCodeNum = parseInt(pCode, 10);
-    const rProgIdNum = parseInt(rProgId, 10);
+    const rProgIdNum = parseInt(rProgId || rProgName, 10);
     if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum) {
-      if (rProgName && pName && rProgName !== pName) {
-        // Name mismatch: avoid false positive
-      } else {
-        return true;
-      }
+      return true;
     }
 
     return false;
@@ -1133,7 +1126,7 @@ function App() {
       // Update states ONLY if valid non-empty array returned — NEVER zero out existing data on partial failure
       if (Array.isArray(teamsData) && teamsData.length >= 0) setTeams(teamsData);
       if (Array.isArray(catsData) && catsData.length >= 0) setCategories(catsData);
-      if (Array.isArray(programsData) && programsData.length >= 0) setPrograms([...programsData].sort(compareProgCode));
+      if (Array.isArray(programsData) && programsData.length > 0) setPrograms([...programsData].sort(compareProgCode));
       if (Array.isArray(studentsData) && studentsData.length > 0) {
         const uniqueMap = new Map();
         for (const s of studentsData) {
@@ -1257,16 +1250,16 @@ function App() {
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
         } catch (e) {}
 
-        if (!regTabDirtyRef.current) {
-          setProgramRegistrations(finalRegs);
-        }
+        setProgramRegistrations(finalRegs);
       }
 
       // Fetch group registrations (separate - not in allSettled above to keep it clean)
       let parsedGroupReg = [];
       try {
         const gRegPages = await fetchAllRows('group_registrations',
-          q => q.eq('madrasa_id', rNum), rNum);
+          q => isNumValid
+            ? q.or(`madrasa_id.eq.${numericId},madrasa_id.eq.${rNum}`)
+            : q.eq('madrasa_id', rNum), rNum);
         if (Array.isArray(gRegPages)) {
           parsedGroupReg = gRegPages;
           setGroupRegistrations(gRegPages);
@@ -1306,15 +1299,10 @@ function App() {
           const existingPrograms = (existingCached && Array.isArray(existingCached.programs)) ? existingCached.programs : [];
           const existingRegs = (existingCached && Array.isArray(existingCached.programRegistrations)) ? existingCached.programRegistrations : [];
 
-          // Only use fresh data if it's non-empty; preserve existing ONLY if fetch failed (null result)
-          // If DB returns [] (empty array), trust it — it might be a legitimate empty state
-          // Only fall back to existing if DB returned null (meaning fetch failed entirely)
-          const freshStudents = (studentsData !== null && parsedStudents.length > 0) ? parsedStudents
-            : (studentsData === null ? existingStudents : parsedStudents);
-          const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData
-            : (programsData === null ? existingPrograms : programsData || []);
-          const freshRegs = (parsedRegs.length > 0) ? parsedRegs
-            : (existingRegs.length > 0 ? existingRegs : (regData === null ? existingRegs : parsedRegs));
+          // Only overwrite cache if fresh data is available; preserve existing cache if fetch returns empty
+          const freshStudents = (Array.isArray(parsedStudents) && parsedStudents.length > 0) ? parsedStudents : existingStudents;
+          const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData : existingPrograms;
+          const freshRegs = (Array.isArray(finalRegs) && finalRegs.length > 0) ? finalRegs : existingRegs;
 
           const snapshot = {
             teams: teamsData || [],
@@ -8861,26 +8849,21 @@ ${pagesHtml}
                               }
 
                               if (normalizedCheckedProgs.length > 0) {
-                                const buildRows = (mId, sId, useProgId) => normalizedCheckedProgs.map(pId => {
+                                const buildRows = (mId, sId) => normalizedCheckedProgs.map(pId => {
                                   const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
                                   const progIdVal = pObj ? String(pObj.id) : String(pId);
-                                  const progNameVal = pObj ? String(pObj.name) : String(pId);
-                                  const row = {
-                                    madrasa_id: mId,
+                                  return {
+                                    madrasa_id: String(mId),
                                     student_id: String(sId),
-                                    program_name: progNameVal,
-                                    program_id: progIdVal
+                                    program_name: progIdVal
                                   };
-                                  if (!useProgId) delete row.program_id;
-                                  return row;
                                 });
 
                                 const attempts = [
-                                  buildRows(madrasaId, targetIdToInsert, true),
-                                  ...(isMIdNum ? [buildRows(numMadrasaId, targetIdToInsert, true)] : []),
-                                  ...(sDbId && sDbId !== targetIdToInsert ? [buildRows(madrasaId, sDbId, true)] : []),
-                                  ...(isMIdNum && sDbId && sDbId !== targetIdToInsert ? [buildRows(numMadrasaId, sDbId, true)] : []),
-                                  buildRows(madrasaId, targetIdToInsert, false)
+                                  buildRows(madrasaId, targetIdToInsert),
+                                  ...(isMIdNum ? [buildRows(numMadrasaId, targetIdToInsert)] : []),
+                                  ...(sDbId && sDbId !== targetIdToInsert ? [buildRows(madrasaId, sDbId)] : []),
+                                  ...(isMIdNum && sDbId && sDbId !== targetIdToInsert ? [buildRows(numMadrasaId, sDbId)] : [])
                                 ];
 
                                 for (const rows of attempts) {
