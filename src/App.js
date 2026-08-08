@@ -1069,7 +1069,7 @@ function App() {
         queryWithRetry(() => makeFilter(supabase.from('program_registrations').select('*').range(0, 9999))),
         // Madrasa settings
         queryWithRetry(() => isNumValid
-          ? supabase.from('madrasas').select('*').or(`regNumber.eq."${rNum}",regNumber.eq.${numericId}`).maybeSingle()
+          ? supabase.from('madrasas').select('*').in('regNumber', Array.from(new Set([rNum, numericId]))).maybeSingle()
           : supabase.from('madrasas').select('*').eq('regNumber', rNum).maybeSingle()),
       ]);
 
