@@ -754,7 +754,10 @@ function App() {
     const rSid = String(r.student_id || '').trim();
     const sId = String(studentObj.id || '').trim();
     const sReg = String(studentObj.regno || studentObj.regNo || '').trim();
-    return Boolean(rSid && (rSid === sId || (sReg && rSid === sReg)));
+    const rSidNum = parseInt(rSid, 10);
+    const sRegNum = parseInt(sReg, 10);
+    const isNumMatch = !isNaN(rSidNum) && !isNaN(sRegNum) && rSidNum === sRegNum;
+    return Boolean(rSid && (rSid === sId || (sReg && rSid === sReg) || isNumMatch));
   }, []);
 
   const isProgramMatch = useCallback((r, p) => {
@@ -767,10 +770,16 @@ function App() {
     const rProgName = String(r.program_name || '').trim().toLowerCase();
     const rProgId = String(r.program_id || '').trim().toLowerCase();
 
+    const pCodeNum = parseInt(pCode, 10);
+    const rProgIdNum = parseInt(rProgId, 10);
+    const rValNum = parseInt(rVal, 10);
+    const isNumMatch = !isNaN(pCodeNum) && ((!isNaN(rProgIdNum) && pCodeNum === rProgIdNum) || (!isNaN(rValNum) && pCodeNum === rValNum));
+
     return Boolean(
       (rVal && (rVal === pId || rVal === pCode || rVal === pName)) ||
       (rProgId && (rProgId === pId || rProgId === pCode || rProgId === pName)) ||
-      (rProgName && (rProgName === pId || rProgName === pCode || rProgName === pName))
+      (rProgName && (rProgName === pId || rProgName === pCode || rProgName === pName)) ||
+      isNumMatch
     );
   }, []);
 
@@ -1038,9 +1047,10 @@ function App() {
       const isNumValid = !isNaN(numericId) && String(numericId) === String(rNum).trim();
 
       // Build filter function for each table (supports both string and numeric madrasa_id)
-      const makeFilter = (q) => isNumValid
-        ? q.or(`madrasa_id.eq."${rNum}",madrasa_id.eq.${numericId}`)
-        : q.eq('madrasa_id', rNum);
+      const makeFilter = (q) => {
+        const ids = isNumValid ? [rNum, numericId] : [rNum];
+        return q.in('madrasa_id', Array.from(new Set(ids)));
+      };
 
       // Use Promise.allSettled so that a failure in one table does NOT wipe out others
       // 30-second overall timeout for large madrasas (300+ students)
@@ -1696,9 +1706,8 @@ function App() {
       const mRegInt = parseInt(madrasaReg, 10);
       const isMRegNum = !isNaN(mRegInt) && String(mRegInt) === String(madrasaReg).trim();
 
-      const mFilter = isMRegNum
-        ? `madrasa_id.eq."${madrasaReg}",madrasa_id.eq.${mRegInt}`
-        : `madrasa_id.eq."${madrasaReg}"`;
+      const mIds = isMRegNum ? [madrasaReg, mRegInt] : [madrasaReg];
+      const mIdList = Array.from(new Set(mIds));
 
       const [
         { data: madrasaData },
@@ -1710,14 +1719,14 @@ function App() {
         { data: regData },
         { data: gRegsData }
       ] = await Promise.all([
-        isMRegNum ? supabase.from('madrasas').select('*').or(`regNumber.eq."${madrasaReg}",regNumber.eq.${mRegInt}`).maybeSingle() : supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
+        supabase.from('madrasas').select('*').in('regNumber', mIdList).maybeSingle(),
         isSIdNum ? supabase.from('students').select('*').or(`id.eq."${sIdInt}",regno.eq."${studentId}"`) : supabase.from('students').select('*').or(`id.eq."${studentId}",regno.eq."${studentId}"`),
-        supabase.from('results').select('*').or(mFilter),
-        supabase.from('teams').select('*').or(mFilter),
-        supabase.from('categories').select('*').or(mFilter),
-        supabase.from('programs').select('*').or(mFilter),
-        supabase.from('program_registrations').select('*').or(mFilter),
-        supabase.from('group_registrations').select('*').or(mFilter)
+        supabase.from('results').select('*').in('madrasa_id', mIdList),
+        supabase.from('teams').select('*').in('madrasa_id', mIdList),
+        supabase.from('categories').select('*').in('madrasa_id', mIdList),
+        supabase.from('programs').select('*').in('madrasa_id', mIdList),
+        supabase.from('program_registrations').select('*').in('madrasa_id', mIdList),
+        supabase.from('group_registrations').select('*').in('madrasa_id', mIdList)
       ]);
 
       const fetchedStudent = Array.isArray(studentDataList) ? studentDataList[0] : null;
@@ -8789,15 +8798,13 @@ ${pagesHtml}
                             try {
                               const numMadrasaId = parseInt(madrasaId, 10);
                               const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
-                              const mFilter = isMIdNum
-                                ? `madrasa_id.eq."${madrasaId}",madrasa_id.eq.${numMadrasaId}`
-                                : `madrasa_id.eq."${madrasaId}"`;
+                              const mIds = isMIdNum ? [madrasaId, numMadrasaId] : [madrasaId];
 
                               if (idsToDelete.length > 0) {
                                 await supabase
                                   .from('program_registrations')
                                   .delete()
-                                  .or(mFilter)
+                                  .in('madrasa_id', Array.from(new Set(mIds)))
                                   .in('student_id', idsToDelete);
                               }
 
