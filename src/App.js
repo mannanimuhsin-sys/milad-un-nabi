@@ -766,25 +766,32 @@ function App() {
     const pCode = String(p.code || '').trim().toLowerCase();
     const pName = String(p.name || '').trim().toLowerCase();
 
-    const rVal = String(r.program_id || r.program_name || '').trim().toLowerCase();
     const rProgName = String(r.program_name || '').trim().toLowerCase();
     const rProgId = String(r.program_id || '').trim().toLowerCase();
 
-    // Direct Exact ID Match
-    if (rProgId && rProgId === pId) return true;
-    // Code Match
-    if (rProgId && rProgId === pCode) return true;
-    if (rVal && (rVal === pId || rVal === pCode)) return true;
-    // Exact Name Match
-    if (rProgName && pName && rProgName === pName) return true;
+    // 1. Direct Exact Program ID Match
+    if (rProgId && (rProgId === pId || rProgId === pCode)) {
+      if (rProgName && pName && rProgName !== pName && !rProgName.includes(pName) && !pName.includes(rProgName)) {
+        // Name mismatch: keep searching
+      } else {
+        return true;
+      }
+    }
 
-    // Numeric Code match
+    // 2. Direct Exact Program Name Match
+    if (rProgName && pName && rProgName === pName) {
+      return true;
+    }
+
+    // 3. Numeric Code match with name verification
     const pCodeNum = parseInt(pCode, 10);
     const rProgIdNum = parseInt(rProgId, 10);
-    const rValNum = parseInt(rVal, 10);
-    if (!isNaN(pCodeNum)) {
-      if (!isNaN(rProgIdNum) && pCodeNum === rProgIdNum) return true;
-      if (!isNaN(rValNum) && pCodeNum === rValNum) return true;
+    if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum) {
+      if (rProgName && pName && rProgName !== pName) {
+        // Name mismatch: avoid false positive
+      } else {
+        return true;
+      }
     }
 
     return false;
@@ -1194,62 +1201,64 @@ function App() {
         }
       }
 
-      if (Array.isArray(regData)) {
-        if (regData.length > 0) {
-          parsedRegs = regData.map(r => ({
-            ...r,
-            program_id: String(r.program_id || r.program_name || ''),
-            program_name: String(r.program_name || r.program_id || '')
-          }));
-          try {
-            localStorage.setItem(`cached_regs_${rNum}`, JSON.stringify(parsedRegs));
-            const rawCache = localStorage.getItem(`cached_data_${rNum}`);
-            let cacheObj = {};
-            if (rawCache) { try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){} }
-            cacheObj.programRegistrations = parsedRegs;
-            cacheObj.savedAt = new Date().toISOString();
-            localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
-          } catch(e) {}
-          if (!regTabDirtyRef.current) {
-            setProgramRegistrations(prev => {
-              if (!Array.isArray(prev) || prev.length === 0) return parsedRegs;
-              const tempItems = prev.filter(r => String(r.id || '').startsWith('temp_reg_'));
-              if (tempItems.length === 0) return parsedRegs;
-              const mergedMap = new Map();
-              parsedRegs.forEach(r => mergedMap.set(`${r.student_id}_${r.program_id}`, r));
-              tempItems.forEach(r => {
-                const key = `${r.student_id}_${r.program_id}`;
-                if (!mergedMap.has(key)) mergedMap.set(key, r);
-              });
-              return Array.from(mergedMap.values());
-            });
-          }
+      // ── Handle Program Registrations (Bulletproof LocalStorage Fallback & Merge) ──
+      let loadedRegs = [];
+      let cachedRegs = [];
+      try {
+        const cRegs = localStorage.getItem(`cached_regs_${rNum}`);
+        if (cRegs) {
+          cachedRegs = JSON.parse(cRegs);
         } else {
-          // If regData returned empty array (0 rows from Supabase), check local cache fallback
-          let cached = [];
-          try {
-            const cRegs = localStorage.getItem(`cached_regs_${rNum}`);
-            if (cRegs) {
-              cached = JSON.parse(cRegs);
-            } else {
-              const rawCache = localStorage.getItem(`cached_data_${rNum}`);
-              if (rawCache) {
-                const cacheObj = JSON.parse(rawCache);
-                if (Array.isArray(cacheObj.programRegistrations)) {
-                  cached = cacheObj.programRegistrations;
-                }
-              }
-            }
-          } catch(e) {}
-          if (!regTabDirtyRef.current) {
-            if (Array.isArray(cached) && cached.length > 0) {
-              setProgramRegistrations(cached);
-              parsedRegs = cached;
-            } else {
-              // Retain existing in-memory registrations if available so background sync NEVER clears valid data
-              setProgramRegistrations(prev => (Array.isArray(prev) && prev.length > 0 ? prev : []));
+          const rawCache = localStorage.getItem(`cached_data_${rNum}`);
+          if (rawCache) {
+            const cacheObj = JSON.parse(rawCache);
+            if (Array.isArray(cacheObj.programRegistrations)) {
+              cachedRegs = cacheObj.programRegistrations;
             }
           }
+        }
+      } catch (e) {}
+
+      if (Array.isArray(regData) && regData.length > 0) {
+        loadedRegs = regData.map(r => ({
+          ...r,
+          program_id: String(r.program_id || r.program_name || ''),
+          program_name: String(r.program_name || r.program_id || '')
+        }));
+      }
+
+      // Merge DB rows and LocalStorage cache rows so no saved registration is EVER lost on refresh or error!
+      const mergedMap = new Map();
+      if (Array.isArray(cachedRegs)) {
+        cachedRegs.forEach(r => {
+          const sKey = String(r.student_id || '').trim();
+          const pKey = String(r.program_id || r.program_name || '').trim();
+          if (sKey && pKey) mergedMap.set(`${sKey}_${pKey}`, r);
+        });
+      }
+      if (Array.isArray(loadedRegs)) {
+        loadedRegs.forEach(r => {
+          const sKey = String(r.student_id || '').trim();
+          const pKey = String(r.program_id || r.program_name || '').trim();
+          if (sKey && pKey) mergedMap.set(`${sKey}_${pKey}`, r);
+        });
+      }
+
+      const finalRegs = Array.from(mergedMap.values());
+
+      if (finalRegs.length > 0) {
+        try {
+          localStorage.setItem(`cached_regs_${rNum}`, JSON.stringify(finalRegs));
+          const rawCache = localStorage.getItem(`cached_data_${rNum}`);
+          let cacheObj = {};
+          if (rawCache) { try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){} }
+          cacheObj.programRegistrations = finalRegs;
+          cacheObj.savedAt = new Date().toISOString();
+          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+        } catch (e) {}
+
+        if (!regTabDirtyRef.current) {
+          setProgramRegistrations(finalRegs);
         }
       }
 
