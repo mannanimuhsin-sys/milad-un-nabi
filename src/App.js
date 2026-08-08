@@ -758,17 +758,18 @@ function App() {
 
   const isProgramMatch = useCallback((r, p) => {
     if (!r || !p) return false;
-    const rVal = String(r.program_id || r.program_name || '').trim();
-    const pId = String(p.id || '').trim();
-    const pCode = String(p.code || '').trim();
-    const pName = String(p.name || '').trim();
-    const rProgName = String(r.program_name || '').trim();
-    const rProgId = String(r.program_id || '').trim();
+    const pId = String(p.id || '').trim().toLowerCase();
+    const pCode = String(p.code || '').trim().toLowerCase();
+    const pName = String(p.name || '').trim().toLowerCase();
+
+    const rVal = String(r.program_id || r.program_name || '').trim().toLowerCase();
+    const rProgName = String(r.program_name || '').trim().toLowerCase();
+    const rProgId = String(r.program_id || '').trim().toLowerCase();
 
     return Boolean(
-      rVal === pId || rVal === pCode || rVal === pName ||
-      rProgName === pId || rProgName === pCode || rProgName === pName ||
-      rProgId === pId || rProgId === pCode || rProgId === pName
+      (rVal && (rVal === pId || rVal === pCode || rVal === pName)) ||
+      (rProgId && (rProgId === pId || rProgId === pCode || rProgId === pName)) ||
+      (rProgName && (rProgName === pId || rProgName === pCode || rProgName === pName))
     );
   }, []);
 
