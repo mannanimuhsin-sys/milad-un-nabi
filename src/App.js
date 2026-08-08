@@ -1048,8 +1048,10 @@ function App() {
 
       // Build filter function for each table (supports both string and numeric madrasa_id)
       const makeFilter = (q) => {
-        const ids = isNumValid ? [rNum, numericId] : [rNum];
-        return q.in('madrasa_id', Array.from(new Set(ids)));
+        if (isNumValid) {
+          return q.or(`madrasa_id.eq.${numericId},madrasa_id.eq.${rNum}`);
+        }
+        return q.eq('madrasa_id', rNum);
       };
 
       // Use Promise.allSettled so that a failure in one table does NOT wipe out others
@@ -1211,7 +1213,8 @@ function App() {
               setProgramRegistrations(cached);
               parsedRegs = cached;
             } else {
-              setProgramRegistrations([]);
+              // Retain existing in-memory registrations if available so background sync NEVER clears valid data
+              setProgramRegistrations(prev => (Array.isArray(prev) && prev.length > 0 ? prev : []));
             }
           }
         }
