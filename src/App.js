@@ -1189,7 +1189,18 @@ function App() {
             localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
           } catch(e) {}
           if (!regTabDirtyRef.current) {
-            setProgramRegistrations(parsedRegs);
+            setProgramRegistrations(prev => {
+              if (!Array.isArray(prev) || prev.length === 0) return parsedRegs;
+              const tempItems = prev.filter(r => String(r.id || '').startsWith('temp_reg_'));
+              if (tempItems.length === 0) return parsedRegs;
+              const mergedMap = new Map();
+              parsedRegs.forEach(r => mergedMap.set(`${r.student_id}_${r.program_id}`, r));
+              tempItems.forEach(r => {
+                const key = `${r.student_id}_${r.program_id}`;
+                if (!mergedMap.has(key)) mergedMap.set(key, r);
+              });
+              return Array.from(mergedMap.values());
+            });
           }
         } else {
           // If regData returned empty array (0 rows from Supabase), check local cache fallback
@@ -8812,32 +8823,31 @@ ${pagesHtml}
                               }
 
                               if (normalizedCheckedProgs.length > 0) {
-                                const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
+                                const buildRows = (mId, sId, useProgId) => normalizedCheckedProgs.map(pId => {
                                   const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
                                   const progIdVal = pObj ? String(pObj.id) : String(pId);
                                   const progNameVal = pObj ? String(pObj.name) : String(pId);
                                   const row = {
-                                    madrasa_id: madrasaId,
-                                    student_id: String(targetIdToInsert),
+                                    madrasa_id: mId,
+                                    student_id: String(sId),
                                     program_name: progNameVal,
                                     program_id: progIdVal
                                   };
-                                  if (!useProgramId) delete row.program_id;
+                                  if (!useProgId) delete row.program_id;
                                   return row;
                                 });
 
-                                let { error: insertError } = await supabase
-                                  .from('program_registrations')
-                                  .insert(makeFallbackInserts(true));
+                                const attempts = [
+                                  buildRows(madrasaId, targetIdToInsert, true),
+                                  ...(isMIdNum ? [buildRows(numMadrasaId, targetIdToInsert, true)] : []),
+                                  ...(sDbId && sDbId !== targetIdToInsert ? [buildRows(madrasaId, sDbId, true)] : []),
+                                  ...(isMIdNum && sDbId && sDbId !== targetIdToInsert ? [buildRows(numMadrasaId, sDbId, true)] : []),
+                                  buildRows(madrasaId, targetIdToInsert, false)
+                                ];
 
-                                if (insertError) {
-                                  const errMsg = String(insertError.message || '');
-                                  const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
-                                  if (isColumnMissing) {
-                                    await supabase
-                                      .from('program_registrations')
-                                      .insert(makeFallbackInserts(false));
-                                  }
+                                for (const rows of attempts) {
+                                  const { error: insErr } = await supabase.from('program_registrations').insert(rows);
+                                  if (!insErr) break;
                                 }
                               }
                             } catch (bgErr) {
