@@ -1173,7 +1173,8 @@ function App() {
       if (Array.isArray(regData)) {
         parsedRegs = regData.map(r => ({
           ...r,
-          program_id: r.program_name
+          program_id: String(r.program_id || r.program_name || ''),
+          program_name: String(r.program_name || r.program_id || '')
         }));
         setProgramRegistrations(parsedRegs);
       }
@@ -8688,15 +8689,17 @@ ${pagesHtml}
                           const targetIdToInsert = !isNaN(dbIdInt) ? dbIdInt : (sRegNo && !isNaN(regNoInt) ? regNoInt : sDbId);
 
                           // 🚀 Instant state + LocalStorage cache update (<1ms)
-                          const otherRegs = programRegistrations.filter(r => !idsToDelete.some(id => String(r.student_id) === String(id)));
+                          const otherRegs = programRegistrations.filter(r => !isStudentMatch(r, studentObj));
                           const newLocalEntries = regTabCheckedProgs.map(pId => {
-                            const pObj = programs.find(p => String(p.id) === String(pId));
+                            const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
+                            const progIdVal = pObj ? String(pObj.id) : String(pId);
+                            const progCodeVal = pObj ? String(pObj.code) : String(pId);
                             return {
                               id: 'temp_reg_' + Date.now() + '_' + Math.random(),
                               madrasa_id: madrasaId,
                               student_id: targetIdToInsert,
-                              program_name: String(pObj ? pObj.id : pId),
-                              program_id: String(pObj ? pObj.id : pId)
+                              program_name: progCodeVal || progIdVal,
+                              program_id: progIdVal
                             };
                           });
                           const mappedOptimistic = [...otherRegs, ...newLocalEntries];
@@ -8733,12 +8736,13 @@ ${pagesHtml}
 
                           if (regTabCheckedProgs.length > 0) {
                             const makeFallbackInserts = (useProgramId) => regTabCheckedProgs.map(pId => {
-                              const pObj = programs.find(p => String(p.id) === String(pId));
+                              const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
                               const progIdVal = pObj ? String(pObj.id) : String(pId);
+                              const progCodeVal = pObj ? String(pObj.code) : String(pId);
                               const row = {
                                 madrasa_id: madrasaId,
                                 student_id: targetIdToInsert,
-                                program_name: progIdVal
+                                program_name: progCodeVal || progIdVal
                               };
                               if (useProgramId) row.program_id = progIdVal;
                               return row;
@@ -8773,7 +8777,8 @@ ${pagesHtml}
                           if (newRegs) {
                             const mapped = newRegs.map(r => ({
                               ...r,
-                              program_id: r.program_name || r.program_id
+                              program_id: String(r.program_id || r.program_name || ''),
+                              program_name: String(r.program_name || r.program_id || '')
                             }));
                             setProgramRegistrations(mapped);
                           }
@@ -9155,7 +9160,7 @@ ${pagesHtml}
                                               </div>
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
                                                 {regPrograms.map(p => {
-                                                  const isChecked = regTabCheckedProgs.includes(String(p.id));
+                                                  const isChecked = regTabCheckedProgs.includes(String(p.id)) || regTabCheckedProgs.includes(String(p.code));
                                                   const pTypeLabel = (p.type || '').includes('GROUP') ? `${t('group')} 👥` : `${t('single')} 👤`;
                                                   return (
                                                     <label key={p.id} style={{
@@ -9168,9 +9173,9 @@ ${pagesHtml}
                                                       <input type="checkbox" checked={isChecked}
                                                         onChange={e => {
                                                           if (e.target.checked) {
-                                                            setRegTabCheckedProgs(prev => [...prev, String(p.id)]);
+                                                            setRegTabCheckedProgs(prev => Array.from(new Set([...prev, String(p.id)])));
                                                           } else {
-                                                            setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id)));
+                                                            setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id) && id !== String(p.code)));
                                                           }
                                                         }}
                                                         style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
@@ -9212,10 +9217,7 @@ ${pagesHtml}
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto', paddingRight: '4px' }}>
                                         {regStudentsFiltered.map(s => {
                                           const sRegNo = s.regno || s.regNo || '';
-                                          const sProgs = programRegistrations
-                                            .filter(r => String(r.student_id) === String(s.id))
-                                            .map(r => programs.find(pr => String(pr.id) === String(r.program_id)))
-                                            .filter(Boolean);
+                                          const sProgs = getStudentRegisteredPrograms(s.id);
                                           const isSelected = String(regTabStudent) === String(s.id);
                                           return (
                                             <div key={s.id}
@@ -9227,10 +9229,9 @@ ${pagesHtml}
                                                 transition: 'all 0.15s'
                                               }}
                                               onClick={() => {
-                                                setRegTabStudent(String(s.id));
-                                                const existing = programRegistrations
-                                                  .filter(r => String(r.student_id) === String(s.id))
-                                                  .map(r => String(r.program_id));
+                                                const sid = String(s.id);
+                                                setRegTabStudent(sid);
+                                                const existing = getStudentRegisteredProgIds(sid);
                                                 setRegTabCheckedProgs(existing);
                                               }}>
                                               <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
