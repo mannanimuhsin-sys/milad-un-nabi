@@ -789,20 +789,8 @@ function App() {
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
-    const ids = matchedProgs.map(p => String(p.id));
-    const targetRegs = customRegs || programRegistrations;
-    const studentObj = students.find(s => String(s.id) === String(studentId) || String(s.regno || s.regNo || '').trim() === String(studentId).trim());
-    if (studentObj) {
-      const sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
-      sRegs.forEach(r => {
-        const val = String(r.program_id || r.program_name || '');
-        if (val && val !== 'undefined' && val !== 'null' && !ids.includes(val)) {
-          ids.push(val);
-        }
-      });
-    }
-    return Array.from(new Set(ids));
-  }, [getStudentRegisteredPrograms, programRegistrations, students, isStudentMatch]);
+    return Array.from(new Set(matchedProgs.map(p => String(p.id))));
+  }, [getStudentRegisteredPrograms]);
 
   // ── Group Registration States ──
   const [groupRegistrations, setGroupRegistrations] = useState([]);
@@ -8753,10 +8741,10 @@ ${pagesHtml}
                           const targetIdToInsert = sRegNo ? sRegNo : sDbId;
 
                           // Normalize checked programs to database IDs
-                          const normalizedCheckedProgs = regTabCheckedProgs.map(pId => {
-                            const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
+                          const normalizedCheckedProgs = Array.from(new Set(regTabCheckedProgs.map(pId => {
+                            const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId) || String(p.name || '').toLowerCase() === String(pId).toLowerCase());
                             return pObj ? String(pObj.id) : String(pId);
-                          });
+                          })));
 
                           // Build optimistic local entries using normalized IDs
                           const otherRegs = programRegistrations.filter(r => !idsToDelete.some(id => String(r.student_id) === String(id)));
@@ -8766,7 +8754,7 @@ ${pagesHtml}
                               id: 'temp_reg_' + Date.now() + '_' + Math.random(),
                               madrasa_id: madrasaId,
                               student_id: targetIdToInsert,
-                              program_name: String(pObj ? pObj.id : pId),
+                              program_name: String(pObj ? pObj.name : pId),
                               program_id: String(pObj ? pObj.id : pId)
                             };
                           });
