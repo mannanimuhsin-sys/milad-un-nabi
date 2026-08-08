@@ -8760,86 +8760,82 @@ ${pagesHtml}
                           });
                           const mappedOptimistic = [...otherRegs, ...newLocalEntries];
 
-                          // Save to DB synchronously with retry before alerting success
-                          const numMadrasaId = parseInt(madrasaId, 10);
-                          const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
-                          const mFilter = isMIdNum
-                            ? `madrasa_id.eq."${madrasaId}",madrasa_id.eq.${numMadrasaId}`
-                            : `madrasa_id.eq."${madrasaId}"`;
+                          // ⚡ INSTANT OPTIMISTIC SAVE (< 50ms): Update local state & LocalStorage immediately
+                          regTabDirtyRef.current = false;
+                          setProgramRegistrations(mappedOptimistic);
+                          setRegTabCheckedProgs(normalizedCheckedProgs);
 
-                          if (idsToDelete.length > 0) {
-                            const { error: delErr } = await queryWithRetry(() =>
-                              supabase
-                                .from('program_registrations')
-                                .delete()
-                                .or(mFilter)
-                                .in('student_id', idsToDelete)
-                            );
-                            if (delErr) console.warn('Delete registration warning:', delErr.message);
-                          }
-
-                          let syncSuccess = true;
-                          if (normalizedCheckedProgs.length > 0) {
-                            const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
-                              const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
-                              const progIdVal = pObj ? String(pObj.id) : String(pId);
-                              const progNameVal = pObj ? String(pObj.name) : String(pId);
-                              const row = {
-                                madrasa_id: madrasaId,
-                                student_id: String(targetIdToInsert),
-                                program_name: progNameVal,
-                                program_id: progIdVal
-                              };
-                              if (!useProgramId) delete row.program_id;
-                              return row;
-                            });
-
-                            let { error: insertError } = await queryWithRetry(() =>
-                              supabase.from('program_registrations').insert(makeFallbackInserts(true))
-                            );
-                            if (insertError) {
-                              const errMsg = String(insertError.message || '');
-                              const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
-                              if (isColumnMissing) {
-                                const { error: fallbackErr } = await queryWithRetry(() =>
-                                  supabase.from('program_registrations').insert(makeFallbackInserts(false))
-                                );
-                                if (fallbackErr) {
-                                  syncSuccess = false;
-                                  alert('⚠️ Database Insert Error: ' + getFriendlyErrorMessage(fallbackErr.message));
-                                }
-                              } else {
-                                syncSuccess = false;
-                                alert('⚠️ Database Insert Error: ' + getFriendlyErrorMessage(insertError.message));
-                              }
+                          try {
+                            localStorage.setItem(`cached_regs_${madrasaId}`, JSON.stringify(mappedOptimistic));
+                            let cacheObj = {};
+                            const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+                            if (rawCache) {
+                              try { cacheObj = JSON.parse(rawCache) || {}; } catch (e) {}
                             }
-                          }
+                            cacheObj.programRegistrations = mappedOptimistic;
+                            cacheObj.savedAt = new Date().toISOString();
+                            localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+                          } catch (e) {}
 
-                          if (syncSuccess) {
-                            regTabDirtyRef.current = false;
-                            setProgramRegistrations(mappedOptimistic);
-                            setRegTabCheckedProgs(normalizedCheckedProgs);
+                          // Immediate UI feedback
+                          setRegTabSaving(false);
+                          alert(t('alertSavedRegistrations')
+                            .replace('{count}', normalizedCheckedProgs.length)
+                            .replace('{studentName}', studentObj?.name || '')
+                          );
 
+                          // 🌐 Background Async DB Sync (Non-blocking)
+                          (async () => {
                             try {
-                              localStorage.setItem(`cached_regs_${madrasaId}`, JSON.stringify(mappedOptimistic));
-                              let cacheObj = {};
-                              const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
-                              if (rawCache) {
-                                try { cacheObj = JSON.parse(rawCache) || {}; } catch (e) {}
-                              }
-                              cacheObj.programRegistrations = mappedOptimistic;
-                              cacheObj.savedAt = new Date().toISOString();
-                              localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
-                            } catch (e) {}
+                              const numMadrasaId = parseInt(madrasaId, 10);
+                              const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
+                              const mFilter = isMIdNum
+                                ? `madrasa_id.eq."${madrasaId}",madrasa_id.eq.${numMadrasaId}`
+                                : `madrasa_id.eq."${madrasaId}"`;
 
-                            alert(t('alertSavedRegistrations')
-                              .replace('{count}', normalizedCheckedProgs.length)
-                              .replace('{studentName}', studentObj?.name || '')
-                            );
-                          }
+                              if (idsToDelete.length > 0) {
+                                await supabase
+                                  .from('program_registrations')
+                                  .delete()
+                                  .or(mFilter)
+                                  .in('student_id', idsToDelete);
+                              }
+
+                              if (normalizedCheckedProgs.length > 0) {
+                                const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
+                                  const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
+                                  const progIdVal = pObj ? String(pObj.id) : String(pId);
+                                  const progNameVal = pObj ? String(pObj.name) : String(pId);
+                                  const row = {
+                                    madrasa_id: madrasaId,
+                                    student_id: String(targetIdToInsert),
+                                    program_name: progNameVal,
+                                    program_id: progIdVal
+                                  };
+                                  if (!useProgramId) delete row.program_id;
+                                  return row;
+                                });
+
+                                let { error: insertError } = await supabase
+                                  .from('program_registrations')
+                                  .insert(makeFallbackInserts(true));
+
+                                if (insertError) {
+                                  const errMsg = String(insertError.message || '');
+                                  const isColumnMissing = errMsg.includes('program_id') || errMsg.includes('column') || errMsg.includes('schema');
+                                  if (isColumnMissing) {
+                                    await supabase
+                                      .from('program_registrations')
+                                      .insert(makeFallbackInserts(false));
+                                  }
+                                }
+                              }
+                            } catch (bgErr) {
+                              console.warn('Background registration sync warning:', bgErr);
+                            }
+                          })();
                         } catch (err) {
                           alert(t('alertUploadFailed') + getFriendlyErrorMessage(err.message));
-                        } finally {
                           setRegTabSaving(false);
                         }
                       };
