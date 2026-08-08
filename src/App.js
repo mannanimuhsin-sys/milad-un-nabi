@@ -1059,7 +1059,7 @@ function App() {
         queryWithRetry(() => makeFilter(supabase.from('program_registrations').select('*').range(0, 9999))),
         // Madrasa settings
         queryWithRetry(() => isNumValid
-          ? supabase.from('madrasas').select('*').or(`regNumber.eq."${rNum}",regNumber.eq."${numericId}"`).maybeSingle()
+          ? supabase.from('madrasas').select('*').or(`regNumber.eq."${rNum}",regNumber.eq.${numericId}`).maybeSingle()
           : supabase.from('madrasas').select('*').eq('regNumber', rNum).maybeSingle()),
       ]);
 
@@ -1710,7 +1710,7 @@ function App() {
         { data: regData },
         { data: gRegsData }
       ] = await Promise.all([
-        isMRegNum ? supabase.from('madrasas').select('*').or(`regNumber.eq."${madrasaReg}",regNumber.eq."${mRegInt}"`).maybeSingle() : supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
+        isMRegNum ? supabase.from('madrasas').select('*').or(`regNumber.eq."${madrasaReg}",regNumber.eq.${mRegInt}`).maybeSingle() : supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
         isSIdNum ? supabase.from('students').select('*').or(`id.eq."${sIdInt}",regno.eq."${studentId}"`) : supabase.from('students').select('*').or(`id.eq."${studentId}",regno.eq."${studentId}"`),
         supabase.from('results').select('*').or(mFilter),
         supabase.from('teams').select('*').or(mFilter),
