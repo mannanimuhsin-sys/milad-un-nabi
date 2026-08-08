@@ -1051,7 +1051,7 @@ function App() {
 
       // Build filter function for each table (supports both string and numeric madrasa_id)
       const makeFilter = (q) => isNumValid
-        ? q.or(`madrasa_id.eq."${rNum}",madrasa_id.eq."${numericId}"`)
+        ? q.or(`madrasa_id.eq."${rNum}",madrasa_id.eq.${numericId}`)
         : q.eq('madrasa_id', rNum);
 
       // Use Promise.allSettled so that a failure in one table does NOT wipe out others
@@ -1179,23 +1179,43 @@ function App() {
             program_id: String(r.program_id || r.program_name || ''),
             program_name: String(r.program_name || r.program_id || '')
           }));
-          // Only update programRegistrations state if user has no unsaved checkbox changes
+          try {
+            localStorage.setItem(`cached_regs_${rNum}`, JSON.stringify(parsedRegs));
+            const rawCache = localStorage.getItem(`cached_data_${rNum}`);
+            let cacheObj = {};
+            if (rawCache) { try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){} }
+            cacheObj.programRegistrations = parsedRegs;
+            cacheObj.savedAt = new Date().toISOString();
+            localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+          } catch(e) {}
           if (!regTabDirtyRef.current) {
             setProgramRegistrations(parsedRegs);
           }
         } else {
+          // If regData returned empty array (0 rows from Supabase), check local cache fallback
+          let cached = [];
           try {
-            const rawCache = localStorage.getItem(`cached_data_${rNum}`);
-            if (rawCache) {
-              const cacheObj = JSON.parse(rawCache);
-              if (Array.isArray(cacheObj.programRegistrations) && cacheObj.programRegistrations.length > 0) {
-                if (!regTabDirtyRef.current) {
-                  setProgramRegistrations(cacheObj.programRegistrations);
+            const cRegs = localStorage.getItem(`cached_regs_${rNum}`);
+            if (cRegs) {
+              cached = JSON.parse(cRegs);
+            } else {
+              const rawCache = localStorage.getItem(`cached_data_${rNum}`);
+              if (rawCache) {
+                const cacheObj = JSON.parse(rawCache);
+                if (Array.isArray(cacheObj.programRegistrations)) {
+                  cached = cacheObj.programRegistrations;
                 }
-                parsedRegs = cacheObj.programRegistrations;
               }
             }
           } catch(e) {}
+          if (!regTabDirtyRef.current) {
+            if (Array.isArray(cached) && cached.length > 0) {
+              setProgramRegistrations(cached);
+              parsedRegs = cached;
+            } else {
+              setProgramRegistrations([]);
+            }
+          }
         }
       }
 
@@ -1689,7 +1709,7 @@ function App() {
       const isMRegNum = !isNaN(mRegInt) && String(mRegInt) === String(madrasaReg).trim();
 
       const mFilter = isMRegNum
-        ? `madrasa_id.eq."${madrasaReg}",madrasa_id.eq."${mRegInt}"`
+        ? `madrasa_id.eq."${madrasaReg}",madrasa_id.eq.${mRegInt}`
         : `madrasa_id.eq."${madrasaReg}"`;
 
       const [
@@ -8756,7 +8776,7 @@ ${pagesHtml}
                           const numMadrasaId = parseInt(madrasaId, 10);
                           const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
                           const mFilter = isMIdNum
-                            ? `madrasa_id.eq."${madrasaId}",madrasa_id.eq."${numMadrasaId}"`
+                            ? `madrasa_id.eq."${madrasaId}",madrasa_id.eq.${numMadrasaId}`
                             : `madrasa_id.eq."${madrasaId}"`;
 
                           if (idsToDelete.length > 0) {
@@ -8813,13 +8833,15 @@ ${pagesHtml}
                             setRegTabCheckedProgs(normalizedCheckedProgs);
 
                             try {
+                              localStorage.setItem(`cached_regs_${madrasaId}`, JSON.stringify(mappedOptimistic));
+                              let cacheObj = {};
                               const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
                               if (rawCache) {
-                                const cacheObj = JSON.parse(rawCache);
-                                cacheObj.programRegistrations = mappedOptimistic;
-                                cacheObj.savedAt = new Date().toISOString();
-                                localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+                                try { cacheObj = JSON.parse(rawCache) || {}; } catch (e) {}
                               }
+                              cacheObj.programRegistrations = mappedOptimistic;
+                              cacheObj.savedAt = new Date().toISOString();
+                              localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
                             } catch (e) {}
 
                             alert(t('alertSavedRegistrations')
@@ -9201,18 +9223,18 @@ ${pagesHtml}
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                               {/* Select All / Clear All */}
                                               <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-                                                <button type="button" onClick={() => setRegTabCheckedProgs(regPrograms.map(p => String(p.id)))}
+                                                <button type="button" onClick={() => { regTabDirtyRef.current = true; setRegTabCheckedProgs(regPrograms.map(p => String(p.id))); }}
                                                   className="btn-premium-action-small secondary" style={{ flex: 1, background: '#dcfce7', color: '#166534' }}>
                                                   {t('selectAll')}
                                                 </button>
-                                                <button type="button" onClick={() => setRegTabCheckedProgs([])}
+                                                <button type="button" onClick={() => { regTabDirtyRef.current = true; setRegTabCheckedProgs([]); }}
                                                   className="btn-premium-action-small secondary" style={{ flex: 1, background: '#fee2e2', color: '#991b1b' }}>
                                                   {t('clearAll')}
                                                 </button>
                                               </div>
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
                                                 {regPrograms.map(p => {
-                                                  const isChecked = regTabCheckedProgs.includes(String(p.id)) || regTabCheckedProgs.includes(String(p.code));
+                                                  const isChecked = regTabCheckedProgs.includes(String(p.id)) || regTabCheckedProgs.includes(String(p.code)) || regTabCheckedProgs.includes(String(p.name || ''));
                                                   const pTypeLabel = (p.type || '').includes('GROUP') ? `${t('group')} 👥` : `${t('single')} 👤`;
                                                   return (
                                                     <label key={p.id} style={{
@@ -9224,10 +9246,11 @@ ${pagesHtml}
                                                     }}>
                                                       <input type="checkbox" checked={isChecked}
                                                         onChange={e => {
+                                                          regTabDirtyRef.current = true;
                                                           if (e.target.checked) {
                                                             setRegTabCheckedProgs(prev => Array.from(new Set([...prev, String(p.id)])));
                                                           } else {
-                                                            setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id) && id !== String(p.code)));
+                                                            setRegTabCheckedProgs(prev => prev.filter(id => id !== String(p.id) && id !== String(p.code) && id.toLowerCase() !== String(p.name || '').toLowerCase()));
                                                           }
                                                         }}
                                                         style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
