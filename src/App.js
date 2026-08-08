@@ -839,14 +839,27 @@ function App() {
       return programs.find(p => isProgramMatch(r, p, false));
     };
 
+    let sRegs = [];
     if (!studentObj) {
-      const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
-      return sRegs.map(r => findProgForReg(r)).filter(Boolean);
+      sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
+    } else {
+      sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
     }
-    const studentCatId = studentObj.catid || studentObj.catId || studentObj.category || '';
-    const studentGender = studentObj.gender || '';
-    const sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
-    return sRegs.map(r => findProgForReg(r, studentCatId, studentGender)).filter(Boolean);
+
+    const studentCatId = studentObj ? (studentObj.catid || studentObj.catId || studentObj.category || '') : null;
+    const studentGender = studentObj ? (studentObj.gender || '') : null;
+    const rawProgs = sRegs.map(r => findProgForReg(r, studentCatId, studentGender)).filter(Boolean);
+
+    // Deduplicate so every program appears EXACTLY ONCE for the student
+    const uniqueMap = new Map();
+    rawProgs.forEach(p => {
+      const pKey = String(p.id || p.code || p.name);
+      if (!uniqueMap.has(pKey)) {
+        uniqueMap.set(pKey, p);
+      }
+    });
+
+    return Array.from(uniqueMap.values());
   }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch]);
 
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
