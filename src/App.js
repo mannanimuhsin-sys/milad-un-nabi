@@ -770,29 +770,51 @@ function App() {
     const rProgName = String(r.program_name || '').trim().toLowerCase();
     const rProgId = String(r.program_id || '').trim().toLowerCase();
 
+    // Direct Exact ID Match
+    if (rProgId && rProgId === pId) return true;
+    // Code Match
+    if (rProgId && rProgId === pCode) return true;
+    if (rVal && (rVal === pId || rVal === pCode)) return true;
+    // Exact Name Match
+    if (rProgName && pName && rProgName === pName) return true;
+
+    // Numeric Code match
     const pCodeNum = parseInt(pCode, 10);
     const rProgIdNum = parseInt(rProgId, 10);
     const rValNum = parseInt(rVal, 10);
-    const isNumMatch = !isNaN(pCodeNum) && ((!isNaN(rProgIdNum) && pCodeNum === rProgIdNum) || (!isNaN(rValNum) && pCodeNum === rValNum));
+    if (!isNaN(pCodeNum)) {
+      if (!isNaN(rProgIdNum) && pCodeNum === rProgIdNum) return true;
+      if (!isNaN(rValNum) && pCodeNum === rValNum) return true;
+    }
 
-    return Boolean(
-      (rVal && (rVal === pId || rVal === pCode || rVal === pName)) ||
-      (rProgId && (rProgId === pId || rProgId === pCode || rProgId === pName)) ||
-      (rProgName && (rProgName === pId || rProgName === pCode || rProgName === pName)) ||
-      isNumMatch
-    );
+    return false;
   }, []);
 
   const getStudentRegisteredPrograms = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const targetRegs = customRegs || programRegistrations;
     const studentObj = students.find(s => String(s.id) === String(studentId) || String(s.regno || s.regNo || '').trim() === String(studentId).trim());
+
+    const findProgForReg = (r, studentCatId = null) => {
+      if (studentCatId) {
+        // Priority 1: Match program within student's specific category
+        const catMatch = programs.find(p =>
+          (String(p.catid || p.catId || '') === String(studentCatId) || String(p.category || '').toLowerCase() === String(studentCatId).toLowerCase()) &&
+          isProgramMatch(r, p)
+        );
+        if (catMatch) return catMatch;
+      }
+      // Priority 2: Fallback match across all programs
+      return programs.find(p => isProgramMatch(r, p));
+    };
+
     if (!studentObj) {
       const sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
-      return sRegs.map(r => programs.find(p => isProgramMatch(r, p))).filter(Boolean);
+      return sRegs.map(r => findProgForReg(r)).filter(Boolean);
     }
+    const studentCatId = studentObj.catid || studentObj.catId || studentObj.category || '';
     const sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
-    return sRegs.map(r => programs.find(p => isProgramMatch(r, p))).filter(Boolean);
+    return sRegs.map(r => findProgForReg(r, studentCatId)).filter(Boolean);
   }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch]);
 
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
@@ -8763,9 +8785,12 @@ ${pagesHtml}
 
                           const targetIdToInsert = sRegNo ? sRegNo : sDbId;
 
-                          // Normalize checked programs to database IDs
+                          // Normalize checked programs to database IDs, prioritizing student's category programs
+                          const sCatId = studentObj.catid || studentObj.catId || studentObj.category || '';
                           const normalizedCheckedProgs = Array.from(new Set(regTabCheckedProgs.map(pId => {
-                            const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId) || String(p.name || '').toLowerCase() === String(pId).toLowerCase());
+                            const pObj = regPrograms.find(p => String(p.id) === String(pId) || String(p.code) === String(pId)) ||
+                                         programs.find(p => (String(p.catid || p.catId || '') === String(sCatId)) && (String(p.id) === String(pId) || String(p.code) === String(pId) || String(p.name || '').toLowerCase() === String(pId).toLowerCase())) ||
+                                         programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId) || String(p.name || '').toLowerCase() === String(pId).toLowerCase());
                             return pObj ? String(pObj.id) : String(pId);
                           })));
 
