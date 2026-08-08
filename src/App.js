@@ -1049,7 +1049,7 @@ function App() {
 
       // Build filter function for each table (supports both string and numeric madrasa_id)
       const makeFilter = (q) => isNumValid
-        ? q.or(`madrasa_id.eq."${rNum}",madrasa_id.eq.${numericId}`)
+        ? q.or(`madrasa_id.eq."${rNum}",madrasa_id.eq."${numericId}"`)
         : q.eq('madrasa_id', rNum);
 
       // Use Promise.allSettled so that a failure in one table does NOT wipe out others
@@ -1069,7 +1069,7 @@ function App() {
         queryWithRetry(() => makeFilter(supabase.from('program_registrations').select('*').range(0, 9999))),
         // Madrasa settings
         queryWithRetry(() => isNumValid
-          ? supabase.from('madrasas').select('*').or(`regNumber.eq."${rNum}",regNumber.eq.${numericId}`).maybeSingle()
+          ? supabase.from('madrasas').select('*').or(`regNumber.eq."${rNum}",regNumber.eq."${numericId}"`).maybeSingle()
           : supabase.from('madrasas').select('*').eq('regNumber', rNum).maybeSingle()),
       ]);
 
@@ -1669,7 +1669,7 @@ function App() {
       const isMRegNum = !isNaN(mRegInt) && String(mRegInt) === String(madrasaReg).trim();
 
       const mFilter = isMRegNum
-        ? `madrasa_id.eq."${madrasaReg}",madrasa_id.eq.${mRegInt}`
+        ? `madrasa_id.eq."${madrasaReg}",madrasa_id.eq."${mRegInt}"`
         : `madrasa_id.eq."${madrasaReg}"`;
 
       const [
@@ -1682,8 +1682,8 @@ function App() {
         { data: regData },
         { data: gRegsData }
       ] = await Promise.all([
-        isMRegNum ? supabase.from('madrasas').select('*').or(`regNumber.eq."${madrasaReg}",regNumber.eq.${mRegInt}`).maybeSingle() : supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
-        isSIdNum ? supabase.from('students').select('*').or(`id.eq.${sIdInt},regno.eq."${studentId}"`) : supabase.from('students').select('*').or(`id.eq."${studentId}",regno.eq."${studentId}"`),
+        isMRegNum ? supabase.from('madrasas').select('*').or(`regNumber.eq."${madrasaReg}",regNumber.eq."${mRegInt}"`).maybeSingle() : supabase.from('madrasas').select('*').eq('regNumber', madrasaReg).maybeSingle(),
+        isSIdNum ? supabase.from('students').select('*').or(`id.eq."${sIdInt}",regno.eq."${studentId}"`) : supabase.from('students').select('*').or(`id.eq."${studentId}",regno.eq."${studentId}"`),
         supabase.from('results').select('*').or(mFilter),
         supabase.from('teams').select('*').or(mFilter),
         supabase.from('categories').select('*').or(mFilter),
@@ -1824,7 +1824,7 @@ function App() {
       let madrasa = null;
       const numReg = parseInt(trimmedReg, 10);
       const isNum = !isNaN(numReg) && String(numReg) === String(trimmedReg).trim();
-      const loginFilterStr = isNum ? `regNumber.eq."${trimmedReg}",regNumber.eq.${numReg}` : `regNumber.eq."${trimmedReg}"`;
+      const loginFilterStr = isNum ? `regNumber.eq."${trimmedReg}",regNumber.eq."${numReg}"` : `regNumber.eq."${trimmedReg}"`;
 
       // 1. Direct targeted query on regNumber
       try {
@@ -7065,7 +7065,7 @@ ${pagesHtml}
                                               const newYear = eventYearInput.trim();
                                               const numReg = parseInt(rNum, 10);
                                               const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                              const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+                                              const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq."${numReg}"` : `regNumber.eq."${rNum}"`;
                                               (async () => {
                                                 const { data: md } = await queryWithRetry(() =>
                                                   supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
