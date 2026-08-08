@@ -1171,13 +1171,26 @@ function App() {
         }
       }
 
-      if (Array.isArray(regData) && (regData.length > 0 || programRegistrations.length === 0)) {
-        parsedRegs = regData.map(r => ({
-          ...r,
-          program_id: String(r.program_id || r.program_name || ''),
-          program_name: String(r.program_name || r.program_id || '')
-        }));
-        setProgramRegistrations(parsedRegs);
+      if (Array.isArray(regData)) {
+        if (regData.length > 0) {
+          parsedRegs = regData.map(r => ({
+            ...r,
+            program_id: String(r.program_id || r.program_name || ''),
+            program_name: String(r.program_name || r.program_id || '')
+          }));
+          setProgramRegistrations(parsedRegs);
+        } else {
+          try {
+            const rawCache = localStorage.getItem(`cached_data_${rNum}`);
+            if (rawCache) {
+              const cacheObj = JSON.parse(rawCache);
+              if (Array.isArray(cacheObj.programRegistrations) && cacheObj.programRegistrations.length > 0) {
+                setProgramRegistrations(cacheObj.programRegistrations);
+                parsedRegs = cacheObj.programRegistrations;
+              }
+            }
+          } catch(e) {}
+        }
       }
 
       // Fetch group registrations (separate - not in allSettled above to keep it clean)
@@ -1232,7 +1245,7 @@ function App() {
           const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData
             : (programsData === null ? existingPrograms : programsData || []);
           const freshRegs = (parsedRegs.length > 0) ? parsedRegs
-            : (regData === null ? existingRegs : parsedRegs);
+            : (existingRegs.length > 0 ? existingRegs : (regData === null ? existingRegs : parsedRegs));
 
           const snapshot = {
             teams: teamsData || [],
@@ -8754,14 +8767,16 @@ ${pagesHtml}
                           let syncSuccess = true;
                           if (normalizedCheckedProgs.length > 0) {
                             const makeFallbackInserts = (useProgramId) => normalizedCheckedProgs.map(pId => {
-                              const pObj = programs.find(p => String(p.id) === String(pId));
+                              const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
                               const progIdVal = pObj ? String(pObj.id) : String(pId);
+                              const progNameVal = pObj ? String(pObj.name) : String(pId);
                               const row = {
                                 madrasa_id: madrasaId,
                                 student_id: String(targetIdToInsert),
-                                program_name: progIdVal
+                                program_name: progNameVal,
+                                program_id: progIdVal
                               };
-                              if (useProgramId) row.program_id = progIdVal;
+                              if (!useProgramId) delete row.program_id;
                               return row;
                             });
 
