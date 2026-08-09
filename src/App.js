@@ -888,6 +888,25 @@ function App() {
     return Array.from(new Set(ids));
   }, [getStudentRegisteredPrograms]);
 
+  // ── Group Registration States ──
+  const [groupRegistrations, setGroupRegistrations] = useState([]);
+  const [groupRegCat, setGroupRegCat] = useState('');
+  const [groupRegGender, setGroupRegGender] = useState('BOY');
+  const [groupRegProgram, setGroupRegProgram] = useState('');
+  const [groupRegName, setGroupRegName] = useState('');
+  const [groupRegTeam, setGroupRegTeam] = useState('');
+  const [groupRegLeader, setGroupRegLeader] = useState('');
+  const [groupRegStudents, setGroupRegStudents] = useState([]); // array of student IDs
+  const [groupRegSummaryFilterProg, setGroupRegSummaryFilterProg] = useState('ALL');
+  const [groupRegMemberSearch, setGroupRegMemberSearch] = useState('');
+  const [groupRegSaving, setGroupRegSaving] = useState(false);
+  // Edit states for group registration
+  const [editingGroupRegId, setEditingGroupRegId] = useState(null);
+  const [editingGroupRegName, setEditingGroupRegName] = useState('');
+  const [editingGroupRegStudents, setEditingGroupRegStudents] = useState([]);
+  const [editingGroupRegLeader, setEditingGroupRegLeader] = useState('');
+  const [editingGroupRegSaving, setEditingGroupRegSaving] = useState(false);
+
   const checkIsStudentRegisteredForProg = useCallback((s, p) => {
     if (!s || !p) return false;
     const isGroup = (p.type || '').includes('GROUP');
@@ -944,24 +963,6 @@ function App() {
     }
   }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch, getStudentRegisteredPrograms]);
 
-  // ── Group Registration States ──
-  const [groupRegistrations, setGroupRegistrations] = useState([]);
-  const [groupRegCat, setGroupRegCat] = useState('');
-  const [groupRegGender, setGroupRegGender] = useState('BOY');
-  const [groupRegProgram, setGroupRegProgram] = useState('');
-  const [groupRegName, setGroupRegName] = useState('');
-  const [groupRegTeam, setGroupRegTeam] = useState('');
-  const [groupRegLeader, setGroupRegLeader] = useState('');
-  const [groupRegStudents, setGroupRegStudents] = useState([]); // array of student IDs
-  const [groupRegSummaryFilterProg, setGroupRegSummaryFilterProg] = useState('ALL');
-  const [groupRegMemberSearch, setGroupRegMemberSearch] = useState('');
-  const [groupRegSaving, setGroupRegSaving] = useState(false);
-  // Edit states for group registration
-  const [editingGroupRegId, setEditingGroupRegId] = useState(null);
-  const [editingGroupRegName, setEditingGroupRegName] = useState('');
-  const [editingGroupRegStudents, setEditingGroupRegStudents] = useState([]);
-  const [editingGroupRegLeader, setEditingGroupRegLeader] = useState('');
-  const [editingGroupRegSaving, setEditingGroupRegSaving] = useState(false);
 
   // ── Visibility Control States (for VIEW role hide/show) ──
   const [visibilityControls, setVisibilityControls] = useState({
