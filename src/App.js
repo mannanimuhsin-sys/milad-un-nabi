@@ -845,7 +845,7 @@ function App() {
     if (exactOnly) return false;
 
     // 2. Direct Exact Program Name Match
-    if (rProgName && pName && (rProgName === pName || rProgName.includes(pName) || pName.includes(rProgName))) {
+    if (rProgName && pName && rProgName === pName) {
       return true;
     }
 
@@ -1007,7 +1007,6 @@ function App() {
 
           if (rPid === pCodeStr || rPid === pIdStr) return true;
           if (pNameStr && rPid.toLowerCase() === pNameStr) return true;
-          if (pNameStr && rPid.toLowerCase().includes(pNameStr)) return true;
           if (pCodeStr && rPid.includes(pCodeStr)) return true;
           return false;
         });
