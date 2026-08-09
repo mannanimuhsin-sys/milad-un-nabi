@@ -473,7 +473,13 @@ function App() {
   })();
 
   const [currentScreen, setCurrentScreen] = useState(savedSession ? 'DASHBOARD' : 'LOGIN');
-  const [activeTab, setActiveTab] = useState('SCOREBOARD');
+  const [activeTab, setActiveTabState] = useState(() => {
+    try { return sessionStorage.getItem('milad_active_tab') || 'SCOREBOARD'; } catch { return 'SCOREBOARD'; }
+  });
+  const setActiveTab = useCallback((tab) => {
+    try { sessionStorage.setItem('milad_active_tab', tab); } catch(e){}
+    setActiveTabState(tab);
+  }, []);
   const [activeCertificate, setActiveCertificate] = useState(null);
   const [loginRole, setLoginRole] = useState(savedSession ? savedSession.role : '');
   const [secretKey, setSecretKey] = useState('');
@@ -663,7 +669,13 @@ function App() {
   const [editingCatName, setEditingCatName] = useState('');
   const [editingCatClassRange, setEditingCatClassRange] = useState('');
   const [newCatClassRange, setNewCatClassRange] = useState('');
-  const [settingsSubTab, setSettingsSubTab] = useState('TEAMS');
+  const [settingsSubTab, setSettingsSubTabState] = useState(() => {
+    try { return sessionStorage.getItem('milad_settings_subtab') || 'TEAMS'; } catch { return 'TEAMS'; }
+  });
+  const setSettingsSubTab = useCallback((subtab) => {
+    try { sessionStorage.setItem('milad_settings_subtab', subtab); } catch(e){}
+    setSettingsSubTabState(subtab);
+  }, []);
   const [resultsSubTab, setResultsSubTab] = useState('PROGRAM_WINNERS');
 
   // GENERAL category feature: virtual composite category
@@ -1544,17 +1556,8 @@ function App() {
           if (!activeVersionRef.current) {
             activeVersionRef.current = serverVersion;
           } else if (serverVersion && activeVersionRef.current !== serverVersion) {
-            console.log('[AUTO-UPDATE] New build release detected! Refreshing client app...');
+            console.log('[AUTO-UPDATE] New build release detected! Storing active version without forcing reload.');
             activeVersionRef.current = serverVersion;
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(regs => {
-                regs.forEach(r => r.unregister());
-              });
-            }
-            if ('caches' in window) {
-              caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-            }
-            window.location.reload(true);
           }
         }
       } catch (e) {
