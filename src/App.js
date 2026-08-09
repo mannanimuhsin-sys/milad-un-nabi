@@ -10781,18 +10781,15 @@ ${pagesHtml}
                           // Single program: Individual students registered for this program ONLY
                           const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
                           const baseStudents = students.filter(s => {
-                            // Category filter matching
-                            if (judgeSheetCat === 'GENERAL') {
-                              if (!isGeneralProg(selectedProgObj)) return false;
-                            } else if (isJudgeGeneral) {
-                              if (!isGeneralProg(selectedProgObj) && String(selectedProgObj.catid || selectedProgObj.catId || '') !== String(judgeSheetCat)) return false;
-                            } else {
-                              if (String(s.catid || s.catId || '') !== String(judgeSheetCat)) return false;
+                            if (matchingRegs.length > 0) {
+                              return matchingRegs.some(r => isStudentMatch(r, s));
                             }
-                            // Gender filter matching
+                            // Fallback if no explicit registrations exist in system yet
                             if (judgeSheetGender && judgeSheetGender !== 'COMMON' && s.gender !== judgeSheetGender) return false;
-
-                            return matchingRegs.some(r => isStudentMatch(r, s));
+                            if (judgeSheetCat === 'GENERAL') {
+                              return isGeneralProg(selectedProgObj);
+                            }
+                            return String(s.catid || s.catId || '') === String(judgeSheetCat);
                           });
 
                           return baseStudents
