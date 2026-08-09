@@ -12581,11 +12581,7 @@ ${pagesHtml}
                                 .map(r => String(r.studentid || '').trim())
                             );
 
-                            const registeredStudentIds = new Set(
-                              programRegistrations.map(pr => String(pr.student_id || '').trim())
-                            );
-
-                            // Non-prize contestants
+                            // Non-prize contestants (MUST have at least 1 single/group registered program and not be a winner)
                             const nonPrizeContestants = students.filter(s => {
                               const sCat = String(s.catid || s.catId || '');
                               if (prizesCatFilter !== 'ALL') {
@@ -12595,11 +12591,15 @@ ${pagesHtml}
                                   return false;
                                 }
                               }
+
+                              // 🚀 Verify student is TRULY registered in at least 1 competition (Single or Group)
+                              const sProgs = getStudentRegisteredPrograms(s.id);
+                              if (!sProgs || sProgs.length === 0) return false;
+
                               const sId = String(s.id);
                               const sRegNo = String(s.regno || s.regNo || '');
-                              const isReg = registeredStudentIds.has(sId) || registeredStudentIds.has(sRegNo);
                               const isWinner = winnerStudentIds.has(sId) || winnerStudentIds.has(sRegNo) || winnerStudentIds.has(s.name);
-                              return isReg && !isWinner;
+                              return !isWinner;
                             });
 
                             // All category students
