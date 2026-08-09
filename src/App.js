@@ -10485,58 +10485,62 @@ ${pagesHtml}
                                     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
                                     const isGroup = progObj && (progObj.type || '').includes('GROUP');
 
-                                    if (isGroup) {
-                                      // Render Group Selector
-                                      const filteredGroups = groupRegistrations.filter(g => String(g.program_id) === String(selectedResultProg));
-                                      return (
-                                        <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
-                                          <option value="">-- Select Group --</option>
-                                          {filteredGroups.map(g => {
-                                            const teamObj = teams.find(t => String(t.id) === String(g.team_id));
-                                            return (
-                                              <option key={g.id} value={g.id}>
-                                                {g.group_name} [{teamObj ? teamObj.name : 'No Team'}]
-                                              </option>
-                                            );
-                                          })}
-                                        </select>
-                                      );
-                                    } else {
-                                      // Render Student Selector (original logic)
-                                      const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
-                                      const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
+                                     if (isGroup) {
+                                       // Render Group Selector
+                                       const filteredGroups = groupRegistrations.filter(g => {
+                                         if (!progObj) return false;
+                                         return isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, progObj) ||
+                                           String(g.program_id) === String(progObj.id) ||
+                                           String(g.program_id) === String(progObj.code) ||
+                                           String(g.program_id).toLowerCase() === String(progObj.name || '').toLowerCase();
+                                       });
+                                       return (
+                                         <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
+                                           <option value="">{filteredGroups.length === 0 ? '-- No Groups Registered for this Program --' : '-- Select Group --'}</option>
+                                           {filteredGroups.map(g => {
+                                             const teamObj = teams.find(t => String(t.id) === String(g.team_id));
+                                             return (
+                                               <option key={g.id} value={g.id}>
+                                                 {g.group_name} [{teamObj ? teamObj.name : 'No Team'}]
+                                               </option>
+                                             );
+                                           })}
+                                         </select>
+                                       );
+                                     } else {
+                                       // Render Student Selector (using checkIsStudentRegisteredForProg)
+                                       const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
+                                       const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
 
-                                      // If a program is selected, filter by registered students only
-                                      const regStudentIds = selectedResultProg
-                                        ? new Set(programRegistrations
-                                          .filter(r => String(r.program_id) === String(selectedResultProg))
-                                          .map(r => String(r.student_id)))
-                                        : null;
+                                       const registeredCandidates = selectedResultProg && progObj
+                                         ? students.filter(s => {
+                                             if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
+                                             return checkIsStudentRegisteredForProg(s, progObj);
+                                           }).sort((a, b) => (parseInt(a.regno || a.regNo || '0', 10) || 0) - (parseInt(b.regno || b.regNo || '0', 10) || 0))
+                                         : [];
 
-                                      return (
-                                        <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
-                                          <option value="">{selectedResultCat ? '-- Select Student --' : 'Select Category First'}</option>
-                                          {students
-                                            .filter(s => {
-                                              if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
-                                              if (regStudentIds && regStudentIds.size > 0) return regStudentIds.has(String(s.id));
-                                              if (selectedResultCat === 'GENERAL') {
-                                                return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
-                                              }
-                                              if (isGeneral) return true; // Show all students for General category!
-                                              return String(s.catid || s.catId || '') === String(selectedResultCat);
-                                            })
-                                            .map(s => {
-                                              const sRegNo = s.regno || s.regNo || '';
-                                              const sTeamId = s.teamid || s.teamId || '';
-                                              const teamName = (teams.find(t => String(t.id) === String(sTeamId)) || {}).name || '';
-                                              const catName = (categories.find(c => String(c.id) === String(s.catid || s.catId)) || {}).name || '';
-                                              return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{teamName}] {isGeneral ? `(${catName})` : ''}</option>;
-                                            })
-                                          }
-                                        </select>
-                                      );
-                                    }
+                                       const candidatesToDisplay = (selectedResultProg && progObj) ? registeredCandidates : students.filter(s => {
+                                         if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
+                                         if (selectedResultCat === 'GENERAL') {
+                                           return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                                         }
+                                         if (isGeneral) return true;
+                                         return String(s.catid || s.catId || '') === String(selectedResultCat);
+                                       }).sort((a, b) => (parseInt(a.regno || a.regNo || '0', 10) || 0) - (parseInt(b.regno || b.regNo || '0', 10) || 0));
+
+                                       return (
+                                         <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultCat}>
+                                           <option value="">{selectedResultCat ? (candidatesToDisplay.length === 0 ? '-- No Students Registered for this Program --' : '-- Select Student --') : 'Select Category First'}</option>
+                                           {candidatesToDisplay.map(s => {
+                                             const sRegNo = s.regno || s.regNo || '';
+                                             const sTeamId = s.teamid || s.teamId || '';
+                                             const teamName = (teams.find(t => String(t.id) === String(sTeamId)) || {}).name || '';
+                                             const catName = (categories.find(c => String(c.id) === String(s.catid || s.catId)) || {}).name || '';
+                                             return <option key={s.id} value={s.id}>{sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}) [{teamName}] {isGeneral ? `(${catName})` : ''}</option>;
+                                           })}
+                                         </select>
+                                       );
+                                     }
                                   })()}
                                 </div>
                               </div>
@@ -10607,19 +10611,20 @@ ${pagesHtml}
                             if (progSavedResults.length === 0) return null;
 
                             const replacementOptions = isGroup
-                              ? groupRegistrations.filter(g => String(g.program_id) === String(selectedResultProg))
-                              : (() => {
-                                const regStudentIds = new Set(
-                                  programRegistrations
-                                    .filter(r => String(r.program_id) === String(selectedResultProg))
-                                    .map(r => String(r.student_id))
-                                );
-                                return students.filter(s => {
-                                  if (selectedResultGender !== 'ALL' && s.gender !== selectedResultGender) return false;
-                                  if (regStudentIds.size > 0) return regStudentIds.has(String(s.id));
+                              ? groupRegistrations.filter(g => {
+                                  if (!progObj) return false;
+                                  return isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, progObj) ||
+                                    String(g.program_id) === String(progObj.id) ||
+                                    String(g.program_id) === String(progObj.code) ||
+                                    String(g.program_id).toLowerCase() === String(progObj.name || '').toLowerCase();
+                                })
+                              : students.filter(s => {
+                                  if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
+                                  if (progObj) {
+                                    return checkIsStudentRegisteredForProg(s, progObj);
+                                  }
                                   return String(s.catid || s.catId || '') === String(selectedResultCat);
                                 });
-                              })();
 
                             const placeEmoji = { 'First': '🥇', 'Second': '🥈', 'Third': '🥉', 'No Place': '—' };
                             const gradeBgColor = { 'A': '#dcfce7', 'B': '#dbeafe', 'C': '#fef9c3', '-': '#f1f5f9' };
