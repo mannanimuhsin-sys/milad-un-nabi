@@ -1483,6 +1483,13 @@ function App() {
           const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData : existingPrograms;
           const freshRegs = (Array.isArray(finalRegs) && finalRegs.length > 0) ? finalRegs : existingRegs;
 
+          // Preserve visibilityControls from existing cache or latest localStorage key — never lose toggle settings
+          let preservedVisibility = (existingCached && existingCached.visibilityControls) ? existingCached.visibilityControls : null;
+          if (!preservedVisibility) {
+            const vRaw = localStorage.getItem(`milad_visibility_controls_${rNum}`) || localStorage.getItem(`visibility_controls_${rNum}`) || localStorage.getItem('milad_visibility_controls_latest');
+            if (vRaw) { try { preservedVisibility = JSON.parse(vRaw); } catch(e){} }
+          }
+
           const snapshot = {
             teams: teamsData || [],
             categories: catsData || [],
@@ -1495,6 +1502,7 @@ function App() {
             eventName: loadedEventName || localEv,
             eventYear: loadedEventYear || localYr,
             convenerSadar: loadedConvenerSadar || localCS,
+            visibilityControls: preservedVisibility || undefined,
             savedAt: new Date().toISOString()
           };
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(snapshot));
