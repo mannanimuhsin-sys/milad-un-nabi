@@ -10515,6 +10515,11 @@ ${pagesHtml}
                                        const registeredCandidates = selectedResultProg && progObj
                                          ? students.filter(s => {
                                              if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
+                                             if (selectedResultCat === 'GENERAL') {
+                                               if (!generalCatIds.map(String).includes(String(s.catid || s.catId || ''))) return false;
+                                             } else if (!isGeneral) {
+                                               if (String(s.catid || s.catId || '') !== String(selectedResultCat)) return false;
+                                             }
                                              return checkIsStudentRegisteredForProg(s, progObj);
                                            }).sort((a, b) => (parseInt(a.regno || a.regNo || '0', 10) || 0) - (parseInt(b.regno || b.regNo || '0', 10) || 0))
                                          : [];
@@ -10620,10 +10625,15 @@ ${pagesHtml}
                                 })
                               : students.filter(s => {
                                   if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
+                                  if (selectedResultCat === 'GENERAL') {
+                                    if (!generalCatIds.map(String).includes(String(s.catid || s.catId || ''))) return false;
+                                  } else if (!isGeneral) {
+                                    if (String(s.catid || s.catId || '') !== String(selectedResultCat)) return false;
+                                  }
                                   if (progObj) {
                                     return checkIsStudentRegisteredForProg(s, progObj);
                                   }
-                                  return String(s.catid || s.catId || '') === String(selectedResultCat);
+                                  return true;
                                 });
 
                             const placeEmoji = { 'First': '🥇', 'Second': '🥈', 'Third': '🥉', 'No Place': '—' };
