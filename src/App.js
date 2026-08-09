@@ -879,6 +879,7 @@ function App() {
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
+    const ids = [];
     matchedProgs.forEach(p => {
       if (p.id) ids.push(String(p.id));
       if (p.code) ids.push(String(p.code));
