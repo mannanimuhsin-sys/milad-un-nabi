@@ -2828,6 +2828,357 @@ tr:nth-child(even) {
     font-weight: 800;
 }
 
+/* 🏆 WINNER POSTER MODE STYLES FOR RECENT RESULTS */
+.winner-poster-container {
+    position: relative;
+    background: radial-gradient(circle at top, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+    border: 2px solid rgba(251, 191, 36, 0.35);
+    border-radius: 28px;
+    padding: 36px 24px 44px 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(245, 158, 11, 0.12);
+    backdrop-filter: blur(16px);
+    overflow: hidden;
+    margin: 0 auto;
+    max-width: 1200px;
+    width: 100%;
+}
+
+.winner-poster-bg-shimmer {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 20%, rgba(251, 191, 36, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+    animation: posterShimmer 10s ease-in-out infinite alternate;
+}
+
+@keyframes posterShimmer {
+    0% { transform: rotate(0deg) scale(1); }
+    100% { transform: rotate(15deg) scale(1.1); }
+}
+
+.winner-poster-header {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.winner-poster-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.winner-poster-trophy-icon {
+    font-size: 28px;
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.6));
+    animation: bounceTrophy 2s infinite ease-in-out;
+}
+
+@keyframes bounceTrophy {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.winner-poster-prog-code {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #0f172a;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.winner-poster-cat-badge, .winner-poster-catname-badge {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.winner-poster-prog-title {
+    font-size: clamp(26px, 4.5vw, 44px);
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffffff 0%, #fef08a 60%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+    margin: 8px 0;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.winner-poster-subtitle {
+    font-size: 13px;
+    font-weight: 800;
+    color: #fbbf24;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+/* Winner Cards Container Row */
+.winner-poster-cards-row {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 24px;
+    position: relative;
+    z-index: 2;
+    flex-wrap: wrap;
+}
+
+.winner-poster-place-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    flex: 1;
+    min-width: 250px;
+    max-width: 340px;
+}
+
+.winner-poster-place-group.gold-group {
+    order: 2;
+    transform: translateY(-10px);
+}
+
+.winner-poster-place-group.silver-group {
+    order: 1;
+}
+
+.winner-poster-place-group.bronze-group {
+    order: 3;
+}
+
+@media (max-width: 900px) {
+    .winner-poster-place-group.gold-group {
+        order: 1;
+        transform: none;
+    }
+    .winner-poster-place-group.silver-group {
+        order: 2;
+    }
+    .winner-poster-place-group.bronze-group {
+        order: 3;
+    }
+}
+
+.winner-poster-card {
+    position: relative;
+    background: rgba(30, 41, 59, 0.7);
+    border-radius: 24px;
+    padding: 24px 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    border: 2px solid transparent;
+}
+
+.winner-poster-card:hover {
+    transform: translateY(-6px);
+}
+
+.winner-poster-card.gold {
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.18) 0%, rgba(30, 41, 59, 0.85) 100%);
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 15px 40px rgba(245, 158, 11, 0.25), 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.winner-poster-card.silver {
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.15) 0%, rgba(30, 41, 59, 0.85) 100%);
+    border-color: rgba(148, 163, 184, 0.5);
+    box-shadow: 0 12px 35px rgba(148, 163, 184, 0.2);
+}
+
+.winner-poster-card.bronze {
+    background: linear-gradient(180deg, rgba(234, 88, 12, 0.15) 0%, rgba(30, 41, 59, 0.85) 100%);
+    border-color: rgba(234, 88, 12, 0.5);
+    box-shadow: 0 12px 35px rgba(234, 88, 12, 0.2);
+}
+
+.winner-poster-medal-ring {
+    margin-bottom: 12px;
+}
+
+.winner-poster-medal-emoji {
+    font-size: 32px;
+    display: inline-block;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+}
+
+.winner-poster-card.gold .winner-poster-medal-emoji {
+    font-size: 42px;
+}
+
+/* Student Photo Styling */
+.winner-poster-photo-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.8);
+}
+
+.winner-poster-card.gold .winner-poster-photo-wrap {
+    width: 145px;
+    height: 145px;
+    border: 4px solid #fbbf24;
+    box-shadow: 0 10px 30px rgba(251, 191, 36, 0.4);
+}
+
+.winner-poster-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.winner-poster-photo-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.winner-poster-photo-placeholder.boy {
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    color: #93c5fd;
+}
+
+.winner-poster-photo-placeholder.girl {
+    background: linear-gradient(135deg, #831843, #ec4899);
+    color: #f472b6;
+}
+
+.winner-poster-place-label {
+    font-size: 13px;
+    font-weight: 800;
+    padding: 3px 14px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.winner-poster-card.gold .winner-poster-place-label {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.winner-poster-card.silver .winner-poster-place-label {
+    background: rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.winner-poster-card.bronze .winner-poster-place-label {
+    background: rgba(234, 88, 12, 0.2);
+    color: #fdba74;
+    border: 1px solid rgba(234, 88, 12, 0.4);
+}
+
+.winner-poster-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.winner-poster-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.winner-poster-card.gold .winner-poster-name {
+    font-size: 21px;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.winner-poster-reg {
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 10px;
+    border-radius: 6px;
+}
+
+.winner-poster-team {
+    font-size: 14px;
+    font-weight: 800;
+    color: #38bdf8;
+    margin-top: 2px;
+}
+
+.winner-poster-cat {
+    font-size: 12px;
+    font-weight: 600;
+    color: #a7f3d0;
+}
+
+.winner-poster-grade {
+    display: inline-block;
+    margin-top: 6px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+    padding: 3px 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+.winner-poster-empty-place {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(30, 41, 59, 0.3);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 40px 20px;
+    width: 100%;
+    height: 100%;
+    min-height: 240px;
+}
+
+.winner-poster-footer-line {
+    margin-top: 36px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #fbbf24, #ec4899, #3b82f6, transparent);
+    border-radius: 3px;
+    opacity: 0.7;
+    position: relative;
+    z-index: 2;
+}
+
 /* Animations */
 .animate-projector-slide {
     animation: slideInProjector 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;

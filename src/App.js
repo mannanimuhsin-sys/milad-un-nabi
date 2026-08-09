@@ -12806,139 +12806,172 @@ ${pagesHtml}
               </div>
             )}
 
-            {/* SLIDE 2: RECENT WINNERS */}
+            {/* SLIDE 2: RECENT WINNERS - POSTER MODE */}
             {projectorSlide === 2 && (
-              <div className="projector-slide animate-projector-slide">
-                <h2 className="projector-slide-title">🏆 {lang === 'EN' ? 'RECENT WINNERS & ANNOUNCEMENTS' : 'സമീപകാല പ്രഖ്യാപിത ഫലങ്ങൾ'}</h2>
+              <div className="projector-slide animate-projector-slide" style={{ padding: 0, overflow: 'hidden' }}>
                 {resultsList.length === 0 ? (
                   <div className="projector-empty">{t('noResultsAdded')}</div>
                 ) : (
-                  <div className="projector-winners-grid">
-                    {/* Get the 3 most unique program results declared recently */}
-                    {(() => {
-                      const recentProgs = Array.from(new Set(resultsList.map(r => r.progid || r.progId))).slice(0, 3);
+                  (() => {
+                    // Get ONLY the most recently declared program (first unique progId)
+                    const latestProgId = Array.from(new Set(resultsList.map(r => r.progid || r.progId)))[0];
+                    const prog = programs.find(p => String(p.id) === String(latestProgId));
+                    const progResults = resultsList.filter(r => String(r.progid || r.progId) === String(latestProgId));
 
-                      return recentProgs.map(progId => {
-                        const prog = programs.find(p => String(p.id) === String(progId));
-                        const progResults = resultsList.filter(r => String(r.progid || r.progId) === String(progId));
+                    if (!prog) return <div className="projector-empty">{t('noResultsAdded')}</div>;
 
-                        if (!prog) return null;
+                    const catObj = categories.find(c => String(c.id) === String(prog.catid || prog.catId));
+                    const catName = catObj ? catObj.name : (prog.catname || prog.catName || '');
 
-                        const catObj = categories.find(c => String(c.id) === String(prog.catid || prog.catId));
-                        const catName = catObj ? catObj.name : (prog.catname || '');
+                    const pType = (prog.type || '').toUpperCase();
+                    const isBoyProg = pType.includes('BOY');
+                    const isGirlProg = pType.includes('GIRL');
+                    const genderText = isBoyProg
+                      ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്')
+                      : isGirlProg
+                        ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്')
+                        : (lang === 'EN' ? 'Common' : 'കോമൺ');
+                    const genderColor = isBoyProg ? '#60a5fa' : isGirlProg ? '#f472b6' : '#fbbf24';
 
-                        const pType = (prog.type || '').toUpperCase();
-                        const isBoyProg = pType.includes('BOY');
-                        const isGirlProg = pType.includes('GIRL');
-                        const genderText = isBoyProg
-                          ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്')
-                          : isGirlProg
-                            ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്')
-                            : (lang === 'EN' ? 'Common' : 'കോമൺ');
+                    // Group winners by place (support multiple winners per place)
+                    const firstWinners = progResults.filter(r => r.place === 'First');
+                    const secondWinners = progResults.filter(r => r.place === 'Second');
+                    const thirdWinners = progResults.filter(r => r.place === 'Third');
 
-                        const firstW = progResults.find(r => r.place === 'First');
-                        const secondW = progResults.find(r => r.place === 'Second');
-                        const thirdW = progResults.find(r => r.place === 'Third');
+                    const renderPosterWinnerCard = (w, placeLabel, medalEmoji, placeClass) => {
+                      if (!w) return null;
+                      const rawName = w.studentname || '';
+                      const regNoPart = rawName.includes(' - ') ? rawName.split(' - ')[0].trim() : '';
+                      const namePart = rawName.includes(' - ') ? rawName.split(' - ').slice(1).join(' - ').trim() : rawName;
 
-                        const renderWinnerRow = (w, medalEmoji, rowClass) => {
-                          if (!w) return null;
+                      const studentObj = students.find(s =>
+                        (regNoPart && String(s.regno || s.regNo || '').trim() === regNoPart) ||
+                        (w.studentid && String(s.id) === String(w.studentid))
+                      );
+                      const targetRegNo = studentObj ? (studentObj.regno || studentObj.regNo || regNoPart) : regNoPart;
+                      const targetGender = studentObj?.gender || w.studentgender || (isBoyProg ? 'BOY' : isGirlProg ? 'GIRL' : 'COMMON');
+                      const teamName = w.teamname || teams.find(t => String(t.id) === String(w.teamId || w.teamid))?.name || '';
+                      const grade = (w.grade && w.grade !== '-' && w.grade !== 'No') ? w.grade : '';
 
-                          const regNoPart = (w.studentname || '').includes(' - ') ? w.studentname.split(' - ')[0].trim() : '';
-                          const studentObj = students.find(s => 
-                            (regNoPart && String(s.regno || s.regNo || '').trim() === regNoPart) ||
-                            (w.studentid && String(s.id) === String(w.studentid))
-                          );
+                      const hasPhoto = studentObj && studentObj.photo_url && studentObj.photo_status && studentObj.photo_status !== 'none';
+                      const isBoyCard = String(targetGender).toUpperCase().includes('BOY');
 
-                          const targetRegNo = studentObj ? (studentObj.regno || studentObj.regNo || regNoPart) : regNoPart;
-                          const targetGender = studentObj?.gender || w.studentgender || (isBoyProg ? 'BOY' : isGirlProg ? 'GIRL' : 'COMMON');
-
-                          return (
-                            <div key={w.id || medalEmoji} className={`projector-winner-row ${rowClass}`}>
-                              <span className="medal">{medalEmoji}</span>
-                              {targetRegNo ? (
-                                renderStudentPhoto(targetRegNo, targetGender, '46px', '10px')
-                              ) : (
-                                <div style={{
-                                  width: '46px',
-                                  height: '46px',
-                                  minWidth: '46px',
-                                  borderRadius: '10px',
-                                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#fff',
-                                  fontSize: '20px',
-                                  fontWeight: '800',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                  border: '2px solid rgba(255,255,255,0.4)'
-                                }}>
-                                  👥
-                                </div>
-                              )}
-                              <div className="winner-info">
-                                <span className="winner-name">{w.studentname}</span>
-                                <span className="winner-team">{w.teamname || teams.find(t => String(t.id) === String(w.teamId || w.teamid))?.name || ''}</span>
-                              </div>
-                              <span className="winner-grade-badge">{w.grade === '-' || w.grade === 'No' ? '' : w.grade}</span>
-                            </div>
-                          );
-                        };
-
-                        return (
-                          <div key={progId} className="projector-winner-card">
-                            <div className="projector-winner-card-header">
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '6px' }}>
-                                <span className="winner-prog-code">{prog.code}</span>
-                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                  {catName && (
-                                    <span style={{
-                                      background: 'rgba(59, 130, 246, 0.15)',
-                                      color: '#60a5fa',
-                                      border: '1px solid rgba(59, 130, 246, 0.3)',
-                                      padding: '2px 8px',
-                                      borderRadius: '6px',
-                                      fontSize: '11px',
-                                      fontWeight: '700',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px'
-                                    }}>
-                                      📁 {catName}
-                                    </span>
-                                  )}
-                                  <span style={{
-                                    background: isBoyProg
-                                      ? 'rgba(37, 99, 235, 0.2)'
-                                      : isGirlProg
-                                        ? 'rgba(219, 39, 119, 0.2)'
-                                        : 'rgba(217, 119, 6, 0.2)',
-                                    color: isBoyProg ? '#93c5fd' : isGirlProg ? '#f472b6' : '#fbbf24',
-                                    border: `1px solid ${isBoyProg ? 'rgba(59, 130, 246, 0.4)' : isGirlProg ? 'rgba(236, 72, 153, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '11px',
-                                    fontWeight: '800',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}>
-                                    {isBoyProg ? '👦 ' : isGirlProg ? '👧 ' : '🌐 '}{genderText}
-                                  </span>
-                                </div>
-                              </div>
-                              <span className="winner-prog-name">{prog.name}</span>
-                            </div>
-                            <div className="projector-winners-list">
-                              {renderWinnerRow(firstW, '🥇', 'gold')}
-                              {renderWinnerRow(secondW, '🥈', 'silver')}
-                              {renderWinnerRow(thirdW, '🥉', 'bronze')}
-                            </div>
+                      return (
+                        <div key={w.id || `${placeClass}-${regNoPart}`} className={`winner-poster-card ${placeClass}`}>
+                          <div className="winner-poster-medal-ring">
+                            <span className="winner-poster-medal-emoji">{medalEmoji}</span>
                           </div>
-                        );
-                      });
-                    })()}
-                  </div>
+                          <div className="winner-poster-photo-wrap">
+                            {hasPhoto ? (
+                              <img src={studentObj.photo_url} alt={namePart} className="winner-poster-photo" />
+                            ) : (
+                              <div className={`winner-poster-photo-placeholder ${isBoyCard ? 'boy' : 'girl'}`}>
+                                <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                  <circle cx="12" cy="7" r="4" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <div className="winner-poster-place-label">{placeLabel}</div>
+                          <div className="winner-poster-info">
+                            <div className="winner-poster-name">{namePart || rawName}</div>
+                            {targetRegNo && (
+                              <div className="winner-poster-reg">🔖 {targetRegNo}</div>
+                            )}
+                            {teamName && (
+                              <div className="winner-poster-team">🏫 {teamName}</div>
+                            )}
+                            {catName && (
+                              <div className="winner-poster-cat">📁 {catName}</div>
+                            )}
+                            {grade && (
+                              <div className="winner-poster-grade">{grade}</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <div className="winner-poster-container">
+                        {/* Decorative background shimmer */}
+                        <div className="winner-poster-bg-shimmer" />
+
+                        {/* Program Heading */}
+                        <div className="winner-poster-header">
+                          <div className="winner-poster-header-top">
+                            <span className="winner-poster-trophy-icon">🏆</span>
+                            <span className="winner-poster-prog-code">{prog.code}</span>
+                            <span className="winner-poster-cat-badge" style={{ color: genderColor, borderColor: genderColor }}>
+                              {isBoyProg ? '👦' : isGirlProg ? '👧' : '🌐'} {genderText}
+                            </span>
+                            {catName && (
+                              <span className="winner-poster-catname-badge">📁 {catName}</span>
+                            )}
+                          </div>
+                          <h2 className="winner-poster-prog-title">{prog.name}</h2>
+                          <div className="winner-poster-subtitle">
+                            {lang === 'EN' ? 'RESULT ANNOUNCED' : 'ഫലം പ്രഖ്യാപിച്ചു'}
+                          </div>
+                        </div>
+
+                        {/* Winners Row */}
+                        <div className="winner-poster-cards-row">
+                          {/* 2nd Place first (left) */}
+                          <div className="winner-poster-place-group silver-group">
+                            {secondWinners.length === 0 ? (
+                              <div className="winner-poster-empty-place">
+                                <span style={{ fontSize: '40px' }}>🥈</span>
+                                <span style={{ color: '#64748b', fontSize: '13px', marginTop: '8px' }}>
+                                  {lang === 'EN' ? '2nd Place' : 'രണ്ടാം സ്ഥാനം'}
+                                </span>
+                              </div>
+                            ) : (
+                              secondWinners.map(w => renderPosterWinnerCard(w,
+                                lang === 'EN' ? '🥈 2nd Place' : '🥈 രണ്ടാം സ്ഥാനം',
+                                '🥈', 'silver'))
+                            )}
+                          </div>
+
+                          {/* 1st Place (center - bigger) */}
+                          <div className="winner-poster-place-group gold-group">
+                            {firstWinners.length === 0 ? (
+                              <div className="winner-poster-empty-place">
+                                <span style={{ fontSize: '50px' }}>🥇</span>
+                                <span style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>
+                                  {lang === 'EN' ? '1st Place' : 'ഒന്നാം സ്ഥാനം'}
+                                </span>
+                              </div>
+                            ) : (
+                              firstWinners.map(w => renderPosterWinnerCard(w,
+                                lang === 'EN' ? '🥇 1st Place' : '🥇 ഒന്നാം സ്ഥാനം',
+                                '🥇', 'gold'))
+                            )}
+                          </div>
+
+                          {/* 3rd Place (right) */}
+                          <div className="winner-poster-place-group bronze-group">
+                            {thirdWinners.length === 0 ? (
+                              <div className="winner-poster-empty-place">
+                                <span style={{ fontSize: '40px' }}>🥉</span>
+                                <span style={{ color: '#64748b', fontSize: '13px', marginTop: '8px' }}>
+                                  {lang === 'EN' ? '3rd Place' : 'മൂന്നാം സ്ഥാനം'}
+                                </span>
+                              </div>
+                            ) : (
+                              thirdWinners.map(w => renderPosterWinnerCard(w,
+                                lang === 'EN' ? '🥉 3rd Place' : '🥉 മൂന്നാം സ്ഥാനം',
+                                '🥉', 'bronze'))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Footer sparkle line */}
+                        <div className="winner-poster-footer-line" />
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             )}
