@@ -3814,10 +3814,23 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfileUploading(false);
   };
 
-  // Admin: Approve photo (1-second instant approval)
+  // Admin: Approve photo (1-second instant approval with LocalStorage Cache Persistence)
   const handleApprovePhoto = async (studentId) => {
-    // 🚀 Instant optimistic UI update (<10ms)
-    setStudents(prev => prev.map(s => String(s.id) === String(studentId) ? { ...s, photo_status: 'approved' } : s));
+    setStudents(prev => {
+      const updated = prev.map(s => String(s.id) === String(studentId) ? { ...s, photo_status: 'approved' } : s);
+      if (loggedInMadrasa) {
+        try {
+          const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || '').trim();
+          const raw = localStorage.getItem(`cached_data_${rNum}`);
+          if (raw) {
+            const cacheObj = JSON.parse(raw);
+            cacheObj.students = updated;
+            localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+          }
+        } catch (e) {}
+      }
+      return updated;
+    });
 
     try {
       const { error } = await queryWithRetry(() =>
@@ -3829,18 +3842,31 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     }
   };
 
-  // Admin: Approve All Pending Photos (Single Click Instant Bulk Approve)
+  // Admin: Approve All Pending Photos (Single Click Instant Bulk Approve with LocalStorage Cache Persistence)
   const handleApproveAllPendingPhotos = async () => {
-    const pendingStudents = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'pending');
-    if (pendingStudents.length === 0) {
-      alert(lang === 'EN' ? 'No pending photos to approve!' : 'അപ്പ്രൂവ് ചെയ്യാൻ പാൻഡിങ് ഫോട്ടോകൾ ഒന്നുമില്ല!');
+    const unapprovedStudents = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status !== 'approved');
+    if (unapprovedStudents.length === 0) {
+      alert(lang === 'EN' ? 'All uploaded photos are already approved!' : 'എല്ലാ ഫോട്ടോകളും ഇതിനകം അപ്പ്രൂവ് ചെയ്തിട്ടുണ്ട്!');
       return;
     }
 
-    const pendingIds = pendingStudents.map(s => s.id);
+    const pendingIds = unapprovedStudents.map(s => s.id);
 
-    // 🚀 Instant optimistic UI update (<10ms for all!)
-    setStudents(prev => prev.map(s => pendingIds.map(String).includes(String(s.id)) ? { ...s, photo_status: 'approved' } : s));
+    setStudents(prev => {
+      const updated = prev.map(s => pendingIds.map(String).includes(String(s.id)) ? { ...s, photo_status: 'approved' } : s);
+      if (loggedInMadrasa) {
+        try {
+          const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || '').trim();
+          const raw = localStorage.getItem(`cached_data_${rNum}`);
+          if (raw) {
+            const cacheObj = JSON.parse(raw);
+            cacheObj.students = updated;
+            localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+          }
+        } catch (e) {}
+      }
+      return updated;
+    });
 
     try {
       const { error } = await queryWithRetry(() =>
@@ -3849,7 +3875,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       if (error) {
         alert('⚠️ Cloud update warning: ' + getFriendlyErrorMessage(error.message));
       } else {
-        alert(lang === 'EN' ? `✅ Approved ${pendingStudents.length} photo(s) instantly!` : `✅ ${pendingStudents.length} ഫോട്ടോകൾ ഒറ്റ സെക്കന്റിൽ അപ്പ്രൂവ് ചെയ്തു!`);
+        alert(lang === 'EN' ? `✅ Approved ${unapprovedStudents.length} photo(s) instantly!` : `✅ ${unapprovedStudents.length} ഫോട്ടോകൾ ഒറ്റ സെക്കന്റിൽ അപ്പ്രൂവ് ചെയ്തു!`);
       }
     } catch (err) {
       alert('Approve error: ' + getFriendlyErrorMessage(err.message));
@@ -6302,8 +6328,8 @@ ${pagesHtml}
                   {/* ── Photo Stats Summary Cards ── */}
                   {(() => {
                     const totalStudents = students.length;
-                    const uploadedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status !== 'none').length;
-                    const approvedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'approved').length;
+                    const uploadedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status !== 'none').length;
+                    const approvedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status === 'approved').length;
 
                     const statCards = [
                       {
@@ -6371,8 +6397,8 @@ ${pagesHtml}
 
                   {/* Pending Action Bar */}
                   {(() => {
-                    const uploadedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status !== 'none').length;
-                    const approvedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'approved').length;
+                    const uploadedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status !== 'none').length;
+                    const approvedCount = students.filter(s => s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status === 'approved').length;
                     const pendingCount = uploadedCount - approvedCount;
 
                     return (
@@ -6451,7 +6477,7 @@ ${pagesHtml}
                       <div className="settings-list-box" style={{ maxHeight: 'none' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                           <h3 style={{ margin: 0 }}>📋 Students Photo Approval</h3>
-                          {students.some(s => s.photo_url && String(s.photo_url).trim().length > 30 && s.photo_status === 'pending') && (
+                          {students.some(s => s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status !== 'approved') && (
                             <button
                               onClick={handleApproveAllPendingPhotos}
                               style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}
@@ -6465,7 +6491,7 @@ ${pagesHtml}
                             const sCat = String(s.catid || s.catId || '');
                             const matchCat = profileAdminCatFilter === 'ALL'
                               || (profileAdminCatFilter === 'GENERAL' ? (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat)) : sCat === String(profileAdminCatFilter));
-                            const hasPhoto = s.photo_url && s.photo_status && s.photo_status !== 'none';
+                            const hasPhoto = s.photo_url && String(s.photo_url).trim().length > 5 && s.photo_status !== 'none';
                             return matchCat && hasPhoto;
                           });
 
