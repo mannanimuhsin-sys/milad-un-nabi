@@ -1406,9 +1406,14 @@ function App() {
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
 
-        loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : localEv;
-        loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : localYr;
-        loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : localCS;
+        // DB is strict authority — if DB has no custom event name/convener set, clear state & purge stale local cache
+        loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
+        loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
+        loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
+
+        if (!dbEventName) { try { localStorage.removeItem(`event_name_${rNum}`); } catch(e){} }
+        if (!dbEventYear) { try { localStorage.removeItem(`event_year_${rNum}`); } catch(e){} }
+        if (!dbConvenerSadar) { try { localStorage.removeItem(`convener_sadar_${rNum}`); } catch(e){} }
 
         if (dbGeneralCats) {
           try { loadedGenCats = JSON.parse(decodeURIComponent(dbGeneralCats)); } catch(e){}
@@ -1699,6 +1704,25 @@ function App() {
       document.removeEventListener('visibilitychange', handleFocus);
     };
   }, []);
+
+  useEffect(() => {
+    // 🧹 Auto-purge any stale leftover default names from LocalStorage if DB does not have them
+    if (loggedInMadrasa) {
+      const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || '').trim();
+      if (rNum) {
+        try {
+          const lEv = localStorage.getItem(`event_name_${rNum}`) || '';
+          const lCs = localStorage.getItem(`convener_sadar_${rNum}`) || '';
+          if (lEv.includes('മധുര') || lEv.includes('Madhura') || lEv.includes('Madeena')) {
+            localStorage.removeItem(`event_name_${rNum}`);
+          }
+          if (lCs.includes('Muhsin') || lCs.includes('Mannani')) {
+            localStorage.removeItem(`convener_sadar_${rNum}`);
+          }
+        } catch(e){}
+      }
+    }
+  }, [loggedInMadrasa]);
 
   useEffect(() => {
     if (loggedInMadrasa) {
