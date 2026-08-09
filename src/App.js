@@ -2452,6 +2452,235 @@ function App() {
     }
   };
 
+  // ── LIVE SCORE POSTER GENERATOR (Admin Only) ──
+  const handleGenerateLivePoster = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      const W = 1080;
+      const H = 1350; // 4:5 portrait ratio (WhatsApp/Instagram friendly)
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // --- Background Gradient ---
+      const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+      bgGrad.addColorStop(0, '#0f172a');
+      bgGrad.addColorStop(0.5, '#1e293b');
+      bgGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // --- Decorative border glow ---
+      ctx.save();
+      ctx.strokeStyle = 'rgba(251,191,36,0.25)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(18, 18, W - 36, H - 36);
+      ctx.strokeStyle = 'rgba(251,191,36,0.08)';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(10, 10, W - 20, H - 20);
+      ctx.restore();
+
+      // --- Helper: draw rounded rect ---
+      const roundRect = (x, y, w, h, r, fill, stroke, strokeW) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = strokeW || 2; ctx.stroke(); }
+      };
+
+      // --- Helper: wrap text ---
+      const wrapText = (text, x, y, maxW, lineH) => {
+        const words = text.split(' ');
+        let line = '';
+        let curY = y;
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          if (ctx.measureText(testLine).width > maxW && n > 0) {
+            ctx.fillText(line.trim(), x, curY);
+            line = words[n] + ' ';
+            curY += lineH;
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line.trim(), x, curY);
+        return curY;
+      };
+
+      const madrasaName = loggedInMadrasa ? (loggedInMadrasa.name || '') : '';
+      const madrasaPlace = loggedInMadrasa ? (loggedInMadrasa.place || '') : '';
+      const madrasaReg = loggedInMadrasa ? (loggedInMadrasa.regNumber || '') : '';
+      const festName = eventName || 'Milad Fest';
+
+      // --- HEADER SECTION ---
+      // Top glow strip
+      const topGlow = ctx.createLinearGradient(0, 0, W, 0);
+      topGlow.addColorStop(0, 'rgba(251,191,36,0)');
+      topGlow.addColorStop(0.5, 'rgba(251,191,36,0.15)');
+      topGlow.addColorStop(1, 'rgba(251,191,36,0)');
+      ctx.fillStyle = topGlow;
+      ctx.fillRect(0, 0, W, 120);
+
+      // Star/Crescent decorative icon (unicode)
+      ctx.font = 'bold 52px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText('☪️', W / 2, 72);
+
+      // Madrasa Name
+      ctx.font = 'bold 42px Arial';
+      ctx.fillStyle = '#f8fafc';
+      ctx.textAlign = 'center';
+      wrapText(madrasaName.toUpperCase(), W / 2, 130, W - 80, 48);
+
+      // Place & Reg
+      ctx.font = '26px Arial';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`${madrasaPlace}  |  Reg: ${madrasaReg}`, W / 2, 195);
+
+      // Divider line
+      const divGrad = ctx.createLinearGradient(60, 0, W - 60, 0);
+      divGrad.addColorStop(0, 'rgba(251,191,36,0)');
+      divGrad.addColorStop(0.5, 'rgba(251,191,36,0.8)');
+      divGrad.addColorStop(1, 'rgba(251,191,36,0)');
+      ctx.strokeStyle = divGrad;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(60, 218); ctx.lineTo(W - 60, 218); ctx.stroke();
+
+      // Event Name (Big heading)
+      ctx.font = 'bold 54px Arial';
+      const evGrad = ctx.createLinearGradient(0, 230, W, 300);
+      evGrad.addColorStop(0, '#fbbf24');
+      evGrad.addColorStop(1, '#f59e0b');
+      ctx.fillStyle = evGrad;
+      ctx.textAlign = 'center';
+      wrapText(festName, W / 2, 275, W - 80, 62);
+
+      // "LIVE SCOREBOARD" subtitle
+      ctx.font = 'bold 28px Arial';
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillText('🔴 LIVE SCOREBOARD', W / 2, 345);
+
+      // --- TEAM SCORES ---
+      const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
+      const medals = ['🥇', '🥈', '🥉'];
+      const rankColors = [
+        { bg: 'rgba(251,191,36,0.15)', border: '#fbbf24', text: '#fbbf24', pts: '#fff' },
+        { bg: 'rgba(148,163,184,0.12)', border: '#94a3b8', text: '#94a3b8', pts: '#e2e8f0' },
+        { bg: 'rgba(180,83,9,0.12)', border: '#b45309', text: '#cd7c3a', pts: '#e2e8f0' },
+      ];
+
+      let cardY = 380;
+
+      sortedTeams.slice(0, 5).forEach((team, idx) => {
+        const pts = getTeamTotalPoints(team.id);
+        const isFirst = idx === 0;
+        const col = rankColors[idx] || { bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.12)', text: '#64748b', pts: '#94a3b8' };
+        const cardH = isFirst ? 190 : 140;
+        const cardX = isFirst ? 40 : 70;
+        const cardW = isFirst ? W - 80 : W - 140;
+
+        // Card background
+        roundRect(cardX, cardY, cardW, cardH, 18, col.bg, col.border, isFirst ? 2.5 : 1.5);
+
+        // Rank badge
+        if (isFirst) {
+          // Glowing 1st place crown
+          ctx.font = '56px Arial';
+          ctx.textAlign = 'left';
+          ctx.fillText(medals[0] || `#${idx + 1}`, cardX + 24, cardY + 72);
+
+          // Team Name
+          ctx.font = 'bold 52px Arial';
+          ctx.fillStyle = col.text;
+          ctx.textAlign = 'left';
+          const teamNameX = cardX + 100;
+          const tn = team.name || 'Team';
+          const tnMax = cardW - 200;
+          if (ctx.measureText(tn).width > tnMax) {
+            ctx.font = 'bold 38px Arial';
+          }
+          ctx.fillText(tn, teamNameX, cardY + 68);
+
+          // Points
+          ctx.font = 'bold 44px Arial';
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'right';
+          ctx.fillText(`${pts} pts`, cardX + cardW - 24, cardY + 68);
+
+          // "LEADING" badge
+          roundRect(cardX + 24, cardY + 100, 160, 40, 10, '#fbbf24', null, 0);
+          ctx.font = 'bold 20px Arial';
+          ctx.fillStyle = '#0f172a';
+          ctx.textAlign = 'center';
+          ctx.fillText('🏆 LEADING', cardX + 104, cardY + 126);
+
+          cardY += cardH + 20;
+        } else {
+          // 2nd, 3rd... smaller cards
+          ctx.font = '34px Arial';
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#fff';
+          ctx.fillText(medals[idx] || `#${idx + 1}`, cardX + 18, cardY + 88);
+
+          ctx.font = `bold ${idx <= 2 ? 36 : 30}px Arial`;
+          ctx.fillStyle = col.text;
+          ctx.textAlign = 'left';
+          const tn2 = team.name || 'Team';
+          const tn2Max = cardW - 170;
+          if (ctx.measureText(tn2).width > tn2Max) {
+            ctx.font = `bold 26px Arial`;
+          }
+          ctx.fillText(tn2, cardX + 72, cardY + 88);
+
+          ctx.font = 'bold 34px Arial';
+          ctx.fillStyle = col.pts;
+          ctx.textAlign = 'right';
+          ctx.fillText(`${pts} pts`, cardX + cardW - 18, cardY + 88);
+
+          cardY += cardH + 14;
+        }
+      });
+
+      // --- FOOTER ---
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Bottom divider
+      const divGrad2 = ctx.createLinearGradient(60, 0, W - 60, 0);
+      divGrad2.addColorStop(0, 'rgba(251,191,36,0)');
+      divGrad2.addColorStop(0.5, 'rgba(251,191,36,0.5)');
+      divGrad2.addColorStop(1, 'rgba(251,191,36,0)');
+      ctx.strokeStyle = divGrad2;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(60, H - 55); ctx.lineTo(W - 60, H - 55); ctx.stroke();
+
+      ctx.font = '20px Arial';
+      ctx.fillStyle = 'rgba(100,116,139,0.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Updated: ${dateStr}, ${timeStr}`, W / 2, H - 26);
+
+      // --- DOWNLOAD ---
+      const link = document.createElement('a');
+      link.download = `${festName.replace(/\s+/g, '_')}_LiveScore_${dateStr.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      console.warn('Poster generation error:', e);
+      alert('Poster download failed. Please try again.');
+    }
+  };
+
   const handleToggleTrollMode = async () => {
     const newTrollMode = !trollMode;
     setTrollMode(newTrollMode);
@@ -5000,6 +5229,29 @@ ${pagesHtml}
                       >
                         📺 {lang === 'EN' ? 'Projector Mode' : 'പ്രൊജക്ടർ മോഡ്'}
                       </button>
+                      {loginRole === 'ADMIN' && (
+                        <button
+                          onClick={handleGenerateLivePoster}
+                          style={{
+                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 10px rgba(109,40,217,0.35)',
+                            transition: 'all 0.2s'
+                          }}
+                          title={lang === 'EN' ? 'Download Live Score Poster' : 'ലൈവ് സ്കോർ പോസ്റ്റർ ഡൗൺലോഡ്'}
+                        >
+                          🖼️ {lang === 'EN' ? 'Score Poster' : 'സ്കോർ പോസ്റ്റർ'}
+                        </button>
+                      )}
                       <div className="live-badge">
                         <span className="live-dot"></span> {t('liveBadge')}
                       </div>
