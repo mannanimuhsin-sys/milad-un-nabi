@@ -7899,6 +7899,46 @@ ${pagesHtml}
                                   onClick={() => { setEventNameInput(eventName); setEventYearInput(eventYear); setIsEditingEvent(true); }}
                                   style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                 >✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}</button>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm(lang === 'EN' ? 'Are you sure you want to clear Event Name?' : 'ഇവന്റ് നാമം നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
+                                    setEventName('');
+                                    setEventYear('');
+                                    setEventNameInput('');
+                                    setEventYearInput('');
+                                    setIsEditingEvent(false);
+                                    const rNum = loggedInMadrasa?.regNumber;
+                                    if (rNum) {
+                                      try {
+                                        localStorage.removeItem(`event_name_${rNum}`);
+                                        localStorage.removeItem(`event_year_${rNum}`);
+                                        const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
+                                        if (cachedRaw) {
+                                          const cached = JSON.parse(cachedRaw);
+                                          cached.eventName = '';
+                                          cached.eventYear = '';
+                                          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
+                                        }
+                                      } catch(e){}
+                                      try {
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+                                        const { data: md } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
+                                        );
+                                        const updatedPlace = makePlaceString(md ? md.place : '', {
+                                          eventName: '',
+                                          eventYear: ''
+                                        });
+                                        await queryWithRetry(() =>
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                        );
+                                      } catch (err) {}
+                                    }
+                                  }}
+                                  style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                >🗑️ {lang === 'EN' ? 'Clear' : 'നീക്കം ചെയ്യുക'}</button>
                               </div>
                             </div>
                           ) : (
@@ -7920,7 +7960,7 @@ ${pagesHtml}
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   onClick={async () => {
-                                    if (!eventNameInput.trim()) return;
+                                    // Allow saving empty string to clear event name
                                     const rNum = loggedInMadrasa?.regNumber;
                                     const newName = eventNameInput.trim();
                                     const newYear = eventYearInput.trim();
@@ -7987,6 +8027,41 @@ ${pagesHtml}
                                   onClick={() => { setConvenerSadarInput(convenerSadar); setIsEditingConvenerSadar(true); }}
                                   style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                 >✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}</button>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm(lang === 'EN' ? 'Are you sure you want to clear Convener/Sadar name?' : 'കൺവീനർ/സദ്ർ പേര് നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
+                                    setConvenerSadar('');
+                                    setConvenerSadarInput('');
+                                    setIsEditingConvenerSadar(false);
+                                    const rNum = loggedInMadrasa?.regNumber;
+                                    if (rNum) {
+                                      try {
+                                        localStorage.removeItem(`convener_sadar_${rNum}`);
+                                        const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
+                                        if (cachedRaw) {
+                                          const cached = JSON.parse(cachedRaw);
+                                          cached.convenerSadar = '';
+                                          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
+                                        }
+                                      } catch(e){}
+                                      try {
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+                                        const { data: md } = await queryWithRetry(() =>
+                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
+                                        );
+                                        const updatedPlace = makePlaceString(md ? md.place : '', {
+                                          convenerSadar: ''
+                                        });
+                                        await queryWithRetry(() =>
+                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                        );
+                                      } catch (err) {}
+                                    }
+                                  }}
+                                  style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                >🗑️ {lang === 'EN' ? 'Clear' : 'നീക്കം ചെയ്യുക'}</button>
                               </div>
                             </div>
                           ) : (
@@ -8001,7 +8076,7 @@ ${pagesHtml}
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   onClick={async () => {
-                                    if (!convenerSadarInput.trim()) return;
+                                    // Allow saving empty string to clear convener sadar name
                                     const rNum = loggedInMadrasa?.regNumber;
                                     const newCS = convenerSadarInput.trim();
                                     setConvenerSadar(newCS);
