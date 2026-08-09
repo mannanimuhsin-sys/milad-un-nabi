@@ -502,10 +502,41 @@ function App() {
     }
     return lastResult;
   };
-  // ── Persistent session: restore from localStorage on first render ──
+  // 🛡️ Helper to safely set LocalStorage items without crashing on quota limits (5MB)
+  const safeSetLocalStorage = (key, value) => {
+    const valStr = typeof value === 'string' ? value : JSON.stringify(value);
+    try {
+      localStorage.setItem(key, valStr);
+      return true;
+    } catch (e) {
+      console.warn(`LocalStorage quota exceeded for key "${key}", attempting automatic storage cleanup...`, e);
+      try {
+        // Clear non-critical temporary keys to free up quota
+        const keysToClean = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k !== 'miladfest_session' && k !== key) {
+            if (k.startsWith('cached_regs_') || k.startsWith('photo_') || k.includes('temp')) {
+              keysToClean.push(k);
+            }
+          }
+        }
+        keysToClean.forEach(k => { try { localStorage.removeItem(k); } catch(err){} });
+        localStorage.setItem(key, valStr);
+        return true;
+      } catch (e2) {
+        // Fallback to sessionStorage if localStorage is completely exhausted
+        try { sessionStorage.setItem(key, valStr); } catch(e3){}
+        return false;
+      }
+    }
+  };
+
+  // ── Persistent session: restore from localStorage or sessionStorage on render ──
   const savedSession = (() => {
     try {
-      const s = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
+      const raw = localStorage.getItem('miladfest_session') || sessionStorage.getItem('miladfest_session') || 'null';
+      const s = JSON.parse(raw);
       if (s && s.madrasa) {
         s.madrasa.regNumber = String(s.madrasa.regNumber || s.madrasa.regnumber || s.madrasa.reg_number || '').trim();
       }
@@ -2221,8 +2252,16 @@ function App() {
           setGeneralCatIds([]);
         }
 
-        // 💾 Save session to localStorage for auto-login
-        localStorage.setItem('miladfest_session', JSON.stringify({ madrasa: sanitizedMadrasa, role }));
+        // 💾 Save minimal session (tiny size) to localStorage & sessionStorage so login NEVER resets on refresh
+        const minimalMadrasa = {
+          id: madrasa.id,
+          name: madrasa.name,
+          regNumber: String(madrasa.regNumber || madrasa.regnumber || madrasa.reg_number || '').trim(),
+          place: String(madrasa.place || '').split('|')[0]
+        };
+        const sessionObj = { madrasa: minimalMadrasa, role };
+        safeSetLocalStorage('miladfest_session', sessionObj);
+        try { sessionStorage.setItem('miladfest_session', JSON.stringify(sessionObj)); } catch(e){}
 
         // Load data immediately for this logged in madrasa
         fetchSupabaseData(sanitizedMadrasa.regNumber);
@@ -5131,7 +5170,7 @@ ${pagesHtml}
               </button>
               <button onClick={() => {
                 // 🔓 Clear saved session on explicit logout
-                localStorage.removeItem('miladfest_session');
+                localStorage.removeItem('miladfest_session'); try { sessionStorage.removeItem('miladfest_session'); } catch(e){}
                 setCurrentScreen('LOGIN');
                 setLoggedInMadrasa(null);
                 setLoginRole('');
