@@ -867,7 +867,7 @@ function App() {
     // Deduplicate so every program appears EXACTLY ONCE for the student
     const uniqueMap = new Map();
     rawProgs.forEach(p => {
-      const pKey = String(p.id || p.code || p.name);
+      const pKey = String(p.code || p.id || '').trim().toLowerCase() || String(p.name || '').trim().toLowerCase();
       if (!uniqueMap.has(pKey)) {
         uniqueMap.set(pKey, p);
       }
@@ -1168,9 +1168,10 @@ function App() {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
-    // If device is offline, immediately load from local cache and avoid network call
+    // Load local cached snapshot immediately (< 1ms) so UI renders instantly on page refresh
+    loadCachedData(rNum);
+
     if (!navigator.onLine) {
-      loadCachedData(rNum);
       isFetchingRef.current = false;
       return;
     }
@@ -3159,18 +3160,31 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       ? groupObj.group_name
       : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`;
 
-    // ── Duplicate check ──────────────────────────────────────────────────────
-    // Prevent registering the same student/group in the same program more than once.
-    const alreadyExists = resultsList.some(r =>
-      String(r.progid) === String(progObj.id) &&
-      r.studentname === computedStudentName &&
-      String(r.madrasa_id) === String(loggedInMadrasa.regNumber)
-    );
+    // ── Duplicate result check ──────────────────────────────────────────────────────
+    // Prevent assigning multiple positions to the same student/group in the same program.
+    const sRegStr = isGroup ? '' : String(studentObj.regno || studentObj.regNo || '').trim();
+    const sNameStr = isGroup ? String(groupObj.group_name || '').trim().toLowerCase() : String(studentObj.name || '').trim().toLowerCase();
+    const sDbIdStr = isGroup ? String(groupObj.id || '').trim() : String(studentObj.id || '').trim();
+    const pIdStr = String(progObj.id || '').trim();
+    const pCodeStr = String(progObj.code || '').trim();
+
+    const alreadyExists = resultsList.some(r => {
+      const rPid = String(r.progid || r.program_id || '').trim();
+      const pMatch = rPid === pIdStr || (pCodeStr && rPid === pCodeStr) || String(r.progname || '').trim().toLowerCase() === String(progObj.name || '').trim().toLowerCase();
+      if (!pMatch) return false;
+
+      const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
+      if (sDbIdStr && String(r.student_id || r.studentid || '') === sDbIdStr) return true;
+      if (sRegStr && (rName.includes(sRegStr) || rName.startsWith(sRegStr))) return true;
+      if (sNameStr && rName.includes(sNameStr)) return true;
+      return false;
+    });
+
     if (alreadyExists) {
       alert(
         lang === 'EN'
-          ? `⚠️ This student is already registered for "${progObj.name}".\nPlease delete or edit the existing entry first.`
-          : `⚠️ ഈ വിദ്യാർത്ഥി ഇതിനകം "${progObj.name}" മത്സരത്തിൽ രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട്.\nആദ്യം നിലവിലുള്ള എൻട്രി ഡിലീറ്റ് ചെയ്യുകയോ എഡിറ്റ് ചെയ്യുകയോ ചെയ്യുക.`
+          ? `⚠️ A result for this student/group is already saved in "${progObj.name}".\nEach student can only have ONE place/grade per program. Please edit or delete the existing result below.`
+          : `⚠️ ഈ വിദ്യാർത്ഥിക്ക്/ഗ്രൂപ്പിന് "${progObj.name}" മത്സരത്തിൽ ഇതിനകം ഫലം നൽകിയിട്ടുണ്ട്.\nഒരു വിദ്യാർത്ഥിക്ക് ഒരു മത്സരത്തിൽ ഒരു സ്ഥാനം/ഗ്രേഡ് മാത്രമേ നൽകാൻ പാടുള്ളൂ. തിരുത്തണമെങ്കിൽ താഴെയുള്ള ടേബിളിൽ എഡിറ്റ് ചെയ്യുക.`
       );
       return;
     }
