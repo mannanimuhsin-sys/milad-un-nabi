@@ -751,13 +751,27 @@ function App() {
 
   const isStudentMatch = useCallback((r, studentObj) => {
     if (!r || !studentObj) return false;
-    const rSid = String(r.student_id || '').trim();
+    const rSid = String(r.student_id || r.studentId || r.studentid || r.student_name || r.studentName || '').trim();
     const sId = String(studentObj.id || '').trim();
     const sReg = String(studentObj.regno || studentObj.regNo || '').trim();
+    const sName = String(studentObj.name || '').trim();
+
+    if (!rSid) return false;
+    if (rSid === sId) return true;
+    if (sReg && rSid === sReg) return true;
+
     const rSidNum = parseInt(rSid, 10);
     const sRegNum = parseInt(sReg, 10);
-    const isNumMatch = !isNaN(rSidNum) && !isNaN(sRegNum) && rSidNum === sRegNum;
-    return Boolean(rSid && (rSid === sId || (sReg && rSid === sReg) || isNumMatch));
+    if (!isNaN(rSidNum) && !isNaN(sRegNum) && rSidNum === sRegNum) return true;
+
+    if (rSid.includes(' - ')) {
+      const regPart = rSid.split(' - ')[0].trim();
+      if (regPart && (regPart === sReg || parseInt(regPart, 10) === sRegNum)) return true;
+    }
+
+    if (sName && rSid.toLowerCase().includes(sName.toLowerCase())) return true;
+
+    return false;
   }, []);
 
   const isProgramMatch = useCallback((r, p, exactOnly = false) => {
@@ -766,12 +780,12 @@ function App() {
     const pCode = String(p.code || '').trim().toLowerCase();
     const pName = String(p.name || '').trim().toLowerCase();
 
-    const rProgName = String(r.program_name || '').trim().toLowerCase();
-    const rProgId = String(r.program_id || '').trim().toLowerCase();
+    const rProgName = String(r.program_name || r.programName || r.progname || r.progName || '').trim().toLowerCase();
+    const rProgId = String(r.program_id || r.programId || r.progid || r.progId || '').trim().toLowerCase();
 
     // 1. Direct Exact Program ID / Code Match (Highest Accuracy)
-    if ((rProgId && (rProgId === pId || rProgId === pCode)) ||
-        (rProgName && (rProgName === pId || rProgName === pCode))) {
+    if ((rProgId && (rProgId === pId || rProgId === pCode || rProgId === pName)) ||
+        (rProgName && (rProgName === pId || rProgName === pCode || rProgName === pName))) {
       return true;
     }
 
@@ -841,7 +855,7 @@ function App() {
 
     let sRegs = [];
     if (!studentObj) {
-      sRegs = targetRegs.filter(r => String(r.student_id) === String(studentId));
+      sRegs = targetRegs.filter(r => String(r.student_id || r.studentId || r.studentid || '') === String(studentId));
     } else {
       sRegs = targetRegs.filter(r => isStudentMatch(r, studentObj));
     }
@@ -865,7 +879,13 @@ function App() {
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
-    return Array.from(new Set(matchedProgs.map(p => String(p.id))));
+    const ids = [];
+    matchedProgs.forEach(p => {
+      if (p.id) ids.push(String(p.id));
+      if (p.code) ids.push(String(p.code));
+      if (p.name) ids.push(String(p.name));
+    });
+    return Array.from(new Set(ids));
   }, [getStudentRegisteredPrograms]);
 
   // ── Group Registration States ──
@@ -8760,19 +8780,24 @@ ${pagesHtml}
 
                       // Only show SINGLE programs in Single Registration mode
                       const regPrograms = regTabCat ? programs.filter(p => {
-                        if (regTabCat === 'GENERAL') {
-                          if (!isGeneralProg(p)) return false;
-                        } else if (isRegGeneral) {
-                          if (!isGeneralProg(p) && String(p.catid || p.catId || '') !== String(regTabCat)) return false;
-                        } else {
-                          if (String(p.catid || p.catId || '') !== String(regTabCat)) return false;
-                        }
                         const pt = p.type || '';
                         if (pt.includes('GROUP')) return false;
+
+                        const isGeneral = isGeneralProg(p);
+                        let catMatch = false;
+                        if (regTabCat === 'GENERAL') {
+                          catMatch = isGeneral;
+                        } else if (isRegGeneral) {
+                          catMatch = isGeneral || String(p.catid || p.catId || '') === String(regTabCat);
+                        } else {
+                          catMatch = String(p.catid || p.catId || '') === String(regTabCat) || isGeneral;
+                        }
+                        if (!catMatch) return false;
+
                         if (regTabGender === 'COMMON') return true;
                         if (pt.includes('COMMON')) return true;
-                        if (regTabGender === 'BOY' && pt.includes('BOY')) return true;
-                        if (regTabGender === 'GIRL' && pt.includes('GIRL')) return true;
+                        if (regTabGender === 'BOY' && (pt.includes('BOY') || pt.includes('BOYS'))) return true;
+                        if (regTabGender === 'GIRL' && (pt.includes('GIRL') || pt.includes('GIRLS'))) return true;
                         return false;
                       }) : [];
 
