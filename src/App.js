@@ -1182,6 +1182,14 @@ function App() {
           if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
           if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
           if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
+          if (cached.visibilityControls && typeof cached.visibilityControls === 'object') {
+            setVisibilityControls(cached.visibilityControls);
+          } else {
+            const savedV = localStorage.getItem(`milad_visibility_controls_${rNum}`) || localStorage.getItem(`visibility_controls_${rNum}`) || localStorage.getItem('milad_visibility_controls_latest');
+            if (savedV) {
+              try { setVisibilityControls(JSON.parse(savedV)); } catch(e){}
+            }
+          }
 
           const evToSet = localEv || cached.eventName || '';
           const yrToSet = localYr || cached.eventYear || '';
@@ -1703,19 +1711,13 @@ function App() {
         });
       }
 
-      // Load visibility controls from localStorage
+      // Load visibility controls safely without resetting existing user settings
       try {
-        const storedControls = localStorage.getItem(`visibility_controls_${rNum}`);
+        const storedControls = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
+                               localStorage.getItem(`visibility_controls_${rNum}`) ||
+                               localStorage.getItem('milad_visibility_controls_latest');
         if (storedControls) {
           setVisibilityControls(JSON.parse(storedControls));
-        } else {
-          setVisibilityControls({
-            scoreboard: true,
-            results_PROGRAM_WINNERS: true,
-            results_STUDENT_REPORT: true,
-            results_RESULTS_HISTORY: true,
-            results_CHAMPIONS: true,
-          });
         }
       } catch (e) {
         console.error("Failed to parse stored visibility controls", e);
@@ -11919,16 +11921,31 @@ ${pagesHtml}
                         // 1. Instant optimistic UI update (< 10ms)
                         setVisibilityControls(newControls);
 
-                        const rNum = String(loggedInMadrasa ? loggedInMadrasa.regNumber : '').trim();
+                        const rNum = String(loggedInMadrasa ? (loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number) : '').trim();
+                        try {
+                          // Save to all local storage keys & main cache object so it NEVER gets overwritten
+                          localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(newControls));
+                          if (rNum) {
+                            localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(newControls));
+                            localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(newControls));
+
+                            const raw = localStorage.getItem(`cached_data_${rNum}`);
+                            if (raw) {
+                              const cacheObj = JSON.parse(raw);
+                              cacheObj.visibilityControls = newControls;
+                              localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+                            }
+                          }
+                        } catch (e) {}
+
+                        // 2. Save to Supabase cloud
                         if (rNum) {
-                          localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(newControls));
-                          // 2. Save to Supabase cloud so parents/viewers on all devices sync in real-time
                           try {
                             await supabase.from('madrasas').update({
                               visibility_controls: JSON.stringify(newControls)
                             }).eq('regNumber', rNum);
                           } catch (e) {
-                            console.error("Failed syncing visibility_controls to Supabase:", e);
+                            console.warn("Supabase visibility_controls update:", e);
                           }
                         }
                       };
