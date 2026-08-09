@@ -879,7 +879,6 @@ function App() {
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
-    const ids = [];
     matchedProgs.forEach(p => {
       if (p.id) ids.push(String(p.id));
       if (p.code) ids.push(String(p.code));
@@ -887,6 +886,62 @@ function App() {
     });
     return Array.from(new Set(ids));
   }, [getStudentRegisteredPrograms]);
+
+  const checkIsStudentRegisteredForProg = useCallback((s, p) => {
+    if (!s || !p) return false;
+    const isGroup = (p.type || '').includes('GROUP');
+    if (isGroup) {
+      const inGroupTable = groupRegistrations.some(g => {
+        const pMatch = isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, p) ||
+          String(g.program_id) === String(p.id) ||
+          String(g.program_id) === String(p.code) ||
+          String(g.program_id).toLowerCase() === String(p.name || '').toLowerCase();
+        if (!pMatch) return false;
+        const mIds = Array.isArray(g.student_ids) ? g.student_ids : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
+        return mIds.some(id =>
+          String(id).trim() === String(s.id).trim() ||
+          String(id).trim() === String(s.regno || s.regNo || '').trim()
+        );
+      });
+      const inProgRegTable = programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s));
+      return inGroupTable || inProgRegTable;
+    } else {
+      // 1. Direct DB match using isProgramMatch & isStudentMatch
+      if (programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s))) return true;
+
+      // 2. getStudentRegisteredPrograms by student ID
+      const sProgsById = getStudentRegisteredPrograms(s.id);
+      if (sProgsById.some(rp => String(rp.id) === String(p.id) || String(rp.code) === String(p.code) || isProgramMatch({ program_id: rp.id, program_name: rp.name }, p))) return true;
+
+      // 3. getStudentRegisteredPrograms by student regno
+      const sRegNo = s.regno || s.regNo || '';
+      if (sRegNo) {
+        const sProgsByReg = getStudentRegisteredPrograms(sRegNo);
+        if (sProgsByReg.some(rp => String(rp.id) === String(p.id) || String(rp.code) === String(p.code) || isProgramMatch({ program_id: rp.id, program_name: rp.name }, p))) return true;
+      }
+
+      // 4. Fallback: raw programRegistrations check for student regNo or ID matching p.code or p.id or p.name
+      const sDbId = String(s.id || '').trim();
+      const sRegStr = String(sRegNo || '').trim();
+      const pCodeStr = String(p.code || '').trim();
+      const pIdStr = String(p.id || '').trim();
+      const pNameStr = String(p.name || '').trim().toLowerCase();
+
+      return programRegistrations.some(r => {
+        const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
+        const sMatch = rSid && (rSid === sDbId || rSid === sRegStr || (parseInt(rSid, 10) === parseInt(sRegStr, 10) && !isNaN(parseInt(rSid, 10))));
+        if (!sMatch) return false;
+
+        const rPid = String(r.program_id || r.program_name || r.progid || r.programName || '').trim();
+        if (!rPid) return false;
+
+        if (rPid === pCodeStr || rPid === pIdStr) return true;
+        if (pNameStr && rPid.toLowerCase().includes(pNameStr)) return true;
+        if (pCodeStr && rPid.includes(pCodeStr)) return true;
+        return false;
+      });
+    }
+  }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch, getStudentRegisteredPrograms]);
 
   // ── Group Registration States ──
   const [groupRegistrations, setGroupRegistrations] = useState([]);
@@ -11600,25 +11655,15 @@ ${pagesHtml}
                                               <tr key={s.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
                                                 <td style={{ textAlign: 'center', fontWeight: '700', fontSize: '11px', color: '#064e3b', background: '#ecfdf5', padding: '5px 3px', border: '1px solid #cbd5e1' }}>{sRegNo}</td>
                                                 <td style={{ padding: '5px 4px', fontWeight: '600', color: '#1e293b', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', fontSize: '10px' }}>{s.name}</td>
-                                                {allProgsArr.map(p => {
-                                                  const isGroup = (p.type || '').includes('GROUP');
-                                                  let isReg = false;
-                                                  if (isGroup) {
-                                                    isReg = groupRegistrations.some(g => {
-                                                      if (String(g.program_id) !== String(p.id)) return false;
-                                                      const mIds = Array.isArray(g.student_ids) ? g.student_ids : [];
-                                                      return mIds.some(id => String(id) === String(s.id));
-                                                    });
-                                                    if (isReg) gc++;
-                                                  } else {
-                                                    isReg = programRegistrations.some(r =>
-                                                      String(r.program_id || r.program_name) === String(p.id) &&
-                                                      String(r.student_id) === String(s.id)
-                                                    );
-                                                    if (isReg) sc++;
-                                                  }
-                                                  return <td key={p.id} style={{ textAlign: 'center', padding: '3px', border: '1px solid #cbd5e1', fontSize: '12px', background: isReg ? '#ecfdf5' : '' }}>{isReg ? '✓' : ''}</td>;
-                                                })}
+                                                                                                 {allProgsArr.map(p => {
+                                                   const isGroup = (p.type || '').includes('GROUP');
+                                                   const isReg = checkIsStudentRegisteredForProg(s, p);
+                                                   if (isReg) {
+                                                     if (isGroup) gc++;
+                                                     else sc++;
+                                                   }
+                                                   return <td key={p.id} style={{ textAlign: 'center', padding: '3px', border: '1px solid #cbd5e1', fontSize: '12px', background: isReg ? '#ecfdf5' : '' }}>{isReg ? '✓' : ''}</td>;
+                                                 })}
                                                 <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#064e3b', background: '#f0fdf4', padding: '3px', border: '1px solid #cbd5e1' }}>{sc}</td>
                                                 <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', padding: '3px', border: '1px solid #cbd5e1' }}>{gc}</td>
                                                 <td style={{ textAlign: 'center', fontWeight: '900', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '3px', border: '1px solid #cbd5e1' }}>{sc + gc}</td>
