@@ -13019,12 +13019,28 @@ ${pagesHtml}
                   <div className="projector-empty">{t('noResultsAdded')}</div>
                 ) : (
                   (() => {
-                    // Get ONLY the most recently declared program (first unique progId)
-                    const latestProgId = Array.from(new Set(resultsList.map(r => r.progid || r.progId)))[0];
-                    const prog = programs.find(p => String(p.id) === String(latestProgId));
-                    const progResults = resultsList.filter(r => String(r.progid || r.progId) === String(latestProgId));
+                    // 🏆 Get ONLY the single most recently announced program & category (highest numeric id)
+                    const latestResultRow = [...resultsList].sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0))[0];
+                    if (!latestResultRow) return <div className="projector-empty">{t('noResultsAdded')}</div>;
 
+                    const latestProgId = String(latestResultRow.progid || latestResultRow.progId || '');
+                    const latestCatId = String(latestResultRow.catid || latestResultRow.catId || latestResultRow.catname || '');
+
+                    const prog = programs.find(p =>
+                      String(p.id) === latestProgId ||
+                      String(p.code) === latestProgId ||
+                      String(p.name || '').trim().toLowerCase() === String(latestResultRow.progname || '').trim().toLowerCase()
+                    );
                     if (!prog) return <div className="projector-empty">{t('noResultsAdded')}</div>;
+
+                    // Filter results for ONLY this single most recently declared program & category
+                    const progResults = resultsList.filter(r => {
+                      const rProgId = String(r.progid || r.progId || r.progname || '');
+                      const rCatId = String(r.catid || r.catId || r.catname || '');
+                      const pMatch = rProgId === latestProgId || (prog && (rProgId === String(prog.id) || rProgId === String(prog.code)));
+                      const cMatch = !latestCatId || rCatId === latestCatId || String(r.catname || '').trim().toLowerCase() === String(latestResultRow.catname || '').trim().toLowerCase();
+                      return pMatch && cMatch;
+                    });
 
                     const catObj = categories.find(c => String(c.id) === String(prog.catid || prog.catId));
                     const catName = catObj ? catObj.name : (prog.catname || prog.catName || '');
