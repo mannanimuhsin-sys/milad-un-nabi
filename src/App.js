@@ -1529,16 +1529,22 @@ function App() {
 
     const checkAppVersion = async () => {
       if (isChecking) return;
+      // Do not auto-reload while user is actively typing or selecting options in forms
+      if (typeof document !== 'undefined' && document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
       isChecking = true;
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          const serverVersion = String(data.version || data.buildTime || '');
+          const serverVersion = data && (data.buildTime || data.version) ? String(data.buildTime || data.version) : null;
+          if (!serverVersion) return; // Guard against non-JSON or missing version payload
+
           if (!activeVersionRef.current) {
             activeVersionRef.current = serverVersion;
           } else if (serverVersion && activeVersionRef.current !== serverVersion) {
-            console.log('[AUTO-UPDATE] New version detected! Auto-reloading client app...');
+            console.log('[AUTO-UPDATE] New build release detected! Refreshing client app...');
             activeVersionRef.current = serverVersion;
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(regs => {
@@ -5777,8 +5783,56 @@ ${pagesHtml}
 
                   {/* ── Section 3: Results History Table ── */}
                   {resultsSubTab === 'RESULTS_HISTORY' && (() => {
+                    // 🏆 Group & Sort Results History:
+                    // 1. Newest program results entered at the top (sorted by latest entry ID)
+                    // 2. Grouped strictly by Category within each Program (Senior all 3 places together, then Junior all 3 places together)
+                    // 3. Sorted by Position within each Category (First -> Second -> Third -> No Place)
+                    const placeRank = (placeStr) => {
+                      if (!placeStr) return 4;
+                      const str = String(placeStr).trim().toLowerCase();
+                      if (str === 'first' || str === '1' || str === '1st') return 1;
+                      if (str === 'second' || str === '2' || str === '2nd') return 2;
+                      if (str === 'third' || str === '3' || str === '3rd') return 3;
+                      return 4;
+                    };
+
+                    const groupMap = new Map();
+                    resultsList.forEach(r => {
+                      const pKey = String(r.progid || r.progId || r.progname || '').trim();
+                      const cKey = String(r.catid || r.catId || r.catname || '').trim();
+                      const groupKey = `${pKey}___${cKey}`;
+                      if (!groupMap.has(groupKey)) {
+                        groupMap.set(groupKey, {
+                          latestId: parseInt(r.id, 10) || 0,
+                          progId: pKey,
+                          catId: cKey,
+                          rows: []
+                        });
+                      }
+                      const group = groupMap.get(groupKey);
+                      const rId = parseInt(r.id, 10) || 0;
+                      if (rId > group.latestId) group.latestId = rId;
+                      group.rows.push(r);
+                    });
+
+                    const sortedGroups = Array.from(groupMap.values()).sort((a, b) => b.latestId - a.latestId);
+
+                    const sortedResultsHistoryList = [];
+                    sortedGroups.forEach(group => {
+                      group.rows.sort((a, b) => {
+                        const rankA = placeRank(a.place);
+                        const rankB = placeRank(b.place);
+                        if (rankA !== rankB) return rankA - rankB;
+
+                        const regA = parseInt((a.studentname || '').split(' - ')[0] || '0', 10) || 0;
+                        const regB = parseInt((b.studentname || '').split(' - ')[0] || '0', 10) || 0;
+                        return regA - regB;
+                      });
+                      sortedResultsHistoryList.push(...group.rows);
+                    });
+
                     const printResultsHistory = () => {
-                      const rows = resultsList.map(r => {
+                      const rows = sortedResultsHistoryList.map(r => {
                         const sName = r.studentname || r.studentName || '';
                         const dashIdx = sName.indexOf(' - ');
                         const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
@@ -5828,8 +5882,8 @@ ${pagesHtml}
                               </tr>
                             </thead>
                             <tbody>
-                              {resultsList.length === 0 ? <tr><td colSpan="12">No results announced yet.</td></tr> :
-                                resultsList.map(r => {
+                              {sortedResultsHistoryList.length === 0 ? <tr><td colSpan="12">No results announced yet.</td></tr> :
+                                sortedResultsHistoryList.map(r => {
                                   const sName = r.studentname || r.studentName || '';
                                   const dashIdx = sName.indexOf(' - ');
                                   const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
