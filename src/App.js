@@ -6127,7 +6127,7 @@ ${pagesHtml}
           {/* ---------------- 🎯 TAB 2.5: PROFILE ---------------- */}
           {activeTab === 'PROFILE' && (
             <div className="card animate-tab">
-              <h2 style={{ marginBottom: '18px' }}>👤 Profile</h2>
+              <h2 style={{ marginBottom: '18px' }}>👤 {loginRole === 'ADMIN' ? (lang === 'EN' ? 'Photo Approval & ID Cards' : 'ഫോട്ടോ അപ്പ്രൂവൽ & ഐഡി കാർഡുകൾ') : (lang === 'EN' ? 'Student Photo & ID Card' : 'വിദ്യാർത്ഥി ഫോട്ടോ & ഐഡി കാർഡ്')}</h2>
 
               {/* ══════════ VIEW MODE ══════════ */}
               {loginRole !== 'ADMIN' ? (

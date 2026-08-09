@@ -39,7 +39,7 @@ const translations = {
     // ── Bottom Navigation ──
     navScoreboard: 'Scoreboard',
     navResults: 'Results',
-    navProfile: 'Profile',
+    navProfile: 'Photo & ID',
     navSettings: 'Master Settings',
 
     // ── Scoreboard Tab ──
@@ -290,7 +290,7 @@ const translations = {
     // ── Bottom Navigation ──
     navScoreboard: 'സ്കോർബോർഡ്',
     navResults: 'ഫലങ്ങൾ',
-    navProfile: 'പ്രൊഫൈൽ',
+    navProfile: 'ഫോട്ടോ & ID',
     navSettings: 'സെറ്റിങ്ങ്സ്',
 
     // ── Scoreboard Tab ──
