@@ -1018,13 +1018,22 @@ function App() {
   }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch]);
 
 
-  // ── Visibility Control States (for VIEW role hide/show) ──
-  const [visibilityControls, setVisibilityControls] = useState({
-    scoreboard: true,
-    results_PROGRAM_WINNERS: true,
-    results_STUDENT_REPORT: true,
-    results_RESULTS_HISTORY: true,
-    results_CHAMPIONS: true,
+  // ── Visibility Control States (for VIEW role hide/show with Supabase & LocalStorage sync) ──
+  const [visibilityControls, setVisibilityControls] = useState(() => {
+    if (_rNum) {
+      try {
+        const stored = localStorage.getItem(`visibility_controls_${_rNum}`);
+        if (stored) return JSON.parse(stored);
+        if (_initCache && _initCache.visibilityControls) return _initCache.visibilityControls;
+      } catch (e) {}
+    }
+    return {
+      scoreboard: true,
+      results_PROGRAM_WINNERS: true,
+      results_STUDENT_REPORT: true,
+      results_RESULTS_HISTORY: true,
+      results_CHAMPIONS: true,
+    };
   });
 
   // ── Profile Tab States ──
@@ -1299,6 +1308,17 @@ function App() {
       const regData = safe(regResult).data;
       const groupRegData = safe(gRegResult).data;
       const madrasaData = safe(madrasaResult).data;
+      if (madrasaData && madrasaData.visibility_controls) {
+        try {
+          const parsed = typeof madrasaData.visibility_controls === 'string'
+            ? JSON.parse(madrasaData.visibility_controls)
+            : madrasaData.visibility_controls;
+          if (parsed && typeof parsed === 'object') {
+            setVisibilityControls(parsed);
+            localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(parsed));
+          }
+        } catch (e) {}
+      }
 
       let parsedStudents = [];
       let parsedRegs = [];
@@ -11891,13 +11911,26 @@ ${pagesHtml}
                     })()}
                     {/* CONTROL SUB-TAB */}
                     {settingsSubTab === 'CONTROL' && (() => {
-                      const handleToggleVisibility = (key) => {
+                      const handleToggleVisibility = async (key) => {
                         const newControls = {
                           ...visibilityControls,
                           [key]: !visibilityControls[key]
                         };
+                        // 1. Instant optimistic UI update (< 10ms)
                         setVisibilityControls(newControls);
-                        localStorage.setItem(`visibility_controls_${loggedInMadrasa.regNumber}`, JSON.stringify(newControls));
+
+                        const rNum = String(loggedInMadrasa ? loggedInMadrasa.regNumber : '').trim();
+                        if (rNum) {
+                          localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(newControls));
+                          // 2. Save to Supabase cloud so parents/viewers on all devices sync in real-time
+                          try {
+                            await supabase.from('madrasas').update({
+                              visibility_controls: JSON.stringify(newControls)
+                            }).eq('regNumber', rNum);
+                          } catch (e) {
+                            console.error("Failed syncing visibility_controls to Supabase:", e);
+                          }
+                        }
                       };
 
                       return (
