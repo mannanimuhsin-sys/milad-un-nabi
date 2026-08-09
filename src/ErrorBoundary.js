@@ -11,27 +11,20 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary auto-recovering from error]:', error, errorInfo);
-    // 100% Automatic silent recovery: reload instantly without manual button prompt
+    console.error('[ErrorBoundary caught component error]:', error, errorInfo);
+    // Graceful inline recovery: reset error state after 1 second without forcing page reload
     setTimeout(() => {
-      try {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(regs => {
-            regs.forEach(r => r.unregister());
-          });
-        }
-        if ('caches' in window) {
-          caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-        }
-      } catch (e) {}
-      window.location.reload(true);
-    }, 100);
+      this.setState({ hasError: false });
+    }, 1000);
   }
 
   render() {
     if (this.state.hasError) {
-      // Return null to avoid rendering any manual refresh button screen
-      return null;
+      return (
+        <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+          <span>-- Processing update, please select program again --</span>
+        </div>
+      );
     }
 
     return this.props.children;

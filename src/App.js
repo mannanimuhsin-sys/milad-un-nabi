@@ -915,52 +915,64 @@ function App() {
 
   const checkIsStudentRegisteredForProg = useCallback((s, p) => {
     if (!s || !p) return false;
-    const isGroup = (p.type || '').includes('GROUP');
-    if (isGroup) {
-      const inGroupTable = groupRegistrations.some(g => {
-        const pMatch = isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, p) ||
-          String(g.program_id) === String(p.id) ||
-          String(g.program_id) === String(p.code) ||
-          String(g.program_id).toLowerCase() === String(p.name || '').toLowerCase();
-        if (!pMatch) return false;
-        const mIds = Array.isArray(g.student_ids) ? g.student_ids : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
-        return mIds.some(id =>
-          String(id).trim() === String(s.id).trim() ||
-          String(id).trim() === String(s.regno || s.regNo || '').trim()
-        );
-      });
-      const inProgRegTable = programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s));
-      return inGroupTable || inProgRegTable;
-    } else {
-      // 1. Direct DB match using isProgramMatch & isStudentMatch
-      if (programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s))) return true;
+    try {
+      const isGroup = (p.type || '').includes('GROUP');
+      if (isGroup) {
+        const inGroupTable = groupRegistrations.some(g => {
+          if (!g) return false;
+          const pMatch = isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, p) ||
+            String(g.program_id || '') === String(p.id || '') ||
+            String(g.program_id || '') === String(p.code || '') ||
+            String(g.program_id || '').toLowerCase() === String(p.name || '').toLowerCase();
+          if (!pMatch) return false;
 
-      // 2. Fast Fallback check on raw programRegistrations by student regNo or ID matching p.code, p.id, or p.name
-      const sDbId = String(s.id || '').trim();
-      const sRegNo = s.regno || s.regNo || '';
-      const sRegStr = String(sRegNo || '').trim();
-      const pCodeStr = String(p.code || '').trim();
-      const pIdStr = String(p.id || '').trim();
-      const pNameStr = String(p.name || '').trim().toLowerCase();
+          let mIds = [];
+          if (Array.isArray(g.student_ids)) {
+            mIds = g.student_ids;
+          } else if (typeof g.student_ids === 'string') {
+            try { mIds = JSON.parse(g.student_ids || '[]'); } catch (e) { mIds = [g.student_ids]; }
+          }
+          return mIds.some(id =>
+            String(id || '').trim() === String(s.id || '').trim() ||
+            String(id || '').trim() === String(s.regno || s.regNo || '').trim()
+          );
+        });
+        const inProgRegTable = programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s));
+        return inGroupTable || inProgRegTable;
+      } else {
+        // 1. Direct DB match using isProgramMatch & isStudentMatch
+        if (programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s))) return true;
 
-      return programRegistrations.some(r => {
-        const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
-        const sMatch = rSid && (
-          rSid === sDbId ||
-          (sRegStr && rSid === sRegStr) ||
-          (sRegStr && !isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sRegStr, 10))
-        );
-        if (!sMatch) return false;
+        // 2. Fast Fallback check on raw programRegistrations by student regNo or ID matching p.code, p.id, or p.name
+        const sDbId = String(s.id || '').trim();
+        const sRegNo = s.regno || s.regNo || '';
+        const sRegStr = String(sRegNo || '').trim();
+        const pCodeStr = String(p.code || '').trim();
+        const pIdStr = String(p.id || '').trim();
+        const pNameStr = String(p.name || '').trim().toLowerCase();
 
-        const rPid = String(r.program_id || r.program_name || r.progid || r.programName || '').trim();
-        if (!rPid) return false;
+        return programRegistrations.some(r => {
+          if (!r) return false;
+          const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
+          const sMatch = rSid && (
+            rSid === sDbId ||
+            (sRegStr && rSid === sRegStr) ||
+            (sRegStr && !isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sRegStr, 10))
+          );
+          if (!sMatch) return false;
 
-        if (rPid === pCodeStr || rPid === pIdStr) return true;
-        if (pNameStr && rPid.toLowerCase() === pNameStr) return true;
-        if (pNameStr && rPid.toLowerCase().includes(pNameStr)) return true;
-        if (pCodeStr && rPid.includes(pCodeStr)) return true;
-        return false;
-      });
+          const rPid = String(r.program_id || r.program_name || r.progid || r.programName || '').trim();
+          if (!rPid) return false;
+
+          if (rPid === pCodeStr || rPid === pIdStr) return true;
+          if (pNameStr && rPid.toLowerCase() === pNameStr) return true;
+          if (pNameStr && rPid.toLowerCase().includes(pNameStr)) return true;
+          if (pCodeStr && rPid.includes(pCodeStr)) return true;
+          return false;
+        });
+      }
+    } catch (e) {
+      return false;
     }
   }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch]);
 
