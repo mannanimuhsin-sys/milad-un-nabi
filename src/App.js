@@ -1527,8 +1527,8 @@ function App() {
   }, [currentScreen]);
 
   // 🔄 Automatic App Version & Auto-Reload Checker (Detects GitHub/hosting deployments and auto-refreshes client browsers)
+  const activeVersionRef = useRef(null);
   useEffect(() => {
-    let activeVersion = null;
     let isChecking = false;
 
     const checkAppVersion = async () => {
@@ -1539,10 +1539,11 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           const serverVersion = String(data.version || data.buildTime || '');
-          if (!activeVersion) {
-            activeVersion = serverVersion;
-          } else if (serverVersion && activeVersion !== serverVersion) {
+          if (!activeVersionRef.current) {
+            activeVersionRef.current = serverVersion;
+          } else if (serverVersion && activeVersionRef.current !== serverVersion) {
             console.log('[AUTO-UPDATE] New version detected! Auto-reloading client app...');
+            activeVersionRef.current = serverVersion;
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(regs => {
                 regs.forEach(r => r.unregister());
@@ -1562,7 +1563,7 @@ function App() {
     };
 
     checkAppVersion();
-    const interval = setInterval(checkAppVersion, 45000);
+    const interval = setInterval(checkAppVersion, 60000);
 
     const handleFocus = () => { checkAppVersion(); };
     window.addEventListener('focus', handleFocus);
