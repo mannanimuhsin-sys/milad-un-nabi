@@ -1194,14 +1194,20 @@ function App() {
           const yrToSet = localYr || cached.eventYear || '';
           const csToSet = localCS || cached.convenerSadar || '';
 
-          if (evToSet) { setEventName(evToSet); setEventNameInput(evToSet); }
-          if (yrToSet) { setEventYear(yrToSet); setEventYearInput(yrToSet); }
-          if (csToSet) { setConvenerSadar(csToSet); setConvenerSadarInput(csToSet); }
+          setEventName(evToSet);
+          setEventNameInput(evToSet);
+          setEventYear(yrToSet);
+          setEventYearInput(yrToSet);
+          setConvenerSadar(csToSet);
+          setConvenerSadarInput(csToSet);
         }
       } else {
-        if (localEv) { setEventName(localEv); setEventNameInput(localEv); }
-        if (localYr) { setEventYear(localYr); setEventYearInput(localYr); }
-        if (localCS) { setConvenerSadar(localCS); setConvenerSadarInput(localCS); }
+        setEventName(localEv);
+        setEventNameInput(localEv);
+        setEventYear(localYr);
+        setEventYearInput(localYr);
+        setConvenerSadar(localCS);
+        setConvenerSadarInput(localCS);
       }
 
       if (localGen) {
@@ -1285,10 +1291,8 @@ function App() {
         queryWithRetry(() => fetchAllRows('students', makeFilter)),
         queryWithRetry(() => fetchAllRows('program_registrations', makeFilter)),
         queryWithRetry(() => fetchAllRows('group_registrations', makeFilter)),
-        // Madrasa settings
-        queryWithRetry(() => isNumValid
-          ? supabase.from('madrasas').select('*').in('regNumber', Array.from(new Set([rNum, numericId]))).maybeSingle()
-          : supabase.from('madrasas').select('*').eq('regNumber', rNum).maybeSingle()),
+        // Madrasa settings (strictly exact regNumber match)
+        queryWithRetry(() => supabase.from('madrasas').select('*').eq('regNumber', String(rNum)).maybeSingle()),
       ]);
 
       const results = await Promise.race([fetchPromise, timeoutPromise]);
@@ -1381,21 +1385,17 @@ function App() {
           try { loadedGenCats = JSON.parse(localGen); } catch(e){}
         }
 
-        if (loadedEventName) {
-          setEventName(loadedEventName);
-          setEventNameInput(prev => prev === '' ? loadedEventName : prev);
-          try { localStorage.setItem(`event_name_${rNum}`, loadedEventName); } catch(e){}
-        }
-        if (loadedEventYear) {
-          setEventYear(loadedEventYear);
-          setEventYearInput(prev => prev === '' ? loadedEventYear : prev);
-          try { localStorage.setItem(`event_year_${rNum}`, loadedEventYear); } catch(e){}
-        }
-        if (loadedConvenerSadar) {
-          setConvenerSadar(loadedConvenerSadar);
-          setConvenerSadarInput(prev => prev === '' ? loadedConvenerSadar : prev);
-          try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
-        }
+        setEventName(loadedEventName);
+        setEventNameInput(loadedEventName);
+        try { localStorage.setItem(`event_name_${rNum}`, loadedEventName); } catch(e){}
+
+        setEventYear(loadedEventYear);
+        setEventYearInput(loadedEventYear);
+        try { localStorage.setItem(`event_year_${rNum}`, loadedEventYear); } catch(e){}
+
+        setConvenerSadar(loadedConvenerSadar);
+        setConvenerSadarInput(loadedConvenerSadar);
+        try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
         if (Array.isArray(loadedGenCats) && loadedGenCats.length > 0) {
           setGeneralCatIds(loadedGenCats);
           try { localStorage.setItem(`general_cats_${rNum}`, JSON.stringify(loadedGenCats)); } catch(e){}
