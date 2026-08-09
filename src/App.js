@@ -923,19 +923,9 @@ function App() {
       // 1. Direct DB match using isProgramMatch & isStudentMatch
       if (programRegistrations.some(r => isProgramMatch(r, p) && isStudentMatch(r, s))) return true;
 
-      // 2. getStudentRegisteredPrograms by student ID
-      const sProgsById = getStudentRegisteredPrograms(s.id);
-      if (sProgsById.some(rp => String(rp.id) === String(p.id) || String(rp.code) === String(p.code) || isProgramMatch({ program_id: rp.id, program_name: rp.name }, p))) return true;
-
-      // 3. getStudentRegisteredPrograms by student regno
-      const sRegNo = s.regno || s.regNo || '';
-      if (sRegNo) {
-        const sProgsByReg = getStudentRegisteredPrograms(sRegNo);
-        if (sProgsByReg.some(rp => String(rp.id) === String(p.id) || String(rp.code) === String(p.code) || isProgramMatch({ program_id: rp.id, program_name: rp.name }, p))) return true;
-      }
-
-      // 4. Fallback: raw programRegistrations check for student regNo or ID matching p.code or p.id or p.name
+      // 2. Fast Fallback check on raw programRegistrations by student regNo or ID matching p.code, p.id, or p.name
       const sDbId = String(s.id || '').trim();
+      const sRegNo = s.regno || s.regNo || '';
       const sRegStr = String(sRegNo || '').trim();
       const pCodeStr = String(p.code || '').trim();
       const pIdStr = String(p.id || '').trim();
@@ -943,19 +933,24 @@ function App() {
 
       return programRegistrations.some(r => {
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
-        const sMatch = rSid && (rSid === sDbId || rSid === sRegStr || (parseInt(rSid, 10) === parseInt(sRegStr, 10) && !isNaN(parseInt(rSid, 10))));
+        const sMatch = rSid && (
+          rSid === sDbId ||
+          (sRegStr && rSid === sRegStr) ||
+          (sRegStr && !isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sRegStr, 10))
+        );
         if (!sMatch) return false;
 
         const rPid = String(r.program_id || r.program_name || r.progid || r.programName || '').trim();
         if (!rPid) return false;
 
         if (rPid === pCodeStr || rPid === pIdStr) return true;
+        if (pNameStr && rPid.toLowerCase() === pNameStr) return true;
         if (pNameStr && rPid.toLowerCase().includes(pNameStr)) return true;
         if (pCodeStr && rPid.includes(pCodeStr)) return true;
         return false;
       });
     }
-  }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch, getStudentRegisteredPrograms]);
+  }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch]);
 
 
   // ── Visibility Control States (for VIEW role hide/show) ──
