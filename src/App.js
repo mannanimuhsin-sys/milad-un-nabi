@@ -879,13 +879,7 @@ function App() {
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const matchedProgs = getStudentRegisteredPrograms(studentId, customRegs);
-    const ids = [];
-    matchedProgs.forEach(p => {
-      if (p.id) ids.push(String(p.id));
-      if (p.code) ids.push(String(p.code));
-      if (p.name) ids.push(String(p.name));
-    });
-    return Array.from(new Set(ids));
+    return Array.from(new Set(matchedProgs.map(p => String(p.id))));
   }, [getStudentRegisteredPrograms]);
 
   // ── Group Registration States ──
@@ -9322,7 +9316,7 @@ ${pagesHtml}
                                               <option value="">{t('selectStudentFirst')}</option>
                                               {regStudentsFiltered.map(s => {
                                                 const sRegNo = s.regno || s.regNo || '';
-                                                const sCount = getStudentRegisteredProgIds(s.id).length;
+                                                const sCount = getStudentRegisteredPrograms(s.id).length;
                                                 return (
                                                   <option key={s.id} value={s.id}>
                                                     {sRegNo} - {s.name} ({s.gender === 'BOY' ? '👦' : '👧'}){sCount > 0 ? ` [${sCount} ${t('programsLabel')}]` : ''}
