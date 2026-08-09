@@ -1526,6 +1526,55 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScreen]);
 
+  // 🔄 Automatic App Version & Auto-Reload Checker (Detects GitHub/hosting deployments and auto-refreshes client browsers)
+  useEffect(() => {
+    let activeVersion = null;
+    let isChecking = false;
+
+    const checkAppVersion = async () => {
+      if (isChecking) return;
+      isChecking = true;
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const serverVersion = String(data.version || data.buildTime || '');
+          if (!activeVersion) {
+            activeVersion = serverVersion;
+          } else if (serverVersion && activeVersion !== serverVersion) {
+            console.log('[AUTO-UPDATE] New version detected! Auto-reloading client app...');
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(regs => {
+                regs.forEach(r => r.unregister());
+              });
+            }
+            if ('caches' in window) {
+              caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+            }
+            window.location.reload(true);
+          }
+        }
+      } catch (e) {
+        // Silent catch on network blip
+      } finally {
+        isChecking = false;
+      }
+    };
+
+    checkAppVersion();
+    const interval = setInterval(checkAppVersion, 45000);
+
+    const handleFocus = () => { checkAppVersion(); };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, []);
+
   useEffect(() => {
     if (loggedInMadrasa) {
       const rNum = loggedInMadrasa.regNumber;
