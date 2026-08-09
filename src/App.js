@@ -220,6 +220,47 @@ const downloadFile = async (dataUrlOrBlob, filename, mimeType = 'image/png') => 
 
 // Universal Mobile-Safe Print & PDF Viewer helper supporting Mobile/Android Chrome, iOS Safari, Tablets, and Desktop browsers
 const openPrintDocument = (htmlContent, title = 'Document') => {
+  // Inject Universal Perfect PDF Print CSS (prevents half-split rows, repeats table headers on page breaks, and enforces crisp borders & colors)
+  const injectPrintCss = (html) => {
+    if (!html) return html;
+    const printStyles = `<style id="universal-print-engine-styles">
+      @media print {
+        html, body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          overflow: visible !important;
+        }
+        thead {
+          display: table-header-group !important;
+        }
+        tfoot {
+          display: table-footer-group !important;
+        }
+        tr {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        th, td {
+          border-color: #94a3b8 !important;
+        }
+        .page-break {
+          page-break-after: always !important;
+          break-after: page !important;
+        }
+      }
+    </style>`;
+    if (html.includes('</head>')) {
+      return html.replace('</head>', `${printStyles}</head>`);
+    }
+    return printStyles + html;
+  };
+
+  htmlContent = injectPrintCss(htmlContent);
   let win = null;
   try {
     // Synchronous window.open prevents popup blockers on mobile browsers
@@ -10119,21 +10160,23 @@ ${pagesHtml}
                                         text-transform: uppercase;
                                       }
                                       .notice-body { padding: 20px 25px 30px; }
-                                      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+                                      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; border: 1px solid #cbd5e1 !important; }
+                                      thead { display: table-header-group !important; }
+                                      tr { page-break-inside: avoid !important; break-inside: avoid !important; }
                                       th {
-                                        background: #f1f5f9;
-                                        color: #0f766e;
+                                        background: #f1f5f9 !important;
+                                        color: #0f766e !important;
                                         font-size: 12px;
                                         font-weight: 700;
                                         text-transform: uppercase;
                                         letter-spacing: 1px;
                                         padding: 10px 12px;
                                         text-align: left;
-                                        border-bottom: 2px solid #cbd5e1;
+                                        border: 1px solid #cbd5e1 !important;
                                       }
                                       td {
                                         padding: 10px 12px;
-                                        border-bottom: 1px solid #e2e8f0;
+                                        border: 1px solid #e2e8f0 !important;
                                         font-size: 13px;
                                         vertical-align: middle;
                                       }
