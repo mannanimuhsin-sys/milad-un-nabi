@@ -1038,7 +1038,6 @@ function App() {
 
           if (rPid === pCodeStr || rPid === pIdStr) return true;
           if (pNameStr && rPid.toLowerCase() === pNameStr) return true;
-          if (pCodeStr && rPid.includes(pCodeStr)) return true;
           return false;
         });
       }
