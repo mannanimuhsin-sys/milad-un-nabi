@@ -105,22 +105,22 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
       {/* Photo LEFT + Student Name & RegNo RIGHT */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '6px 8px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '8px', position: 'relative', zIndex: 1 }}>
         {/* Photo */}
-        <div style={{ flexShrink: 0, width: '74px', height: '84px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)' }}>
+        <div style={{ flexShrink: 0, width: '82px', height: '96px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)' }}>
           {photoContent}
         </div>
 
         {/* Name + RegNo */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'stretch', gap: '5px', minWidth: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '4px', minWidth: 0, width: '100%' }}>
           {/* Student Name */}
-          <div style={{ fontSize: '14px', fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', marginBottom: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+          <div style={{ fontSize: '13px', fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', width: '100%', marginBottom: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             {s.name}
           </div>
           {/* Highlighted Reg No badge */}
-          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '4px 6px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
-            <div style={{ fontSize: '7.5px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>
+          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '4px 10px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', maxWidth: '135px', margin: '0 auto', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
+            <div style={{ fontSize: '7px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>
               Register No.
             </div>
-            <div style={{ fontSize: '24px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
               {s.regno || s.regNo || ''}
             </div>
           </div>
@@ -4576,13 +4576,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .madrasa-name { font-size: 7px; font-weight: 900; color: #fef08a; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
   .madrasa-meta { font-size: 5.5px; color: #bbf7d0; text-align: center; opacity: 0.9; }
-  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 4px 5px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 5px; position: relative; z-index: 1; }
-  .photo-box { flex-shrink: 0; width: 50px; height: 58px; border-radius: 7px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); }
-  .name-box { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .student-name { font-size: 10px; font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; }
-  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 5px; padding: 3px 5px; text-align: center; box-shadow: 0 3px 10px rgba(251,191,36,0.55); border: 1px solid #d97706; }
-  .reg-label { font-size: 5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.8px; }
-  .reg-num { font-size: 18px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 5px 6px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 6px; position: relative; z-index: 1; }
+  .photo-box { flex-shrink: 0; width: 78px; height: 92px; border-radius: 8px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); }
+  .name-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; width: 100%; }
+  .student-name { font-size: 10.5px; font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; width: 100%; }
+  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 6px; padding: 4px 8px; text-align: center; box-shadow: 0 3px 8px rgba(251,191,36,0.4); border: 1.5px solid #d97706; width: 100%; max-width: 125px; margin: 0 auto; box-sizing: border-box; }
+  .reg-label { font-size: 5.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1px; }
+  .reg-num { font-size: 19px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
   .details { flex-shrink: 0; padding: 4px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
   .detail-row { border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; gap: 1px; }
   .detail-row-group { background: rgba(22,163,74,0.1); border: 1px solid rgba(22,163,74,0.35); border-left: 3px solid #16a34a; }
