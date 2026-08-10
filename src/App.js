@@ -890,10 +890,20 @@ function App() {
     return false;
   }, []);
 
+  // 🔍 Helper to resolve student by ID first, then by regno (prevents matching wrong student when ID matches another student's regno)
+  const findStudentByRef = useCallback((refId) => {
+    if (!refId) return null;
+    const rStr = String(refId).trim();
+    if (!rStr) return null;
+    const byId = students.find(s => String(s.id).trim() === rStr);
+    if (byId) return byId;
+    return students.find(s => String(s.regno || s.regNo || '').trim() === rStr) || null;
+  }, [students]);
+
   const getStudentRegisteredPrograms = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
     const targetRegs = customRegs || programRegistrations;
-    const studentObj = students.find(s => String(s.id) === String(studentId) || String(s.regno || s.regNo || '').trim() === String(studentId).trim());
+    const studentObj = findStudentByRef(studentId);
 
     const findProgForReg = (r, studentCatId = null, studentGender = null) => {
       const isGenderMatch = (p) => {
@@ -9465,7 +9475,7 @@ ${pagesHtml}
                         return false;
                       }) : [];
 
-                      const selectedStudentObj = students.find(s => String(s.id) === String(regTabStudent) || String(s.regno || s.regNo || '').trim() === String(regTabStudent).trim());
+                      const selectedStudentObj = findStudentByRef(regTabStudent);
 
                       const handleSaveRegistrations = async () => {
                         if (!regTabStudent) { alert(t('alertPleaseSelectStudent')); return; }
