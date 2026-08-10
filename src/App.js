@@ -502,16 +502,25 @@ function App() {
     }
     return lastResult;
   };
-  // 🛡️ Helper to safely set LocalStorage items without crashing on quota limits (5MB)
+  // 🛡️ Helper to safely set LocalStorage items without crashing on quota limits (5MB) - Supports function updators
   const safeSetLocalStorage = (key, value) => {
-    const valStr = typeof value === 'string' ? value : JSON.stringify(value);
+    let valStr = '';
+    if (typeof value === 'function') {
+      try {
+        const currentRaw = localStorage.getItem(key) || sessionStorage.getItem(key);
+        valStr = value(currentRaw);
+      } catch (e) {
+        valStr = '';
+      }
+    } else {
+      valStr = typeof value === 'string' ? value : JSON.stringify(value);
+    }
     try {
       localStorage.setItem(key, valStr);
       return true;
     } catch (e) {
       console.warn(`LocalStorage quota exceeded for key "${key}", attempting automatic storage cleanup...`, e);
       try {
-        // Clear non-critical temporary keys to free up quota
         const keysToClean = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
@@ -525,7 +534,6 @@ function App() {
         localStorage.setItem(key, valStr);
         return true;
       } catch (e2) {
-        // Fallback to sessionStorage if localStorage is completely exhausted
         try { sessionStorage.setItem(key, valStr); } catch(e3){}
         return false;
       }
