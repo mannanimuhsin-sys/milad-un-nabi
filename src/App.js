@@ -605,6 +605,7 @@ function App() {
   const [isIosDevice, setIsIosDevice] = useState(false);
   const deferredPromptRef = useRef(null);
   const isFetchingRef = useRef(false);
+  const fetchReqIdRef = useRef(0);
 
   // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
@@ -1299,6 +1300,9 @@ function App() {
     const rNum = String(rNumInput || (loggedInMadrasa ? (loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number) : '')).trim();
     if (!rNum) return;
 
+    fetchReqIdRef.current++;
+    const currentReqId = fetchReqIdRef.current;
+
     // Prevent concurrent stacked requests on weak connections
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -1382,11 +1386,18 @@ function App() {
       let parsedStudents = [];
       let parsedRegs = [];
 
-      // Update states ONLY if valid non-empty array returned — NEVER zero out existing data on partial failure
-      if (Array.isArray(teamsData) && teamsData.length >= 0) setTeams(teamsData);
-      if (Array.isArray(catsData) && catsData.length >= 0) setCategories(catsData);
-      if (Array.isArray(programsData) && programsData.length > 0) setPrograms([...programsData].sort(compareProgCode));
-      if (Array.isArray(studentsData) && studentsData.length > 0) {
+      // Abort setting state if a newer fetch request was initiated while this query was in flight (Race Condition Protection)
+      if (currentReqId !== fetchReqIdRef.current) {
+        console.log('[READ-FLOW] Aborted stale fetch response because a newer request was initiated.');
+        isFetchingRef.current = false;
+        return;
+      }
+
+      // Database is SINGLE SOURCE OF TRUTH: update states cleanly from DB response
+      if (Array.isArray(teamsData)) setTeams(teamsData);
+      if (Array.isArray(catsData)) setCategories(catsData);
+      if (Array.isArray(programsData)) setPrograms([...programsData].sort(compareProgCode));
+      if (Array.isArray(studentsData)) {
         const uniqueMap = new Map();
         for (const s of studentsData) {
           const rKey = String(s.regno || s.regNo || '').trim();
@@ -1404,8 +1415,8 @@ function App() {
         parsedStudents = Array.from(uniqueMap.values()).sort(compareRegNo);
         setStudents(parsedStudents);
       }
-      if (Array.isArray(resultsData) && resultsData.length >= 0) setResultsList(resultsData);
-      if (Array.isArray(groupRegData) && groupRegData.length >= 0) setGroupRegistrations(groupRegData);
+      if (Array.isArray(resultsData)) setResultsList(resultsData);
+      if (Array.isArray(groupRegData)) setGroupRegistrations(groupRegData);
 
       let loadedEventName = '';
       let loadedEventYear = '';
@@ -3847,24 +3858,20 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         return updated;
       });
 
-      alert(lang === 'EN' ? 'Group registration saved successfully!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ വിജയിച്ചു!');
-      setGroupRegName('');
-      setGroupRegLeader('');
-      setGroupRegStudents([]);
-
-      let { error } = await supabase
+      let { data: insData, error } = await supabase
         .from('group_registrations')
-        .insert([insertData]);
+        .insert([insertData])
+        .select();
 
-      // If leader_id column doesn't exist yet, retry without leader_id column but putting leader as 1st element of student_ids
       if (error && error.message && error.message.includes('leader_id')) {
         delete insertData.leader_id;
         const reordered = chosenLeader
           ? [String(chosenLeader), ...groupRegStudents.filter(id => String(id) !== String(chosenLeader))]
           : groupRegStudents;
         insertData.student_ids = reordered;
-        const res = await supabase.from('group_registrations').insert([insertData]);
+        const res = await supabase.from('group_registrations').insert([insertData]).select();
         error = res.error;
+        insData = res.data;
       }
 
       if (error) {
@@ -3881,10 +3888,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   created_at TIMESTAMPTZ DEFAULT NOW()
 );`);
         } else {
-          console.warn('Group registration error:', error.message);
+          alert('Group registration error: ' + getFriendlyErrorMessage(error.message));
         }
+        // Rollback on DB error
+        if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
       } else {
-        // Refresh group registrations silently in background
+        alert(lang === 'EN' ? 'Group registration saved successfully!' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ വിജയിച്ചു!');
+        setGroupRegName('');
+        setGroupRegLeader('');
+        setGroupRegStudents([]);
+        fetchReqIdRef.current++;
         const { data: gRegData } = await supabase
           .from('group_registrations')
           .select('*')
@@ -9614,76 +9627,65 @@ ${pagesHtml}
                           });
                           const mappedOptimistic = [...otherRegs, ...newLocalEntries];
 
-                          // ⚡ INSTANT OPTIMISTIC SAVE (< 50ms): Update local state & LocalStorage immediately
-                          regTabDirtyRef.current = false;
-                          setProgramRegistrations(mappedOptimistic);
-                          setRegTabCheckedProgs(normalizedCheckedProgs);
-
+                          // 🔒 VERIFIED SAVE FLOW: Perform DB operations first, confirm DB success, then update React state & cache
                           try {
-                            localStorage.setItem(`cached_regs_${madrasaId}`, JSON.stringify(mappedOptimistic));
-                            let cacheObj = {};
-                            const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
-                            if (rawCache) {
-                              try { cacheObj = JSON.parse(rawCache) || {}; } catch (e) {}
-                            }
-                            cacheObj.programRegistrations = mappedOptimistic;
-                            cacheObj.savedAt = new Date().toISOString();
-                            localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
-                          } catch (e) {}
+                            const numMadrasaId = parseInt(madrasaId, 10);
+                            const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
+                            const mIds = isMIdNum ? [madrasaId, numMadrasaId] : [madrasaId];
 
-                          // Immediate UI feedback
-                          setRegTabSaving(false);
-                          alert(t('alertSavedRegistrations')
-                            .replace('{count}', normalizedCheckedProgs.length)
-                            .replace('{studentName}', studentObj?.name || '')
-                          );
-
-                          // 🌐 Background Async DB Sync (Non-blocking)
-                          (async () => {
-                            try {
-                              const numMadrasaId = parseInt(madrasaId, 10);
-                              const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
-                              const mIds = isMIdNum ? [madrasaId, numMadrasaId] : [madrasaId];
-
-                              if (idsToDelete.length > 0) {
-                                for (const idVal of idsToDelete) {
-                                  try {
-                                    await supabase
-                                      .from('program_registrations')
-                                      .delete()
-                                      .in('madrasa_id', Array.from(new Set(mIds)))
-                                      .eq('student_id', idVal);
-                                  } catch (e) {}
-                                }
+                            if (idsToDelete.length > 0) {
+                              for (const idVal of idsToDelete) {
+                                await supabase
+                                  .from('program_registrations')
+                                  .delete()
+                                  .in('madrasa_id', Array.from(new Set(mIds)))
+                                  .eq('student_id', idVal);
                               }
-
-                              if (normalizedCheckedProgs.length > 0) {
-                                const buildRows = (mId, sId) => normalizedCheckedProgs.map(pId => {
-                                  const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
-                                  const progCodeOrId = pObj ? String(pObj.code || pObj.id) : String(pId);
-                                  return {
-                                    madrasa_id: String(mId),
-                                    student_id: String(sId),
-                                    program_name: progCodeOrId
-                                  };
-                                });
-
-                                const attempts = [
-                                  buildRows(madrasaId, targetIdToInsert),
-                                  ...(isMIdNum ? [buildRows(numMadrasaId, targetIdToInsert)] : []),
-                                  ...(sDbId && sDbId !== targetIdToInsert ? [buildRows(madrasaId, sDbId)] : []),
-                                  ...(isMIdNum && sDbId && sDbId !== targetIdToInsert ? [buildRows(numMadrasaId, sDbId)] : [])
-                                ];
-
-                                for (const rows of attempts) {
-                                  const { error: insErr } = await supabase.from('program_registrations').insert(rows);
-                                  if (!insErr) break;
-                                }
-                              }
-                            } catch (bgErr) {
-                              console.warn('Background registration sync warning:', bgErr);
                             }
-                          })();
+
+                            if (normalizedCheckedProgs.length > 0) {
+                              const buildRows = (mId, sId) => normalizedCheckedProgs.map(pId => {
+                                const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
+                                const progCodeOrId = pObj ? String(pObj.code || pObj.id) : String(pId);
+                                return {
+                                  madrasa_id: String(mId),
+                                  student_id: String(sId),
+                                  program_name: progCodeOrId
+                                };
+                              });
+
+                              const rowsToInsert = buildRows(madrasaId, targetIdToInsert);
+                              const { error: insErr } = await supabase.from('program_registrations').insert(rowsToInsert);
+                              if (insErr) {
+                                throw new Error(insErr.message);
+                              }
+                            }
+
+                            // Update local state & LocalStorage cache AFTER DB confirmation
+                            fetchReqIdRef.current++;
+                            regTabDirtyRef.current = false;
+                            setProgramRegistrations(mappedOptimistic);
+                            setRegTabCheckedProgs(normalizedCheckedProgs);
+
+                            safeSetLocalStorage(`cached_regs_${madrasaId}`, JSON.stringify(mappedOptimistic));
+                            safeSetLocalStorage(`cached_data_${madrasaId}`, (rawCache) => {
+                              let cacheObj = {};
+                              try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){}
+                              cacheObj.programRegistrations = mappedOptimistic;
+                              cacheObj.savedAt = new Date().toISOString();
+                              return JSON.stringify(cacheObj);
+                            });
+
+                            alert(t('alertSavedRegistrations')
+                              .replace('{count}', normalizedCheckedProgs.length)
+                              .replace('{studentName}', studentObj?.name || '')
+                            );
+                          } catch (dbErr) {
+                            alert(t('alertUploadFailed') + getFriendlyErrorMessage(dbErr.message));
+                            if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+                          } finally {
+                            setRegTabSaving(false);
+                          }
                         } catch (err) {
                           alert(t('alertUploadFailed') + getFriendlyErrorMessage(err.message));
                           setRegTabSaving(false);
