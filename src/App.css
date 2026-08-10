@@ -2392,7 +2392,7 @@ tr:nth-child(even) {
     background: linear-gradient(135deg, #090d16 0%, #03150f 100%);
     color: #f8fafc;
     z-index: 99999;
-    padding: 30px 40px;
+    padding: 16px 24px;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -2403,8 +2403,8 @@ tr:nth-child(even) {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 20px;
-    margin-bottom: 30px;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
 }
 
 .projector-header-left {
@@ -2833,9 +2833,9 @@ tr:nth-child(even) {
     position: relative;
     background: radial-gradient(circle at top, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
     border: 2px solid rgba(251, 191, 36, 0.35);
-    border-radius: 28px;
-    padding: 36px 24px 44px 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(245, 158, 11, 0.12);
+    border-radius: 20px;
+    padding: 16px 20px 18px 20px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(245, 158, 11, 0.12);
     backdrop-filter: blur(16px);
     overflow: hidden;
     margin: 0 auto;
@@ -2863,8 +2863,8 @@ tr:nth-child(even) {
     text-align: center;
     position: relative;
     z-index: 2;
-    margin-bottom: 36px;
-    padding-bottom: 20px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
 }
 
@@ -2872,28 +2872,28 @@ tr:nth-child(even) {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
 }
 
 .winner-poster-trophy-icon {
-    font-size: 28px;
+    font-size: 22px;
     filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.6));
     animation: bounceTrophy 2s infinite ease-in-out;
 }
 
 @keyframes bounceTrophy {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+    50% { transform: translateY(-4px); }
 }
 
 .winner-poster-prog-code {
     background: linear-gradient(135deg, #f59e0b, #d97706);
     color: #0f172a;
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 900;
     letter-spacing: 1px;
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
@@ -2902,30 +2902,30 @@ tr:nth-child(even) {
 .winner-poster-cat-badge, .winner-poster-catname-badge {
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 11px;
     font-weight: 700;
     color: #e2e8f0;
 }
 
 .winner-poster-prog-title {
-    font-size: clamp(26px, 4.5vw, 44px);
+    font-size: clamp(20px, 2.5vw, 32px);
     font-weight: 900;
     background: linear-gradient(135deg, #ffffff 0%, #fef08a 60%, #f59e0b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
-    margin: 8px 0;
+    margin: 2px 0;
     letter-spacing: 0.5px;
     line-height: 1.2;
 }
 
 .winner-poster-subtitle {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 800;
     color: #fbbf24;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     text-transform: uppercase;
     opacity: 0.9;
 }
@@ -2935,7 +2935,7 @@ tr:nth-child(even) {
     display: flex;
     justify-content: center;
     align-items: stretch;
-    gap: 24px;
+    gap: 16px;
     position: relative;
     z-index: 2;
     flex-wrap: nowrap;
@@ -2945,7 +2945,7 @@ tr:nth-child(even) {
 .winner-poster-place-group {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 10px;
     align-items: center;
     flex: 1;
     min-width: 0;
@@ -2954,7 +2954,7 @@ tr:nth-child(even) {
 
 .winner-poster-place-group.gold-group {
     order: 2;
-    transform: translateY(-10px);
+    transform: translateY(-6px);
 }
 
 .winner-poster-place-group.silver-group {
@@ -2968,8 +2968,8 @@ tr:nth-child(even) {
 .winner-poster-card {
     position: relative;
     background: rgba(30, 41, 59, 0.7);
-    border-radius: 24px;
-    padding: 24px 20px;
+    border-radius: 18px;
+    padding: 14px 14px;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -2981,7 +2981,7 @@ tr:nth-child(even) {
 }
 
 .winner-poster-card:hover {
-    transform: translateY(-6px);
+    transform: translateY(-4px);
 }
 
 .winner-poster-card.gold {
@@ -3003,36 +3003,36 @@ tr:nth-child(even) {
 }
 
 .winner-poster-medal-ring {
-    margin-bottom: 12px;
+    margin-bottom: 4px;
 }
 
 .winner-poster-medal-emoji {
-    font-size: 32px;
+    font-size: 24px;
     display: inline-block;
     filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
 }
 
 .winner-poster-card.gold .winner-poster-medal-emoji {
-    font-size: 42px;
+    font-size: 30px;
 }
 
 /* Student Photo Styling */
 .winner-poster-photo-wrap {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     overflow: hidden;
-    margin-bottom: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    margin-bottom: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
     border: 3px solid rgba(255, 255, 255, 0.8);
 }
 
 .winner-poster-card.gold .winner-poster-photo-wrap {
-    width: 145px;
-    height: 145px;
-    border: 4px solid #fbbf24;
-    box-shadow: 0 10px 30px rgba(251, 191, 36, 0.4);
+    width: 96px;
+    height: 96px;
+    border: 3px solid #fbbf24;
+    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.4);
 }
 
 .winner-poster-photo {
@@ -3060,11 +3060,11 @@ tr:nth-child(even) {
 }
 
 .winner-poster-place-label {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 800;
-    padding: 3px 14px;
+    padding: 2px 10px;
     border-radius: 20px;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -3091,55 +3091,55 @@ tr:nth-child(even) {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
     width: 100%;
 }
 
 .winner-poster-name {
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 800;
     color: #ffffff;
-    line-height: 1.3;
+    line-height: 1.25;
     word-break: break-word;
 }
 
 .winner-poster-card.gold .winner-poster-name {
-    font-size: 21px;
+    font-size: 16px;
     color: #fff;
     text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 
 .winner-poster-reg {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     color: #94a3b8;
     background: rgba(255, 255, 255, 0.06);
-    padding: 2px 10px;
+    padding: 1px 8px;
     border-radius: 6px;
 }
 
 .winner-poster-team {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 800;
     color: #38bdf8;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 .winner-poster-cat {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: #a7f3d0;
 }
 
 .winner-poster-grade {
     display: inline-block;
-    margin-top: 6px;
+    margin-top: 3px;
     background: linear-gradient(135deg, #10b981, #059669);
     color: #ffffff;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
-    padding: 3px 10px;
-    border-radius: 8px;
+    padding: 2px 8px;
+    border-radius: 6px;
     box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
 }
 
@@ -3150,15 +3150,15 @@ tr:nth-child(even) {
     justify-content: center;
     background: rgba(30, 41, 59, 0.3);
     border: 2px dashed rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 40px 20px;
+    border-radius: 18px;
+    padding: 20px 10px;
     width: 100%;
     height: 100%;
-    min-height: 240px;
+    min-height: 160px;
 }
 
 .winner-poster-footer-line {
-    margin-top: 36px;
+    margin-top: 14px;
     height: 3px;
     background: linear-gradient(90deg, transparent, #fbbf24, #ec4899, #3b82f6, transparent);
     border-radius: 3px;
