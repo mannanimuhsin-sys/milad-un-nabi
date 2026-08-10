@@ -11565,9 +11565,21 @@ ${pagesHtml}
                               };
                             });
                           } else {
-                            // Group program fallback: filter registered students for this group program
+                            // Group program fallback: filter registered students for this group program (strictly isolated by selected Category & Gender)
                             const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
-                            const baseStudents = students.filter(s => matchingRegs.some(r => isStudentMatch(r, s)));
+                            const baseStudents = students.filter(s => {
+                              if (!s) return false;
+                              if (judgeSheetGender && judgeSheetGender !== 'COMMON' && judgeSheetGender !== 'ALL') {
+                                if (String(s.gender || '').toUpperCase() !== String(judgeSheetGender).toUpperCase()) return false;
+                              }
+                              const sCatId = String(s.catid || s.catId || '');
+                              if (judgeSheetCat === 'GENERAL' || isJudgeGeneral) {
+                                if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
+                              } else if (judgeSheetCat) {
+                                if (sCatId !== String(judgeSheetCat)) return false;
+                              }
+                              return matchingRegs.some(r => isStudentMatch(r, s));
+                            });
 
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
@@ -11597,18 +11609,29 @@ ${pagesHtml}
                             });
                           }
                         } else {
-                          // Single program: Individual students registered for this program ONLY
+                          // Single program: Individual students registered for this program ONLY (strictly isolated by selected Category & Gender)
                           const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
                           const baseStudents = students.filter(s => {
+                            if (!s) return false;
+
+                            // 1. Gender Filter (strictly match selected division: BOY / GIRL / COMMON)
+                            if (judgeSheetGender && judgeSheetGender !== 'COMMON' && judgeSheetGender !== 'ALL') {
+                              if (String(s.gender || '').toUpperCase() !== String(judgeSheetGender).toUpperCase()) return false;
+                            }
+
+                            // 2. Category Filter (strictly match selected category: Senior, Junior, etc.)
+                            const sCatId = String(s.catid || s.catId || '');
+                            if (judgeSheetCat === 'GENERAL' || isJudgeGeneral) {
+                              if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
+                            } else if (judgeSheetCat) {
+                              if (sCatId !== String(judgeSheetCat)) return false;
+                            }
+
+                            // 3. Program Registration Check
                             if (matchingRegs.length > 0) {
                               return matchingRegs.some(r => isStudentMatch(r, s));
                             }
-                            // Fallback if no explicit registrations exist in system yet
-                            if (judgeSheetGender && judgeSheetGender !== 'COMMON' && s.gender !== judgeSheetGender) return false;
-                            if (judgeSheetCat === 'GENERAL') {
-                              return isGeneralProg(selectedProgObj);
-                            }
-                            return String(s.catid || s.catId || '') === String(judgeSheetCat);
+                            return checkIsStudentRegisteredForProg(s, selectedProgObj);
                           });
 
                           return baseStudents
