@@ -10902,7 +10902,14 @@ ${pagesHtml}
 
 
                     {/* MARK_ENTRY SUB-TAB */}
-                    {settingsSubTab === 'MARK_ENTRY' && (
+                    {settingsSubTab === 'MARK_ENTRY' && (() => {
+                      const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
+                      const isGeneralCat = selectedResultCat === 'GENERAL' ||
+                        (selectedResultCat && String(selectedResultCat).toUpperCase().includes('GENERAL')) ||
+                        (selectedCatObj && selectedCatObj.name && String(selectedCatObj.name).toUpperCase().includes('GENERAL'));
+                      const safeGenIds = Array.isArray(generalCatIds) ? generalCatIds.map(String) : [];
+
+                      return (
                       <div className="settings-card-v2">
                         {/* Navigation Tabs for Single vs Group Mark Entry */}
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
@@ -11177,9 +11184,18 @@ ${pagesHtml}
 
                           {/* ── Saved Results for this Program ── */}
                           {selectedResultProg && (() => {
-                            const progSavedResults = resultsList.filter(r => String(r.progid) === String(selectedResultProg));
                             const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
                             const isGroup = progObj && (progObj.type || '').includes('GROUP');
+
+                            const progSavedResults = resultsList.filter(r => {
+                              if (!r || !progObj) return false;
+                              const rPid = String(r.progid || r.program_id || r.prog_id || r.program_name || r.programName || '').trim();
+                              const pId = String(progObj.id || '').trim();
+                              const pCode = String(progObj.code || '').trim();
+                              const pName = String(progObj.name || '').trim().toLowerCase();
+                              return rPid === pId || rPid === pCode || (pName && rPid.toLowerCase() === pName);
+                            });
+
                             if (progSavedResults.length === 0) return null;
 
                             const replacementOptions = isGroup
@@ -11191,11 +11207,15 @@ ${pagesHtml}
                                     String(g.program_id).toLowerCase() === String(progObj.name || '').toLowerCase();
                                 })
                               : students.filter(s => {
-                                  if (selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON' && s.gender !== selectedResultGender) return false;
-                                  if (selectedResultCat === 'GENERAL') {
-                                    if (!generalCatIds.map(String).includes(String(s.catid || s.catId || ''))) return false;
-                                  } else if (!isGeneral) {
-                                    if (String(s.catid || s.catId || '') !== String(selectedResultCat)) return false;
+                                  if (!s) return false;
+                                  if (selectedResultGender && selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON') {
+                                    if (String(s.gender || '').toUpperCase() !== String(selectedResultGender).toUpperCase()) return false;
+                                  }
+                                  const sCatId = String(s.catid || s.catId || '');
+                                  if (isGeneralCat) {
+                                    if (safeGenIds.length > 0 && !safeGenIds.includes(sCatId)) return false;
+                                  } else {
+                                    if (sCatId !== String(selectedResultCat)) return false;
                                   }
                                   if (progObj) {
                                     return checkIsStudentRegisteredForProg(s, progObj);
@@ -11310,7 +11330,7 @@ ${pagesHtml}
                           })()}
                         </div>
                       </div>
-                    )}
+                    ); })()}
 
                     {/* POINTS SETUP SUB-TAB */}
                     {settingsSubTab === 'POINTS' && (
