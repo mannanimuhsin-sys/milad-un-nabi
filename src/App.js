@@ -606,6 +606,10 @@ function App() {
   const deferredPromptRef = useRef(null);
   const isFetchingRef = useRef(false);
   const fetchReqIdRef = useRef(0);
+  const loggedInMadrasaRef = useRef(loggedInMadrasa);
+  useEffect(() => {
+    loggedInMadrasaRef.current = loggedInMadrasa;
+  }, [loggedInMadrasa]);
 
   // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
@@ -1386,9 +1390,15 @@ function App() {
       let parsedStudents = [];
       let parsedRegs = [];
 
-      // Abort setting state if a newer fetch request was initiated while this query was in flight (Race Condition Protection)
+      // 🔒 MULTI-TENANT IDENTITY VALIDATION & RACE CONDITION PROTECTION
+      const currentActiveRegNumber = String(loggedInMadrasaRef.current ? (loggedInMadrasaRef.current.regNumber || loggedInMadrasaRef.current.regnumber || loggedInMadrasaRef.current.reg_number) : '').trim();
       if (currentReqId !== fetchReqIdRef.current) {
-        console.log('[READ-FLOW] Aborted stale fetch response because a newer request was initiated.');
+        console.log('[TENANT-GUARD] Aborted stale fetch response because a newer request was initiated.');
+        isFetchingRef.current = false;
+        return;
+      }
+      if (rNum && currentActiveRegNumber && String(rNum).trim() !== String(currentActiveRegNumber).trim()) {
+        console.warn(`[TENANT-GUARD] Aborted fetch response for Madrasa ${rNum} because active logged-in Madrasa is ${currentActiveRegNumber}.`);
         isFetchingRef.current = false;
         return;
       }
@@ -5306,11 +5316,20 @@ ${pagesHtml}
                 🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
               </button>
               <button onClick={() => {
-                // 🔓 Clear saved session on explicit logout
+                // 🔒 MULTI-TENANT PURGE: Clear saved session & all domain React state on explicit logout
+                fetchReqIdRef.current++;
                 localStorage.removeItem('miladfest_session'); try { sessionStorage.removeItem('miladfest_session'); } catch(e){}
-                setCurrentScreen('LOGIN');
                 setLoggedInMadrasa(null);
                 setLoginRole('');
+                setCurrentScreen('LOGIN');
+                setStudents([]);
+                setTeams([]);
+                setCategories([]);
+                setPrograms([]);
+                setResultsList([]);
+                setProgramRegistrations([]);
+                setGroupRegistrations([]);
+                setTimetable([]);
               }} className="btn-logout-top logout-btn-top">{t('logoutBtn')}</button>
             </div>
           </header>
