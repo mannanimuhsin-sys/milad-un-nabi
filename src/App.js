@@ -13553,62 +13553,65 @@ ${pagesHtml}
                 {teams.length === 0 ? (
                   <div className="projector-empty">{t('noTeamsMsg')}</div>
                 ) : (
-                  <div className="projector-leaderboard-grid">
-                    {(() => {
-                      const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
-                      const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
-                      const graphMax = maxPts > 0 ? maxPts : 10;
+                  (() => {
+                    const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
+                    const countClass = sortedTeams.length <= 2 ? 'count-2' : sortedTeams.length === 3 ? 'count-3' : 'count-4plus';
+                    const maxPts = sortedTeams.length > 0 ? getTeamTotalPoints(sortedTeams[0].id) : 0;
+                    const graphMax = maxPts > 0 ? maxPts : 10;
 
-                      let currentRank = 1;
-                      const teamRanks = sortedTeams.map((t, idx) => {
-                        if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
-                          currentRank = idx + 1;
-                        }
-                        return currentRank;
-                      });
+                    let currentRank = 1;
+                    const teamRanks = sortedTeams.map((t, idx) => {
+                      if (idx > 0 && getTeamTotalPoints(t.id) < getTeamTotalPoints(sortedTeams[idx - 1].id)) {
+                        currentRank = idx + 1;
+                      }
+                      return currentRank;
+                    });
 
-                      return sortedTeams.map((team, idx) => {
-                        const totalPts = getTeamTotalPoints(team.id);
-                        const barWidth = Math.max(5, (totalPts / graphMax) * 100);
-                        const rank = teamRanks[idx];
-                        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
-                        const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
+                    return (
+                      <div className={`projector-leaderboard-grid ${countClass}`}>
+                        {sortedTeams.map((team, idx) => {
+                          const totalPts = getTeamTotalPoints(team.id);
+                          const barWidth = Math.max(5, (totalPts / graphMax) * 100);
+                          const rank = teamRanks[idx];
+                          const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+                          const badgeIcon = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
 
-                        return (
-                          <div key={team.id} className={`projector-leaderboard-card ${rankClass}`}>
-                            <div className="projector-card-header">
-                              <span className="projector-rank-badge">{badgeIcon}</span>
-                              <span className="projector-team-name" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                <span>{team.name}</span>
-                                {(() => {
-                                  const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
-                                  const mainEmoji = rank === 1 ? '🤣' : '😭';
-                                  return (
-                                    <span
-                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
-                                      }}
-                                    >
-                                      <span className="animate-troll-emoji" style={{ fontSize: '26px' }}>{mainEmoji}</span>
-                                      <span className="projector-troll-bubble">{reaction.text}</span>
-                                    </span>
-                                  );
-                                })()}
-                              </span>
-                              <span className="projector-team-score">{totalPts} <span className="score-lbl">{t('points')}</span></span>
-                            </div>
-                            <div className="projector-bar-track">
-                              <div className="projector-bar-fill" style={{ width: `${barWidth}%` }}>
-                                <div className="projector-bar-glow"></div>
+                          return (
+                            <div key={team.id} className={`projector-leaderboard-card ${rankClass}`}>
+                              <div className="projector-card-header">
+                                <span className="projector-rank-badge">{badgeIcon}</span>
+                                <span className="projector-team-name" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                  <span>{team.name}</span>
+                                  {(() => {
+                                    const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
+                                    const mainEmoji = rank === 1 ? '🤣' : '😭';
+                                    return (
+                                      <span
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
+                                        }}
+                                      >
+                                        <span className="animate-troll-emoji" style={{ fontSize: '26px' }}>{mainEmoji}</span>
+                                        <span className="projector-troll-bubble">{reaction.text}</span>
+                                      </span>
+                                    );
+                                  })()}
+                                </span>
+                                <span className="projector-team-score">{totalPts} <span className="score-lbl">{t('points')}</span></span>
+                              </div>
+                              <div className="projector-bar-track">
+                                <div className="projector-bar-fill" style={{ width: `${barWidth}%` }}>
+                                  <div className="projector-bar-glow"></div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             )}

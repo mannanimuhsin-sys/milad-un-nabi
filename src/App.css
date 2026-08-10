@@ -2508,15 +2508,118 @@ tr:nth-child(even) {
     text-align: center;
 }
 
-/* Overall Standings grid - Vertical Stack */
+/* Overall Standings grid - Dynamic spacing based on team count */
 .projector-leaderboard-grid {
     display: flex;
     flex-direction: column;
-    gap: 14px;
     width: 100%;
     max-width: 1150px;
     margin: 0 auto;
     padding-bottom: 25px;
+}
+
+/* 2 Teams: Grand & Spacious to fill screen height gracefully */
+.projector-leaderboard-grid.count-2 {
+    gap: 24px;
+    padding-top: 15px;
+}
+
+.projector-leaderboard-grid.count-2 .projector-leaderboard-card {
+    padding: 24px 28px;
+    border-radius: 22px;
+}
+
+.projector-leaderboard-grid.count-2 .projector-rank-badge {
+    font-size: 42px;
+    margin-right: 14px;
+}
+
+.projector-leaderboard-grid.count-2 .projector-team-name {
+    font-size: 26px;
+}
+
+.projector-leaderboard-grid.count-2 .projector-team-score {
+    font-size: 42px;
+}
+
+.projector-leaderboard-grid.count-2 .projector-troll-bubble {
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 14px;
+}
+
+.projector-leaderboard-grid.count-2 .projector-bar-track {
+    height: 22px;
+    border-radius: 12px;
+}
+
+/* 3 Teams: Medium & Balanced */
+.projector-leaderboard-grid.count-3 {
+    gap: 18px;
+    padding-top: 10px;
+}
+
+.projector-leaderboard-grid.count-3 .projector-leaderboard-card {
+    padding: 18px 24px;
+    border-radius: 20px;
+}
+
+.projector-leaderboard-grid.count-3 .projector-rank-badge {
+    font-size: 36px;
+    margin-right: 10px;
+}
+
+.projector-leaderboard-grid.count-3 .projector-team-name {
+    font-size: 24px;
+}
+
+.projector-leaderboard-grid.count-3 .projector-team-score {
+    font-size: 38px;
+}
+
+.projector-leaderboard-grid.count-3 .projector-troll-bubble {
+    font-size: 13px;
+    padding: 5px 12px;
+    border-radius: 12px;
+}
+
+.projector-leaderboard-grid.count-3 .projector-bar-track {
+    height: 20px;
+    border-radius: 10px;
+}
+
+/* 4+ Teams: Compact to fit 4+ teams on screen */
+.projector-leaderboard-grid.count-4plus {
+    gap: 12px;
+}
+
+.projector-leaderboard-grid.count-4plus .projector-leaderboard-card {
+    padding: 12px 18px;
+    border-radius: 16px;
+}
+
+.projector-leaderboard-grid.count-4plus .projector-rank-badge {
+    font-size: 30px;
+    margin-right: 8px;
+}
+
+.projector-leaderboard-grid.count-4plus .projector-team-name {
+    font-size: 20px;
+}
+
+.projector-leaderboard-grid.count-4plus .projector-team-score {
+    font-size: 32px;
+}
+
+.projector-leaderboard-grid.count-4plus .projector-troll-bubble {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 10px;
+}
+
+.projector-leaderboard-grid.count-4plus .projector-bar-track {
+    height: 16px;
+    border-radius: 8px;
 }
 
 .projector-leaderboard-card {
