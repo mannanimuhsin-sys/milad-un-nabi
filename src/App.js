@@ -2803,85 +2803,125 @@ function App() {
     }
   };
 
-  // 🚩 1. TEAM ACTIONS (SUPABASE)
+  // 🚩 1. TEAM ACTIONS (SUPABASE) - BULLETPROOF & NON-FLICKERING
   const handleAddTeam = async (e) => {
     e.preventDefault();
     if (!newTeamName.trim() || !loggedInMadrasa) return;
+    const rNum = loggedInMadrasa.regNumber;
     const tempId = 'temp_' + Date.now();
     const savedName = newTeamName.trim();
-    setTeams(prev => [...prev, { id: tempId, name: savedName, madrasa_id: loggedInMadrasa.regNumber }]);
+    const newTeamObj = { id: tempId, name: savedName, madrasa_id: String(rNum) };
+
+    setTeams(prev => {
+      const updated = [...prev, newTeamObj];
+      safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+        const cacheObj = rawCache ? JSON.parse(rawCache) : {};
+        cacheObj.teams = updated;
+        return JSON.stringify(cacheObj);
+      });
+      return updated;
+    });
     setNewTeamName('');
 
     try {
+      const numReg = parseInt(rNum, 10);
+      const mIdVal = (!isNaN(numReg) && String(numReg) === String(rNum).trim()) ? numReg : String(rNum);
       const { data, error } = await supabase
         .from('teams')
-        .insert([{ name: savedName, madrasa_id: loggedInMadrasa.regNumber }])
+        .insert([{ name: savedName, madrasa_id: mIdVal }])
         .select();
 
       if (error) {
-        alert('Error: ' + getFriendlyErrorMessage(error.message));
-        setTeams(prev => prev.filter(t => t.id !== tempId));
+        alert('Error adding team: ' + getFriendlyErrorMessage(error.message));
+        setTeams(prev => {
+          const reverted = prev.filter(t => t.id !== tempId);
+          safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+            const cacheObj = rawCache ? JSON.parse(rawCache) : {};
+            cacheObj.teams = reverted;
+            return JSON.stringify(cacheObj);
+          });
+          return reverted;
+        });
       } else if (data && data[0]) {
         const realTeam = data[0];
-        setTeams(prev => prev.map(t => t.id === tempId ? realTeam : t));
+        setTeams(prev => {
+          const finalized = prev.map(t => String(t.id) === String(tempId) ? realTeam : t);
+          safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+            const cacheObj = rawCache ? JSON.parse(rawCache) : {};
+            cacheObj.teams = finalized;
+            return JSON.stringify(cacheObj);
+          });
+          return finalized;
+        });
       }
     } catch (err) {
-      alert('Error: ' + getFriendlyErrorMessage(err.message));
-      setTeams(prev => prev.filter(t => t.id !== tempId));
-    }
-  };
-
-  const handleDeleteTeam = async (id) => {
-    if (!window.confirm('Remove this team?')) return;
-    const originalTeams = [...teams];
-    setTeams(prev => {
-      const updated = prev.filter(t => t.id !== id);
-      try {
-        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
-        if (rawCache) {
-          const cacheObj = JSON.parse(rawCache);
-          cacheObj.teams = updated;
-          localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
-        }
-      } catch(e) {}
-      return updated;
-    });
-    const { error } = await supabase.from('teams').delete().eq('id', id);
-    if (error) {
-      alert(getFriendlyErrorMessage(error.message));
+      alert('Error adding team: ' + getFriendlyErrorMessage(err.message));
       setTeams(prev => {
-        try {
-          const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
-          if (rawCache) {
-            const cacheObj = JSON.parse(rawCache);
-            cacheObj.teams = originalTeams;
-            localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
-          }
-        } catch(e) {}
-        return originalTeams;
+        const reverted = prev.filter(t => t.id !== tempId);
+        safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+          const cacheObj = rawCache ? JSON.parse(rawCache) : {};
+          cacheObj.teams = reverted;
+          return JSON.stringify(cacheObj);
+        });
+        return reverted;
       });
     }
   };
 
+  const handleDeleteTeam = async (id) => {
+    if (!window.confirm(lang === 'EN' ? 'Remove this team?' : 'ഈ ടീം നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
+    const rNum = loggedInMadrasa?.regNumber;
+    const originalTeams = [...teams];
+    setTeams(prev => {
+      const updated = prev.filter(t => String(t.id) !== String(id));
+      if (rNum) {
+        safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+          const cacheObj = rawCache ? JSON.parse(rawCache) : {};
+          cacheObj.teams = updated;
+          return JSON.stringify(cacheObj);
+        });
+      }
+      return updated;
+    });
+    try {
+      const { error } = await supabase.from('teams').delete().eq('id', id);
+      if (error) {
+        alert(getFriendlyErrorMessage(error.message));
+        setTeams(prev => {
+          if (rNum) {
+            safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+              const cacheObj = rawCache ? JSON.parse(rawCache) : {};
+              cacheObj.teams = originalTeams;
+              return JSON.stringify(cacheObj);
+            });
+          }
+          return originalTeams;
+        });
+      }
+    } catch (e) {}
+  };
+
   const handleSaveTeamEdit = async () => {
     if (!editingTeamName.trim()) return;
+    const rNum = loggedInMadrasa?.regNumber;
     const targetId = editingTeamId;
     const updatedName = editingTeamName.trim();
     setTeams(prev => {
-      const updated = prev.map(t => t.id === targetId ? { ...t, name: updatedName } : t);
-      try {
-        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
-        if (rawCache) {
-          const cacheObj = JSON.parse(rawCache);
+      const updated = prev.map(t => String(t.id) === String(targetId) ? { ...t, name: updatedName } : t);
+      if (rNum) {
+        safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+          const cacheObj = rawCache ? JSON.parse(rawCache) : {};
           cacheObj.teams = updated;
-          localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
-        }
-      } catch(e) {}
+          return JSON.stringify(cacheObj);
+        });
+      }
       return updated;
     });
     setEditingTeamId(null);
-    const { error } = await supabase.from('teams').update({ name: updatedName }).eq('id', targetId);
-    if (error) { alert('Error: ' + getFriendlyErrorMessage(error.message)); }
+    try {
+      const { error } = await supabase.from('teams').update({ name: updatedName }).eq('id', targetId);
+      if (error) { alert('Error updating team: ' + getFriendlyErrorMessage(error.message)); }
+    } catch (e) {}
   };
 
   // 📂 2. CATEGORY ACTIONS
