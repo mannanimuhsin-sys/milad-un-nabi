@@ -367,77 +367,52 @@ const getTrollReaction = (rank, teamName, lang, offset = 0) => {
 
   if (rank === 1) {
     const reactions = lang === 'ML' ? [
-      { emoji: '🏆', text: 'ബിരിയാണി ചെമ്പ് തുറക്കാൻ റെഡിയായിക്കോളൂ, ഞങ്ങൾ കപ്പും കൊണ്ടേ വരൂ! 🥘' },
-      { emoji: '☕', text: 'ഒരു കവിൾ സുലൈമാനി കുടിച്ച് ഞങ്ങൾ ഒന്നാം സ്ഥാനത്ത് തന്നെയുണ്ട്! 😎' },
-      { emoji: '⛵', text: 'കാറ്റും കോലും വകവെക്കാതെ ഞങ്ങളുടെ യാത്ര മുന്നോട്ട് തന്നെയാണ്! 🏆' },
-      { emoji: '🚀', text: 'ഞങ്ങളുടെ വേഗത കൂട്ടാൻ ഇനി വേറെ ഗിയർ നോക്കേണ്ടി വരും! ✨' },
-      { emoji: '🏡', text: 'ആരും പേടിക്കണ്ട, കപ്പ് ഞങ്ങൾ സൂക്ഷിച്ചു വീട്ടിൽ എത്തിച്ചോളാം! 🏆' },
-      { emoji: '🤩', text: 'മുന്നിൽ നിൽക്കുന്നതിന്റെ ആ ഒരു സന്തോഷം അനുഭവിച്ചു തന്നെ അറിയണം! ✨' },
-      { emoji: '☕', text: 'ഞങ്ങളെ പിന്തുടരുന്ന സുഹൃത്തുക്കൾക്ക് ചായ കുടിക്കാൻ വേണമെങ്കിൽ സമയം തരാം! 😜' },
-      { emoji: '📈', text: 'ക്ഷമയോടെ കാത്തിരിക്കൂ, ഞങ്ങളുടെ സ്കോർ ബോർഡ് ഇനിയും ഉയരും! 🔥' },
-      { emoji: '🛣️', text: 'വിജയത്തിന്റെ നല്ലൊരു പാതയിൽ ഞങ്ങൾ യാത്ര തുടങ്ങിക്കഴിഞ്ഞു! 🚀' },
-      { emoji: '🛌', text: 'എല്ലാവരും ഒപ്പം വരാൻ നോക്കൂ, ഞങ്ങൾ ചെറുതായൊന്ന് വിശ്രമിക്കാം! 🏁' }
+      { emoji: '🤣', text: 'ബിരിയാണി ചെമ്പ് തുറക്കാൻ റെഡിയായിക്കോളൂ, ഞങ്ങൾ കപ്പും കൊണ്ടേ വരൂ! 🥘' },
+      { emoji: '🤣', text: 'ഒരു കവിൾ സുലൈമാനി കുടിച്ച് ഞങ്ങൾ ഒന്നാം സ്ഥാനത്ത് തന്നെയുണ്ട്! 😎' },
+      { emoji: '🤣', text: 'കാറ്റും കോലും വകവെക്കാതെ ഞങ്ങളുടെ യാത്ര മുന്നോട്ട് തന്നെയാണ്! 🏆' },
+      { emoji: '🤣', text: 'ഞങ്ങളുടെ വേഗത കൂട്ടാൻ ഇനി വേറെ ഗിയർ നോക്കേണ്ടി വരും! ✨' },
+      { emoji: '🤣', text: 'ആരും പേടിക്കണ്ട, കപ്പ് ഞങ്ങൾ സൂക്ഷിച്ചു വീട്ടിൽ എത്തിച്ചോളാം! 🏆' },
+      { emoji: '🤣', text: 'മുന്നിൽ നിൽക്കുന്നതിന്റെ ആ ഒരു സന്തോഷം അനുഭവിച്ചു തന്നെ അറിയണം! ✨' },
+      { emoji: '🤣', text: 'ഞങ്ങളെ പിന്തുടരുന്ന സുഹൃത്തുക്കൾക്ക് ചായ കുടിക്കാൻ വേണമെങ്കിൽ സമയം തരാം! 😜' },
+      { emoji: '🤣', text: 'ക്ഷമയോടെ കാത്തിരിക്കൂ, ഞങ്ങളുടെ സ്കോർ ബോർഡ് ഇനിയും ഉയരും! 🔥' },
+      { emoji: '🤣', text: 'വിജയത്തിന്റെ നല്ലൊരു പാതയിൽ ഞങ്ങൾ യാത്ര തുടങ്ങിക്കഴിഞ്ഞു! 🚀' },
+      { emoji: '🤣', text: 'എല്ലാവരും ഒപ്പം വരാൻ നോക്കൂ, ഞങ്ങൾ ചെറുതായൊന്ന് വിശ്രമിക്കാം! 🏁' }
     ] : [
-      { emoji: '🥘', text: 'Get the Biryani ready, we are coming home with the cup! 🏆' },
-      { emoji: '☕', text: 'Sipping our Sulaimani, relaxed right here at the first spot! 😎' },
-      { emoji: '🏆', text: 'Unstoppable! We are sailing strong to the finish line! ⛵' },
-      { emoji: '🚀', text: 'We might need to find a higher gear to go any faster! ✨' },
-      { emoji: '🏆', text: 'Do not worry, we will deliver the cup safely to our cabinet! 🏡' },
-      { emoji: '✨', text: 'Leading the board is a joy you have to experience to believe! 🤩' },
-      { emoji: '😜', text: 'We can pause for a tea break if our friends behind need to catch up! ☕' },
-      { emoji: '🔥', text: 'Stay tuned, our scoreboard is only going higher! 📈' },
-      { emoji: '🚀', text: 'We are well on our way to a beautiful victory! 🛣️' },
-      { emoji: '🏁', text: 'Try to catch up, everyone, we are taking a little breather! 🛌' }
-    ];
-    return reactions[index % reactions.length];
-  } else if (rank === 2 || rank === 3) {
-    const reactions = lang === 'ML' ? [
-      { emoji: '👀', text: 'മുന്നിലുള്ളവർ ഒന്ന് തിരിഞ്ഞു നോക്കിക്കോളൂ, ദാ തൊട്ടുപുറകിലുണ്ട്! 🏃‍♂️' },
-      { emoji: '⚡', text: 'ലീഡ് കണ്ട് സന്തോഷിക്കേണ്ട, കളി ഇനിയും ബാക്കിയുണ്ട് കൂട്ടുകാരേ! ⏳' },
-      { emoji: '🎯', text: 'പതുക്കെയാണെങ്കിലും ലക്ഷ്യത്തിലേക്ക് തന്നെയാണ് ഞങ്ങളുടെ യാത്ര! 🚶‍♂️' },
-      { emoji: '🔥', text: 'ഒരു ചെറിയ ഇടവേളക്ക് ശേഷം ഞങ്ങൾ ഇതാ വീണ്ടും വരുന്നു! 🚀' },
-      { emoji: '💪', text: 'വിജയം അത്ര എളുപ്പത്തിൽ വിട്ടുകൊടുക്കാൻ ഞങ്ങൾക്ക് മനസ്സില്ല! 🏆' },
-      { emoji: '💥', text: 'മത്സരം അവസാന നിമിഷം വരെ ആവേശകരമാക്കാൻ ഞങ്ങൾ റെഡിയാണ്! 🏁' },
-      { emoji: '⏳', text: 'നിങ്ങളുടെ ഒന്നാം സ്ഥാനം താത്കാലികം മാത്രമാണ് സുഹൃത്തുക്കളെ! 😎' },
-      { emoji: '🔥', text: 'തളരില്ല ഞങ്ങൾ, അവസാന നിമിഷം വരെ പോരാടും! 💪' },
-      { emoji: '🏆', text: 'ദാ എത്തിക്കഴിഞ്ഞു! ഇനി കപ്പിനായുള്ള ഫൈനൽ പോരാട്ടമാണ്! ⚡' },
-      { emoji: '🏃‍♂️', text: 'മുന്നിലുള്ളവരുടെ നെഞ്ചിടിപ്പ് കൂട്ടാൻ ഞങ്ങൾ വേഗത കൂട്ടുന്നു! 💓' }
-    ] : [
-      { emoji: '🏃‍♂️', text: 'Those in front, look back! We are right on your heels! 👀' },
-      { emoji: '⏳', text: 'Do not celebrate the lead yet, the game is far from over! ⚡' },
-      { emoji: '🚶‍♂️', text: 'Slowly but surely, our steps are headed straight for the target! 🎯' },
-      { emoji: '🚀', text: 'After a quick pause, we are building up speed again! 🔥' },
-      { emoji: '🏆', text: 'We are not going to hand over the trophy that easily! 💪' },
-      { emoji: '🏁', text: 'We are ready to keep this exciting right down to the final second! 💥' },
-      { emoji: '😎', text: 'Your first place is only temporary, dear friends! ⏳' },
-      { emoji: '💪', text: 'We never give up, we will fight until the last event! 🔥' },
-      { emoji: '⚡', text: 'We have arrived! The battle for the cup starts now! 🏆' },
-      { emoji: '💓', text: 'We are speeding up to make those in front a little nervous! 🏃‍♂️' }
+      { emoji: '🤣', text: 'Get the Biryani ready, we are coming home with the cup! 🏆' },
+      { emoji: '🤣', text: 'Sipping our Sulaimani, relaxed right here at the first spot! 😎' },
+      { emoji: '🤣', text: 'Unstoppable! We are sailing strong to the finish line! ⛵' },
+      { emoji: '🤣', text: 'We might need to find a higher gear to go any faster! ✨' },
+      { emoji: '🤣', text: 'Do not worry, we will deliver the cup safely to our cabinet! 🏡' },
+      { emoji: '🤣', text: 'Leading the board is a joy you have to experience to believe! 🤩' },
+      { emoji: '🤣', text: 'We can pause for a tea break if our friends behind need to catch up! ☕' },
+      { emoji: '🤣', text: 'Stay tuned, our scoreboard is only going higher! 📈' },
+      { emoji: '🤣', text: 'We are well on our way to a beautiful victory! 🛣️' },
+      { emoji: '🤣', text: 'Try to catch up, everyone, we are taking a little breather! 🛌' }
     ];
     return reactions[index % reactions.length];
   } else {
     const reactions = lang === 'ML' ? [
-      { emoji: '🧠', text: 'ഞങ്ങൾ തോൽക്കാൻ തയ്യാറല്ല, കളി ഇനിയും പഠിപ്പിച്ചു തരാം! 📖' },
-      { emoji: '🥘', text: 'ബിരിയാണിക്കുള്ള അരി ഇപ്പോൾ തന്നെ അടുപ്പത്ത് വെച്ചോളൂ! 🔥' },
-      { emoji: '🙌', text: 'പോയിന്റുകൾ കുറവാണെങ്കിലും ഞങ്ങളുടെ ആവേശത്തിന് ഒട്ടും കുറവില്ല! 💥' },
-      { emoji: '🍿', text: 'കളിയിലെ വലിയ ട്വിസ്റ്റുകൾ ഇനിയും വരാനിരിക്കുന്നതേയുള്ളൂ! ⏳' },
-      { emoji: '🚶‍♂️', text: 'എല്ലാവരും ഒന്ന് മുന്നോട്ട് പൊയ്ക്കോളൂ, ഞങ്ങൾ വഴി തടസ്സപ്പെടുത്തില്ല! 🛣️' },
-      { emoji: '🗺️', text: 'പതുക്കെപ്പോയാൽ വഴിയിലെ ഭംഗിയുള്ള കാഴ്ചകൾ നന്നായി ആസ്വദിക്കാം! 🚶‍♂️' },
-      { emoji: '🤫', text: 'ഇത് ഞങ്ങളുടെ തന്ത്രപരമായ മുന്നൊരുക്കമാണ്, അവസാനം കാണാം! ⚡' },
-      { emoji: '✨', text: 'സ്കോർ ബോർഡിൽ അത്ഭുതങ്ങൾ സംഭവിക്കാൻ ഒരു നിമിഷം മതി! 📈' },
-      { emoji: '🧗‍♂️', text: 'വിഷമിക്കേണ്ട കൂട്ടുകാരേ, താഴെനിന്നുള്ള കയറ്റത്തിന് ഒരു പ്രത്യേക ഭംഗിയുണ്ട്! 🏔️' },
-      { emoji: '☕', text: 'ഞങ്ങൾ വരുന്നുണ്ട്, ചായക്കടയിൽ ഞങ്ങൾക്കായി ഒരു സീറ്റ് മാറ്റിവെക്കണേ! 👋' }
+      { emoji: '😭', text: 'മുന്നിലുള്ളവർ ഒന്ന് തിരിഞ്ഞു നോക്കിക്കോളൂ, ദാ തൊട്ടുപുറകിലുണ്ട്! 🏃‍♂️' },
+      { emoji: '😭', text: 'ലീഡ് കണ്ട് സന്തോഷിക്കേണ്ട, കളി ഇനിയും ബാക്കിയുണ്ട് കൂട്ടുകാരേ! ⏳' },
+      { emoji: '😭', text: 'പതുക്കെയാണെങ്കിലും ലക്ഷ്യത്തിലേക്ക് തന്നെയാണ് ഞങ്ങളുടെ യാത്ര! 🚶‍♂️' },
+      { emoji: '😭', text: 'ഒരു ചെറിയ ഇടവേളക്ക് ശേഷം ഞങ്ങൾ ഇതാ വീണ്ടും വരുന്നു! 🚀' },
+      { emoji: '😭', text: 'വിജയം അത്ര എളുപ്പത്തിൽ വിട്ടുകൊടുക്കാൻ ഞങ്ങൾക്ക് മനസ്സില്ല! 🏆' },
+      { emoji: '😭', text: 'മത്സരം അവസാന നിമിഷം വരെ ആവേശകരമാക്കാൻ ഞങ്ങൾ റെഡിയാണ്! 🏁' },
+      { emoji: '😭', text: 'നിങ്ങളുടെ ഒന്നാം സ്ഥാനം താത്കാലികം മാത്രമാണ് സുഹൃത്തുക്കളെ! 😎' },
+      { emoji: '😭', text: 'തളരില്ല ഞങ്ങൾ, അവസാന നിമിഷം വരെ പോരാടും! 💪' },
+      { emoji: '😭', text: 'ദാ എത്തിക്കഴിഞ്ഞു! ഇനി കപ്പിനായുള്ള ഫൈനൽ പോരാട്ടമാണ്! ⚡' },
+      { emoji: '😭', text: 'മുന്നിലുള്ളവരുടെ നെഞ്ചിടിപ്പ് കൂട്ടാൻ ഞങ്ങൾ വേഗത കൂട്ടുന്നു! 💓' }
     ] : [
-      { emoji: '📖', text: 'We are not giving up, there is still time to show our best! 🧠' },
-      { emoji: '🔥', text: 'You can start boiling the rice for the Biryani now! 🥘' },
-      { emoji: '💥', text: 'Points might be low, but our energy is touching the sky! 🙌' },
-      { emoji: '⏳', text: 'The biggest twists of the tournament are yet to come! 🍿' },
-      { emoji: '🛣️', text: 'Go ahead, everyone! We promise not to block the way! 🚶‍♂️' },
-      { emoji: '🚶‍♂️', text: 'Going slow lets us enjoy the scenic views along the journey! 🗺️' },
-      { emoji: '⚡', text: 'This is just a strategic buildup, wait for the finale! 🤫' },
-      { emoji: '📈', text: 'It only takes one moment for a miracle on the scoreboard! ✨' },
-      { emoji: '🏔️', text: 'No worries! Climbing up from the bottom is the best journey! 🧗‍♂️' },
-      { emoji: '👋', text: 'We are on our way, save a cup of tea for us at the counter! ☕' }
+      { emoji: '😭', text: 'Those in front, look back! We are right on your heels! 👀' },
+      { emoji: '😭', text: 'Do not celebrate the lead yet, the game is far from over! ⚡' },
+      { emoji: '😭', text: 'Slowly but surely, our steps are headed straight for the target! 🎯' },
+      { emoji: '😭', text: 'After a quick pause, we are building up speed again! 🔥' },
+      { emoji: '😭', text: 'We are not going to hand over the trophy that easily! 💪' },
+      { emoji: '😭', text: 'We are ready to keep this exciting right down to the final second! 💥' },
+      { emoji: '😭', text: 'Your first place is only temporary, dear friends! ⏳' },
+      { emoji: '😭', text: 'We never give up, we will fight until the last event! 🔥' },
+      { emoji: '😭', text: 'We have arrived! The battle for the cup starts now! 🏆' },
+      { emoji: '😭', text: 'We are speeding up to make those in front a little nervous! 🏃‍♂️' }
     ];
     return reactions[index % reactions.length];
   }
@@ -13605,8 +13580,9 @@ ${pagesHtml}
                               <span className="projector-rank-badge">{badgeIcon}</span>
                               <span className="projector-team-name" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                 <span>{team.name}</span>
-                                {trollMode && (() => {
+                                {(() => {
                                   const reaction = getTrollReaction(rank, team.name, trollLang, trollOffsets[team.id] || 0);
+                                  const mainEmoji = rank === 1 ? '🤣' : '😭';
                                   return (
                                     <span
                                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
@@ -13615,7 +13591,7 @@ ${pagesHtml}
                                         setTrollOffsets(prev => ({ ...prev, [team.id]: (prev[team.id] || 0) + 1 }));
                                       }}
                                     >
-                                      <span className="animate-troll-emoji" style={{ fontSize: '26px' }}>{reaction.emoji}</span>
+                                      <span className="animate-troll-emoji" style={{ fontSize: '26px' }}>{mainEmoji}</span>
                                       <span className="projector-troll-bubble">{reaction.text}</span>
                                     </span>
                                   );
