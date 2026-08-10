@@ -1311,9 +1311,6 @@ function App() {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
-    // Load local cached snapshot immediately (< 1ms) so UI renders instantly on page refresh
-    loadCachedData(rNum);
-
     if (!navigator.onLine) {
       isFetchingRef.current = false;
       return;
@@ -1410,23 +1407,32 @@ function App() {
       if (Array.isArray(studentsData)) {
         const uniqueMap = new Map();
         for (const s of studentsData) {
-          const rKey = String(s.regno || s.regNo || '').trim();
-          if (!rKey) {
-            uniqueMap.set(s.id, s);
-          } else {
-            const existing = uniqueMap.get(rKey);
-            if (!existing) {
-              uniqueMap.set(rKey, s);
-            } else if (!existing.photo_url && s.photo_url) {
-              uniqueMap.set(rKey, s);
-            }
-          }
+          const sKey = String(s.id || '').trim();
+          if (!sKey) continue;
+          uniqueMap.set(sKey, s);
         }
         parsedStudents = Array.from(uniqueMap.values()).sort(compareRegNo);
         setStudents(parsedStudents);
       }
       if (Array.isArray(resultsData)) setResultsList(resultsData);
       if (Array.isArray(groupRegData)) setGroupRegistrations(groupRegData);
+
+      // 🗄️ Keep LocalStorage cache 100% updated with fresh database snapshot
+      if (rNum && parsedStudents.length > 0) {
+        try {
+          const cacheObj = {
+            teams: Array.isArray(teamsData) ? teamsData : teams,
+            categories: Array.isArray(catsData) ? catsData : categories,
+            programs: Array.isArray(programsData) ? programsData : programs,
+            students: parsedStudents,
+            resultsList: Array.isArray(resultsData) ? resultsData : resultsList,
+            programRegistrations: parsedRegs,
+            groupRegistrations: Array.isArray(groupRegData) ? groupRegData : groupRegistrations,
+            visibilityControls: madrasaData?.visibility_controls || null
+          };
+          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+        } catch (e) {}
+      }
 
       let loadedEventName = '';
       let loadedEventYear = '';
@@ -4208,7 +4214,21 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         const sId = cropperTargetStudent.id;
         const sName = cropperTargetStudent.name;
 
-        setStudents(prev => prev.map(s => String(s.id) === String(sId) ? { ...s, photo_url: base64DataUrl, photo_status: 'approved' } : s));
+        setStudents(prev => {
+          const updated = prev.map(s => String(s.id) === String(sId) ? { ...s, photo_url: base64DataUrl, photo_status: 'approved' } : s);
+          if (loggedInMadrasa) {
+            try {
+              const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || '').trim();
+              const raw = localStorage.getItem(`cached_data_${rNum}`);
+              if (raw) {
+                const cacheObj = JSON.parse(raw);
+                cacheObj.students = updated;
+                localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+              }
+            } catch (e) {}
+          }
+          return updated;
+        });
 
         try {
           const { error } = await queryWithRetry(() =>
@@ -4391,7 +4411,21 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   const handleDeletePhoto = async (student) => {
     if (!window.confirm(lang === 'EN' ? "Delete this student's photo?" : 'ഈ വിദ്യാർത്ഥിയുടെ ഫോട്ടോ ഇല്ലാതാക്കണമെന്നുറപ്പാണോ?')) return;
     // 🚀 Instant optimistic UI update
-    setStudents(prev => prev.map(s => String(s.id) === String(student.id) ? { ...s, photo_url: null, photo_status: 'none' } : s));
+    setStudents(prev => {
+      const updated = prev.map(s => String(s.id) === String(student.id) ? { ...s, photo_url: null, photo_status: 'none' } : s);
+      if (loggedInMadrasa) {
+        try {
+          const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || '').trim();
+          const raw = localStorage.getItem(`cached_data_${rNum}`);
+          if (raw) {
+            const cacheObj = JSON.parse(raw);
+            cacheObj.students = updated;
+            localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+          }
+        } catch (e) {}
+      }
+      return updated;
+    });
 
     try {
       const { error } = await queryWithRetry(() =>
