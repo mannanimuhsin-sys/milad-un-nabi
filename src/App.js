@@ -1672,36 +1672,77 @@ function App() {
   useEffect(() => {
     let isChecking = false;
 
+    // Purge any old service workers so all mobile/desktop devices always get fresh releases
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(r => r.unregister());
+      }).catch(() => {});
+    }
+
+    // Handle ChunkLoadError or stale asset load failures across iOS Safari & Android Chrome
+    const handleGlobalError = (event) => {
+      const msg = String(event?.message || event?.reason || '');
+      if (msg.includes('Loading chunk') || msg.includes('ChunkLoadError') || msg.includes('Unexpected token')) {
+        const lastReload = parseInt(localStorage.getItem('miladfest_chunk_reload') || '0', 10);
+        if (Date.now() - lastReload > 10000) {
+          localStorage.setItem('miladfest_chunk_reload', String(Date.now()));
+          if ('caches' in window) {
+            caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
+          }
+          window.location.reload(true);
+        }
+      }
+    };
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleGlobalError);
+
     const checkAppVersion = async () => {
       if (isChecking) return;
-      // Do not auto-reload while user is actively typing or selecting options in forms
-      if (typeof document !== 'undefined' && document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA')) {
-        return;
-      }
       isChecking = true;
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           const serverVersion = data && (data.buildTime || data.version) ? String(data.buildTime || data.version) : null;
-          if (!serverVersion) return; // Guard against non-JSON or missing version payload
+          if (!serverVersion) return;
+
+          const savedVersion = localStorage.getItem('miladfest_app_version');
 
           if (!activeVersionRef.current) {
             activeVersionRef.current = serverVersion;
+            if (savedVersion && savedVersion !== serverVersion) {
+              localStorage.setItem('miladfest_app_version', serverVersion);
+              if ('caches' in window) {
+                caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
+              }
+              window.location.reload(true);
+              return;
+            }
+            localStorage.setItem('miladfest_app_version', serverVersion);
           } else if (serverVersion && activeVersionRef.current !== serverVersion) {
-            console.log('[AUTO-UPDATE] New build release detected! Storing active version without forcing reload.');
+            console.log('[AUTO-UPDATE] New release detected! Updating app across all devices...');
             activeVersionRef.current = serverVersion;
+            localStorage.setItem('miladfest_app_version', serverVersion);
+
+            const isUserTyping = typeof document !== 'undefined' && document.activeElement &&
+              (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+
+            if (!isUserTyping) {
+              if ('caches' in window) {
+                caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
+              }
+              window.location.reload(true);
+            }
           }
         }
       } catch (e) {
-        // Silent catch on network blip
       } finally {
         isChecking = false;
       }
     };
 
     checkAppVersion();
-    const interval = setInterval(checkAppVersion, 60000);
+    const interval = setInterval(checkAppVersion, 30000);
 
     const handleFocus = () => { checkAppVersion(); };
     window.addEventListener('focus', handleFocus);
@@ -1711,6 +1752,8 @@ function App() {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleGlobalError);
     };
   }, []);
 
