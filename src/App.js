@@ -105,7 +105,7 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
       {/* Photo LEFT + Student Name & RegNo RIGHT */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '6px 8px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '8px', position: 'relative', zIndex: 1 }}>
         {/* Photo */}
-        <div style={{ flexShrink: 0, width: '82px', height: '96px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)' }}>
+        <div style={{ flexShrink: 0, width: '108px', height: '126px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)' }}>
           {photoContent}
         </div>
 
@@ -116,7 +116,7 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
             {s.name}
           </div>
           {/* Highlighted Reg No badge */}
-          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '4px 10px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', maxWidth: '135px', margin: '0 auto', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
+          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '4px 8px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', maxWidth: '105px', margin: '0 auto', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
             <div style={{ fontSize: '7px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>
               Register No.
             </div>
@@ -4577,10 +4577,10 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .madrasa-name { font-size: 7px; font-weight: 900; color: #fef08a; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
   .madrasa-meta { font-size: 5.5px; color: #bbf7d0; text-align: center; opacity: 0.9; }
   .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 5px 6px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 6px; position: relative; z-index: 1; }
-  .photo-box { flex-shrink: 0; width: 78px; height: 92px; border-radius: 8px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); }
+  .photo-box { flex-shrink: 0; width: 108px; height: 126px; border-radius: 8px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); }
   .name-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; width: 100%; }
   .student-name { font-size: 10.5px; font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; width: 100%; }
-  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 6px; padding: 4px 8px; text-align: center; box-shadow: 0 3px 8px rgba(251,191,36,0.4); border: 1.5px solid #d97706; width: 100%; max-width: 125px; margin: 0 auto; box-sizing: border-box; }
+  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 6px; padding: 3px 6px; text-align: center; box-shadow: 0 3px 8px rgba(251,191,36,0.4); border: 1.5px solid #d97706; width: 100%; max-width: 95px; margin: 0 auto; box-sizing: border-box; }
   .reg-label { font-size: 5.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1px; }
   .reg-num { font-size: 19px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
   .details { flex-shrink: 0; padding: 4px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
