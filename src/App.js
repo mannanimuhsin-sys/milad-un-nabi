@@ -580,6 +580,7 @@ function App() {
   // Projector Mode States
   const [isProjectorActive, setIsProjectorActive] = useState(false);
   const [projectorSlide, setProjectorSlide] = useState(0); // 0: Overall, 1: Category, 2: Recent Winners
+  const [selectedRecentProgIndex, setSelectedRecentProgIndex] = useState(0);
 
   // Event / Program Name States (stored in localStorage)
   const [eventName, setEventName] = useState('');
@@ -13733,46 +13734,88 @@ ${pagesHtml}
                   <div className="projector-empty">{t('noResultsAdded')}</div>
                 ) : (
                   (() => {
-                    // 🏆 Get ONLY the single most recently announced program & category (stable deterministic sort)
-                    const sortedResults = [...resultsList].sort((a, b) => {
-                      const timeA = new Date(a.created_at || a.createdAt || a.inserted_at || 0).getTime();
-                      const timeB = new Date(b.created_at || b.createdAt || b.inserted_at || 0).getTime();
-                      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB && timeA > 0 && timeB > 0) {
-                        return timeB - timeA;
+                    // 1. Group results into distinct declared program runs (by progid/name, catname, and gender/type)
+                    const groupsMap = new Map();
+
+                    resultsList.forEach(r => {
+                      const rProgId = String(r.progid || r.progId || '').trim();
+                      const rProgName = String(r.progname || r.progName || '').trim();
+                      const rCatName = String(r.catname || r.catName || '').trim();
+
+                      let g = String(r.studentgender || r.studentGender || r.progtype || r.gender || '').toUpperCase();
+                      const genderKey = (g.includes('BOY') || g === 'MALE' || g === 'M')
+                        ? 'BOY'
+                        : (g.includes('GIRL') || g === 'FEMALE' || g === 'F')
+                          ? 'GIRL'
+                          : 'COMMON';
+
+                      const groupKey = `${rProgId || rProgName}_${rCatName}_${genderKey}`;
+
+                      if (!groupsMap.has(groupKey)) {
+                        groupsMap.set(groupKey, {
+                          groupKey,
+                          progId: rProgId,
+                          progName: rProgName,
+                          catName: rCatName,
+                          genderKey,
+                          results: [],
+                          latestTime: 0,
+                          latestId: 0
+                        });
                       }
-                      const numA = Number(a.id);
-                      const numB = Number(b.id);
-                      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-                        return numB - numA;
+
+                      const group = groupsMap.get(groupKey);
+                      group.results.push(r);
+
+                      const rTime = new Date(r.created_at || r.createdAt || r.inserted_at || 0).getTime();
+                      if (!isNaN(rTime) && rTime > group.latestTime) group.latestTime = rTime;
+
+                      const rId = Number(r.id) || 0;
+                      if (rId > group.latestId) group.latestId = rId;
+                    });
+
+                    // 2. Sort distinct program groups descending by latest timestamp / latest ID
+                    const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => {
+                      if (a.latestTime !== b.latestTime && a.latestTime > 0 && b.latestTime > 0) {
+                        return b.latestTime - a.latestTime;
                       }
-                      return String(b.id || '').localeCompare(String(a.id || ''));
+                      if (a.latestId !== b.latestId) {
+                        return b.latestId - a.latestId;
+                      }
+                      return b.groupKey.localeCompare(a.groupKey);
                     });
-                    const latestResultRow = sortedResults[0];
-                    if (!latestResultRow) return <div className="projector-empty">{t('noResultsAdded')}</div>;
 
-                    const latestProgId = String(latestResultRow.progid || latestResultRow.progId || '');
-                    const latestCatId = String(latestResultRow.catid || latestResultRow.catId || latestResultRow.catname || '');
+                    if (sortedGroups.length === 0) return <div className="projector-empty">{t('noResultsAdded')}</div>;
 
-                    const prog = programs.find(p =>
-                      String(p.id) === latestProgId ||
-                      String(p.code) === latestProgId ||
-                      String(p.name || '').trim().toLowerCase() === String(latestResultRow.progname || '').trim().toLowerCase()
-                    );
-                    if (!prog) return <div className="projector-empty">{t('noResultsAdded')}</div>;
+                    // Ensure active index is within bounds
+                    const activeIdx = Math.min(Math.max(0, selectedRecentProgIndex || 0), sortedGroups.length - 1);
+                    const activeGroup = sortedGroups[activeIdx];
 
-                    // Filter results for ONLY this single most recently declared program & category
-                    const progResults = resultsList.filter(r => {
-                      const rProgId = String(r.progid || r.progId || r.progname || '');
-                      const rCatId = String(r.catid || r.catId || r.catname || '');
-                      const pMatch = rProgId === latestProgId || (prog && (rProgId === String(prog.id) || rProgId === String(prog.code)));
-                      const cMatch = !latestCatId || rCatId === latestCatId || String(r.catname || '').trim().toLowerCase() === String(latestResultRow.catname || '').trim().toLowerCase();
-                      return pMatch && cMatch;
-                    });
+                    // 3. Find matching program object metadata
+                    const prog = programs.find(p => {
+                      const pId = String(p.id || '');
+                      const pCode = String(p.code || '');
+                      const pCatObj = categories.find(c => String(c.id) === String(p.catid || p.catId));
+                      const pCatName = pCatObj ? pCatObj.name : (p.catname || p.catName || '');
+                      const pType = String(p.type || '').toUpperCase();
+                      const pGender = pType.includes('BOY') ? 'BOY' : pType.includes('GIRL') ? 'GIRL' : 'COMMON';
+
+                      const idMatch = (pId && pId === activeGroup.progId) || (pCode && pCode === activeGroup.progId);
+                      const catMatch = !pCatName || !activeGroup.catName || pCatName.toLowerCase() === activeGroup.catName.toLowerCase();
+                      const genderMatch = pGender === activeGroup.genderKey;
+
+                      return idMatch && catMatch && genderMatch;
+                    }) || programs.find(p => String(p.name || '').trim().toLowerCase() === activeGroup.progName.toLowerCase()) || {
+                      code: activeGroup.progId || 'RES',
+                      name: activeGroup.progName || 'Program',
+                      type: activeGroup.genderKey,
+                      catname: activeGroup.catName
+                    };
 
                     const catObj = categories.find(c => String(c.id) === String(prog.catid || prog.catId));
-                    const catName = catObj ? catObj.name : (prog.catname || prog.catName || '');
+                    const catName = catObj ? catObj.name : (prog.catname || prog.catName || activeGroup.catName || '');
 
-                    const pType = (prog.type || '').toUpperCase();
+                    const pType = String(prog.type || activeGroup.genderKey || '').toUpperCase();
                     const isBoyProg = pType.includes('BOY');
                     const isGirlProg = pType.includes('GIRL');
                     const genderText = isBoyProg
@@ -13781,6 +13824,9 @@ ${pagesHtml}
                         ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്')
                         : (lang === 'EN' ? 'Common' : 'കോമൺ');
                     const genderColor = isBoyProg ? '#60a5fa' : isGirlProg ? '#f472b6' : '#fbbf24';
+
+                    // Filter results for ONLY this single active program group!
+                    const progResults = activeGroup.results;
 
                     // Group winners by place (support multiple winners per place)
                     const firstWinners = progResults.filter(r => r.place === 'First');
@@ -13793,12 +13839,21 @@ ${pagesHtml}
                       const regNoPart = rawName.includes(' - ') ? rawName.split(' - ')[0].trim() : '';
                       const namePart = rawName.includes(' - ') ? rawName.split(' - ').slice(1).join(' - ').trim() : rawName;
 
-                      const studentObj = students.find(s =>
-                        (regNoPart && String(s.regno || s.regNo || '').trim() === regNoPart) ||
-                        (w.studentid && String(s.id) === String(w.studentid))
-                      );
+                      // Robust multi-factor student photo lookup
+                      const studentObj = students.find(s => {
+                        const sReg = String(s.regno || s.regNo || '').trim();
+                        const sId = String(s.id || '').trim();
+                        const sName = String(s.name || '').trim().toLowerCase();
+
+                        if (regNoPart && sReg === regNoPart) return true;
+                        if (w.studentid && sId === String(w.studentid).trim()) return true;
+                        if (namePart && sName === namePart.toLowerCase()) return true;
+                        if (rawName && sName === rawName.toLowerCase()) return true;
+                        return false;
+                      });
+
                       const targetRegNo = studentObj ? (studentObj.regno || studentObj.regNo || regNoPart) : regNoPart;
-                      const targetGender = studentObj?.gender || w.studentgender || (isBoyProg ? 'BOY' : isGirlProg ? 'GIRL' : 'COMMON');
+                      const targetGender = studentObj?.gender || w.studentgender || activeGroup.genderKey;
                       const teamName = w.teamname || teams.find(t => String(t.id) === String(w.teamId || w.teamid))?.name || '';
                       const grade = (w.grade && w.grade !== '-' && w.grade !== 'No') ? w.grade : '';
 
@@ -13806,7 +13861,7 @@ ${pagesHtml}
                       const isBoyCard = String(targetGender).toUpperCase().includes('BOY');
 
                       return (
-                        <div key={w.id || `${placeClass}-${regNoPart}`} className={`winner-poster-card ${placeClass}`}>
+                        <div key={w.id || `${placeClass}-${regNoPart || namePart}`} className={`winner-poster-card ${placeClass}`}>
                           <div className="winner-poster-medal-ring">
                             <span className="winner-poster-medal-emoji">{medalEmoji}</span>
                           </div>
@@ -13847,11 +13902,79 @@ ${pagesHtml}
                         {/* Decorative background shimmer */}
                         <div className="winner-poster-bg-shimmer" />
 
+                        {/* 🔄 Recent Program Selector / Navigator (if multiple programs exist) */}
+                        {sortedGroups.length > 1 && (
+                          <div className="winner-poster-nav-bar" style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            marginBottom: '14px',
+                            position: 'relative',
+                            zIndex: 10
+                          }}>
+                            <button
+                              onClick={() => setSelectedRecentProgIndex(prev => Math.max(0, prev - 1))}
+                              disabled={activeIdx === 0}
+                              style={{
+                                background: activeIdx === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.2)',
+                                color: activeIdx === 0 ? '#64748b' : '#fbbf24',
+                                border: '1px solid rgba(251,191,36,0.3)',
+                                borderRadius: '8px',
+                                padding: '4px 10px',
+                                cursor: activeIdx === 0 ? 'default' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '700'
+                              }}
+                            >
+                              ◀ {lang === 'EN' ? 'Latest' : 'പുതിയത്'}
+                            </button>
+
+                            <select
+                              value={activeIdx}
+                              onChange={(e) => setSelectedRecentProgIndex(Number(e.target.value))}
+                              style={{
+                                background: '#0f172a',
+                                color: '#fbbf24',
+                                border: '1px solid rgba(251,191,36,0.4)',
+                                borderRadius: '8px',
+                                padding: '4px 10px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                maxWidth: '240px'
+                              }}
+                            >
+                              {sortedGroups.map((grp, idx) => (
+                                <option key={grp.groupKey} value={idx}>
+                                  {idx === 0 ? '🔥 ' : ''}{grp.progName} ({grp.catName} - {grp.genderKey})
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              onClick={() => setSelectedRecentProgIndex(prev => Math.min(sortedGroups.length - 1, prev + 1))}
+                              disabled={activeIdx === sortedGroups.length - 1}
+                              style={{
+                                background: activeIdx === sortedGroups.length - 1 ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.2)',
+                                color: activeIdx === sortedGroups.length - 1 ? '#64748b' : '#fbbf24',
+                                border: '1px solid rgba(251,191,36,0.3)',
+                                borderRadius: '8px',
+                                padding: '4px 10px',
+                                cursor: activeIdx === sortedGroups.length - 1 ? 'default' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '700'
+                              }}
+                            >
+                              {lang === 'EN' ? 'Older' : 'പഴയത്'} ▶
+                            </button>
+                          </div>
+                        )}
+
                         {/* Program Heading */}
                         <div className="winner-poster-header">
                           <div className="winner-poster-header-top">
                             <span className="winner-poster-trophy-icon">🏆</span>
-                            <span className="winner-poster-prog-code">{prog.code}</span>
+                            <span className="winner-poster-prog-code">{prog.code || activeGroup.progId || 'RES'}</span>
                             <span className="winner-poster-cat-badge" style={{ color: genderColor, borderColor: genderColor }}>
                               {isBoyProg ? '👦' : isGirlProg ? '👧' : '🌐'} {genderText}
                             </span>
@@ -13859,7 +13982,7 @@ ${pagesHtml}
                               <span className="winner-poster-catname-badge">📁 {catName}</span>
                             )}
                           </div>
-                          <h2 className="winner-poster-prog-title">{prog.name}</h2>
+                          <h2 className="winner-poster-prog-title">{prog.name || activeGroup.progName}</h2>
                           <div className="winner-poster-subtitle">
                             {lang === 'EN' ? 'RESULT ANNOUNCED' : 'ഫലം പ്രഖ്യാപിച്ചു'}
                           </div>
