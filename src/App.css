@@ -2938,7 +2938,8 @@ tr:nth-child(even) {
     gap: 24px;
     position: relative;
     z-index: 2;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    width: 100%;
 }
 
 .winner-poster-place-group {
@@ -2947,7 +2948,7 @@ tr:nth-child(even) {
     gap: 16px;
     align-items: center;
     flex: 1;
-    min-width: 250px;
+    min-width: 0;
     max-width: 340px;
 }
 
@@ -2962,19 +2963,6 @@ tr:nth-child(even) {
 
 .winner-poster-place-group.bronze-group {
     order: 3;
-}
-
-@media (max-width: 900px) {
-    .winner-poster-place-group.gold-group {
-        order: 1;
-        transform: none;
-    }
-    .winner-poster-place-group.silver-group {
-        order: 2;
-    }
-    .winner-poster-place-group.bronze-group {
-        order: 3;
-    }
 }
 
 .winner-poster-card {
@@ -3177,6 +3165,248 @@ tr:nth-child(even) {
     opacity: 0.7;
     position: relative;
     z-index: 2;
+}
+
+/* 📱 MOBILE RESPONSIVE STYLES FOR LIVE SCOREBOARD & RECENT WINNERS */
+@media (max-width: 768px) {
+    .projector-overlay {
+        padding: 14px 10px;
+    }
+
+    .projector-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+
+    .projector-header-left {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .projector-nav-pills {
+        justify-content: center;
+        gap: 4px;
+        padding: 4px;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .projector-nav-pill {
+        padding: 6px 10px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    .projector-close-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .projector-slide-title {
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+
+    /* Leaderboard & Category Grids Mobile */
+    .projector-leaderboard-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding-bottom: 20px;
+    }
+
+    .projector-leaderboard-card {
+        padding: 14px 12px;
+        border-radius: 14px;
+    }
+
+    .projector-team-name {
+        font-size: 14px;
+    }
+
+    .projector-team-score {
+        font-size: 20px;
+    }
+
+    .projector-categories-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding-bottom: 20px;
+    }
+
+    .projector-category-card {
+        padding: 14px 10px;
+        border-radius: 14px;
+    }
+
+    /* 🏆 RECENT WINNERS 3-COLUMN SIDE-BY-SIDE MOBILE LAYOUT */
+    .winner-poster-container {
+        padding: 6px 2px !important;
+    }
+
+    .winner-poster-header {
+        margin-bottom: 14px !important;
+    }
+
+    .winner-poster-prog-title {
+        font-size: 18px !important;
+    }
+
+    .winner-poster-subtitle {
+        font-size: 11px !important;
+    }
+
+    .winner-poster-cards-row {
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        justify-content: space-between !important;
+        align-items: stretch !important;
+        width: 100% !important;
+    }
+
+    .winner-poster-place-group {
+        min-width: 0 !important;
+        max-width: 33% !important;
+        flex: 1 1 33% !important;
+        gap: 8px !important;
+    }
+
+    .winner-poster-place-group.silver-group {
+        order: 1 !important;
+    }
+
+    .winner-poster-place-group.gold-group {
+        order: 2 !important;
+        transform: translateY(-4px) !important;
+    }
+
+    .winner-poster-place-group.bronze-group {
+        order: 3 !important;
+    }
+
+    .winner-poster-card {
+        padding: 10px 4px !important;
+        border-radius: 14px !important;
+    }
+
+    .winner-poster-card.gold {
+        border-width: 2px !important;
+        box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3) !important;
+    }
+
+    .winner-poster-medal-emoji {
+        font-size: 18px !important;
+    }
+
+    .winner-poster-card.gold .winner-poster-medal-emoji {
+        font-size: 24px !important;
+    }
+
+    .winner-poster-photo-wrap {
+        width: 52px !important;
+        height: 52px !important;
+        margin-bottom: 6px !important;
+        border-width: 2px !important;
+    }
+
+    .winner-poster-card.gold .winner-poster-photo-wrap {
+        width: 64px !important;
+        height: 64px !important;
+        border-width: 3px !important;
+    }
+
+    .winner-poster-place-label {
+        font-size: 9px !important;
+        padding: 2px 6px !important;
+        margin-bottom: 6px !important;
+        letter-spacing: 0px !important;
+    }
+
+    .winner-poster-info {
+        gap: 2px !important;
+    }
+
+    .winner-poster-name {
+        font-size: 11px !important;
+        line-height: 1.25 !important;
+    }
+
+    .winner-poster-card.gold .winner-poster-name {
+        font-size: 12px !important;
+    }
+
+    .winner-poster-reg {
+        font-size: 9px !important;
+        padding: 1px 4px !important;
+    }
+
+    .winner-poster-team {
+        font-size: 10px !important;
+        margin-top: 1px !important;
+    }
+
+    .winner-poster-cat {
+        font-size: 9px !important;
+    }
+
+    .winner-poster-grade {
+        font-size: 9px !important;
+        padding: 2px 5px !important;
+        margin-top: 2px !important;
+    }
+
+    .winner-poster-empty-place {
+        padding: 14px 4px !important;
+        min-height: 110px !important;
+        border-radius: 14px !important;
+    }
+
+    .winner-poster-empty-place span {
+        font-size: 22px !important;
+    }
+
+    .winner-poster-footer-line {
+        margin-top: 18px !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .winner-poster-cards-row {
+        gap: 3px !important;
+    }
+
+    .winner-poster-card {
+        padding: 8px 2px !important;
+    }
+
+    .winner-poster-photo-wrap {
+        width: 44px !important;
+        height: 44px !important;
+    }
+
+    .winner-poster-card.gold .winner-poster-photo-wrap {
+        width: 54px !important;
+        height: 54px !important;
+    }
+
+    .winner-poster-name {
+        font-size: 10px !important;
+    }
+
+    .winner-poster-card.gold .winner-poster-name {
+        font-size: 11px !important;
+    }
+
+    .winner-poster-team {
+        font-size: 9px !important;
+    }
+
+    .winner-poster-place-label {
+        font-size: 8px !important;
+        padding: 1px 4px !important;
+    }
 }
 
 /* Animations */

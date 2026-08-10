@@ -13733,8 +13733,21 @@ ${pagesHtml}
                   <div className="projector-empty">{t('noResultsAdded')}</div>
                 ) : (
                   (() => {
-                    // 🏆 Get ONLY the single most recently announced program & category (highest numeric id)
-                    const latestResultRow = [...resultsList].sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0))[0];
+                    // 🏆 Get ONLY the single most recently announced program & category (stable deterministic sort)
+                    const sortedResults = [...resultsList].sort((a, b) => {
+                      const timeA = new Date(a.created_at || a.createdAt || a.inserted_at || 0).getTime();
+                      const timeB = new Date(b.created_at || b.createdAt || b.inserted_at || 0).getTime();
+                      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB && timeA > 0 && timeB > 0) {
+                        return timeB - timeA;
+                      }
+                      const numA = Number(a.id);
+                      const numB = Number(b.id);
+                      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+                        return numB - numA;
+                      }
+                      return String(b.id || '').localeCompare(String(a.id || ''));
+                    });
+                    const latestResultRow = sortedResults[0];
                     if (!latestResultRow) return <div className="projector-empty">{t('noResultsAdded')}</div>;
 
                     const latestProgId = String(latestResultRow.progid || latestResultRow.progId || '');
