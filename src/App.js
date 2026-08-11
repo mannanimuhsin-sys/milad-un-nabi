@@ -5930,7 +5930,7 @@ ${pagesHtml}
 
                         return `
 <div class="certificate-wrapper">
-  <!-- Right Green Geometric Banner with Arabic Calligraphy -->
+  <!-- Right Green Geometric Banner with Arabic Calligraphy */}
   <div class="cert-right-banner">
     <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -5946,10 +5946,10 @@ ${pagesHtml}
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_${result.id || Math.random()})" opacity="0.8" />
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
       
-      <!-- Arabic Calligraphy "ميلاد" (top) and "النبي" (bottom) with decorative flourishes -->
-      <!-- ARTISTIC CALLIGRAPHY GROUP: "میلاد النبي" -->
+      <!-- Arabic Calligraphy "ميلاد" (top) and "النبي" (bottom) with decorative flourishes */}
+      {/* ARTISTIC CALLIGRAPHY GROUP: "میلاد النبي" */}
       <g transform="translate(195, 50) scale(0.78)">
-        <!-- BACKGROUND ARTISTIC SPIRALS & ORNAMENTS -->
+        <!-- BACKGROUND ARTISTIC SPIRALS & ORNAMENTS */}
         <path d="M15 65 C-20 40 -15 0 25 -15 C60 -25 90 5 70 30 C55 45 35 30 45 15" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.8" stroke-linecap="round"/>
         <circle cx="45" cy="15" r="3.5" fill="#ffffff" opacity="0.9"/>
         <circle cx="10" cy="70" r="3" fill="#ffffff" opacity="0.85"/>
@@ -5965,7 +5965,7 @@ ${pagesHtml}
         <circle cx="97" cy="292" r="5" fill="#ffffff" opacity="0.95"/>
         <path d="M82 305 Q97 312 112 305" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.8"/>
 
-        <!-- CALLIGRAPHY VECTOR PATHS: "میلاد" (Top Word) -->
+        <!-- CALLIGRAPHY VECTOR PATHS: "میلاد" (Top Word) */}
         <g fill="#ffffff" opacity="0.98">
           <path d="M35 125 C30 115 35 102 48 102 C62 102 68 114 62 124 C56 132 42 132 35 125 Z M42 112 C38 116 42 121 48 121 C54 121 58 116 54 112 C50 108 44 108 42 112 Z"/>
           <path d="M48 128 C65 128 80 120 95 105 L104 114 C85 133 65 142 45 140 Z"/>
@@ -5976,7 +5976,7 @@ ${pagesHtml}
           <path d="M125 122 C145 122 170 135 190 155 L182 163 C165 145 142 133 122 133 Z"/>
         </g>
 
-        <!-- CALLIGRAPHY VECTOR PATHS: "النبي" (Bottom Word) -->
+        <!-- CALLIGRAPHY VECTOR PATHS: "النبي" (Bottom Word) */}
         <g fill="#ffffff" opacity="0.98">
           <path d="M145 150 C155 125 160 95 165 65 L176 68 C171 96 165 128 154 155 Z"/>
           <path d="M130 155 C140 130 146 100 150 70 L161 73 C157 101 150 133 139 160 Z"/>
@@ -5994,13 +5994,13 @@ ${pagesHtml}
     </svg>
   </div>
 
-  <!-- Content Section -->
+  <!-- Content Section */}
   <div class="cert-content">
     
-    <!-- Top Header -->
+    <!-- Top Header */}
     <div class="cert-header">
       <div class="cert-logo-section">
-        <img src="${logoUrl}" class="cert-app-logo" style="width:62px; height:62px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
+        <img src="${logoUrl}" class="cert-app-logo" style="width:75px; height:75px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
         <div class="cert-org-details">
           <div class="cert-madrasa-name">${madrasaNameText}</div>
           <div class="cert-madrasa-place">${madrasaPlaceText}</div>
@@ -6013,7 +6013,7 @@ ${pagesHtml}
       </div>
     </div>
 
-    <!-- Main Title -->
+    <!-- Main Title */}
     <div>
       <div class="cert-title-section">
         <div class="cert-main-title">Certificate</div>
@@ -6033,7 +6033,7 @@ ${pagesHtml}
       </div>
     </div>
 
-    <!-- Signatures -->
+    <!-- Signatures */}
     <div class="cert-signatures">
       <div class="cert-sign-col">
         <div class="cert-sign-line"></div>
@@ -6123,14 +6123,14 @@ ${pagesHtml}
   }
 
   .cert-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
-  .cert-logo-section { display: flex; align-items: center; gap: 14px; }
-  .cert-app-logo { width: 62px; height: 62px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15); }
+  .cert-logo-section { display: flex; align-items: center; gap: 16px; }
+  .cert-app-logo { width: 75px; height: 75px; object-fit: contain; border-radius: 14px; box-shadow: 0 3px 10px rgba(6,78,59,0.18); }
   .cert-org-details { display: flex; flex-direction: column; }
-  .cert-madrasa-name { font-size: 19px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
-  .cert-madrasa-place { font-size: 15px; font-weight: 700; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .cert-madrasa-name { font-size: 23px; font-weight: 900; color: #064e3b; text-transform: uppercase; letter-spacing: 0.6px; line-height: 1.15; }
+  .cert-madrasa-place { font-size: 17px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; opacity: 0.95; }
   .cert-event-section { text-align: left; }
-  .cert-event-name { font-size: 20px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
-  .cert-event-sub { font-size: 11.5px; font-weight: 600; color: #064e3b; letter-spacing: 0.5px; margin-top: 3px; opacity: 0.9; }
+  .cert-event-name { font-size: 24px; font-weight: 900; color: #064e3b; text-transform: uppercase; letter-spacing: 0.6px; line-height: 1.15; }
+  .cert-event-sub { font-size: 14px; font-weight: 700; color: #064e3b; letter-spacing: 0.6px; margin-top: 4px; opacity: 0.95; }
 
   .cert-title-section { margin-top: 15px; }
   .cert-main-title { font-size: 54px; font-weight: 900; color: #0f172a; letter-spacing: -1.5px; line-height: 1; font-family: 'Inter', sans-serif; }
@@ -6815,7 +6815,7 @@ ${pagesHtml}
                           {!profilePhotoPreview ? (
                             <>
                               <div style={{ fontSize: '48px', marginBottom: '10px', filter: 'drop-shadow(0 2px 6px rgba(22,163,74,0.3))' }}>📸</div>
-                              <p style={{ color: '#15803d', fontSize: '15px', fontWeight: '700', marginBottom: '6px' }}>
+                              <p style={{ color: '#15803d', fontSize: '17px', fontWeight: '800', marginBottom: '6px' }}>
                                 {lang === 'EN' ? 'Upload Your Photo' : 'ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക'}
                               </p>
                               <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '16px', lineHeight: 1.4 }}>
@@ -14198,14 +14198,14 @@ ${pagesHtml}
     justify-content: space-between;
   }
   .cert-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
-  .cert-logo-section { display: flex; align-items: center; gap: 14px; }
-  .cert-app-logo { width: 62px; height: 62px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15); }
+  .cert-logo-section { display: flex; align-items: center; gap: 16px; }
+  .cert-app-logo { width: 75px; height: 75px; object-fit: contain; border-radius: 14px; box-shadow: 0 3px 10px rgba(6,78,59,0.18); }
   .cert-org-details { display: flex; flex-direction: column; }
-  .cert-madrasa-name { font-size: 19px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
-  .cert-madrasa-place { font-size: 15px; font-weight: 700; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .cert-madrasa-name { font-size: 23px; font-weight: 900; color: #064e3b; text-transform: uppercase; letter-spacing: 0.6px; line-height: 1.15; }
+  .cert-madrasa-place { font-size: 17px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; opacity: 0.95; }
   .cert-event-section { text-align: left; }
-  .cert-event-name { font-size: 20px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
-  .cert-event-sub { font-size: 11.5px; font-weight: 600; color: #064e3b; letter-spacing: 0.5px; margin-top: 3px; opacity: 0.9; }
+  .cert-event-name { font-size: 24px; font-weight: 900; color: #064e3b; text-transform: uppercase; letter-spacing: 0.6px; line-height: 1.15; }
+  .cert-event-sub { font-size: 14px; font-weight: 700; color: #064e3b; letter-spacing: 0.6px; margin-top: 4px; opacity: 0.95; }
 
   .cert-title-section { margin-top: 15px; }
   .cert-main-title { font-size: 54px; font-weight: 900; color: #0f172a; letter-spacing: -1.5px; line-height: 1; font-family: 'Inter', sans-serif; }
@@ -14245,9 +14245,9 @@ ${pagesHtml}
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_single)" opacity="0.8" />
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
       
-      <!-- ARTISTIC CALLIGRAPHY GROUP: "میلاد النبي" -->
+      {/* ARTISTIC CALLIGRAPHY GROUP: "میلاد النبي" */}
       <g transform="translate(195, 50) scale(0.78)">
-        <!-- BACKGROUND ARTISTIC SPIRALS & ORNAMENTS -->
+        <!-- BACKGROUND ARTISTIC SPIRALS & ORNAMENTS */}
         <path d="M15 65 C-20 40 -15 0 25 -15 C60 -25 90 5 70 30 C55 45 35 30 45 15" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.8" stroke-linecap="round"/>
         <circle cx="45" cy="15" r="3.5" fill="#ffffff" opacity="0.9"/>
         <circle cx="10" cy="70" r="3" fill="#ffffff" opacity="0.85"/>
@@ -14263,7 +14263,7 @@ ${pagesHtml}
         <circle cx="97" cy="292" r="5" fill="#ffffff" opacity="0.95"/>
         <path d="M82 305 Q97 312 112 305" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.8"/>
 
-        <!-- CALLIGRAPHY VECTOR PATHS: "میلاد" (Top Word) -->
+        <!-- CALLIGRAPHY VECTOR PATHS: "میلاد" (Top Word) */}
         <g fill="#ffffff" opacity="0.98">
           <path d="M35 125 C30 115 35 102 48 102 C62 102 68 114 62 124 C56 132 42 132 35 125 Z M42 112 C38 116 42 121 48 121 C54 121 58 116 54 112 C50 108 44 108 42 112 Z"/>
           <path d="M48 128 C65 128 80 120 95 105 L104 114 C85 133 65 142 45 140 Z"/>
@@ -14274,7 +14274,7 @@ ${pagesHtml}
           <path d="M125 122 C145 122 170 135 190 155 L182 163 C165 145 142 133 122 133 Z"/>
         </g>
 
-        <!-- CALLIGRAPHY VECTOR PATHS: "النبي" (Bottom Word) -->
+        <!-- CALLIGRAPHY VECTOR PATHS: "النبي" (Bottom Word) */}
         <g fill="#ffffff" opacity="0.98">
           <path d="M145 150 C155 125 160 95 165 65 L176 68 C171 96 165 128 154 155 Z"/>
           <path d="M130 155 C140 130 146 100 150 70 L161 73 C157 101 150 133 139 160 Z"/>
@@ -14295,7 +14295,7 @@ ${pagesHtml}
   <div class="cert-content">
     <div class="cert-header">
       <div class="cert-logo-section">
-        <img src="${logoUrl}" class="cert-app-logo" style="width:62px; height:62px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
+        <img src="${logoUrl}" class="cert-app-logo" style="width:75px; height:75px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
         <div class="cert-org-details">
           <div class="cert-madrasa-name">${madrasaName}</div>
           <div class="cert-madrasa-place">${madrasaPlace}</div>
@@ -14428,28 +14428,47 @@ ${pagesHtml}
                     <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_modal)" opacity="0.8" />
                     <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" strokeWidth="4" fill="none"/>
                     
-                    <g transform="translate(180, 45)">
-                      <path d="M-30 40 Q-60 15 -35 -10 Q-10 -25 20 -5" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.8" strokeLinecap="round"/>
-                      <circle cx="-42" cy="18" r="2.8" fill="#ffffff" opacity="0.9"/>
-                      <path d="M140 25 Q170 -5 145 -25 Q120 -35 105 -10" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.8" strokeLinecap="round"/>
-                      <circle cx="152" cy="-2" r="2.8" fill="#ffffff" opacity="0.9"/>
+      {/* ARTISTIC CALLIGRAPHY GROUP: "میلاد النبي" */}
+      <g transform="translate(195, 50) scale(0.78)" filter="url(#glow)">
+        <path d="M15 65 C-20 40 -15 0 25 -15 C60 -25 90 5 70 30 C55 45 35 30 45 15" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.8" strokeLinecap="round"/>
+        <circle cx="45" cy="15" r="3.5" fill="#ffffff" opacity="0.9"/>
+        <circle cx="10" cy="70" r="3" fill="#ffffff" opacity="0.85"/>
 
-                      <text x="60" y="90" textAnchor="middle" fill="#ffffff" fontFamily="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" fontSize="82" fontWeight="bold" letterSpacing="1">
-                        ميلاد
-                      </text>
+        <path d="M165 45 C195 20 215 50 190 75 C170 90 150 70 170 50 C180 40 195 50 188 60" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.8" strokeLinecap="round"/>
+        <circle cx="188" cy="60" r="3.5" fill="#ffffff" opacity="0.9"/>
 
-                      <path d="M-50 100 Q-75 130 -45 150 Q-15 160 -35 180" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.7" strokeLinecap="round"/>
+        <path d="M-15 140 C-45 165 -35 205 0 215 C25 220 15 245 -5 255" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.7" strokeLinecap="round"/>
+        <path d="M210 160 C245 185 235 225 200 240 C175 250 190 275 210 285" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.7" strokeLinecap="round"/>
+        <circle cx="215" cy="148" r="3.5" fill="#ffffff" opacity="0.9"/>
 
-                      <text x="75" y="195" textAnchor="middle" fill="#ffffff" fontFamily="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" fontSize="88" fontWeight="bold" letterSpacing="1">
-                        النَّبِيِّ
-                      </text>
+        <path d="M10 270 Q95 305 185 265" stroke="#ffffff" strokeWidth="2.8" fill="none" opacity="0.85" strokeLinecap="round"/>
+        <circle cx="97" cy="292" r="5" fill="#ffffff" opacity="0.95"/>
+        <path d="M82 305 Q97 312 112 305" stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.8"/>
 
-                      <path d="M165 135 Q200 160 178 195 Q155 220 175 240" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.7" strokeLinecap="round"/>
-                      <circle cx="182" cy="172" r="2.8" fill="#ffffff" opacity="0.9"/>
+        <g fill="#ffffff" opacity="0.98">
+          <path d="M35 125 C30 115 35 102 48 102 C62 102 68 114 62 124 C56 132 42 132 35 125 Z M42 112 C38 116 42 121 48 121 C54 121 58 116 54 112 C50 108 44 108 42 112 Z"/>
+          <path d="M48 128 C65 128 80 120 95 105 L104 114 C85 133 65 142 45 140 Z"/>
+          <path d="M92 110 C98 90 102 65 106 40 L118 42 C114 68 109 95 102 116 Z"/>
+          <path d="M106 40 C115 25 125 15 135 10 L140 18 C132 23 123 32 116 45 Z"/>
+          <path d="M125 35 C132 15 142 0 152 -10 L159 -3 C148 8 138 24 132 42 Z"/>
+          <path d="M120 125 C140 125 160 115 175 95 C185 80 180 65 165 65 C150 65 145 80 152 92 C158 100 168 98 165 90 C162 85 155 88 155 92 C155 105 135 115 120 114 Z"/>
+          <path d="M125 122 C145 122 170 135 190 155 L182 163 C165 145 142 133 122 133 Z"/>
+        </g>
 
-                      <path d="M-15 235 Q65 260 145 235" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.8"/>
-                      <circle cx="65" cy="248" r="3.8" fill="#ffffff" opacity="0.95"/>
-                    </g>
+        <g fill="#ffffff" opacity="0.98">
+          <path d="M145 150 C155 125 160 95 165 65 L176 68 C171 96 165 128 154 155 Z"/>
+          <path d="M130 155 C140 130 146 100 150 70 L161 73 C157 101 150 133 139 160 Z"/>
+          <path d="M128 158 C115 165 100 168 85 168 C70 168 58 162 48 152 L56 143 C64 151 74 156 86 156 C98 156 110 153 120 148 Z"/>
+          <circle cx="85" cy="138" r="5.5"/>
+          <path d="M48 152 C42 165 35 178 25 188 C18 195 8 198 -2 195 L-4 184 C4 187 11 185 17 179 C25 171 31 160 37 148 Z"/>
+          <path d="M25 188 C38 185 55 182 72 182 C95 182 118 190 135 205 C155 222 160 245 142 258 C122 272 85 272 50 258 C25 248 5 230 -10 205 L0 197 C13 220 30 236 53 245 C84 258 116 258 132 246 C144 236 140 219 124 205 C110 193 90 186 70 186 C55 186 40 189 28 192 Z"/>
+          <circle cx="65" cy="225" r="5.5"/>
+          <circle cx="82" cy="223" r="5.5"/>
+          <path d="M68 132 Q74 125 78 132 Q82 125 86 132" stroke="#ffffff" strokeWidth="3.2" fill="none"/>
+          <path d="M72 118 L86 112 L89 116 L75 122 Z"/>
+          <path d="M38 135 L50 128 L53 132 L41 139 Z"/>
+        </g>
+      </g>
                   </svg>
                 </div>
 
