@@ -5860,95 +5860,115 @@ ${pagesHtml}
                         const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || '')) || teams.find(t => t.name === (result.teamname || result.teamName));
                         const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || '')) || categories.find(c => c.name === (result.catname || result.catName));
 
-                        const placeText = result.place === 'First' || result.place === '1' ? '1st Place' : result.place === 'Second' || result.place === '2' ? '2nd Place' : result.place === 'Third' || result.place === '3' ? '3rd Place' : result.place || 'Participation';
-                        const gradeText = (result.grade && result.grade !== '-' && result.grade !== 'No') ? result.grade : '';
-                        const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+                        const placeRaw = (result.place || '').toString().toLowerCase();
+                        const prizeText = placeRaw === 'first' || placeRaw === '1' ? 'First Prize' : placeRaw === 'second' || placeRaw === '2' ? 'Second Prize' : placeRaw === 'third' || placeRaw === '3' ? 'Third Prize' : (result.place ? result.place + ' Prize' : 'Prize');
+
+                        const prog = programs.find(p => String(p.id) === String(result.progid));
+                        const progName = result.progname || result.progName || (prog ? prog.name : '');
+                        const catName = result.catname || result.catName || (catObj ? catObj.name : '');
+                        const progAndCatText = `${progName}${catName && !progName.toLowerCase().includes(catName.toLowerCase()) ? ` (${catName})` : ''}`;
+
+                        const madrasaNameText = madrasaName ? madrasaName.toUpperCase() : 'MADRASA NAME';
+                        const madrasaPlaceText = madrasaPlace ? madrasaPlace.toUpperCase() : 'PLACE';
+                        const eventNameText = eventName ? eventName : 'EVENT NAME';
+                        const eventYearText = eventYear ? eventYear : '2026';
+                        const eventAndYearText = `${eventNameText} ${eventYearText}`;
 
                         return `
 <div class="certificate-wrapper">
-  <div class="cert-border-outer"></div>
-  <div class="cert-border-inner"></div>
-  
-  <div class="corner-ornament-outer tl"></div>
-  <div class="corner-ornament-outer tr"></div>
-  <div class="corner-ornament-outer bl"></div>
-  <div class="corner-ornament-outer br"></div>
-
-  <div class="corner-ornament-inner tl"></div>
-  <div class="corner-ornament-inner tr"></div>
-  <div class="corner-ornament-inner bl"></div>
-  <div class="corner-ornament-inner br"></div>
-  
-  <img src="${logoUrl}" class="cert-watermark" alt="" />
-  
-  <div class="cert-content">
-    <div class="cert-header">
-      ${eventName ? `<div class="cert-event-name">${eventName}</div><div class="cert-event-sub">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
-      <img src="${logoUrl}" class="cert-logo" alt="Logo" />
-      <div class="cert-org-name">${madrasaName}</div>
-      <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
-    </div>
-    
-    <div class="cert-diamond-divider">
-      <div class="cert-diamond-line-left"></div>
-      <div class="cert-diamond-center"></div>
-      <div class="cert-diamond-line-right"></div>
-    </div>
-    
-    <div class="cert-title-wrapper">
-      <div class="cert-title">Certificate</div>
-      <div class="cert-subtitle">of Achievement</div>
-    </div>
-    
-    <div class="cert-body">
-      <div class="cert-presented">This is proudly presented to</div>
-      <div class="cert-student-name">${student.name}</div>
+  <!-- Right Green Geometric Banner with Arabic Calligraphy -->
+  <div class="cert-right-banner">
+    <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="islamicPattern_${result.id || Math.random()}" width="70" height="70" patternUnits="userSpaceOnUse">
+          <path d="M35 0 L70 35 L35 70 L0 35 Z" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.35"/>
+          <path d="M0 0 L70 70 M70 0 L0 70" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.2"/>
+          <circle cx="35" cy="35" r="14" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.25"/>
+          <polygon points="35,12 42,27 58,27 44,37 50,53 35,43 20,53 26,37 12,27 28,27" stroke="#0d6e53" stroke-width="0.6" fill="none" opacity="0.25"/>
+        </pattern>
+      </defs>
       
-      <div class="cert-details-row">
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Register No</div>
-          <div class="cert-detail-val">${sRegNo}</div>
-        </div>
-        <div class="cert-detail-divider"></div>
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Team</div>
-          <div class="cert-detail-val">${teamObj ? teamObj.name : '-'}</div>
-        </div>
-        <div class="cert-detail-divider"></div>
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Category</div>
-          <div class="cert-detail-val">${catObj ? catObj.name : '-'}</div>
-        </div>
-        <div class="cert-detail-divider"></div>
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Gender</div>
-          <div class="cert-detail-val">${student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
-        </div>
-      </div>
-    </div>
+      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="#064e3b" />
+      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_${result.id || Math.random()})" opacity="0.8" />
+      <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
+      
+      <!-- Arabic Calligraphy "ميلاد" (top) and "النبي" (bottom) with decorative flourishes -->
+      <g transform="translate(180, 45)">
+        <path d="M-30 40 Q-60 15 -35 -10 Q-10 -25 20 -5" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.8" stroke-linecap="round"/>
+        <circle cx="-42" cy="18" r="2.8" fill="#ffffff" opacity="0.9"/>
+        <path d="M140 25 Q170 -5 145 -25 Q120 -35 105 -10" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.8" stroke-linecap="round"/>
+        <circle cx="152" cy="-2" r="2.8" fill="#ffffff" opacity="0.9"/>
+
+        <text x="60" y="90" text-anchor="middle" fill="#ffffff" font-family="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" font-size="82" font-weight="bold" letter-spacing="1">
+          ميلاد
+        </text>
+
+        <path d="M-50 100 Q-75 130 -45 150 Q-15 160 -35 180" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+        <text x="75" y="195" text-anchor="middle" fill="#ffffff" font-family="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" font-size="88" font-weight="bold" letter-spacing="1">
+          النَّبِيِّ
+        </text>
+
+        <path d="M165 135 Q200 160 178 195 Q155 220 175 240" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.7" stroke-linecap="round"/>
+        <circle cx="182" cy="172" r="2.8" fill="#ffffff" opacity="0.9"/>
+
+        <path d="M-15 235 Q65 260 145 235" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.8"/>
+        <circle cx="65" cy="248" r="3.8" fill="#ffffff" opacity="0.95"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Content Section -->
+  <div class="cert-content">
     
-    <div class="cert-achievement">
-      <div class="cert-achievement-label">For Outstanding Performance in</div>
-      <div class="cert-program-name">${result.progname || result.progName}</div>
-      <div class="cert-award-ribbon">
-        <span class="cert-award-place">${placeText}</span>
-        ${gradeText ? `<span class="cert-award-grade">Grade: ${gradeText}</span>` : ''}
-      </div>
-    </div>
-    
-    <div class="cert-footer">
-      <div class="cert-date-section">
-        <div class="cert-date-value">${resultDate}</div>
-        <div class="cert-date-label">Date</div>
-      </div>
-      <div class="cert-sign-section">
-        ${convenerSadar ? `<div style="font-size: 13px; font-weight: 700; color: #111; margin-bottom: 6px; font-family: 'Inter', sans-serif;">${convenerSadar}</div>` : ''}
-        <div class="cert-sign-line" style="margin-top: ${convenerSadar ? '4px' : '36px'}">
-          <div class="cert-sign-label">CONVENER / SADAR MUALLIM</div>
-          <div class="cert-sign-role">MILAD FEST Committee</div>
+    <!-- Top Header -->
+    <div class="cert-header">
+      <div class="cert-logo-section">
+        <img src="${logoUrl}" class="cert-app-logo" style="width:62px; height:62px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
+        <div class="cert-org-details">
+          <div class="cert-madrasa-name">${madrasaNameText}</div>
+          <div class="cert-madrasa-place">${madrasaPlaceText}</div>
         </div>
       </div>
+
+      <div class="cert-event-section">
+        <div class="cert-event-name">${eventNameText}</div>
+        <div class="cert-event-sub">Milad_fest ${eventYearText}</div>
+      </div>
     </div>
+
+    <!-- Main Title -->
+    <div>
+      <div class="cert-title-section">
+        <div class="cert-main-title">Certificate</div>
+        <div class="cert-sub-title">Of Excellence</div>
+      </div>
+
+      <div class="cert-pill-badge">
+        This Certificate is proudly presented to
+      </div>
+
+      <div class="cert-student-name">
+        ${student.name}
+      </div>
+
+      <div class="cert-description">
+        in recognition of securing <strong class="cert-highlight">${prizeText}</strong> in the <strong class="cert-highlight">${progAndCatText}</strong> competition at the <strong>${eventAndYearText}</strong> , Your dedication have earned you this distinguished achievement.
+      </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="cert-signatures">
+      <div class="cert-sign-col">
+        <div class="cert-sign-line"></div>
+        <div class="cert-sign-label">Festival Coordinator</div>
+      </div>
+      <div class="cert-sign-col">
+        <div class="cert-sign-line"></div>
+        <div class="cert-sign-label">Head of Madrasa</div>
+      </div>
+    </div>
+
   </div>
 </div>`;
                       }).join('');
@@ -5960,7 +5980,7 @@ ${pagesHtml}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bulk Certificates (${winnerResults.length} Winners)</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Scheherazade+New:wght@700&display=swap" rel="stylesheet">
 <script>
   window.onload = function() {
     setTimeout(function() {
@@ -6011,91 +6031,54 @@ ${pagesHtml}
 
   .certificate-wrapper {
     position: relative;
-    background: radial-gradient(circle, #ffffff 0%, #faf8f2 100%);
+    background: #ffffff;
     overflow: hidden;
   }
-  .cert-border-outer {
-    position: absolute; top: 16px; left: 16px; right: 16px; bottom: 16px; border: 4px solid #1b5e20; border-radius: 4px;
+
+  .cert-right-banner {
+    position: absolute; top: 0; right: 0; width: 380px; height: 740px;
+    pointer-events: none; z-index: 1;
   }
-  .cert-border-inner {
-    position: absolute; top: 26px; left: 26px; right: 26px; bottom: 26px; border: 1.5px solid #c5a44e; border-radius: 2px;
-  }
-  .corner-ornament-outer { position: absolute; width: 50px; height: 50px; z-index: 10; }
-  .corner-ornament-outer.tl { top: 26px; left: 26px; border-top: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
-  .corner-ornament-outer.tr { top: 26px; right: 26px; border-top: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
-  .corner-ornament-outer.bl { bottom: 26px; left: 26px; border-bottom: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
-  .corner-ornament-outer.br { bottom: 26px; right: 26px; border-bottom: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
-  .corner-ornament-inner { position: absolute; width: 36px; height: 36px; z-index: 10; }
-  .corner-ornament-inner.tl { top: 34px; left: 34px; border-top: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
-  .corner-ornament-inner.tr { top: 34px; right: 34px; border-top: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
-  .corner-ornament-inner.bl { bottom: 34px; left: 34px; border-bottom: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
-  .corner-ornament-inner.br { bottom: 34px; right: 34px; border-bottom: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
+
   .cert-content {
-    position: relative; z-index: 2; padding: 40px 75px 60px; height: 100%;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    position: relative; z-index: 2; padding: 45px 50px 45px 55px;
+    height: 100%; width: 720px; display: flex; flex-direction: column;
+    justify-content: space-between;
   }
-  .cert-header { text-align: center; width: 100%; }
-  .cert-event-name {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
-    font-size: 22px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase;
-    color: #b8860b; text-shadow: 0 1px 3px rgba(184,134,11,0.25); margin-bottom: 0px;
+
+  .cert-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+  .cert-logo-section { display: flex; align-items: center; gap: 14px; }
+  .cert-app-logo { width: 62px; height: 62px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15); }
+  .cert-org-details { display: flex; flex-direction: column; }
+  .cert-madrasa-name { font-size: 19px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+  .cert-madrasa-place { font-size: 15px; font-weight: 700; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .cert-event-section { text-align: left; }
+  .cert-event-name { font-size: 20px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+  .cert-event-sub { font-size: 11.5px; font-weight: 600; color: #064e3b; letter-spacing: 0.5px; margin-top: 3px; opacity: 0.9; }
+
+  .cert-title-section { margin-top: 15px; }
+  .cert-main-title { font-size: 54px; font-weight: 900; color: #0f172a; letter-spacing: -1.5px; line-height: 1; font-family: 'Inter', sans-serif; }
+  .cert-sub-title { font-size: 28px; font-weight: 600; color: #064e3b; line-height: 1.2; margin-top: 2px; font-family: 'Inter', sans-serif; }
+
+  .cert-pill-badge {
+    display: inline-block; background: #064e3b; color: #ffffff; font-size: 13.5px;
+    font-weight: 600; padding: 7px 22px; border-radius: 20px; margin-top: 22px;
+    letter-spacing: 0.2px; box-shadow: 0 4px 12px rgba(6,78,59,0.25);
   }
-  .cert-event-sub {
-    font-family: 'Inter', sans-serif; font-size: 10px; color: #888;
-    letter-spacing: 2.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;
-  }
-  .cert-logo {
-    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
-    margin-bottom: 6px; border: 2.5px solid #c5a44e; box-shadow: 0 4px 12px rgba(27,94,32,0.15);
-  }
-  .cert-org-name {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 22px; font-weight: 800;
-    color: #1b5e20; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 2px;
-  }
-  .cert-org-details { font-family: 'Inter', sans-serif; font-size: 11px; color: #555; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
-  .cert-diamond-divider { display: flex; align-items: center; justify-content: center; margin: 10px auto; width: 400px; }
-  .cert-diamond-line-left { flex: 1; height: 1px; background: linear-gradient(to right, transparent, #c5a44e); }
-  .cert-diamond-line-right { flex: 1; height: 1px; background: linear-gradient(to left, transparent, #c5a44e); }
-  .cert-diamond-center { width: 8px; height: 8px; background-color: #1b5e20; transform: rotate(45deg); margin: 0 10px; border: 1.5px solid #c5a44e; }
-  .cert-title-wrapper { text-align: center; }
-  .cert-title {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 46px; font-weight: 900;
-    color: #1b5e20; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 2px;
-    text-shadow: 0 2px 4px rgba(27,94,32,0.06);
-  }
-  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 24px; color: #b8860b; margin-bottom: 2px; }
-  .cert-body { text-align: center; width: 100%; }
-  .cert-presented { font-family: 'Inter', sans-serif; font-size: 13px; color: #555; letter-spacing: 2px; text-transform: uppercase; font-weight: 500; margin-bottom: 12px; }
-  .cert-student-name {
-    font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 800;
-    color: #111111; border-bottom: 2px solid #c5a44e; display: inline-block;
-    padding-bottom: 4px; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
-  }
-  .cert-details-row { display: flex; justify-content: center; align-items: center; gap: 30px; margin: 15px 0; font-family: 'Inter', sans-serif; }
-  .cert-detail-col { text-align: center; }
-  .cert-detail-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; display: block; font-weight: 600; margin-bottom: 2px; }
-  .cert-detail-val { font-size: 15px; font-weight: 700; color: #1b5e20; }
-  .cert-detail-divider { width: 1px; height: 24px; background-color: #c5a44e; }
-  .cert-achievement { text-align: center; margin: 5px 0; }
-  .cert-achievement-label { font-family: 'Inter', sans-serif; font-size: 13px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 500; margin-bottom: 6px; }
-  .cert-program-name { font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 24px; font-weight: 700; color: #1b5e20; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
-  .cert-award-ribbon { display: inline-block; background: linear-gradient(135deg, #1b5e20 0%, #124016 100%); border: 2px solid #c5a44e; padding: 8px 24px; border-radius: 4px; box-shadow: 0 4px 12px rgba(27,94,32,0.15); }
-  .cert-award-place { font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: 2px; text-transform: uppercase; }
-  .cert-award-grade { font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 18px; font-weight: 700; color: #c5a44e; letter-spacing: 2px; text-transform: uppercase; margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.3); }
-  .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
-  .cert-date-section { text-align: left; min-width: 150px; }
-  .cert-date-value { font-size: 14px; font-weight: 600; color: #333; font-family: 'Inter', sans-serif; }
-  .cert-date-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; border-top: 1px solid #ccc; padding-top: 3px; margin-top: 4px; font-weight: 600; }
-  .cert-sign-section { text-align: center; min-width: 180px; }
-  .cert-sign-line { border-top: 1px solid #ccc; padding-top: 3px; }
-  .cert-sign-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #111; font-weight: 700; }
-  .cert-sign-role { font-size: 9px; color: #777; letter-spacing: 0.5px; margin-top: 1px; }
-  .cert-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 350px; opacity: 0.035; z-index: 0; pointer-events: none; }
+
+  .cert-student-name { font-size: 38px; font-weight: 800; color: #064e3b; margin-top: 14px; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+  .cert-description { font-size: 13.5px; color: #334155; line-height: 1.65; max-width: 630px; font-weight: 400; }
+  .cert-description strong { color: #0f172a; }
+  .cert-description strong.cert-highlight { font-weight: 700; font-style: italic; }
+
+  .cert-signatures { display: flex; gap: 70px; margin-top: 35px; align-items: flex-end; }
+  .cert-sign-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 170px; }
+  .cert-sign-line { width: 100%; height: 1.5px; background-color: #000000; margin-bottom: 8px; }
+  .cert-sign-label { font-size: 11.5px; font-weight: 600; color: #334155; letter-spacing: 0.3px; }
 </style>
 </head>
 <body>
-  <!-- Floating print toolbar for screen mode -->
-  <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #166534; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+  <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #064e3b; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
     <span style="font-weight: 800; font-size: 14px; font-family: sans-serif;">📜 Certificates Preview (${winnerResults.length} Certificates)</span>
     <div style="display: flex; gap: 10px;">
       <button onclick="window.print()" style="background: #fbbf24; color: #78350f; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">🖨️ Save as PDF / Print</button>
@@ -6106,7 +6089,7 @@ ${pagesHtml}
   ${certificatesPagesHtml}
 </body>
 </html>
-                      `;
+`;
 
                       printHtml(html, `MiladFest_Bulk_Certificates_${winnerResults.length}`);
                     };
@@ -14036,15 +14019,22 @@ ${pagesHtml}
         const sRegNo = student.regno || student.regNo || '';
         const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || ''));
         const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || ''));
+        const prog = programs.find(p => String(p.id) === String(result.progid));
 
-        const placeText = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : result.place === 'Third' ? '3rd Place' : result.place || 'Participation';
-        const gradeText = (result.grade && result.grade !== '-' && result.grade !== 'No') ? result.grade : '';
-        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
-        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+        const madrasaName = (loggedInMadrasa ? loggedInMadrasa.name : 'MADRASA NAME').toUpperCase();
+        const madrasaPlace = (loggedInMadrasa ? loggedInMadrasa.place : 'LOCATION').toUpperCase();
+        const eventNameText = eventName || 'EVENT NAME';
+        const eventYearText = eventYear || '2026';
+
+        const placeRaw = (result.place || '').toString().toLowerCase();
+        const prizeText = placeRaw === 'first' || placeRaw === '1' ? 'First Prize' : placeRaw === 'second' || placeRaw === '2' ? 'Second Prize' : placeRaw === 'third' || placeRaw === '3' ? 'Third Prize' : (result.place ? result.place + ' Prize' : 'Prize');
+
+        const progName = result.progname || result.progName || (prog ? prog.name : '');
+        const catName = result.catname || result.catName || (catObj ? catObj.name : '');
+        const progAndCatText = `${progName}${catName && !progName.toLowerCase().includes(catName.toLowerCase()) ? ` (${catName})` : ''}`;
+        const eventAndYearText = `${eventNameText} ${eventYearText}`;
 
         const logoUrl = window.location.origin + '/logo192.png';
-        const resultDate = result.created_at ? new Date(result.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
         const handleModalDownloadPdf = async () => {
           const certArea = document.getElementById('modalCertificateArea');
@@ -14057,7 +14047,7 @@ ${pagesHtml}
               scale: 2,
               useCORS: true,
               allowTaint: true,
-              backgroundColor: '#fffdf7',
+              backgroundColor: '#ffffff',
               width: 1050,
               height: 740
             });
@@ -14083,7 +14073,6 @@ ${pagesHtml}
           const certArea = document.getElementById('modalCertificateArea');
           if (!certArea) return;
           try {
-            // Temporarily reset transform for rendering high-res image
             const originalTransform = certArea.style.transform;
             certArea.style.transform = 'none';
             await new Promise(r => setTimeout(r, 60));
@@ -14091,7 +14080,7 @@ ${pagesHtml}
               scale: 2,
               useCORS: true,
               allowTaint: true,
-              backgroundColor: '#fffdf7',
+              backgroundColor: '#ffffff',
               width: 1050,
               height: 740
             });
@@ -14106,13 +14095,12 @@ ${pagesHtml}
         const handleModalPrint = () => {
           const certArea = document.getElementById('modalCertificateArea');
           if (!certArea) return;
-          // Generate same HTML template and print via printHtml
           const html = `
 <!DOCTYPE html>
 <html>
 <head>
 <title>Certificate - ${student.name}</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Scheherazade+New:wght@700&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14121,297 +14109,134 @@ ${pagesHtml}
     width: 1050px;
     height: 740px;
     position: relative;
-    background: radial-gradient(circle, #ffffff 0%, #faf8f2 100%);
+    background: #ffffff;
     overflow: hidden;
   }
-  .cert-border-outer {
-    position: absolute;
-    top: 16px; left: 16px; right: 16px; bottom: 16px;
-    border: 4px solid #1b5e20;
-    border-radius: 4px;
+  .cert-right-banner {
+    position: absolute; top: 0; right: 0; width: 380px; height: 740px;
+    pointer-events: none; z-index: 1;
   }
-  .cert-border-inner {
-    position: absolute;
-    top: 26px; left: 26px; right: 26px; bottom: 26px;
-    border: 1.5px solid #c5a44e;
-    border-radius: 2px;
-  }
-  
-  .corner-ornament-outer {
-    position: absolute;
-    width: 50px;
-    height: 50px;
-    z-index: 10;
-  }
-  .corner-ornament-outer.tl { top: 26px; left: 26px; border-top: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
-  .corner-ornament-outer.tr { top: 26px; right: 26px; border-top: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
-  .corner-ornament-outer.bl { bottom: 26px; left: 26px; border-bottom: 4px solid #1b5e20; border-left: 4px solid #1b5e20; }
-  .corner-ornament-outer.br { bottom: 26px; right: 26px; border-bottom: 4px solid #1b5e20; border-right: 4px solid #1b5e20; }
-
-  .corner-ornament-inner {
-    position: absolute;
-    width: 36px;
-    height: 36px;
-    z-index: 10;
-  }
-  .corner-ornament-inner.tl { top: 34px; left: 34px; border-top: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
-  .corner-ornament-inner.tr { top: 34px; right: 34px; border-top: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
-  .corner-ornament-inner.bl { bottom: 34px; left: 34px; border-bottom: 2px solid #c5a44e; border-left: 2px solid #c5a44e; }
-  .corner-ornament-inner.br { bottom: 34px; right: 34px; border-bottom: 2px solid #c5a44e; border-right: 2px solid #c5a44e; }
-  
   .cert-content {
-    position: relative;
-    z-index: 2;
-    padding: 40px 75px 60px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    position: relative; z-index: 2; padding: 45px 50px 45px 55px;
+    height: 100%; width: 720px; display: flex; flex-direction: column;
     justify-content: space-between;
   }
-  
-  .cert-header { text-align: center; width: 100%; }
-  .cert-event-name {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
-    font-size: 22px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase;
-    color: #b8860b;
-    text-shadow: 0 1px 3px rgba(184,134,11,0.25);
-    margin-bottom: 0px;
+  .cert-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+  .cert-logo-section { display: flex; align-items: center; gap: 14px; }
+  .cert-app-logo { width: 62px; height: 62px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15); }
+  .cert-org-details { display: flex; flex-direction: column; }
+  .cert-madrasa-name { font-size: 19px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+  .cert-madrasa-place { font-size: 15px; font-weight: 700; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .cert-event-section { text-align: left; }
+  .cert-event-name { font-size: 20px; font-weight: 800; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; }
+  .cert-event-sub { font-size: 11.5px; font-weight: 600; color: #064e3b; letter-spacing: 0.5px; margin-top: 3px; opacity: 0.9; }
+
+  .cert-title-section { margin-top: 15px; }
+  .cert-main-title { font-size: 54px; font-weight: 900; color: #0f172a; letter-spacing: -1.5px; line-height: 1; font-family: 'Inter', sans-serif; }
+  .cert-sub-title { font-size: 28px; font-weight: 600; color: #064e3b; line-height: 1.2; margin-top: 2px; font-family: 'Inter', sans-serif; }
+
+  .cert-pill-badge {
+    display: inline-block; background: #064e3b; color: #ffffff; font-size: 13.5px;
+    font-weight: 600; padding: 7px 22px; border-radius: 20px; margin-top: 22px;
+    letter-spacing: 0.2px; box-shadow: 0 4px 12px rgba(6,78,59,0.25);
   }
-  .cert-event-sub {
-    font-family: 'Inter', sans-serif; font-size: 10px; color: #888;
-    letter-spacing: 2.5px; font-weight: 700; text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-  .cert-logo {
-    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
-    margin-bottom: 6px; border: 2.5px solid #c5a44e;
-    box-shadow: 0 4px 12px rgba(27,94,32,0.15);
-  }
-  .cert-org-name {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 22px; font-weight: 800;
-    color: #1b5e20; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 2px;
-  }
-  .cert-org-details { font-family: 'Inter', sans-serif; font-size: 11px; color: #555; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
-  
-  .cert-diamond-divider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 10px auto;
-    width: 400px;
-  }
-  .cert-diamond-line-left {
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #c5a44e);
-  }
-  .cert-diamond-line-right {
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to left, transparent, #c5a44e);
-  }
-  .cert-diamond-center {
-    width: 8px;
-    height: 8px;
-    background-color: #1b5e20;
-    transform: rotate(45deg);
-    margin: 0 10px;
-    border: 1.5px solid #c5a44e;
-  }
-  
-  .cert-title-wrapper { text-align: center; }
-  .cert-title {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 46px; font-weight: 900;
-    color: #1b5e20; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 2px;
-    text-shadow: 0 2px 4px rgba(27,94,32,0.06);
-  }
-  .cert-subtitle { font-family: 'Great Vibes', cursive; font-size: 24px; color: #b8860b; margin-bottom: 2px; }
-  
-  .cert-body { text-align: center; width: 100%; }
-  .cert-presented {
-    font-family: 'Inter', sans-serif; font-size: 13px; color: #555; letter-spacing: 2px;
-    text-transform: uppercase; font-weight: 500; margin-bottom: 12px;
-  }
-  .cert-student-name {
-    font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 800;
-    color: #111111; border-bottom: 2px solid #c5a44e; display: inline-block;
-    padding-bottom: 4px; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
-  }
-  .cert-details-row {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 30px;
-    margin: 15px 0;
-    font-family: 'Inter', sans-serif;
-  }
-  .cert-detail-col {
-    text-align: center;
-  }
-  .cert-detail-lbl {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #888;
-    display: block;
-    font-weight: 600;
-    margin-bottom: 2px;
-  }
-  .cert-detail-val {
-    font-size: 15px;
-    font-weight: 700;
-    color: #1b5e20;
-  }
-  .cert-detail-divider {
-    width: 1px;
-    height: 24px;
-    background-color: #c5a44e;
-  }
-  
-  .cert-achievement { text-align: center; margin: 5px 0; }
-  .cert-achievement-label {
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    color: #555;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    font-weight: 500;
-    margin-bottom: 6px;
-  }
-  .cert-program-name {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif; font-size: 24px; font-weight: 700;
-    color: #1b5e20; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;
-  }
-  .cert-award-ribbon {
-    display: inline-block;
-    background: linear-gradient(135deg, #1b5e20 0%, #124016 100%);
-    border: 2px solid #c5a44e;
-    padding: 8px 24px;
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(27,94,32,0.15);
-  }
-  .cert-award-place {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
-    font-size: 18px;
-    font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-  .cert-award-grade {
-    font-family: 'Cinzel', 'Playfair Display', 'Times New Roman', serif;
-    font-size: 18px;
-    font-weight: 700;
-    color: #c5a44e;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-left: 12px;
-    padding-left: 12px;
-    border-left: 1px solid rgba(255,255,255,0.3);
-  }
-  
-  .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; padding: 0 30px; }
-  .cert-date-section { text-align: left; min-width: 150px; }
-  .cert-date-value { font-size: 14px; font-weight: 600; color: #333; font-family: 'Inter', sans-serif; }
-  .cert-date-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888;
-    border-top: 1px solid #ccc; padding-top: 3px; margin-top: 4px; font-weight: 600;
-  }
-  .cert-sign-section { text-align: center; min-width: 180px; }
-  .cert-sign-line { border-top: 1px solid #ccc; padding-top: 3px; }
-  .cert-sign-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #111; font-weight: 700; }
-  .cert-sign-role { font-size: 9px; color: #777; letter-spacing: 0.5px; margin-top: 1px; }
-  
-  .cert-watermark {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 350px; height: 350px; opacity: 0.035; z-index: 0; pointer-events: none;
-  }
+
+  .cert-student-name { font-size: 38px; font-weight: 800; color: #064e3b; margin-top: 14px; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+  .cert-description { font-size: 13.5px; color: #334155; line-height: 1.65; max-width: 630px; font-weight: 400; }
+  .cert-description strong { color: #0f172a; }
+  .cert-description strong.cert-highlight { font-weight: 700; font-style: italic; }
+
+  .cert-signatures { display: flex; gap: 70px; margin-top: 35px; align-items: flex-end; }
+  .cert-sign-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 170px; }
+  .cert-sign-line { width: 100%; height: 1.5px; background-color: #000000; margin-bottom: 8px; }
+  .cert-sign-label { font-size: 11.5px; font-weight: 600; color: #334155; letter-spacing: 0.3px; }
 </style>
 </head>
 <body>
 <div class="certificate-wrapper" id="certificateArea">
-  <div class="cert-border-outer"></div>
-  <div class="cert-border-inner"></div>
-  
-  <div class="corner-ornament-outer tl"></div>
-  <div class="corner-ornament-outer tr"></div>
-  <div class="corner-ornament-outer bl"></div>
-  <div class="corner-ornament-outer br"></div>
+  <div class="cert-right-banner">
+    <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="islamicPattern_single" width="70" height="70" patternUnits="userSpaceOnUse">
+          <path d="M35 0 L70 35 L35 70 L0 35 Z" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.35"/>
+          <path d="M0 0 L70 70 M70 0 L0 70" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.2"/>
+          <circle cx="35" cy="35" r="14" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.25"/>
+          <polygon points="35,12 42,27 58,27 44,37 50,53 35,43 20,53 26,37 12,27 28,27" stroke="#0d6e53" stroke-width="0.6" fill="none" opacity="0.25"/>
+        </pattern>
+      </defs>
+      
+      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="#064e3b" />
+      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_single)" opacity="0.8" />
+      <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
+      
+      <g transform="translate(180, 45)">
+        <path d="M-30 40 Q-60 15 -35 -10 Q-10 -25 20 -5" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.8" stroke-linecap="round"/>
+        <circle cx="-42" cy="18" r="2.8" fill="#ffffff" opacity="0.9"/>
+        <path d="M140 25 Q170 -5 145 -25 Q120 -35 105 -10" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.8" stroke-linecap="round"/>
+        <circle cx="152" cy="-2" r="2.8" fill="#ffffff" opacity="0.9"/>
 
-  <div class="corner-ornament-inner tl"></div>
-  <div class="corner-ornament-inner tr"></div>
-  <div class="corner-ornament-inner bl"></div>
-  <div class="corner-ornament-inner br"></div>
-  
-  <img src="${logoUrl}" class="cert-watermark" alt="" />
-  
+        <text x="60" y="90" text-anchor="middle" fill="#ffffff" font-family="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" font-size="82" font-weight="bold" letter-spacing="1">
+          ميلاد
+        </text>
+
+        <path d="M-50 100 Q-75 130 -45 150 Q-15 160 -35 180" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.7" stroke-linecap="round"/>
+
+        <text x="75" y="195" text-anchor="middle" fill="#ffffff" font-family="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" font-size="88" font-weight="bold" letter-spacing="1">
+          النَّبِيِّ
+        </text>
+
+        <path d="M165 135 Q200 160 178 195 Q155 220 175 240" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.7" stroke-linecap="round"/>
+        <circle cx="182" cy="172" r="2.8" fill="#ffffff" opacity="0.9"/>
+
+        <path d="M-15 235 Q65 260 145 235" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.8"/>
+        <circle cx="65" cy="248" r="3.8" fill="#ffffff" opacity="0.95"/>
+      </g>
+    </svg>
+  </div>
+
   <div class="cert-content">
     <div class="cert-header">
-      ${eventName ? `<div class="cert-event-name">${eventName}</div><div class="cert-event-sub">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
-      <img src="${logoUrl}" class="cert-logo" alt="Logo" />
-      <div class="cert-org-name">${madrasaName}</div>
-      <div class="cert-org-details">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
-    </div>
-    
-    <div class="cert-diamond-divider">
-      <div class="cert-diamond-line-left"></div>
-      <div class="cert-diamond-center"></div>
-      <div class="cert-diamond-line-right"></div>
-    </div>
-    
-    <div class="cert-title-wrapper">
-      <div class="cert-title">Certificate</div>
-      <div class="cert-subtitle">of Achievement</div>
-    </div>
-    
-    <div class="cert-body">
-      <div class="cert-presented">This is proudly presented to</div>
-      <div class="cert-student-name">${student.name}</div>
-      
-      <div class="cert-details-row">
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Register No</div>
-          <div class="cert-detail-val">${sRegNo}</div>
-        </div>
-        <div class="cert-detail-divider"></div>
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Team</div>
-          <div class="cert-detail-val">${teamObj ? teamObj.name : '-'}</div>
-        </div>
-        <div class="cert-detail-divider"></div>
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Category</div>
-          <div class="cert-detail-val">${catObj ? catObj.name : '-'}</div>
-        </div>
-        <div class="cert-detail-divider"></div>
-        <div class="cert-detail-col">
-          <div class="cert-detail-lbl">Gender</div>
-          <div class="cert-detail-val">${student.gender === 'BOY' ? 'Boy' : 'Girl'}</div>
+      <div class="cert-logo-section">
+        <img src="${logoUrl}" class="cert-app-logo" style="width:62px; height:62px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
+        <div class="cert-org-details">
+          <div class="cert-madrasa-name">${madrasaName}</div>
+          <div class="cert-madrasa-place">${madrasaPlace}</div>
         </div>
       </div>
-    </div>
-    
-    <div class="cert-achievement">
-      <div class="cert-achievement-label">For Outstanding Performance in</div>
-      <div class="cert-program-name">${result.progname || result.progName}</div>
-      <div class="cert-award-ribbon">
-        <span class="cert-award-place">${placeText}</span>
-        ${gradeText ? `<span class="cert-award-grade">Grade: ${gradeText}</span>` : ''}
+
+      <div class="cert-event-section">
+        <div class="cert-event-name">${eventNameText}</div>
+        <div class="cert-event-sub">Milad_fest ${eventYearText}</div>
       </div>
     </div>
-    
-    <div class="cert-footer">
-      <div class="cert-date-section">
-        <div class="cert-date-value">${resultDate}</div>
-        <div class="cert-date-label">Date</div>
+
+    <div>
+      <div class="cert-title-section">
+        <div class="cert-main-title">Certificate</div>
+        <div class="cert-sub-title">Of Excellence</div>
       </div>
-      <div class="cert-sign-section">
-        ${convenerSadar ? `<div style="font-size: 13px; font-weight: 700; color: #111; margin-bottom: 6px; font-family: 'Inter', sans-serif;">${convenerSadar}</div>` : ''}
-        <div class="cert-sign-line" style="margin-top: ${convenerSadar ? '4px' : '36px'}">
-          <div class="cert-sign-label">CONVENER / SADAR MUALLIM</div>
-          <div class="cert-sign-role">MILAD FEST Committee</div>
-        </div>
+
+      <div class="cert-pill-badge">
+        This Certificate is proudly presented to
+      </div>
+
+      <div class="cert-student-name">
+        ${student.name}
+      </div>
+
+      <div class="cert-description">
+        in recognition of securing <strong class="cert-highlight">${prizeText}</strong> in the <strong class="cert-highlight">${progAndCatText}</strong> competition at the <strong>${eventAndYearText}</strong> , Your dedication have earned you this distinguished achievement.
+      </div>
+    </div>
+
+    <div class="cert-signatures">
+      <div class="cert-sign-col">
+        <div class="cert-sign-line"></div>
+        <div class="cert-sign-label">Festival Coordinator</div>
+      </div>
+      <div class="cert-sign-col">
+        <div class="cert-sign-line"></div>
+        <div class="cert-sign-label">Head of Madrasa</div>
       </div>
     </div>
   </div>
@@ -14434,15 +14259,35 @@ ${pagesHtml}
             {/* Modal header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1050px', marginBottom: '15px', color: 'white' }}>
               <h3 style={{ fontSize: '18px', fontWeight: '800' }}>📜 Certificate Preview</h3>
-              <button
-                onClick={() => setActiveCertificate(null)}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700' }}
-              >
-                ✕ Close
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleModalDownloadPdf}
+                  style={{ background: '#10b981', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '13px' }}
+                >
+                  📥 Download PDF
+                </button>
+                <button
+                  onClick={handleModalDownload}
+                  style={{ background: '#3b82f6', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '13px' }}
+                >
+                  🖼️ Download Image
+                </button>
+                <button
+                  onClick={handleModalPrint}
+                  style={{ background: '#fbbf24', border: 'none', color: '#78350f', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '13px' }}
+                >
+                  🖨️ Print
+                </button>
+                <button
+                  onClick={() => setActiveCertificate(null)}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 14px', borderRadius: '8px', fontWeight: '700' }}
+                >
+                  ✕ Close
+                </button>
+              </div>
             </div>
 
-            {/* Certificate viewport wrapper (scales the certificate on small screens) */}
+            {/* Certificate viewport wrapper */}
             <div style={{
               width: '100%',
               maxWidth: '1050px',
@@ -14462,188 +14307,113 @@ ${pagesHtml}
                   width: '1050px',
                   height: '740px',
                   position: 'absolute',
-                  background: 'radial-gradient(circle, #ffffff 0%, #faf8f2 100%)',
+                  background: '#ffffff',
                   overflow: 'hidden',
                   transform: 'scale(calc(min(90vw, 1050px) / 1050))',
-                  transformOrigin: 'center center'
+                  transformOrigin: 'center center',
+                  fontFamily: "'Inter', sans-serif"
                 }}
               >
-                {/* Borders */}
-                <div style={{ position: 'absolute', top: '16px', left: '16px', right: '16px', bottom: '16px', border: '4px solid #1b5e20', borderRadius: '4px' }}></div>
-                <div style={{ position: 'absolute', top: '26px', left: '26px', right: '26px', bottom: '26px', border: '1.5px solid #c5a44e', borderRadius: '2px' }}></div>
+                {/* Right Green Geometric Banner with Arabic Calligraphy */}
+                <div style={{ position: 'absolute', top: 0, right: 0, width: '380px', height: '740px', pointerEvents: 'none', zIndex: 1 }}>
+                  <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <pattern id="islamicPattern_modal" width="70" height="70" patternUnits="userSpaceOnUse">
+                        <path d="M35 0 L70 35 L35 70 L0 35 Z" stroke="#0d6e53" strokeWidth="0.8" fill="none" opacity="0.35"/>
+                        <path d="M0 0 L70 70 M70 0 L0 70" stroke="#0d6e53" strokeWidth="0.8" fill="none" opacity="0.2"/>
+                        <circle cx="35" cy="35" r="14" stroke="#0d6e53" strokeWidth="0.8" fill="none" opacity="0.25"/>
+                        <polygon points="35,12 42,27 58,27 44,37 50,53 35,43 20,53 26,37 12,27 28,27" stroke="#0d6e53" strokeWidth="0.6" fill="none" opacity="0.25"/>
+                      </pattern>
+                    </defs>
+                    
+                    <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="#064e3b" />
+                    <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_modal)" opacity="0.8" />
+                    <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" strokeWidth="4" fill="none"/>
+                    
+                    <g transform="translate(180, 45)">
+                      <path d="M-30 40 Q-60 15 -35 -10 Q-10 -25 20 -5" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.8" strokeLinecap="round"/>
+                      <circle cx="-42" cy="18" r="2.8" fill="#ffffff" opacity="0.9"/>
+                      <path d="M140 25 Q170 -5 145 -25 Q120 -35 105 -10" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.8" strokeLinecap="round"/>
+                      <circle cx="152" cy="-2" r="2.8" fill="#ffffff" opacity="0.9"/>
 
-                {/* Corner ornaments (Outer Green) */}
-                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, top: '26px', left: '26px', borderTop: '4px solid #1b5e20', borderLeft: '4px solid #1b5e20' }}></div>
-                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, top: '26px', right: '26px', borderTop: '4px solid #1b5e20', borderRight: '4px solid #1b5e20' }}></div>
-                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, bottom: '26px', left: '26px', borderBottom: '4px solid #1b5e20', borderLeft: '4px solid #1b5e20' }}></div>
-                <div style={{ position: 'absolute', width: '50px', height: '50px', zIndex: 10, bottom: '26px', right: '26px', borderBottom: '4px solid #1b5e20', borderRight: '4px solid #1b5e20' }}></div>
+                      <text x="60" y="90" textAnchor="middle" fill="#ffffff" fontFamily="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" fontSize="82" fontWeight="bold" letterSpacing="1">
+                        ميلاد
+                      </text>
 
-                {/* Corner ornaments (Inner Gold) */}
-                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, top: '34px', left: '34px', borderTop: '2px solid #c5a44e', borderLeft: '2px solid #c5a44e' }}></div>
-                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, top: '34px', right: '34px', borderTop: '2px solid #c5a44e', borderRight: '2px solid #c5a44e' }}></div>
-                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, bottom: '34px', left: '34px', borderBottom: '2px solid #c5a44e', borderLeft: '2px solid #c5a44e' }}></div>
-                <div style={{ position: 'absolute', width: '36px', height: '36px', zIndex: 10, bottom: '34px', right: '34px', borderBottom: '2px solid #c5a44e', borderRight: '2px solid #c5a44e' }}></div>
+                      <path d="M-50 100 Q-75 130 -45 150 Q-15 160 -35 180" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.7" strokeLinecap="round"/>
 
-                {/* Watermark logo */}
-                <img src={logoUrl} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '350px', height: '350px', opacity: 0.035, zIndex: 0, pointerEvents: 'none' }} />
+                      <text x="75" y="195" textAnchor="middle" fill="#ffffff" fontFamily="'Amiri', 'Aref Ruqaa', 'Scheherazade New', serif" fontSize="88" fontWeight="bold" letterSpacing="1">
+                        النَّبِيِّ
+                      </text>
 
-                {/* Certificate Content */}
-                <div style={{ position: 'relative', zIndex: 2, padding: '40px 75px 60px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
+                      <path d="M165 135 Q200 160 178 195 Q155 220 175 240" stroke="#ffffff" strokeWidth="1.8" fill="none" opacity="0.7" strokeLinecap="round"/>
+                      <circle cx="182" cy="172" r="2.8" fill="#ffffff" opacity="0.9"/>
 
-                  {/* Header */}
-                  <div style={{ textAlign: 'center', width: '100%' }}>
-                    {eventName && (
-                      <>
-                        <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '22px', fontWeight: 900, letterSpacing: '5px', textTransform: 'uppercase', color: '#b8860b', textShadow: '0 1px 3px rgba(184,134,11,0.25)', marginBottom: '0px' }}>{eventName}</div>
-                        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#888', letterSpacing: '2.5px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Milad_fest{eventYear ? ' ' + eventYear : ''}</div>
-                      </>
-                    )}
-                    <img src={logoUrl} alt="Logo" style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover', marginBottom: '6px', border: '2.5px solid #c5a44e', boxShadow: '0 4px 12px rgba(27,94,32,0.15)' }} />
-                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '22px', fontWeight: 800, color: '#1b5e20', letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '2px' }}>{madrasaName}</div>
-                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#555', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase' }}>Reg No: {madrasaRegNo} | {madrasaPlace}</div>
-                  </div>
+                      <path d="M-15 235 Q65 260 145 235" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.8"/>
+                      <circle cx="65" cy="248" r="3.8" fill="#ffffff" opacity="0.95"/>
+                    </g>
+                  </svg>
+                </div>
 
-                  {/* Decorative Diamond Divider */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '10px auto', width: '400px' }}>
-                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, #c5a44e)' }}></div>
-                    <div style={{ width: '8px', height: '8px', backgroundColor: '#1b5e20', transform: 'rotate(45deg)', margin: '0 10px', border: '1.5px solid #c5a44e' }}></div>
-                    <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to left, transparent, #c5a44e)' }}></div>
-                  </div>
-
-                  {/* Title */}
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '46px', fontWeight: 900, color: '#1b5e20', letterSpacing: '8px', textTransform: 'uppercase', marginBottom: '2px', textShadow: '0 2px 4px rgba(27,94,32,0.06)' }}>Certificate</div>
-                    <div style={{ fontFamily: "'Great Vibes', cursive", fontSize: '24px', color: '#b8860b', marginBottom: '2px' }}>of Achievement</div>
-                  </div>
-
-                  {/* Recipient and details */}
-                  <div style={{ textAlign: 'center', width: '100%' }}>
-                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#555', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '12px' }}>This is proudly presented to</div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '38px', fontWeight: 800, color: '#111111', borderBottom: '2px solid #c5a44e', display: 'inline-block', paddingBottom: '4px', marginBottom: '14px', letterSpacing: '1px', textTransform: 'uppercase' }}>{student.name}</div>
-
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '30px', margin: '15px 0', fontFamily: "'Inter', sans-serif" }}>
-                      <div>
-                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Register No</span>
-                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{sRegNo}</span>
+                {/* Content Section */}
+                <div style={{
+                  position: 'relative', zIndex: 2, padding: '45px 50px 45px 55px',
+                  height: '100%', width: '720px', display: 'flex', flexDirection: 'column',
+                  justifyContent: 'space-between'
+                }}>
+                  {/* Top Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <img src={logoUrl} alt="Milad Fest Logo" style={{ width: '62px', height: '62px', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 2px 8px rgba(6,78,59,0.15)' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ fontSize: '19px', fontWeight: 800, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: 1.2 }}>{madrasaName}</div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>{madrasaPlace}</div>
                       </div>
-                      <div style={{ width: '1px', height: '24px', backgroundColor: '#c5a44e' }}></div>
-                      <div>
-                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Team</span>
-                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{teamObj ? teamObj.name : '-'}</span>
-                      </div>
-                      <div style={{ width: '1px', height: '24px', backgroundColor: '#c5a44e' }}></div>
-                      <div>
-                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Category</span>
-                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{catObj ? catObj.name : '-'}</span>
-                      </div>
-                      <div style={{ width: '1px', height: '24px', backgroundColor: '#c5a44e' }}></div>
-                      <div>
-                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', display: 'block', fontWeight: '600', marginBottom: '2px' }}>Gender</span>
-                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1b5e20' }}>{student.gender === 'BOY' ? 'Boy' : 'Girl'}</span>
-                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: 1.2 }}>{eventNameText}</div>
+                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#064e3b', letterSpacing: '0.5px', marginTop: '3px', opacity: 0.9 }}>Milad_fest {eventYearText}</div>
                     </div>
                   </div>
 
-                  {/* Achievement details */}
-                  <div style={{ textAlign: 'center', margin: '5px 0' }}>
-                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#555', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 500, marginBottom: '6px' }}>For Outstanding Performance in</div>
-                    <div style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif", fontSize: '24px', fontWeight: 700, color: '#1b5e20', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '10px' }}>{result.progname || result.progName}</div>
+                  {/* Main Title & Body */}
+                  <div>
+                    <div style={{ marginTop: '15px' }}>
+                      <div style={{ fontSize: '54px', fontWeight: 900, color: '#0f172a', letterSpacing: '-1.5px', lineHeight: 1, fontFamily: "'Inter', sans-serif" }}>Certificate</div>
+                      <div style={{ fontSize: '28px', fontWeight: 600, color: '#064e3b', lineHeight: 1.2, marginTop: '2px', fontFamily: "'Inter', sans-serif" }}>Of Excellence</div>
+                    </div>
+
                     <div style={{
-                      display: 'inline-block',
-                      background: 'linear-gradient(135deg, #1b5e20 0%, #124016 100%)',
-                      border: '2px solid #c5a44e',
-                      padding: '8px 24px',
-                      borderRadius: '4px',
-                      boxShadow: '0 4px 12px rgba(27,94,32,0.15)'
+                      display: 'inline-block', background: '#064e3b', color: '#ffffff', fontSize: '13.5px',
+                      fontWeight: 600, padding: '7px 22px', borderRadius: '20px', marginTop: '22px',
+                      letterSpacing: '0.2px', boxShadow: '0 4px 12px rgba(6,78,59,0.25)'
                     }}>
-                      <span style={{
-                        fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif",
-                        fontSize: '18px',
-                        fontWeight: '700',
-                        color: '#ffffff',
-                        letterSpacing: '2px',
-                        textTransform: 'uppercase'
-                      }}>
-                        {placeText}
-                      </span>
-                      {gradeText && (
-                        <span style={{
-                          fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif",
-                          fontSize: '18px',
-                          fontWeight: '700',
-                          color: '#c5a44e',
-                          letterSpacing: '2px',
-                          textTransform: 'uppercase',
-                          marginLeft: '12px',
-                          paddingLeft: '12px',
-                          borderLeft: '1px solid rgba(255,255,255,0.3)'
-                        }}>
-                          Grade: {gradeText}
-                        </span>
-                      )}
+                      This Certificate is proudly presented to
+                    </div>
+
+                    <div style={{ fontSize: '38px', fontWeight: 800, color: '#064e3b', marginTop: '14px', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+                      {student.name}
+                    </div>
+
+                    <div style={{ fontSize: '13.5px', color: '#334155', lineHeight: 1.65, maxWidth: '630px', fontWeight: 400 }}>
+                      in recognition of securing <strong style={{ color: '#0f172a', fontWeight: 700, fontStyle: 'italic' }}>{prizeText}</strong> in the <strong style={{ color: '#0f172a', fontWeight: 700, fontStyle: 'italic' }}>{progAndCatText}</strong> competition at the <strong style={{ color: '#0f172a', fontWeight: 700 }}>{eventAndYearText}</strong> , Your dedication have earned you this distinguished achievement.
                     </div>
                   </div>
 
-                  {/* Signatures and Date */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', padding: '0 30px' }}>
-                    <div style={{ textAlign: 'left', minWidth: '150px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: '600', color: '#333', fontFamily: "'Inter', sans-serif" }}>{resultDate}</div>
-                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', borderTop: '1px solid #ccc', paddingTop: '3px', marginTop: '4px', fontWeight: '600' }}>Date</div>
+                  {/* Signatures */}
+                  <div style={{ display: 'flex', gap: '70px', marginTop: '35px', alignItems: 'flex-end' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '170px' }}>
+                      <div style={{ width: '100%', height: '1.5px', backgroundColor: '#000000', marginBottom: '8px' }}></div>
+                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#334155', letterSpacing: '0.3px' }}>Festival Coordinator</div>
                     </div>
-                    <div style={{ textAlign: 'center', minWidth: '180px' }}>
-                      {convenerSadar && (
-                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#111', marginBottom: '6px', fontFamily: "'Inter', sans-serif" }}>
-                          {convenerSadar}
-                        </div>
-                      )}
-                      <div style={{ borderTop: '1px solid #ccc', paddingTop: '3px', marginTop: convenerSadar ? '4px' : '36px' }}>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#111', fontWeight: '700' }}>CONVENER / SADAR MUALLIM</div>
-                        <div style={{ fontSize: '9px', color: '#777', letterSpacing: '0.5px', marginTop: '1px' }}>MILAD FEST Committee</div>
-                      </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '170px' }}>
+                      <div style={{ width: '100%', height: '1.5px', backgroundColor: '#000000', marginBottom: '8px' }}></div>
+                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#334155', letterSpacing: '0.3px' }}>Head of Madrasa</div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button
-                onClick={handleModalDownloadPdf}
-                style={{
-                  background: 'linear-gradient(135deg, #059669, #047857)',
-                  color: 'white', border: 'none', borderRadius: '12px',
-                  padding: '12px 24px', fontSize: '14px', fontWeight: '800',
-                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(5, 150, 105, 0.3)',
-                  display: 'flex', alignItems: 'center', gap: '8px'
-                }}
-              >
-                📄 Download PDF
-              </button>
-              <button
-                onClick={handleModalDownload}
-                style={{
-                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                  color: 'white', border: 'none', borderRadius: '12px',
-                  padding: '12px 24px', fontSize: '14px', fontWeight: '800',
-                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(22, 163, 74, 0.3)',
-                  display: 'flex', alignItems: 'center', gap: '8px'
-                }}
-              >
-                🖼️ Save Image (PNG)
-              </button>
-              <button
-                onClick={handleModalPrint}
-                style={{
-                  background: 'linear-gradient(135deg, #0284c7, #0369a1)',
-                  color: 'white', border: 'none', borderRadius: '12px',
-                  padding: '12px 24px', fontSize: '14px', fontWeight: '800',
-                  cursor: 'pointer', boxShadow: '0 6px 20px rgba(2, 132, 199, 0.3)',
-                  display: 'flex', alignItems: 'center', gap: '8px'
-                }}
-              >
-                🖨️ Print (A4 Landscape)
-              </button>
             </div>
           </div>
         );
