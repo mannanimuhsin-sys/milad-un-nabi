@@ -14134,32 +14134,6 @@ y={grp.groupKey} value={idx}>
                               <div className="winner-poster-empty-place">
                                 <span style={{ fontSize: '40px' }}>🥈</span>
                                 <span style={{ color: '#64748b', fontSize: '13px', marginTop: '8px' }}>
-                                  {lang === 'EN' ? '2nd Place' : 'രണ്ടാം സ്ഥാനം'}
-                                </span>
-                              </div>
-                            ) : (
-                              secondWinners.map(w => renderPosterWinnerCard(w,
-                                lang === 'EN' ? '🥈 2nd Place' : '🥈 രണ്ടാം സ്ഥാനം',
-                                '🥈', 'silver'))
-                            )}
-                          </div>
-
-                          {/* 1st Place (center - bigger) */}
-                          <div className="winner-poster-place-group gold-group">
-                            {firstWinners.length === 0 ? (
-                              <div className="winner-poster-empty-place">
-                                <span style={{ fontSize: '50px' }}>🥇</span>
-                                <span style={{ color: '#64748b', fontSize: '14px', marginTop: '8px' }}>
-                                  {lang === 'EN' ? '1st Place' : 'ഒന്നാം സ്ഥാനം'}
-                                </span>
-                              </div>
-                            ) : (
-                              firstWinners.map(w => renderPosterWinnerCard(w,
-                                lang === 'EN' ? '🥇 1st Place' : '🥇 ഒന്നാം സ്ഥാനം',
-                                '🥇', 'gold'))
-                            )}
-                          </div>
-
                           {/* 3rd Place (right) */}
                           <div className="winner-poster-place-group bronze-group">
                             {thirdWinners.length === 0 ? (
@@ -14345,8 +14319,6 @@ y={grp.groupKey} value={idx}>
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_single)" opacity="0.8" />
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
       
-                  {/* Arabic Calligraphy "ميلاد" (top) and "النبي" (bottom) with decorative flourishes */}
-      <g transform="translate(195, 50) scale(0.78)">
       <!-- LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER -->
       <g transform="translate(195, 120)">
         <circle cx="75" cy="75" r="85" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.35"/>
@@ -14356,6 +14328,7 @@ y={grp.groupKey} value={idx}>
       </g>
     </svg>
   </div>
+
 
   <div class="cert-content">
     <div class="cert-header">
@@ -14493,19 +14466,16 @@ y={grp.groupKey} value={idx}>
                     <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_modal)" opacity="0.8" />
                     <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" strokeWidth="4" fill="none"/>
                     
-      {/* ARTISTIC CALLIGRAPHY GROUP: "میلاد النبي" */}
-      <g transform="translate(195, 50) scale(0.78)" filter="url(#glow)">
-        <path d="M15 65 C-20 40 -15 0 25 -15 C60 -25 90 5 70 30 C55 45 35 30 45 15" stroke="#ffffff" strokeWidth="2.2" fill="none" opacity="0.8" strokeLinecap="round"/>
-        <circle cx="45" cy="15" r="3.5" fill="#ffffff" opacity="0.9"/>
-      <!-- LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER -->
-      <g transform="translate(195, 120)">
-        <circle cx="75" cy="75" r="85" stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.35"/>
-        <circle cx="75" cy="75" r="77" stroke="#fef08a" strokeWidth="1.5" fill="none" opacity="0.3"/>
-        <circle cx="75" cy="75" r="69" stroke="#ffffff" strokeWidth="1" strokeDasharray="4 4" fill="none" opacity="0.4"/>
-        <image href={logoUrl || 'public/logo192.png'} x="10" y="10" width="130" height="130" opacity="0.4" />
-      </g>
-    </svg>
-  </div>
+                    {/* LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER */}
+                    <g transform="translate(195, 120)">
+                      <circle cx="75" cy="75" r="85" stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.35"/>
+                      <circle cx="75" cy="75" r="77" stroke="#fef08a" strokeWidth="1.5" fill="none" opacity="0.3"/>
+                      <circle cx="75" cy="75" r="69" stroke="#ffffff" strokeWidth="1" strokeDasharray="4 4" fill="none" opacity="0.4"/>
+                      <image href={logoUrl || 'public/logo192.png'} x="10" y="10" width="130" height="130" opacity="0.4" />
+                    </g>
+                  </svg>
+                </div>
+
 
                 {/* Content Section */}
                 <div style={{
