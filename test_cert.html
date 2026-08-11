@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <title>Certificate Size Test</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,700;1,700&family=Aref+Ruqaa:wght@700&family=Reem+Kufi:wght@700&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -51,7 +50,7 @@
   .cert-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     width: 100%;
   }
 
@@ -213,7 +212,7 @@
 <body>
 
 <div class="certificate-wrapper">
-  <!-- Right Green Geometric Banner with Vector Arabic Calligraphy -->
+  <!-- Right Green Polygon Banner with App Logo Watermark -->
   <div class="cert-right-banner">
     <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -223,16 +222,6 @@
           <circle cx="35" cy="35" r="14" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.25"/>
           <polygon points="35,12 42,27 58,27 44,37 50,53 35,43 20,53 26,37 12,27 28,27" stroke="#0d6e53" stroke-width="0.6" fill="none" opacity="0.25"/>
         </pattern>
-
-        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1"/>
-          <stop offset="50%" style="stop-color:#fef08a;stop-opacity:0.95"/>
-          <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0.9"/>
-        </linearGradient>
-
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#022c22" flood-opacity="0.6"/>
-        </filter>
       </defs>
       
       <!-- Green Polygon Cut Path -->
@@ -241,38 +230,18 @@
       <!-- Pattern Overlay -->
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern)" opacity="0.8" />
       
-      <!-- Black stroke outline on inner border -->
+      <!-- Inner Border Cut Outline -->
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
       
-      <!-- AUTHENTIC ARABIC CALLIGRAPHY GROUP: "مِـيـلاَد النَّبِـيّ" -->
-      <g transform="translate(185, 45)" filter="url(#glow)">
+      <!-- ELEGANT APP LOGO WATERMARK INSIDE GREEN BANNER -->
+      <g transform="translate(195, 120)">
+        <!-- Soft Circular Ornamental Rings -->
+        <circle cx="75" cy="75" r="85" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.35"/>
+        <circle cx="75" cy="75" r="77" stroke="#fef08a" stroke-width="1.5" fill="none" opacity="0.3"/>
+        <circle cx="75" cy="75" r="69" stroke="#ffffff" stroke-width="1" stroke-dasharray="4 4" fill="none" opacity="0.4"/>
 
-        <!-- ARTISTIC DECORATIVE ARCS & ORNAMENTS -->
-        <!-- Top Decorative Arch -->
-        <path d="M20 40 C25 15 170 15 175 40" stroke="url(#goldGrad)" stroke-width="2.5" fill="none" opacity="0.85" stroke-linecap="round"/>
-        <circle cx="97.5" cy="18" r="4" fill="#fef08a" opacity="0.95"/>
-        <circle cx="25" cy="38" r="3" fill="#ffffff" opacity="0.8"/>
-        <circle cx="170" cy="38" r="3" fill="#ffffff" opacity="0.8"/>
-
-        <!-- Side Swirls -->
-        <path d="M15 110 C-10 90 5 60 30 70" stroke="#fef08a" stroke-width="2" fill="none" opacity="0.75" stroke-linecap="round"/>
-        <path d="M180 110 C205 90 190 60 165 70" stroke="#fef08a" stroke-width="2" fill="none" opacity="0.75" stroke-linecap="round"/>
-
-        <!-- Middle Separator Arc -->
-        <path d="M30 145 Q97.5 165 165 145" stroke="url(#goldGrad)" stroke-width="2" fill="none" opacity="0.8" stroke-linecap="round"/>
-        <circle cx="97.5" cy="158" r="3.5" fill="#fef08a" opacity="0.9"/>
-
-        <!-- Bottom Decorative Arch -->
-        <path d="M20 250 C25 275 170 275 175 250" stroke="url(#goldGrad)" stroke-width="2.5" fill="none" opacity="0.85" stroke-linecap="round"/>
-        <circle cx="97.5" cy="270" r="4" fill="#fef08a" opacity="0.95"/>
-
-        <!-- TOP WORD: "مِـيـلاَد" -->
-        <text x="97.5" y="115" text-anchor="middle" font-family="'Aref Ruqaa', 'Amiri', 'Traditional Arabic', serif" font-size="52" font-weight="700" fill="url(#goldGrad)" direction="rtl">مِيلاَد</text>
-
-        <!-- BOTTOM WORD: "النَّبِيِّ" -->
-        <text x="97.5" y="215" text-anchor="middle" font-family="'Aref Ruqaa', 'Amiri', 'Traditional Arabic', serif" font-size="56" font-weight="700" fill="url(#goldGrad)" direction="rtl">النَّبِيِّ</text>
-
-      </g>
+        <!-- Watermark App Logo Image -->
+        <image href="public/logo192.png" x="10" y="10" width="130" height="130" opacity="0.45"/>
       </g>
     </svg>
   </div>
@@ -282,16 +251,14 @@
     
     <!-- Top Header -->
     <div class="cert-header">
-      <!-- App Logo + Madrasa Name & Place -->
       <div class="cert-logo-section">
-        <img src="logo192.png" class="cert-app-logo" alt="Milad Fest Logo" />
+        <img src="public/logo192.png" class="cert-app-logo" alt="Milad Fest Logo" />
         <div class="cert-org-details">
           <div class="cert-madrasa-name">MADRASA NAME</div>
           <div class="cert-madrasa-place">LOCATION PLACE</div>
         </div>
       </div>
 
-      <!-- Event Name & Milad_fest 2026 -->
       <div class="cert-event-section">
         <div class="cert-event-name">EVENT NAME</div>
         <div class="cert-event-sub">Milad_fest 2026</div>
@@ -305,17 +272,14 @@
         <div class="cert-sub-title">Of Excellence</div>
       </div>
 
-      <!-- Pill Badge -->
       <div class="cert-pill-badge">
         This Certificate is proudly presented to
       </div>
 
-      <!-- Student Name -->
       <div class="cert-student-name">
         Student Name Here
       </div>
 
-      <!-- Description Text -->
       <div class="cert-description">
         in recognition of securing <strong class="cert-highlight">First Prize</strong> in the <strong class="cert-highlight">Arabic Calligraphy (Junior Boys)</strong> competition at the <strong>Event name 2026</strong> , Your dedication have earned you this distinguished achievement.
       </div>
