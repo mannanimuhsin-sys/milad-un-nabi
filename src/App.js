@@ -3704,7 +3704,19 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       } else {
         alert(t('alertResultDeclared'));
         if (data && data[0]) {
-          setResultsList(prev => [...prev, data[0]]);
+          setResultsList(prev => {
+            const updated = [...prev, data[0]];
+            const rNum = loggedInMadrasa?.regNumber;
+            if (rNum) {
+              safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+                let cacheObj = {};
+                try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+                cacheObj.resultsList = updated;
+                return JSON.stringify(cacheObj);
+              });
+            }
+            return updated;
+          });
         }
       }
     } catch (err) {
@@ -3714,17 +3726,49 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
   const handleDeleteResult = async (id) => {
     if (!window.confirm(lang === 'EN' ? 'Remove this result?' : 'ഈ ഫലം ഒഴിവാക്കണമെന്നുറപ്പാണോ?')) return;
+    const rNum = loggedInMadrasa?.regNumber;
     const originalResults = [...resultsList];
-    setResultsList(prev => prev.filter(r => r.id !== id));
+    const updatedResults = originalResults.filter(r => String(r.id) !== String(id));
+    
+    // 1. Instant UI update
+    setResultsList(updatedResults);
+
+    // 2. Instant LocalStorage Cache update so background sync doesn't restore deleted result
+    if (rNum) {
+      safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+        let cacheObj = {};
+        try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+        cacheObj.resultsList = updatedResults;
+        return JSON.stringify(cacheObj);
+      });
+    }
+
     try {
-      const { error } = await supabase.from('results').delete().eq('id', id);
+      const targetId = !isNaN(Number(id)) ? Number(id) : id;
+      const { error } = await supabase.from('results').delete().eq('id', targetId);
       if (error) {
         alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
         setResultsList(originalResults);
+        if (rNum) {
+          safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+            let cacheObj = {};
+            try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+            cacheObj.resultsList = originalResults;
+            return JSON.stringify(cacheObj);
+          });
+        }
       }
     } catch (err) {
       alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
       setResultsList(originalResults);
+      if (rNum) {
+        safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+          let cacheObj = {};
+          try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+          cacheObj.resultsList = originalResults;
+          return JSON.stringify(cacheObj);
+        });
+      }
     }
   };
 
@@ -3788,7 +3832,17 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     };
 
     const originalResults = [...resultsList];
-    setResultsList(prev => prev.map(r => String(r.id) === String(editingResultId) ? { ...r, ...updatedRecord } : r));
+    const updatedList = originalResults.map(r => String(r.id) === String(editingResultId) ? { ...r, ...updatedRecord } : r);
+    setResultsList(updatedList);
+    const rNum = loggedInMadrasa?.regNumber;
+    if (rNum) {
+      safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+        let cacheObj = {};
+        try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+        cacheObj.resultsList = updatedList;
+        return JSON.stringify(cacheObj);
+      });
+    }
     const targetId = editingResultId;
     setEditingResultId(null);
 
