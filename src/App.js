@@ -5948,13 +5948,7 @@ ${pagesHtml}
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_${result.id || Math.random()})" opacity="0.8" />
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
 
-      <!-- LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER -->
-      <g transform="translate(195, 120)">
-        <circle cx="75" cy="75" r="85" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.35"/>
-        <circle cx="75" cy="75" r="77" stroke="#fef08a" stroke-width="1.5" fill="none" opacity="0.3"/>
-        <circle cx="75" cy="75" r="69" stroke="#ffffff" stroke-width="1" stroke-dasharray="4 4" fill="none" opacity="0.4"/>
-        <image href="${logoUrl}" x="10" y="10" width="130" height="130" opacity="0.4" />
-      </g>
+
     </svg>
   </div>
 
@@ -14059,31 +14053,24 @@ ${pagesHtml}
       <path d="M 45 0 L 105 0 L 105 130 L 75 110 L 45 130 Z" fill="url(#islamicPattern_single)" opacity="0.6"/>
       <path d="M 47 0 L 47 125 L 75 106 L 103 125 L 103 0" stroke="url(#goldGradient_single)" stroke-width="1.8" fill="none" opacity="0.9"/>
       <g transform="translate(75, 62)">
-        <polygon points="0,-26 7,-18 18,-18 14,-7 23,2 14,11 18,22 7,22 0,30 -7,22 -18,22 -  <div class="cert-right-banner">
-    <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="islamicPattern_single" width="70" height="70" patternUnits="userSpaceOnUse">
-          <path d="M35 0 L70 35 L35 70 L0 35 Z" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.35"/>
-          <path d="M0 0 L70 70 M70 0 L0 70" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.2"/>
-          <circle cx="35" cy="35" r="14" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.25"/>
-          <polygon points="35,12 42,27 58,27 44,37 50,53 35,43 20,53 26,37 12,27 28,27" stroke="#0d6e53" stroke-width="0.6" fill="none" opacity="0.25"/>
-        </pattern>
-      </defs>
-      
-      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="#064e3b" />
-      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_single)" opacity="0.8" />
-      <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
-
-      <!-- LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER -->
-      <g transform="translate(195, 120)">
-        <circle cx="75" cy="75" r="85" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.35"/>
-        <circle cx="75" cy="75" r="77" stroke="#fef08a" stroke-width="1.5" fill="none" opacity="0.3"/>
-        <circle cx="75" cy="75" r="69" stroke="#ffffff" stroke-width="1" stroke-dasharray="4 4" fill="none" opacity="0.4"/>
-        <image href="${logoUrl}" x="10" y="10" width="130" height="130" opacity="0.4" />
+        <polygon points="0,-26 7,-18 18,-18 14,-7 23,2 14,11 18,22 7,22 0,30 -7,22 -18,22 -14,11 -23,2 -14,-7 -18,-18 -7,-18" fill="url(#goldGradient_single)" filter="url(#shadowFilter_single)"/>
+        <circle cx="0" cy="2" r="16" fill="#064e3b" stroke="url(#goldGradient_single)" stroke-width="2"/>
+        <circle cx="0" cy="2" r="12" fill="none" stroke="url(#goldGradient_single)" stroke-width="1.2" opacity="0.8"/>
+        <polygon points="0,-7 2,-2 7,-2 3,1 5,6 0,3 -5,6 -3,1 -7,-2 -2,-2" fill="url(#goldGradient_single)"/>
       </g>
+      
+      {/* BOTTOM-LEFT CORNER ACCENT */}
+      <path d="M 0 635 C 100 635, 160 680, 190 740 L 165 740 C 140 690, 85 648, 0 648 Z" fill="url(#goldGradient_single)" filter="url(#shadowFilter_single)"/>
+      <path d="M 0 648 C 85 648, 140 690, 165 740 L 0 740 Z" fill="url(#greenGrad_single)"/>
+      <path d="M 0 648 C 85 648, 140 690, 165 740 L 0 740 Z" fill="url(#islamicPattern_single)" opacity="0.7"/>
+
+      {/* RIGHT SIDE SWEEPING BANNER */}
+      <path d="M 700 0 C 600 230, 670 510, 1050 630 L 1050 658 C 640 535, 570 230, 676 0 Z" fill="url(#goldGradient_single)" filter="url(#shadowFilter_single)"/>
+      <path d="M 700 0 C 600 230, 670 510, 1050 630 L 1050 740 L 1050 0 Z" fill="url(#greenGrad_single)"/>
+      <path d="M 700 0 C 600 230, 670 510, 1050 630 L 1050 740 L 1050 0 Z" fill="url(#islamicPattern_single)" opacity="0.85"/>
     </svg>
   </div>
-y={grp.groupKey} value={idx}>
+  <option key={grp.groupKey} value={idx}>
                                   {idx === 0 ? '🔥 ' : ''}{grp.progName} ({grp.catName} - {grp.genderKey})
                                 </option>
                               ))}
@@ -14319,13 +14306,7 @@ y={grp.groupKey} value={idx}>
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_single)" opacity="0.8" />
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
       
-      <!-- LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER -->
-      <g transform="translate(195, 120)">
-        <circle cx="75" cy="75" r="85" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.35"/>
-        <circle cx="75" cy="75" r="77" stroke="#fef08a" stroke-width="1.5" fill="none" opacity="0.3"/>
-        <circle cx="75" cy="75" r="69" stroke="#ffffff" stroke-width="1" stroke-dasharray="4 4" fill="none" opacity="0.4"/>
-        <image href="${logoUrl}" x="10" y="10" width="130" height="130" opacity="0.4" />
-      </g>
+
     </svg>
   </div>
 
@@ -14466,13 +14447,7 @@ y={grp.groupKey} value={idx}>
                     <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_modal)" opacity="0.8" />
                     <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" strokeWidth="4" fill="none"/>
                     
-                    {/* LIGHT WATERMARK OF APP LOGO INSIDE GREEN BANNER */}
-                    <g transform="translate(195, 120)">
-                      <circle cx="75" cy="75" r="85" stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.35"/>
-                      <circle cx="75" cy="75" r="77" stroke="#fef08a" strokeWidth="1.5" fill="none" opacity="0.3"/>
-                      <circle cx="75" cy="75" r="69" stroke="#ffffff" strokeWidth="1" strokeDasharray="4 4" fill="none" opacity="0.4"/>
-                      <image href={logoUrl || 'public/logo192.png'} x="10" y="10" width="130" height="130" opacity="0.4" />
-                    </g>
+
                   </svg>
                 </div>
 
