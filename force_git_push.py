@@ -7,7 +7,7 @@ def run_cmd(cmd):
 output = ""
 output += run_cmd(['git', 'status'])
 output += run_cmd(['git', 'add', '-A'])
-output += run_cmd(['git', 'commit', '-m', 'Fix orphaned programs for madrasa 9499 and update program resolution logic'])
+output += run_cmd(['git', 'commit', '-m', 'Update certificate right-side panel to Crescent MILAD FEST emblem and paintbrush watercolor ink-wash artwork'])
 output += run_cmd(['git', 'push', 'origin', 'main'])
 output += run_cmd(['git', 'log', '-n', '3', '--oneline'])
 
