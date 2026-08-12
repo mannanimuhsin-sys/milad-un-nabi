@@ -582,6 +582,8 @@ function App() {
   const deferredPromptRef = useRef(null);
   const isFetchingRef = useRef(false);
   const fetchReqIdRef = useRef(0);
+  const lastFetchRNumRef = useRef('');
+  const [isInitialDataLoading, setIsInitialDataLoading] = useState(false);
   const loggedInMadrasaRef = useRef(loggedInMadrasa);
   useEffect(() => {
     loggedInMadrasaRef.current = loggedInMadrasa;
@@ -1244,14 +1246,25 @@ function App() {
           setEventYearInput(yrToSet);
           setConvenerSadar(csToSet);
           setConvenerSadarInput(csToSet);
+          return true;
         }
       } else {
-        setEventName(localEv);
-        setEventNameInput(localEv);
-        setEventYear(localYr);
-        setEventYearInput(localYr);
-        setConvenerSadar(localCS);
-        setConvenerSadarInput(localCS);
+        // No local cache snapshot for this madrasa - purge old tenant state!
+        setTeams([]);
+        setCategories([]);
+        setPrograms([]);
+        setStudents([]);
+        setResultsList([]);
+        setProgramRegistrations([]);
+        setGroupRegistrations([]);
+        setTimetable([]);
+        setEventName(localEv || '');
+        setEventNameInput(localEv || '');
+        setEventYear(localYr || '');
+        setEventYearInput(localYr || '');
+        setConvenerSadar(localCS || '');
+        setConvenerSadarInput(localCS || '');
+        return false;
       }
 
       if (localGen) {
@@ -1826,12 +1839,42 @@ function App() {
       // Check schema column availability
       checkClassRangeColumn();
 
+      // Detect madrasa switch — purge stale state immediately
+      if (lastFetchRNumRef.current && lastFetchRNumRef.current !== String(rNum).trim()) {
+        // Different madrasa logged in — reset everything before loading new data
+        setTeams([]);
+        setCategories([]);
+        setPrograms([]);
+        setStudents([]);
+        setResultsList([]);
+        setProgramRegistrations([]);
+        setGroupRegistrations([]);
+        setTimetable([]);
+        setVisibilityControls({ scoreboard: true, results_PROGRAM_WINNERS: true, results_STUDENT_REPORT: true, results_RESULTS_HISTORY: true, results_CHAMPIONS: true });
+        setEventName('');
+        setEventYear('');
+        setConvenerSadar('');
+        setGeneralCatIds([]);
+        isFetchingRef.current = false;
+      }
+      lastFetchRNumRef.current = String(rNum).trim();
+
+      // Show loading indicator if no local cache exists yet
+      const hasCache = !!localStorage.getItem(`cached_data_${rNum}`);
+      if (!hasCache) {
+        setIsInitialDataLoading(true);
+      }
+
       // Immediately load cached data snapshot from local storage (instant offline UI!)
       loadCachedData(rNum);
 
       // Fetch fresh data from online database if online
       if (navigator.onLine) {
-        fetchSupabaseData(rNum);
+        fetchSupabaseData(rNum)
+          .then(() => { setIsInitialDataLoading(false); })
+          .catch(() => { setIsInitialDataLoading(false); });
+      } else {
+        setIsInitialDataLoading(false);
       }
 
       // 🔄 Realtime auto-refresh interval (every 5 seconds) only when online and not currently fetching
@@ -5443,9 +5486,12 @@ ${pagesHtml}
                 🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
               </button>
               <button onClick={() => {
-                // 🔒 MULTI-TENANT PURGE: Clear saved session & all domain React state on explicit logout
+                // 🔒 MULTI-TENANT PURGE: Clear session + ALL React state on logout
                 fetchReqIdRef.current++;
-                localStorage.removeItem('miladfest_session'); try { sessionStorage.removeItem('miladfest_session'); } catch(e){}
+                isFetchingRef.current = false;
+                lastFetchRNumRef.current = '';
+                try { localStorage.removeItem('miladfest_session'); } catch(e){}
+                try { sessionStorage.removeItem('miladfest_session'); } catch(e){}
                 setLoggedInMadrasa(null);
                 setLoginRole('');
                 setCurrentScreen('LOGIN');
@@ -5457,12 +5503,30 @@ ${pagesHtml}
                 setProgramRegistrations([]);
                 setGroupRegistrations([]);
                 setTimetable([]);
+                setVisibilityControls({ scoreboard: true, results_PROGRAM_WINNERS: true, results_STUDENT_REPORT: true, results_RESULTS_HISTORY: true, results_CHAMPIONS: true });
+                setIsInitialDataLoading(false);
+                setEventName('');
+                setEventYear('');
+                setConvenerSadar('');
+                setGeneralCatIds([]);
               }} className="btn-logout-top logout-btn-top">{t('logoutBtn')}</button>
             </div>
           </header>
 
+          {/* Loading spinner while first-time data loads for new madrasa after login */}
+          {isInitialDataLoading && (
+            <div className="card animate-tab" style={{ textAlign: 'center', padding: '50px 20px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '14px' }}>⏳</div>
+              <h3 style={{ color: '#0f766e', marginBottom: '8px', fontSize: '18px', fontWeight: '800' }}>
+                {lang === 'EN' ? 'Loading data...' : 'ഡേറ്റ ലോഡ് ചെയ്യുന്നു...'}
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '14px' }}>
+                {lang === 'EN' ? 'Fetching latest information from server.' : 'സെർവറിൽ നിന്ന് ഏറ്റവും പുതിയ വിവരങ്ങൾ ലഭ്യമാക്കുന്നു.'}
+              </p>
+            </div>
+          )}
           {/* ---------------- 🎯 TAB 1: SCOREBOARD ---------------- */}
-          {activeTab === 'SCOREBOARD' && (
+          {!isInitialDataLoading && activeTab === 'SCOREBOARD' && (
             loginRole === 'VIEW' && !visibilityControls.scoreboard ? (
               <div className="card animate-tab" style={{ textAlign: 'center', padding: '50px 20px' }}>
                 <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔒</div>
@@ -6859,7 +6923,7 @@ ${pagesHtml}
           )}
 
           {/* ---------------- 🎯 TAB 2.5: PROFILE ---------------- */}
-          {activeTab === 'PROFILE' && (
+          {!isInitialDataLoading && activeTab === 'PROFILE' && (
             <div className="card animate-tab">
               <h2 style={{ marginBottom: '18px' }}>👤 {loginRole === 'ADMIN' ? (lang === 'EN' ? 'Photo Approval & ID Cards' : 'ഫോട്ടോ അപ്പ്രൂവൽ & ഐഡി കാർഡുകൾ') : (lang === 'EN' ? 'Student Photo & ID Card' : 'വിദ്യാർത്ഥി ഫോട്ടോ & ഐഡി കാർഡ്')}</h2>
 
@@ -7395,7 +7459,7 @@ ${pagesHtml}
           }
 
           {/* ---------------- 📅 TAB: TIMETABLE ---------------- */}
-          {activeTab === 'TIMETABLE' && (
+          {!isInitialDataLoading && activeTab === 'TIMETABLE' && (
             <div className="card animate-tab">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
                 <h2 style={{ margin: 0 }}>📅 {t('timetableTitle')}</h2>
