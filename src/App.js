@@ -1348,6 +1348,7 @@ function App() {
         queryWithRetry(() => fetchAllRows('students', makeFilter)),
         queryWithRetry(() => fetchAllRows('program_registrations', makeFilter)),
         queryWithRetry(() => fetchAllRows('group_registrations', makeFilter)),
+        queryWithRetry(() => makeFilter(supabase.from('timetable').select('*'))),
         // Madrasa settings (strictly exact regNumber match)
         queryWithRetry(() => supabase.from('madrasas').select('*').eq('regNumber', String(rNum)).maybeSingle()),
       ]);
@@ -1362,6 +1363,7 @@ function App() {
         studentsResult,
         regResult,
         gRegResult,
+        timetableResult,
         madrasaResult,
       ] = results;
 
@@ -1375,6 +1377,8 @@ function App() {
       const studentsData = safe(studentsResult).data;
       const regData = safe(regResult).data;
       const groupRegData = safe(gRegResult).data;
+      const timetableData = safe(timetableResult).data;
+      const madrasaData = safe(madrasaResult).data;
       let fetchedVisibility = null;
       if (madrasaData) {
         if (madrasaData.visibility_controls) {
@@ -1433,6 +1437,7 @@ function App() {
       }
       if (Array.isArray(resultsData)) setResultsList(resultsData);
       if (Array.isArray(groupRegData)) setGroupRegistrations(groupRegData);
+      if (Array.isArray(timetableData)) setTimetable(timetableData);
 
       // 🗄️ Keep LocalStorage cache 100% updated with fresh database snapshot
       if (rNum && parsedStudents.length > 0) {
@@ -1445,6 +1450,7 @@ function App() {
             resultsList: Array.isArray(resultsData) ? resultsData : resultsList,
             programRegistrations: parsedRegs,
             groupRegistrations: Array.isArray(groupRegData) ? groupRegData : groupRegistrations,
+            timetable: Array.isArray(timetableData) ? timetableData : timetable,
             visibilityControls: madrasaData?.visibility_controls || null
           };
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
@@ -1797,7 +1803,7 @@ function App() {
     };
 
     checkAppVersion();
-    const interval = setInterval(checkAppVersion, 30000);
+    const interval = setInterval(checkAppVersion, 15000);
 
     const handleFocus = () => { checkAppVersion(); };
     window.addEventListener('focus', handleFocus);
@@ -5534,6 +5540,18 @@ ${pagesHtml}
               </p>
             </div>
             <div className="header-buttons-wrapper">
+              <button
+                onClick={() => {
+                  if (loggedInMadrasa) {
+                    fetchSupabaseData(loggedInMadrasa.regNumber);
+                  }
+                }}
+                className="btn-logout-top lang-btn-top"
+                title={lang === 'EN' ? 'Sync data with server' : 'സെർവറിൽ നിന്ന് ഡേറ്റ പുതുക്കുക'}
+                style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff' }}
+              >
+                🔄 {lang === 'EN' ? 'Sync' : 'പുതുക്കുക'}
+              </button>
               <button
                 onClick={toggleLanguage}
                 className="btn-logout-top lang-btn-top"
