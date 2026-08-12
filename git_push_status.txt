@@ -4,11 +4,19 @@ STDOUT:
 On branch main
 Your branch is up to date with 'origin/main'.
 
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   force_git_push.py
+	modified:   git_push_status.txt
+	modified:   public/version.json
+	modified:   src/App.js
+
 Untracked files:
   (use "git add <file>..." to include in what will be committed)
-	git_push_status.txt
+	apply_crescent_paintbrush_banner.py
 
-nothing added to commit but untracked files present (use "git add" to track)
+no changes added to commit (use "git add" and/or "git commit -a")
 
 STDERR:
 
@@ -18,14 +26,17 @@ RETURNCODE: 0
 STDOUT:
 
 STDERR:
+warning: in the working copy of 'force_git_push.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/version.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apply_crescent_paintbrush_banner.py', LF will be replaced by CRLF the next time Git touches it
 
 --------------------------------------------------
-CMD: git commit -m Fix orphaned programs for madrasa 9499 and update program resolution logic
+CMD: git commit -m Update certificate right-side panel to Crescent MILAD FEST emblem and paintbrush watercolor ink-wash artwork
 RETURNCODE: 0
 STDOUT:
-[main 5caba1b] Fix orphaned programs for madrasa 9499 and update program resolution logic
- 1 file changed, 73 insertions(+)
- create mode 100644 git_push_status.txt
+[main c957c71] Update certificate right-side panel to Crescent MILAD FEST emblem and paintbrush watercolor ink-wash artwork
+ 5 files changed, 466 insertions(+), 159 deletions(-)
+ create mode 100644 apply_crescent_paintbrush_banner.py
 
 STDERR:
 
@@ -36,15 +47,15 @@ STDOUT:
 
 STDERR:
 To https://github.com/mannanimuhsin-sys/milad-un-nabi.git
-   281505b..5caba1b  main -> main
+   5caba1b..c957c71  main -> main
 
 --------------------------------------------------
 CMD: git log -n 3 --oneline
 RETURNCODE: 0
 STDOUT:
+c957c71 Update certificate right-side panel to Crescent MILAD FEST emblem and paintbrush watercolor ink-wash artwork
 5caba1b Fix orphaned programs for madrasa 9499 and update program resolution logic
 281505b Fix orphaned programs for madrasa 9499 and update program resolution logic
-b95ca65 update data
 
 STDERR:
 

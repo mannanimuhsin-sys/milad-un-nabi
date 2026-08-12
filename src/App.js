@@ -1567,7 +1567,7 @@ function App() {
             students: freshStudents,
             resultsList: resultsData || [],
             programRegistrations: freshRegs,
-            groupRegistrations: parsedGroupReg.length > 0 ? parsedGroupReg : ((existingCached && existingCached.groupRegistrations) || []),
+            groupRegistrations: (Array.isArray(groupRegData) && groupRegData.length > 0) ? groupRegData : ((existingCached && existingCached.groupRegistrations) || []),
             timetable: parsedTimetable.length > 0 ? parsedTimetable : ((existingCached && existingCached.timetable) || []),
             eventName: loadedEventName || localEv,
             eventYear: loadedEventYear || localYr,
@@ -1689,7 +1689,10 @@ function App() {
   };
 
   useEffect(() => {
-    fetchMadrasas();
+    // Only fetch madrasas list on screens that actually need it — avoids unnecessary network calls on every tab switch
+    if (currentScreen === 'LOGIN' || currentScreen === 'SUPER_ADMIN' || currentScreen === 'PENDING_APPROVAL') {
+      fetchMadrasas();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScreen]);
 
@@ -1882,7 +1885,6 @@ function App() {
 
     // Auto-refresh from Supabase every 30 seconds
     const dataInterval = setInterval(() => {
-      console.log("Projector mode: auto-refreshing data...");
       fetchSupabaseData(rNum);
     }, 30000);
 
@@ -2113,7 +2115,7 @@ function App() {
         { data: gRegsData }
       ] = await Promise.all([
         supabase.from('madrasas').select('*').in('regNumber', mIdList).maybeSingle(),
-        isSIdNum ? supabase.from('students').select('*').or(`id.eq."${sIdInt}",regno.eq."${studentId}"`) : supabase.from('students').select('*').or(`id.eq."${studentId}",regno.eq."${studentId}"`),
+        isSIdNum ? supabase.from('students').select('*').in('madrasa_id', mIdList).or(`id.eq."${sIdInt}",regno.eq."${studentId}"`) : supabase.from('students').select('*').in('madrasa_id', mIdList).or(`id.eq."${studentId}",regno.eq."${studentId}"`),
         supabase.from('results').select('*').in('madrasa_id', mIdList),
         supabase.from('teams').select('*').in('madrasa_id', mIdList),
         supabase.from('categories').select('*').in('madrasa_id', mIdList),
@@ -3096,28 +3098,37 @@ function App() {
       // ignore network check error and proceed
     }
 
-    const tempId = 'temp_' + Date.now();
-    const tempStudent = { id: tempId, name: trimmedName, regno: trimmedRegNo, teamid: selectedStudentTeam, catid: selectedStudentCat, gender: studentGender, madrasa_id: loggedInMadrasa.regNumber };
-    setStudents(prev => [...prev.filter(s => String(s.regno || s.regNo || '').trim() !== trimmedRegNo), tempStudent].sort(compareRegNo));
-
+    // 🔒 DB-FIRST: Only add student to UI AFTER confirmed database insert (prevents fake students in category lists)
     try {
       const { data, error } = await supabase.from('students').insert([{
-        name: tempStudent.name, regno: tempStudent.regno, teamid: tempStudent.teamid,
-        catid: tempStudent.catid, gender: tempStudent.gender, madrasa_id: tempStudent.madrasa_id
+        name: trimmedName, regno: trimmedRegNo,
+        teamid: selectedStudentTeam, catid: selectedStudentCat,
+        gender: studentGender, madrasa_id: loggedInMadrasa.regNumber
       }]).select();
       if (error) {
         alert('Error: ' + getFriendlyErrorMessage(error.message));
-        setStudents(prev => prev.filter(s => s.id !== tempId));
       } else {
         setNewStudentName(''); setStudentRegNo('');
         if (data && data[0]) {
           const insertedStudent = data[0];
-          setStudents(prev => prev.map(s => s.id === tempId ? { ...s, id: insertedStudent.id } : s).sort(compareRegNo));
+          // Add the confirmed DB record (with real ID) to state and cache
+          setStudents(prev => {
+            const deduped = prev.filter(s => String(s.id) !== String(insertedStudent.id) && String(s.regno || s.regNo || '').trim() !== trimmedRegNo);
+            const updated = [...deduped, insertedStudent].sort(compareRegNo);
+            try {
+              const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa?.regNumber}`);
+              if (rawCache) {
+                const cacheObj = JSON.parse(rawCache);
+                cacheObj.students = updated;
+                localStorage.setItem(`cached_data_${loggedInMadrasa?.regNumber}`, JSON.stringify(cacheObj));
+              }
+            } catch (e) {}
+            return updated;
+          });
         }
       }
     } catch (err) {
       alert('Error: ' + getFriendlyErrorMessage(err.message));
-      setStudents(prev => prev.filter(s => s.id !== tempId));
     }
   };
 
