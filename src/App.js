@@ -14061,7 +14061,7 @@ ${pagesHtml}
                   <div className="projector-empty">{t('noResultsAdded')}</div>
                 ) : (
                   (() => {
-                    // 1. Group results into distinct declared program runs (by progid/name, catname, and gender/type)
+                    // 1. Group results into distinct declared program runs (by program metadata: progid/name, catname, and program type)
                     const groupsMap = new Map();
 
                     resultsList.forEach(r => {
@@ -14069,10 +14069,18 @@ ${pagesHtml}
                       const rProgName = String(r.progname || r.progName || '').trim();
                       const rCatName = String(r.catname || r.catName || '').trim();
 
-                      let g = String(r.studentgender || r.studentGender || r.progtype || r.gender || '').toUpperCase();
-                      const genderKey = (g.includes('BOY') || g === 'MALE' || g === 'M')
+                      // Look up matching program metadata first to determine official PROGRAM gender type
+                      const progObj = programs.find(p => {
+                        const pId = String(p.id || '');
+                        const pCode = String(p.code || '');
+                        const pName = String(p.name || '').trim().toLowerCase();
+                        return (rProgId && (pId === rProgId || pCode === rProgId)) || (rProgName && pName === rProgName.toLowerCase());
+                      });
+
+                      const pType = String(progObj?.type || r.progtype || r.progType || '').toUpperCase();
+                      const genderKey = (pType.includes('BOY') && !pType.includes('GIRL'))
                         ? 'BOY'
-                        : (g.includes('GIRL') || g === 'FEMALE' || g === 'F')
+                        : (pType.includes('GIRL') && !pType.includes('BOY'))
                           ? 'GIRL'
                           : 'COMMON';
 
@@ -14125,7 +14133,7 @@ ${pagesHtml}
                       const pCatObj = categories.find(c => String(c.id) === String(p.catid || p.catId));
                       const pCatName = pCatObj ? pCatObj.name : (p.catname || p.catName || '');
                       const pType = String(p.type || '').toUpperCase();
-                      const pGender = pType.includes('BOY') ? 'BOY' : pType.includes('GIRL') ? 'GIRL' : 'COMMON';
+                      const pGender = pType.includes('BOY') && !pType.includes('GIRL') ? 'BOY' : pType.includes('GIRL') && !pType.includes('BOY') ? 'GIRL' : 'COMMON';
 
                       const idMatch = (pId && pId === activeGroup.progId) || (pCode && pCode === activeGroup.progId);
                       const catMatch = !pCatName || !activeGroup.catName || pCatName.toLowerCase() === activeGroup.catName.toLowerCase();
@@ -14143,8 +14151,8 @@ ${pagesHtml}
                     const catName = catObj ? catObj.name : (prog.catname || prog.catName || activeGroup.catName || '');
 
                     const pType = String(prog.type || activeGroup.genderKey || '').toUpperCase();
-                    const isBoyProg = pType.includes('BOY');
-                    const isGirlProg = pType.includes('GIRL');
+                    const isBoyProg = pType.includes('BOY') && !pType.includes('GIRL');
+                    const isGirlProg = pType.includes('GIRL') && !pType.includes('BOY');
                     const genderText = isBoyProg
                       ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്')
                       : isGirlProg
@@ -14155,10 +14163,20 @@ ${pagesHtml}
                     // Filter results for ONLY this single active program group!
                     const progResults = activeGroup.results;
 
+                    // Helper to normalize place values ('1', 'First', '1st')
+                    const getNormPlace = (pl) => {
+                      if (!pl) return '';
+                      const s = String(pl).trim().toLowerCase();
+                      if (s === 'first' || s === '1' || s === '1st') return 'First';
+                      if (s === 'second' || s === '2' || s === '2nd') return 'Second';
+                      if (s === 'third' || s === '3' || s === '3rd') return 'Third';
+                      return '';
+                    };
+
                     // Group winners by place (support multiple winners per place)
-                    const firstWinners = progResults.filter(r => r.place === 'First');
-                    const secondWinners = progResults.filter(r => r.place === 'Second');
-                    const thirdWinners = progResults.filter(r => r.place === 'Third');
+                    const firstWinners = progResults.filter(r => getNormPlace(r.place) === 'First');
+                    const secondWinners = progResults.filter(r => getNormPlace(r.place) === 'Second');
+                    const thirdWinners = progResults.filter(r => getNormPlace(r.place) === 'Third');
 
                     const renderPosterWinnerCard = (w, placeLabel, medalEmoji, placeClass) => {
                       if (!w) return null;
