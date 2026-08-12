@@ -1408,7 +1408,6 @@ function App() {
       // 🔒 MULTI-TENANT IDENTITY VALIDATION & RACE CONDITION PROTECTION
       const currentActiveRegNumber = String(loggedInMadrasaRef.current ? (loggedInMadrasaRef.current.regNumber || loggedInMadrasaRef.current.regnumber || loggedInMadrasaRef.current.reg_number) : '').trim();
       if (currentReqId !== fetchReqIdRef.current) {
-        console.log('[TENANT-GUARD] Aborted stale fetch response because a newer request was initiated.');
         isFetchingRef.current = false;
         return;
       }
@@ -3551,21 +3550,77 @@ function App() {
   };
 
   const handleDeleteProgram = async (id) => {
-    if (!window.confirm('Remove this program?')) return;
-    setPrograms(prev => {
-      const updated = prev.filter(p => p.id !== id);
+    const prog = programs.find(p => p.id === id);
+    const progName = prog ? `${prog.name || ''} (${prog.code || ''})` : 'this program';
+    const confirmed = window.confirm(
+      lang === 'EN'
+        ? `⚠️ Delete "${progName}"?\n\nThis will ALSO permanently delete:\n• Timetable entry\n• All registrations (students & groups)\n• All results/marks for this program\n\nThis cannot be undone!`
+        : `⚠️ "${progName}" ഡിലീറ്റ് ചെയ്യണോ?\n\nഇനിപ്പറയുന്നവ കൂടി ശാശ്വതമായി ഡിലീറ്റ് ആകും:\n• ടൈംടേബിൾ എൻട്രി\n• എല്ലാ രജിസ്‌ട്രേഷനുകളും (students & groups)\n• ഈ പ്രോഗ്രാമിന്റെ എല്ലാ results/marks\n\nഇത് പഴയ നിലയിലേക്ക് തിരിക്കാൻ കഴിയില്ല!`
+    );
+    if (!confirmed) return;
+    if (!loggedInMadrasa) return;
+    const madrasaId = String(loggedInMadrasa.regNumber).trim();
+    const programIdStr = String(id);
+
+    // ── 1. Cascade delete from Supabase ────────────────────────────────────────
+    const deleteOps = await Promise.allSettled([
+      // Delete the program row itself
+      supabase.from('programs').delete().eq('id', id),
+      // Delete timetable entry for this program in this madrasa
+      supabase.from('timetable').delete().eq('madrasa_id', madrasaId).eq('program_id', programIdStr),
+      // Delete all program_registrations for this program + madrasa
+      supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('prog_id', programIdStr),
+      // Delete group_registrations for this program
+      supabase.from('group_registrations').delete().eq('madrasa_id', madrasaId).eq('program_id', programIdStr),
+      // Delete results for this program
+      supabase.from('results').delete().eq('madrasa_id', madrasaId).eq('progid', programIdStr),
+    ]);
+
+    // Collect any errors (but don't block UI update on non-critical ones)
+    const errors = deleteOps
+      .filter(r => r.status === 'rejected' || r.value?.error)
+      .map(r => r.value?.error?.message || r.reason?.message || '');
+    if (errors.length > 0) {
+      console.error('Cascade delete partial errors:', errors);
+    }
+
+    // ── 2. Purge from React state + localStorage cache ──────────────────────────
+    const updateCache = (updater) => {
       try {
-        const rawCache = localStorage.getItem(`cached_data_${loggedInMadrasa.regNumber}`);
+        const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
         if (rawCache) {
           const cacheObj = JSON.parse(rawCache);
-          cacheObj.programs = updated;
-          localStorage.setItem(`cached_data_${loggedInMadrasa.regNumber}`, JSON.stringify(cacheObj));
+          updater(cacheObj);
+          localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
         }
       } catch (e) {}
+    };
+
+    setPrograms(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      updateCache(c => { c.programs = updated; });
       return updated;
     });
-    const { error } = await supabase.from('programs').delete().eq('id', id);
-    if (error) { alert(getFriendlyErrorMessage(error.message)); }
+    setTimetable(prev => {
+      const updated = prev.filter(t => String(t.program_id) !== programIdStr);
+      updateCache(c => { c.timetable = updated; });
+      return updated;
+    });
+    setProgramRegistrations(prev => {
+      const updated = prev.filter(r => String(r.prog_id) !== programIdStr && String(r.progid) !== programIdStr);
+      updateCache(c => { c.programRegistrations = updated; });
+      return updated;
+    });
+    setGroupRegistrations(prev => {
+      const updated = prev.filter(r => String(r.program_id) !== programIdStr && String(r.program_id) !== programIdStr);
+      updateCache(c => { c.groupRegistrations = updated; });
+      return updated;
+    });
+    setResultsList(prev => {
+      const updated = prev.filter(r => String(r.progid) !== programIdStr && String(r.progId) !== programIdStr);
+      updateCache(c => { c.resultsList = updated; });
+      return updated;
+    });
   };
 
   const handleSaveProgEdit = async () => {
@@ -10320,13 +10375,7 @@ ${pagesHtml}
                                               const sid = e.target.value;
                                               setRegTabStudent(sid);
                                               const sObj = students.find(s2 => String(s2.id) === String(sid));
-                                              console.log('[REG-DEBUG] Student selected via dropdown:', { sid, studentId: sObj?.id, regNo: sObj?.regno || sObj?.regNo });
-                                              console.log('[REG-DEBUG] All programRegistrations for this student:', programRegistrations.filter(r => {
-                                                if (!sObj) return String(r.student_id) === String(sid);
-                                                return String(r.student_id) === String(sObj.id) || String(r.student_id) === String(sObj.regno || sObj.regNo || '');
-                                              }));
                                               const existing = getStudentRegisteredProgIds(sid);
-                                              console.log('[REG-DEBUG] getStudentRegisteredProgIds returned:', existing);
                                               setRegTabCheckedProgs(existing);
                                             }}>
                                               <option value="">{t('selectStudentFirst')}</option>
@@ -10442,11 +10491,7 @@ ${pagesHtml}
                                               onClick={() => {
                                                 const sid = String(s.id);
                                                 setRegTabStudent(sid);
-                                                console.log('[REG-DEBUG] Student clicked in summary:', { sid, regNo: s.regno || s.regNo });
-                                                console.log('[REG-DEBUG] programRegistrations state length:', programRegistrations.length);
-                                                console.log('[REG-DEBUG] Matching regs for this student:', programRegistrations.filter(r => String(r.student_id) === String(sid) || String(r.student_id) === String(s.regno || s.regNo || '')));
                                                 const existing = getStudentRegisteredProgIds(sid);
-                                                console.log('[REG-DEBUG] getStudentRegisteredProgIds returned:', existing);
                                                 setRegTabCheckedProgs(existing);
                                               }}>
                                               <div style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
