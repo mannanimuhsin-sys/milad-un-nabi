@@ -5,6 +5,37 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <script>
+      (function() {
+        var RELOAD_KEY = 'milad_cache_purged_v1_1_0';
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            var unregistered = false;
+            for (var i = 0; i < registrations.length; i++) {
+              registrations[i].unregister();
+              unregistered = true;
+            }
+            if (unregistered && !sessionStorage.getItem(RELOAD_KEY)) {
+              sessionStorage.setItem(RELOAD_KEY, 'true');
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  return Promise.all(names.map(function(name) { return caches.delete(name); }));
+                }).then(function() {
+                  window.location.reload(true);
+                }).catch(function() { window.location.reload(true); });
+              } else {
+                window.location.reload(true);
+              }
+            }
+          }).catch(function(e) {});
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            names.forEach(function(name) { caches.delete(name); });
+          }).catch(function(e) {});
+        }
+      })();
+    </script>
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
     <meta name="theme-color" content="#1e3a8a" />

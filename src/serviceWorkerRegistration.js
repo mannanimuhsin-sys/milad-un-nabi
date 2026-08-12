@@ -82,6 +82,11 @@ export function unregister() {
           registration.unregister();
         }
       })
-      .catch((error) => { console.error(error.message); });
+      .catch((error) => { console.error('[SW] Unregister error:', error.message); });
+  }
+  if ('caches' in window) {
+    caches.keys().then((names) => {
+      names.forEach((name) => { caches.delete(name); });
+    }).catch(() => {});
   }
 }
