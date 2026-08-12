@@ -1834,12 +1834,12 @@ function App() {
         fetchSupabaseData(rNum);
       }
 
-      // 🔄 Realtime auto-refresh interval (every 15 seconds) only when online and not currently fetching
+      // 🔄 Realtime auto-refresh interval (every 5 seconds) only when online and not currently fetching
       const intervalId = setInterval(() => {
         if (navigator.onLine && !isFetchingRef.current) {
           fetchSupabaseData(rNum);
         }
-      }, 15000);
+      }, 5000);
 
       // 🔄 Sync immediately when user switches back to this browser tab
       const handleFocus = () => {
@@ -1868,11 +1868,10 @@ function App() {
         });
       }
 
-      // Load visibility controls safely without resetting existing user settings
+      // Load visibility controls safely from madrasa-specific cache
       try {
         const storedControls = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
-                               localStorage.getItem(`visibility_controls_${rNum}`) ||
-                               localStorage.getItem('milad_visibility_controls_latest');
+                               localStorage.getItem(`visibility_controls_${rNum}`);
         if (storedControls) {
           setVisibilityControls(JSON.parse(storedControls));
         }
@@ -2354,6 +2353,29 @@ function App() {
         // 🎭 Sync troll mode & settings from database
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
+
+        let loginVis = null;
+        if (madrasa.visibility_controls) {
+          try {
+            loginVis = typeof madrasa.visibility_controls === 'string'
+              ? JSON.parse(madrasa.visibility_controls)
+              : madrasa.visibility_controls;
+          } catch(e) {}
+        }
+        const mParts = (madrasa.place || '').split('|');
+        if ((!loginVis || typeof loginVis !== 'object') && mParts[8]) {
+          try {
+            loginVis = JSON.parse(decodeURIComponent(mParts[8]));
+          } catch(e) {}
+        }
+        if (loginVis && typeof loginVis === 'object') {
+          setVisibilityControls(loginVis);
+          const rNumStr = String(sanitizedMadrasa.regNumber).trim();
+          try {
+            localStorage.setItem(`visibility_controls_${rNumStr}`, JSON.stringify(loginVis));
+            localStorage.setItem(`milad_visibility_controls_${rNumStr}`, JSON.stringify(loginVis));
+          } catch(e) {}
+        }
         const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
         const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
