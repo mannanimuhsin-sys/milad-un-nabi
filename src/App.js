@@ -1362,16 +1362,30 @@ function App() {
       const studentsData = safe(studentsResult).data;
       const regData = safe(regResult).data;
       const groupRegData = safe(gRegResult).data;
-      const madrasaData = safe(madrasaResult).data;
-      if (madrasaData && madrasaData.visibility_controls) {
-        try {
-          const parsed = typeof madrasaData.visibility_controls === 'string'
-            ? JSON.parse(madrasaData.visibility_controls)
-            : madrasaData.visibility_controls;
-          if (parsed && typeof parsed === 'object') {
-            setVisibilityControls(parsed);
-            localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(parsed));
+      let fetchedVisibility = null;
+      if (madrasaData) {
+        if (madrasaData.visibility_controls) {
+          try {
+            fetchedVisibility = typeof madrasaData.visibility_controls === 'string'
+              ? JSON.parse(madrasaData.visibility_controls)
+              : madrasaData.visibility_controls;
+          } catch (e) {}
+        }
+        if ((!fetchedVisibility || typeof fetchedVisibility !== 'object') && madrasaData.place) {
+          const parts = madrasaData.place.split('|');
+          if (parts[8]) {
+            try {
+              fetchedVisibility = JSON.parse(decodeURIComponent(parts[8]));
+            } catch (e) {}
           }
+        }
+      }
+      if (fetchedVisibility && typeof fetchedVisibility === 'object') {
+        setVisibilityControls(prev => ({ ...prev, ...fetchedVisibility }));
+        try {
+          localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(fetchedVisibility));
+          localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(fetchedVisibility));
+          localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(fetchedVisibility));
         } catch (e) {}
       }
 
@@ -2445,8 +2459,8 @@ function App() {
 
 
 
-  // Helper to safely construct full 8-part place string for Supabase:
-  // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR
+  // Helper to safely construct full 9-part place string for Supabase:
+  // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR|VISIBILITY_CONTROLS
   const makePlaceString = (rawPlace, overrides = {}) => {
     const parts = (rawPlace || '').split('|');
     const actualPlace = overrides.place !== undefined ? overrides.place : (parts[0] || (loggedInMadrasa ? loggedInMadrasa.place : ''));
@@ -2457,8 +2471,9 @@ function App() {
     const evYear = overrides.eventYear !== undefined ? overrides.eventYear : (parts[5] ? parts[5] : (eventYear ? encodeURIComponent(eventYear) : ''));
     const genCats = overrides.generalCats !== undefined ? overrides.generalCats : (parts[6] ? parts[6] : (generalCatIds.length > 0 ? encodeURIComponent(JSON.stringify(generalCatIds)) : ''));
     const csVal = overrides.convenerSadar !== undefined ? overrides.convenerSadar : (parts[7] ? parts[7] : (convenerSadar ? encodeURIComponent(convenerSadar) : ''));
+    const visCtrls = overrides.visibilityControls !== undefined ? overrides.visibilityControls : (parts[8] ? parts[8] : (visibilityControls ? encodeURIComponent(JSON.stringify(visibilityControls)) : ''));
 
-    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}`;
+    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}`;
   };
 
   const handleApproveMadrasa = async (madrasa) => {
@@ -5865,7 +5880,23 @@ ${pagesHtml}
                   )}
 
                   {/* ── Section 2: Student Search by Register Number ── */}
-                  {resultsSubTab === 'STUDENT_REPORT' && (() => {
+                  {resultsSubTab === 'STUDENT_REPORT' && (
+                    loginRole === 'VIEW' && !visibilityControls.results_STUDENT_REPORT ? (
+                      <div className="card animate-tab" style={{ textAlign: 'center', padding: '45px 20px', background: '#ffffff', borderRadius: '16px', border: '1.5px solid #fecaca', boxShadow: '0 4px 20px rgba(239,68,68,0.08)' }}>
+                        <div style={{ fontSize: '56px', marginBottom: '14px' }}>🔒</div>
+                        <h3 style={{ color: '#991b1b', marginBottom: '8px', fontSize: '20px', fontWeight: '800' }}>
+                          {lang === 'EN' ? 'Student Report & Certificate Hidden' : 'വിദ്യാർത്ഥി റിപ്പോർട്ടും സർട്ടിഫിക്കറ്റും മറച്ചിരിക്കുന്നു'}
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '14.5px', maxWidth: '480px', margin: '0 auto 16px' }}>
+                          {lang === 'EN'
+                            ? 'Student search and certificate section has been hidden by the administrator.'
+                            : 'വിദ്യാർത്ഥി റിപ്പോർട്ടും സർട്ടിഫിക്കറ്റും അഡ്മിനിസ്ട്രേറ്റർ താത്കാലികമായി മറച്ചു വെച്ചിരിക്കുകയാണ്.'}
+                        </p>
+                        <div style={{ display: 'inline-block', padding: '8px 22px', background: '#fee2e2', color: '#991b1b', borderRadius: '24px', fontSize: '13px', fontWeight: '800', border: '1px solid #fca5a5' }}>
+                          {lang === 'EN' ? '🔒 Admin Hidden' : '🔒 Admin Hide ചെയ്തു'}
+                        </div>
+                      </div>
+                    ) : (() => {
                     const generateBulkCertificates = () => {
                       const winnerResults = resultsList.filter(r => {
                         const p = (r.place || '').toString().toLowerCase();
@@ -6466,10 +6497,27 @@ ${pagesHtml}
                       })()}
                     </div>
                   );
-                })()}
+                })()
+                  )}
 
                   {/* ── Section 3: Results History Table ── */}
-                  {resultsSubTab === 'RESULTS_HISTORY' && (() => {
+                  {resultsSubTab === 'RESULTS_HISTORY' && (
+                    loginRole === 'VIEW' && !visibilityControls.results_RESULTS_HISTORY ? (
+                      <div className="card animate-tab" style={{ textAlign: 'center', padding: '45px 20px', background: '#ffffff', borderRadius: '16px', border: '1.5px solid #fecaca', boxShadow: '0 4px 20px rgba(239,68,68,0.08)' }}>
+                        <div style={{ fontSize: '56px', marginBottom: '14px' }}>🔒</div>
+                        <h3 style={{ color: '#991b1b', marginBottom: '8px', fontSize: '20px', fontWeight: '800' }}>
+                          {lang === 'EN' ? 'Results History Hidden' : 'ഫലങ്ങളുടെ ഹിസ്റ്ററി മറച്ചിരിക്കുന്നു'}
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '14.5px', maxWidth: '480px', margin: '0 auto 16px' }}>
+                          {lang === 'EN'
+                            ? 'Results history has been hidden by the administrator.'
+                            : 'ഫലങ്ങളുടെ ഹിസ്റ്ററി അഡ്മിനിസ്ട്രേറ്റർ താത്കാലികമായി മറച്ചു വെച്ചിരിക്കുകയാണ്.'}
+                        </p>
+                        <div style={{ display: 'inline-block', padding: '8px 22px', background: '#fee2e2', color: '#991b1b', borderRadius: '24px', fontSize: '13px', fontWeight: '800', border: '1px solid #fca5a5' }}>
+                          {lang === 'EN' ? '🔒 Admin Hidden' : '🔒 Admin Hide ചെയ്തു'}
+                        </div>
+                      </div>
+                    ) : (() => {
                     // 🏆 Group & Sort Results History:
                     // 1. Newest program results entered at the top (sorted by latest entry ID)
                     // 2. Grouped strictly by Category within each Program (Senior all 3 places together, then Junior all 3 places together)
@@ -6603,10 +6651,27 @@ ${pagesHtml}
                         </button>
                       </div>
                     );
-                  })()}
+                  })()
+                  )}
 
                   {/* ── Section 4: Champion Section ── */}
                   {resultsSubTab === 'CHAMPIONS' && (
+                    loginRole === 'VIEW' && !visibilityControls.results_CHAMPIONS ? (
+                      <div className="card animate-tab" style={{ textAlign: 'center', padding: '45px 20px', background: '#ffffff', borderRadius: '16px', border: '1.5px solid #fecaca', boxShadow: '0 4px 20px rgba(239,68,68,0.08)' }}>
+                        <div style={{ fontSize: '56px', marginBottom: '14px' }}>🔒</div>
+                        <h3 style={{ color: '#991b1b', marginBottom: '8px', fontSize: '20px', fontWeight: '800' }}>
+                          {lang === 'EN' ? 'Champions Hidden' : 'ചാമ്പ്യന്മാർ മറച്ചിരിക്കുന്നു'}
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '14.5px', maxWidth: '480px', margin: '0 auto 16px' }}>
+                          {lang === 'EN'
+                            ? 'Individual champions section has been hidden by the administrator.'
+                            : 'വ്യക്തിഗത ചാമ്പ്യന്മാരുടെ വിഭാഗം അഡ്മിനിസ്ട്രേറ്റർ താത്കാലികമായി മറച്ചു വെച്ചിരിക്കുകയാണ്.'}
+                        </p>
+                        <div style={{ display: 'inline-block', padding: '8px 22px', background: '#fee2e2', color: '#991b1b', borderRadius: '24px', fontSize: '13px', fontWeight: '800', border: '1px solid #fca5a5' }}>
+                          {lang === 'EN' ? '🔒 Admin Hidden' : '🔒 Admin Hide ചെയ്തു'}
+                        </div>
+                      </div>
+                    ) : (
                     <div style={{ marginTop: '10px' }}>
 
                       {/* Category Selector */}
@@ -6764,6 +6829,7 @@ ${pagesHtml}
                         );
                       })()}
                     </div>
+                  )
                   )}
                 </div>
               </div>
@@ -12628,14 +12694,28 @@ ${pagesHtml}
                           }
                         } catch (e) {}
 
-                        // 2. Save to Supabase cloud
+                        // 2. Save to Supabase cloud (Dual strategy: update both place column part 8 AND visibility_controls column)
                         if (rNum) {
                           try {
-                            await supabase.from('madrasas').update({
-                              visibility_controls: JSON.stringify(newControls)
-                            }).eq('regNumber', rNum);
+                            const numReg = parseInt(rNum, 10);
+                            const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                            const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq."${numReg}"` : `regNumber.eq."${rNum}"`;
+
+                            const { data: md } = await queryWithRetry(() =>
+                              supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
+                            );
+                            const updatedPlace = makePlaceString(md ? md.place : '', {
+                              visibilityControls: encodeURIComponent(JSON.stringify(newControls))
+                            });
+
+                            await queryWithRetry(() =>
+                              supabase.from('madrasas').update({
+                                place: updatedPlace,
+                                visibility_controls: JSON.stringify(newControls)
+                              }).or(mFilterStr)
+                            );
                           } catch (e) {
-                            console.warn("Supabase visibility_controls update:", e);
+                            console.warn("Supabase visibility_controls update error:", e);
                           }
                         }
                       };
