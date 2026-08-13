@@ -1446,26 +1446,35 @@ function App() {
           }
         }
       }
-      // ⚠️ IMPORTANT: Only apply DB visibility if no local admin changes exist.
-      // The 5-second polling must NOT overwrite controls the admin just toggled.
+      // ⚠️ VISIBILITY CONTROLS SYNC STRATEGY:
+      // • ADMIN role  → prefer localStorage (so 5-second polling never reverts a toggle they just set)
+      // • VIEW role   → always use DB value (so admin's ON/OFF reaches view users immediately)
       try {
-        const localVis = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
-                         localStorage.getItem(`visibility_controls_${rNum}`);
-        if (localVis) {
-          // Admin has local state – keep it, don't overwrite from DB
-          const parsedLocal = normalizeVisibilityControls(localVis);
-          setVisibilityControls(parsedLocal);
-        } else if (fetchedVisibility) {
-          // No local state yet – initialise from DB (first load / new device)
-          const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
-          setVisibilityControls(normalizedVis);
-          try {
-            localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
-            localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
-            localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(normalizedVis));
-          } catch (e) {}
+        if (loginRole === 'ADMIN') {
+          // ADMIN: prefer localStorage so their own toggle is never overwritten by polling
+          const localVis = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
+                           localStorage.getItem(`visibility_controls_${rNum}`);
+          if (localVis) {
+            setVisibilityControls(normalizeVisibilityControls(localVis));
+          } else if (fetchedVisibility) {
+            const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
+            setVisibilityControls(normalizedVis);
+            try {
+              localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
+              localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
+              localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(normalizedVis));
+            } catch (e) {}
+          }
+        } else {
+          // VIEW role: always pull fresh from DB so admin's changes are immediately visible
+          if (fetchedVisibility) {
+            const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
+            setVisibilityControls(normalizedVis);
+          } else {
+            // DB had no value — fall back to DEFAULT (all ON) so view user is not locked out
+            setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
+          }
         }
-        // else: neither local nor DB – keep DEFAULT_VISIBILITY_CONTROLS (already set by useState)
       } catch (e) {}
 
       let parsedStudents = [];
