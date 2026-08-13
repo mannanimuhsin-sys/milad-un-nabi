@@ -334,7 +334,7 @@
     <string name="call_notification_ongoing_text">Ongoing call</string>
     <string name="call_notification_screening_text">Screening an incoming call</string>
     <string name="copy_toast_msg">Link copied to clipboard</string>
-    <string name="fallbackType" translatable="false">customtabs</string>
+    <string name="fallbackType" translatable="false">webview</string>
     <string name="fallback_menu_item_copy_link">Copy link</string>
     <string name="fallback_menu_item_open_in_browser">Open in browser</string>
     <string name="fallback_menu_item_share_link">Share link</string>
