@@ -1398,8 +1398,14 @@ function App() {
         queryWithRetry(() => fetchAllRows('program_registrations', makeFilter)),
         queryWithRetry(() => fetchAllRows('group_registrations', makeFilter)),
         queryWithRetry(() => makeFilter(supabase.from('timetable').select('*'))),
-        // Madrasa settings (strictly exact regNumber match)
-        queryWithRetry(() => supabase.from('madrasas').select('*').eq('regNumber', String(rNum)).maybeSingle()),
+        // Madrasa settings (by id if available, or exact regNumber match)
+        queryWithRetry(() => {
+          const activeId = loggedInMadrasaRef.current?.id;
+          if (activeId) {
+            return supabase.from('madrasas').select('*').eq('id', activeId).maybeSingle();
+          }
+          return supabase.from('madrasas').select('*').eq('regNumber', String(rNum)).maybeSingle();
+        }),
       ]);
 
       const results = await Promise.race([fetchPromise, timeoutPromise]);
@@ -13229,25 +13235,58 @@ ${pagesHtml}
                         } catch (e) {}
 
                         // 2. Save to Supabase cloud (Dual strategy: update both place column part 8 AND visibility_controls column)
-                        if (rNum) {
+                        if (rNum || loggedInMadrasa?.id) {
                           try {
+                            const mId = loggedInMadrasa?.id;
                             const numReg = parseInt(rNum, 10);
                             const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                            const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq."${numReg}"` : `regNumber.eq."${rNum}"`;
 
-                            const { data: md } = await queryWithRetry(() =>
-                              supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                            );
+                            let md = null;
+                            if (mId) {
+                              const { data } = await queryWithRetry(() =>
+                                supabase.from('madrasas').select('place').eq('id', mId).maybeSingle()
+                              );
+                              md = data;
+                            }
+                            if (!md && isNumValid) {
+                              const { data } = await queryWithRetry(() =>
+                                supabase.from('madrasas').select('place').or(`regNumber.eq.${rNum},regNumber.eq.${numReg}`).maybeSingle()
+                              );
+                              md = data;
+                            }
+                            if (!md && rNum) {
+                              const { data } = await queryWithRetry(() =>
+                                supabase.from('madrasas').select('place').eq('regNumber', String(rNum)).maybeSingle()
+                              );
+                              md = data;
+                            }
+
                             const updatedPlace = makePlaceString(md ? md.place : '', {
                               visibilityControls: encodeURIComponent(JSON.stringify(newControls))
                             });
 
-                            await queryWithRetry(() =>
-                              supabase.from('madrasas').update({
-                                place: updatedPlace,
-                                visibility_controls: JSON.stringify(newControls)
-                              }).or(mFilterStr)
-                            );
+                            if (mId) {
+                              await queryWithRetry(() =>
+                                supabase.from('madrasas').update({
+                                  place: updatedPlace,
+                                  visibility_controls: JSON.stringify(newControls)
+                                }).eq('id', mId)
+                              );
+                            } else if (isNumValid) {
+                              await queryWithRetry(() =>
+                                supabase.from('madrasas').update({
+                                  place: updatedPlace,
+                                  visibility_controls: JSON.stringify(newControls)
+                                }).or(`regNumber.eq.${rNum},regNumber.eq.${numReg}`)
+                              );
+                            } else if (rNum) {
+                              await queryWithRetry(() =>
+                                supabase.from('madrasas').update({
+                                  place: updatedPlace,
+                                  visibility_controls: JSON.stringify(newControls)
+                                }).eq('regNumber', String(rNum))
+                              );
+                            }
                           } catch (e) {
                             console.warn("Supabase visibility_controls update error:", e);
                           }
