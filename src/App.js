@@ -563,15 +563,19 @@ function App() {
   const [eventNameInput, setEventNameInput] = useState('');
   const [eventYearInput, setEventYearInput] = useState('');
   const [isEditingEvent, setIsEditingEvent] = useState(false);
+  // 🔑 Ref mirrors — closures in polling intervals read these (never stale)
+  const isEditingEventRef = useRef(false);
 
   // Sadar Muallim & Coordinator / Convener States
   const [convenerSadar, setConvenerSadar] = useState('');
   const [convenerSadarInput, setConvenerSadarInput] = useState('');
   const [isEditingConvenerSadar, setIsEditingConvenerSadar] = useState(false);
+  const isEditingConvenerSadarRef = useRef(false);
 
   const [coordinatorConvener, setCoordinatorConvener] = useState('');
   const [coordinatorConvenerInput, setCoordinatorConvenerInput] = useState('');
   const [isEditingCoordinatorConvener, setIsEditingCoordinatorConvener] = useState(false);
+  const isEditingCoordinatorConvenerRef = useRef(false);
 
   // Troll Mode States
   const [trollMode, setTrollMode] = useState(false);
@@ -592,6 +596,11 @@ function App() {
   useEffect(() => {
     loggedInMadrasaRef.current = loggedInMadrasa;
   }, [loggedInMadrasa]);
+
+  // 🔄 Keep editing refs in sync with state so polling closures always see the live value
+  useEffect(() => { isEditingEventRef.current = isEditingEvent; }, [isEditingEvent]);
+  useEffect(() => { isEditingConvenerSadarRef.current = isEditingConvenerSadar; }, [isEditingConvenerSadar]);
+  useEffect(() => { isEditingCoordinatorConvenerRef.current = isEditingCoordinatorConvener; }, [isEditingCoordinatorConvener]);
 
   // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
@@ -1067,22 +1076,43 @@ function App() {
   }, [groupRegistrations, programRegistrations, isProgramMatch, isStudentMatch]);
 
 
-  // ── Visibility Control States (for VIEW role hide/show with Supabase & LocalStorage sync) ──
+  // ── Visibility Control Helpers & States (Defaulting to ALL ON) ──
+  const DEFAULT_VISIBILITY_CONTROLS = {
+    scoreboard: true,
+    results_PROGRAM_WINNERS: true,
+    results_STUDENT_REPORT: true,
+    results_RESULTS_HISTORY: true,
+    results_CHAMPIONS: true,
+  };
+
+  const normalizeVisibilityControls = (raw) => {
+    let parsed = raw;
+    if (typeof raw === 'string') {
+      try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      return { ...DEFAULT_VISIBILITY_CONTROLS };
+    }
+    return {
+      scoreboard: parsed.scoreboard !== undefined ? Boolean(parsed.scoreboard) : DEFAULT_VISIBILITY_CONTROLS.scoreboard,
+      results_PROGRAM_WINNERS: parsed.results_PROGRAM_WINNERS !== undefined ? Boolean(parsed.results_PROGRAM_WINNERS) : DEFAULT_VISIBILITY_CONTROLS.results_PROGRAM_WINNERS,
+      results_STUDENT_REPORT: parsed.results_STUDENT_REPORT !== undefined ? Boolean(parsed.results_STUDENT_REPORT) : DEFAULT_VISIBILITY_CONTROLS.results_STUDENT_REPORT,
+      results_RESULTS_HISTORY: parsed.results_RESULTS_HISTORY !== undefined ? Boolean(parsed.results_RESULTS_HISTORY) : DEFAULT_VISIBILITY_CONTROLS.results_RESULTS_HISTORY,
+      results_CHAMPIONS: parsed.results_CHAMPIONS !== undefined ? Boolean(parsed.results_CHAMPIONS) : DEFAULT_VISIBILITY_CONTROLS.results_CHAMPIONS,
+    };
+  };
+
   const [visibilityControls, setVisibilityControls] = useState(() => {
     if (_rNum) {
       try {
-        const stored = localStorage.getItem(`visibility_controls_${_rNum}`);
-        if (stored) return JSON.parse(stored);
-        if (_initCache && _initCache.visibilityControls) return _initCache.visibilityControls;
+        const stored = localStorage.getItem(`milad_visibility_controls_${_rNum}`) ||
+                       localStorage.getItem(`visibility_controls_${_rNum}`) ||
+                       localStorage.getItem('milad_visibility_controls_latest');
+        if (stored) return normalizeVisibilityControls(stored);
+        if (_initCache && _initCache.visibilityControls) return normalizeVisibilityControls(_initCache.visibilityControls);
       } catch (e) {}
     }
-    return {
-      scoreboard: true,
-      results_PROGRAM_WINNERS: true,
-      results_STUDENT_REPORT: true,
-      results_RESULTS_HISTORY: true,
-      results_CHAMPIONS: true,
-    };
+    return { ...DEFAULT_VISIBILITY_CONTROLS };
   });
 
   // ── Profile Tab States ──
@@ -1233,11 +1263,13 @@ function App() {
           if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
           if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
           if (cached.visibilityControls && typeof cached.visibilityControls === 'object') {
-            setVisibilityControls(cached.visibilityControls);
+            setVisibilityControls(normalizeVisibilityControls(cached.visibilityControls));
           } else {
             const savedV = localStorage.getItem(`milad_visibility_controls_${rNum}`) || localStorage.getItem(`visibility_controls_${rNum}`) || localStorage.getItem('milad_visibility_controls_latest');
             if (savedV) {
-              try { setVisibilityControls(JSON.parse(savedV)); } catch(e){}
+              try { setVisibilityControls(normalizeVisibilityControls(savedV)); } catch(e){}
+            } else {
+              setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
             }
           }
 
@@ -1247,13 +1279,20 @@ function App() {
           const ccToSet = localCC || cached.coordinatorConvener || '';
 
           setEventName(evToSet);
-          if (!isEditingEvent && (evToSet || !eventNameInput)) setEventNameInput(evToSet);
+          if (!isEditingEventRef.current && (evToSet || !eventNameInput)) setEventNameInput(evToSet);
           setEventYear(yrToSet);
-          if (!isEditingEvent && (yrToSet || !eventYearInput)) setEventYearInput(yrToSet);
-          setConvenerSadar(csToSet);
-          if (!isEditingConvenerSadar && (csToSet || !convenerSadarInput)) setConvenerSadarInput(csToSet);
-          setCoordinatorConvener(ccToSet);
-          if (!isEditingCoordinatorConvener && (ccToSet || !coordinatorConvenerInput)) setCoordinatorConvenerInput(ccToSet);
+          if (!isEditingEventRef.current && (yrToSet || !eventYearInput)) setEventYearInput(yrToSet);
+          // Only update convenerSadar state/input if user is NOT currently editing
+          if (!isEditingConvenerSadarRef.current) {
+            setConvenerSadar(csToSet);
+            // Only overwrite input if we have a real value, or input is currently blank
+            if (csToSet || !convenerSadarInput) setConvenerSadarInput(csToSet);
+          }
+          // Only update coordinatorConvener state/input if user is NOT currently editing
+          if (!isEditingCoordinatorConvenerRef.current) {
+            setCoordinatorConvener(ccToSet);
+            if (ccToSet || !coordinatorConvenerInput) setCoordinatorConvenerInput(ccToSet);
+          }
           return true;
         }
       } else {
@@ -1407,14 +1446,27 @@ function App() {
           }
         }
       }
-      if (fetchedVisibility && typeof fetchedVisibility === 'object') {
-        setVisibilityControls(prev => ({ ...prev, ...fetchedVisibility }));
-        try {
-          localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(fetchedVisibility));
-          localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(fetchedVisibility));
-          localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(fetchedVisibility));
-        } catch (e) {}
-      }
+      // ⚠️ IMPORTANT: Only apply DB visibility if no local admin changes exist.
+      // The 5-second polling must NOT overwrite controls the admin just toggled.
+      try {
+        const localVis = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
+                         localStorage.getItem(`visibility_controls_${rNum}`);
+        if (localVis) {
+          // Admin has local state – keep it, don't overwrite from DB
+          const parsedLocal = normalizeVisibilityControls(localVis);
+          setVisibilityControls(parsedLocal);
+        } else if (fetchedVisibility) {
+          // No local state yet – initialise from DB (first load / new device)
+          const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
+          setVisibilityControls(normalizedVis);
+          try {
+            localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
+            localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
+            localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(normalizedVis));
+          } catch (e) {}
+        }
+        // else: neither local nor DB – keep DEFAULT_VISIBILITY_CONTROLS (already set by useState)
+      } catch (e) {}
 
       let parsedStudents = [];
       let parsedRegs = [];
@@ -1461,7 +1513,16 @@ function App() {
             programRegistrations: parsedRegs,
             groupRegistrations: Array.isArray(groupRegData) ? groupRegData : groupRegistrations,
             timetable: Array.isArray(timetableData) ? timetableData : timetable,
-            visibilityControls: madrasaData?.visibility_controls || null
+            // Always snapshot the CURRENT in-memory controls (which may already include admin
+            // toggles from this session) rather than the raw DB value that may be stale.
+            visibilityControls: (() => {
+              try {
+                const lv = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
+                           localStorage.getItem(`visibility_controls_${rNum}`);
+                if (lv) return JSON.parse(lv);
+              } catch(e) {}
+              return madrasaData?.visibility_controls || null;
+            })()
           };
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
         } catch (e) {}
@@ -1491,10 +1552,17 @@ function App() {
         loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
         loadedCoordinatorConvener = dbCoordinatorConvener ? decodeURIComponent(dbCoordinatorConvener) : '';
 
+        // Only purge localStorage for event name/year if DB truly has none set
         if (!dbEventName) { try { localStorage.removeItem(`event_name_${rNum}`); } catch(e){} }
         if (!dbEventYear) { try { localStorage.removeItem(`event_year_${rNum}`); } catch(e){} }
-        if (!dbConvenerSadar) { try { localStorage.removeItem(`convener_sadar_${rNum}`); } catch(e){} }
-        if (!dbCoordinatorConvener) { try { localStorage.removeItem(`coordinator_convener_${rNum}`); } catch(e){} }
+        // NEVER purge convener/coordinator from localStorage during active editing —
+        // Only purge when user is not editing AND DB has confirmed empty
+        if (!dbConvenerSadar && !isEditingConvenerSadarRef.current && !convenerSadarInput) {
+          try { localStorage.removeItem(`convener_sadar_${rNum}`); } catch(e){}
+        }
+        if (!dbCoordinatorConvener && !isEditingCoordinatorConvenerRef.current && !coordinatorConvenerInput) {
+          try { localStorage.removeItem(`coordinator_convener_${rNum}`); } catch(e){}
+        }
 
         if (dbGeneralCats) {
           try { loadedGenCats = JSON.parse(decodeURIComponent(dbGeneralCats)); } catch(e){}
@@ -1503,20 +1571,34 @@ function App() {
         }
 
         setEventName(loadedEventName);
-        if (!isEditingEvent && (loadedEventName || !eventNameInput)) setEventNameInput(loadedEventName);
+        if (!isEditingEventRef.current && (loadedEventName || !eventNameInput)) setEventNameInput(loadedEventName);
         try { localStorage.setItem(`event_name_${rNum}`, loadedEventName); } catch(e){}
 
         setEventYear(loadedEventYear);
-        if (!isEditingEvent && (loadedEventYear || !eventYearInput)) setEventYearInput(loadedEventYear);
+        if (!isEditingEventRef.current && (loadedEventYear || !eventYearInput)) setEventYearInput(loadedEventYear);
         try { localStorage.setItem(`event_year_${rNum}`, loadedEventYear); } catch(e){}
 
-        setConvenerSadar(loadedConvenerSadar);
-        if (!isEditingConvenerSadar && (loadedConvenerSadar || !convenerSadarInput)) setConvenerSadarInput(loadedConvenerSadar);
-        try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
+        // Only update convenerSadar if user is NOT currently editing
+        if (!isEditingConvenerSadarRef.current) {
+          setConvenerSadar(loadedConvenerSadar);
+          // Only overwrite input if DB has a value, or input is blank (don't clear typed text)
+          if (loadedConvenerSadar || !convenerSadarInput) setConvenerSadarInput(loadedConvenerSadar);
+          if (loadedConvenerSadar) { try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){} }
+        } else if (loadedConvenerSadar) {
+          // Even if editing, update the canonical state (not input) and persist to localStorage
+          setConvenerSadar(loadedConvenerSadar);
+          try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
+        }
 
-        setCoordinatorConvener(loadedCoordinatorConvener);
-        if (!isEditingCoordinatorConvener && (loadedCoordinatorConvener || !coordinatorConvenerInput)) setCoordinatorConvenerInput(loadedCoordinatorConvener);
-        try { localStorage.setItem(`coordinator_convener_${rNum}`, loadedCoordinatorConvener); } catch(e){}
+        // Only update coordinatorConvener if user is NOT currently editing
+        if (!isEditingCoordinatorConvenerRef.current) {
+          setCoordinatorConvener(loadedCoordinatorConvener);
+          if (loadedCoordinatorConvener || !coordinatorConvenerInput) setCoordinatorConvenerInput(loadedCoordinatorConvener);
+          if (loadedCoordinatorConvener) { try { localStorage.setItem(`coordinator_convener_${rNum}`, loadedCoordinatorConvener); } catch(e){} }
+        } else if (loadedCoordinatorConvener) {
+          setCoordinatorConvener(loadedCoordinatorConvener);
+          try { localStorage.setItem(`coordinator_convener_${rNum}`, loadedCoordinatorConvener); } catch(e){}
+        }
         if (Array.isArray(loadedGenCats) && loadedGenCats.length > 0) {
           setGeneralCatIds(loadedGenCats);
           try { localStorage.setItem(`general_cats_${rNum}`, JSON.stringify(loadedGenCats)); } catch(e){}
@@ -1609,6 +1691,7 @@ function App() {
             const vRaw = localStorage.getItem(`milad_visibility_controls_${rNum}`) || localStorage.getItem(`visibility_controls_${rNum}`) || localStorage.getItem('milad_visibility_controls_latest');
             if (vRaw) { try { preservedVisibility = JSON.parse(vRaw); } catch(e){} }
           }
+          const finalSnapshotVisibility = normalizeVisibilityControls(preservedVisibility || visibilityControls);
 
           const snapshot = {
             teams: teamsData || [],
@@ -1623,7 +1706,7 @@ function App() {
             eventYear: loadedEventYear || localYr,
             convenerSadar: loadedConvenerSadar || localCS,
             coordinatorConvener: loadedCoordinatorConvener || localCC,
-            visibilityControls: preservedVisibility || undefined,
+            visibilityControls: finalSnapshotVisibility,
             savedAt: new Date().toISOString()
           };
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(snapshot));
@@ -1665,7 +1748,7 @@ function App() {
       const defaultCats = [
         { name: 'Kiddies', madrasa_id: rNum }, { name: 'Sub Junior', madrasa_id: rNum },
         { name: 'Junior', madrasa_id: rNum }, { name: 'Senior', madrasa_id: rNum },
-        { name: 'Super Senior', madrasa_id: rNum }, { name: 'General', madrasa_id: rNum }
+        { name: 'Super Senior', madrasa_id: rNum }
       ];
       await supabase.from('categories').insert(defaultCats);
       const { data: updatedCats } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
@@ -2436,14 +2519,14 @@ function App() {
             loginVis = JSON.parse(decodeURIComponent(mParts[8]));
           } catch(e) {}
         }
-        if (loginVis && typeof loginVis === 'object') {
-          setVisibilityControls(loginVis);
-          const rNumStr = String(sanitizedMadrasa.regNumber).trim();
-          try {
-            localStorage.setItem(`visibility_controls_${rNumStr}`, JSON.stringify(loginVis));
-            localStorage.setItem(`milad_visibility_controls_${rNumStr}`, JSON.stringify(loginVis));
-          } catch(e) {}
-        }
+        const normalizedLoginVis = normalizeVisibilityControls(loginVis);
+        setVisibilityControls(normalizedLoginVis);
+        const rNumStr = String(sanitizedMadrasa.regNumber).trim();
+        try {
+          localStorage.setItem(`visibility_controls_${rNumStr}`, JSON.stringify(normalizedLoginVis));
+          localStorage.setItem(`milad_visibility_controls_${rNumStr}`, JSON.stringify(normalizedLoginVis));
+          localStorage.setItem(`milad_visibility_controls_latest`, JSON.stringify(normalizedLoginVis));
+        } catch(e) {}
         const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
         const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
@@ -2565,7 +2648,14 @@ function App() {
     const evYear = overrides.eventYear !== undefined ? overrides.eventYear : (parts[5] ? parts[5] : (eventYear ? encodeURIComponent(eventYear) : ''));
     const genCats = overrides.generalCats !== undefined ? overrides.generalCats : (parts[6] ? parts[6] : (generalCatIds.length > 0 ? encodeURIComponent(JSON.stringify(generalCatIds)) : ''));
     const csVal = overrides.convenerSadar !== undefined ? overrides.convenerSadar : (parts[7] ? parts[7] : (convenerSadar ? encodeURIComponent(convenerSadar) : ''));
-    const visCtrls = overrides.visibilityControls !== undefined ? overrides.visibilityControls : (parts[8] ? parts[8] : (visibilityControls ? encodeURIComponent(JSON.stringify(visibilityControls)) : ''));
+    let rawVisVal = overrides.visibilityControls !== undefined ? overrides.visibilityControls : (parts[8] || (visibilityControls ? JSON.stringify(visibilityControls) : null));
+    if (typeof rawVisVal === 'string') {
+      try { rawVisVal = JSON.parse(decodeURIComponent(rawVisVal)); } catch (e) {
+        try { rawVisVal = JSON.parse(rawVisVal); } catch (e2) {}
+      }
+    }
+    const normalizedVisObj = normalizeVisibilityControls(rawVisVal);
+    const visCtrls = encodeURIComponent(JSON.stringify(normalizedVisObj));
     const ccVal = overrides.coordinatorConvener !== undefined ? overrides.coordinatorConvener : (parts[9] ? parts[9] : (coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''));
 
     return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}|${ccVal}`;
@@ -5566,18 +5656,6 @@ ${pagesHtml}
             </div>
             <div className="header-buttons-wrapper">
               <button
-                onClick={() => {
-                  if (loggedInMadrasa) {
-                    fetchSupabaseData(loggedInMadrasa.regNumber);
-                  }
-                }}
-                className="btn-logout-top lang-btn-top"
-                title={lang === 'EN' ? 'Sync data with server' : 'സെർവറിൽ നിന്ന് ഡേറ്റ പുതുക്കുക'}
-                style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff' }}
-              >
-                🔄 {lang === 'EN' ? 'Sync' : 'പുതുക്കുക'}
-              </button>
-              <button
                 onClick={toggleLanguage}
                 className="btn-logout-top lang-btn-top"
               >
@@ -5901,6 +5979,22 @@ ${pagesHtml}
 
                   {/* ── Section 1: Program Winners Viewer ── */}
                   {resultsSubTab === 'PROGRAM_WINNERS' && (
+                    loginRole === 'VIEW' && !visibilityControls.results_PROGRAM_WINNERS ? (
+                      <div className="card animate-tab" style={{ textAlign: 'center', padding: '45px 20px', background: '#ffffff', borderRadius: '16px', border: '1.5px solid #fecaca', boxShadow: '0 4px 20px rgba(239,68,68,0.08)' }}>
+                        <div style={{ fontSize: '56px', marginBottom: '14px' }}>🔒</div>
+                        <h3 style={{ color: '#991b1b', marginBottom: '8px', fontSize: '20px', fontWeight: '800' }}>
+                          {lang === 'EN' ? 'Program Winners Hidden' : 'വിജയികളുടെ പട്ടിക മറച്ചിരിക്കുന്നു'}
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '14.5px', maxWidth: '480px', margin: '0 auto 16px' }}>
+                          {lang === 'EN'
+                            ? 'Program winners section has been hidden by the administrator.'
+                            : 'ഓരോ പ്രോഗ്രാമിന്റെയും വിജയികളുടെ പട്ടിക അഡ്മിനിസ്ട്രേറ്റർ താത്കാലികമായി മറച്ചു വെച്ചിരിക്കുകയാണ്.'}
+                        </p>
+                        <div style={{ display: 'inline-block', padding: '8px 22px', background: '#fee2e2', color: '#991b1b', borderRadius: '24px', fontSize: '13px', fontWeight: '800', border: '1px solid #fca5a5' }}>
+                          🚫 {lang === 'EN' ? 'Section Disabled (Hidden Mode)' : 'വിഭാഗം ഓഫാണ് (ഹൈഡ് ആണ്)'}
+                        </div>
+                      </div>
+                    ) : (
                     <div style={{ marginBottom: '20px' }}>
 
                       {/* Filter Row */}
@@ -6062,7 +6156,8 @@ ${pagesHtml}
                         );
                       })()}
                     </div>
-                  )}
+                  )
+                )}
 
                   {/* ── Section 2: Student Search by Register Number ── */}
                   {resultsSubTab === 'STUDENT_REPORT' && (
@@ -8922,9 +9017,9 @@ ${pagesHtml}
                           </div>
                           <div style={{ marginTop: '20px' }}>
                             <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>📜 Existing Categories</h3>
-                            {categories.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No categories added.</p> : (
+                            {categories.filter(c => c.name.toLowerCase() !== 'general').length === 0 ? <p style={{ color: '#666', fontStyle: 'italic' }}>No categories added.</p> : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {categories.map(c => (
+                                {categories.filter(c => c.name.toLowerCase() !== 'general').map(c => (
                                   <div key={c.id} className={`settings-item-row-v2 ${editingCatId === c.id ? 'editing' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
                                     {editingCatId === c.id ? (
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
@@ -13080,10 +13175,30 @@ ${pagesHtml}
                     {/* CONTROL SUB-TAB */}
                     {settingsSubTab === 'CONTROL' && (() => {
                       const handleToggleVisibility = async (key) => {
-                        const newControls = {
-                          ...visibilityControls,
-                          [key]: !visibilityControls[key]
-                        };
+                        let newControls;
+                        if (key === 'ALL_ON') {
+                          newControls = {
+                            scoreboard: true,
+                            results_PROGRAM_WINNERS: true,
+                            results_STUDENT_REPORT: true,
+                            results_RESULTS_HISTORY: true,
+                            results_CHAMPIONS: true,
+                          };
+                        } else if (key === 'ALL_OFF') {
+                          newControls = {
+                            scoreboard: false,
+                            results_PROGRAM_WINNERS: false,
+                            results_STUDENT_REPORT: false,
+                            results_RESULTS_HISTORY: false,
+                            results_CHAMPIONS: false,
+                          };
+                        } else {
+                          newControls = normalizeVisibilityControls({
+                            ...visibilityControls,
+                            [key]: !visibilityControls[key]
+                          });
+                        }
+
                         // 1. Instant optimistic UI update (< 10ms)
                         setVisibilityControls(newControls);
 
@@ -13132,24 +13247,56 @@ ${pagesHtml}
 
                       return (
                         <div className="settings-card-v2">
-                          <div className="settings-form-box-v2" style={{ maxWidth: '600px' }}>
-                            <h3>👁️ {lang === 'EN' ? 'Visibility Control Panel' : 'കാഴ്ച നിയന്ത്രണ പാനൽ'}</h3>
+                          <div className="settings-form-box-v2" style={{ maxWidth: '640px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+                              <h3>👁️ {lang === 'EN' ? 'Visibility Control Panel' : 'കാഴ്ച നിയന്ത്രണ പാനൽ'}</h3>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleVisibility('ALL_ON')}
+                                  style={{
+                                    padding: '6px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #6ee7b7',
+                                    borderRadius: '8px', fontSize: '12px', fontWeight: '800', cursor: 'pointer'
+                                  }}
+                                >
+                                  {lang === 'EN' ? '✓ Turn All ON' : '✓ എല്ലാം ഓൺ ആക്കുക'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleVisibility('ALL_OFF')}
+                                  style={{
+                                    padding: '6px 14px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5',
+                                    borderRadius: '8px', fontSize: '12px', fontWeight: '800', cursor: 'pointer'
+                                  }}
+                                >
+                                  {lang === 'EN' ? '✕ Turn All OFF' : '✕ എല്ലാം ഓഫാക്കുക'}
+                                </button>
+                              </div>
+                            </div>
                             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
                               {lang === 'EN'
                                 ? 'Toggle which sections are visible to parents/viewers (VIEW role). Admin always sees everything.'
-                                : 'രക്ഷിതാക്കൾക്ക് (VIEW റോൾ) ഏതൊക്കെ বিভাগങ്ങൾ കാണാമെന്ന് നിയന്ത്രിക്കുക. അഡ്മിന് എപ്പോഴും എല്ലാം കാണാം.'}
+                                : 'രക്ഷിതാക്കൾക്ക് (VIEW റോൾ) ഏതൊക്കെ വിഭാഗങ്ങൾ കാണാമെന്ന് നിയന്ത്രിക്കുക. അഡ്മിന് എപ്പോഴും എല്ലാം കാണാം.'}
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                               {/* Scoreboard Toggle */}
                               <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: '14px 16px', background: '#f8fafc', border: '1px solid #e2e8f0',
-                                borderRadius: '12px'
+                                padding: '14px 16px', background: visibilityControls.scoreboard ? '#f0fdf4' : '#f8fafc',
+                                border: `1px solid ${visibilityControls.scoreboard ? '#bbf7d0' : '#e2e8f0'}`,
+                                borderRadius: '12px', transition: 'all 0.2s ease'
                               }}>
                                 <div>
-                                  <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>
+                                  <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     {lang === 'EN' ? 'Live Scoreboard' : 'ലൈവ് സ്കോർബോർഡ്'}
+                                    <span style={{
+                                      fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: '800',
+                                      background: visibilityControls.scoreboard ? '#dcfce7' : '#f1f5f9',
+                                      color: visibilityControls.scoreboard ? '#15803d' : '#64748b'
+                                    }}>
+                                      {visibilityControls.scoreboard ? (lang === 'EN' ? 'VISIBLE' : 'ഓൺ (ON)') : (lang === 'EN' ? 'HIDDEN' : 'ഓഫ് (OFF)')}
+                                    </span>
                                   </div>
                                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                                     {lang === 'EN' ? 'Show overall team rankings and leaderboard' : 'ടീമുകളുടെ റാങ്കിംഗും പോയിന്റുകളും കാണിക്കുക'}
@@ -13158,7 +13305,7 @@ ${pagesHtml}
                                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
                                   <input
                                     type="checkbox"
-                                    checked={visibilityControls.scoreboard}
+                                    checked={!!visibilityControls.scoreboard}
                                     onChange={() => handleToggleVisibility('scoreboard')}
                                     style={{ opacity: 0, width: 0, height: 0 }}
                                   />
@@ -13177,7 +13324,7 @@ ${pagesHtml}
                               </div>
 
                               <div style={{ fontWeight: '800', fontSize: '13px', color: '#475569', marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                {lang === 'EN' ? 'Results Sub-Sections' : 'ഫലം বিভাগങ്ങൾ'}
+                                {lang === 'EN' ? 'Results Sub-Sections' : 'ഫല വിഭാഗങ്ങൾ'}
                               </div>
 
                               {[
@@ -13185,41 +13332,52 @@ ${pagesHtml}
                                 { key: 'results_STUDENT_REPORT', label: lang === 'EN' ? 'Student Report & Certificate' : 'വിദ്യാർത്ഥി റിപ്പോർട്ടും സർട്ടിഫിക്കറ്റും', desc: lang === 'EN' ? 'Allow parents to search student details & download ID cards/posters' : 'വിദ്യാർത്ഥികളുടെ ഫലങ്ങൾ തിരയാനും കാർഡുകൾ ഡൗൺലോഡ് ചെയ്യാനും അനുവദിക്കുക' },
                                 { key: 'results_RESULTS_HISTORY', label: lang === 'EN' ? 'Results History' : 'ഫലങ്ങളുടെ ഹിസ്റ്ററി', desc: lang === 'EN' ? 'Show chronological timeline of declared results' : 'പ്രഖ്യാപിച്ച ഫലങ്ങൾ സമയക്രമത്തിൽ കാണിക്കുക' },
                                 { key: 'results_CHAMPIONS', label: lang === 'EN' ? 'Individual Champions' : 'വ്യക്തിഗത ചാമ്പ്യന്മാർ', desc: lang === 'EN' ? 'Show category-wise individual championship leaders' : 'ഓരോ വിഭാഗത്തിലെയും വ്യക്തിഗത ചാമ്പ്യന്മാരെ കാണിക്കുക' }
-                              ].map(item => (
-                                <div key={item.key} style={{
-                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                  padding: '14px 16px', background: '#f8fafc', border: '1px solid #e2e8f0',
-                                  borderRadius: '12px'
-                                }}>
-                                  <div>
-                                    <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>
-                                      {item.label}
+                              ].map(item => {
+                                const isVisible = !!visibilityControls[item.key];
+                                return (
+                                  <div key={item.key} style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '14px 16px', background: isVisible ? '#f0fdf4' : '#f8fafc',
+                                    border: `1px solid ${isVisible ? '#bbf7d0' : '#e2e8f0'}`,
+                                    borderRadius: '12px', transition: 'all 0.2s ease'
+                                  }}>
+                                    <div>
+                                      <div style={{ fontWeight: '700', fontSize: '14px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {item.label}
+                                        <span style={{
+                                          fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: '800',
+                                          background: isVisible ? '#dcfce7' : '#f1f5f9',
+                                          color: isVisible ? '#15803d' : '#64748b'
+                                        }}>
+                                          {isVisible ? (lang === 'EN' ? 'VISIBLE' : 'ഓൺ (ON)') : (lang === 'EN' ? 'HIDDEN' : 'ഓഫ് (OFF)')}
+                                        </span>
+                                      </div>
+                                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                        {item.desc}
+                                      </div>
                                     </div>
-                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                                      {item.desc}
-                                    </div>
-                                  </div>
-                                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={visibilityControls[item.key]}
-                                      onChange={() => handleToggleVisibility(item.key)}
-                                      style={{ opacity: 0, width: 0, height: 0 }}
-                                    />
-                                    <span style={{
-                                      position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                                      backgroundColor: visibilityControls[item.key] ? 'var(--primary-light)' : '#cbd5e1',
-                                      transition: '.3s', borderRadius: '24px'
-                                    }}>
+                                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={isVisible}
+                                        onChange={() => handleToggleVisibility(item.key)}
+                                        style={{ opacity: 0, width: 0, height: 0 }}
+                                      />
                                       <span style={{
-                                        position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px',
-                                        backgroundColor: 'white', transition: '.3s', borderRadius: '50%',
-                                        transform: visibilityControls[item.key] ? 'translateX(24px)' : 'none'
-                                      }}></span>
-                                    </span>
-                                  </label>
-                                </div>
-                              ))}
+                                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                                        backgroundColor: isVisible ? 'var(--primary-light)' : '#cbd5e1',
+                                        transition: '.3s', borderRadius: '24px'
+                                      }}>
+                                        <span style={{
+                                          position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px',
+                                          backgroundColor: 'white', transition: '.3s', borderRadius: '50%',
+                                          transform: isVisible ? 'translateX(24px)' : 'none'
+                                        }}></span>
+                                      </span>
+                                    </label>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
