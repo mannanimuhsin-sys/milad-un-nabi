@@ -754,6 +754,7 @@ function App() {
     setSettingsSubTabState(subtab);
   }, []);
   const [resultsSubTab, setResultsSubTab] = useState('PROGRAM_WINNERS');
+  const [showAllStudentsMarks, setShowAllStudentsMarks] = useState(false);
 
   // GENERAL category feature: virtual composite category
   const [generalCatIds, setGeneralCatIds] = useState([]); // IDs of categories included in GENERAL
@@ -7137,6 +7138,9 @@ ${pagesHtml}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
                               {displayStudents.map(student => {
                                 const cfg = rankConfig[student.rank] || rankConfig[3];
+                                const sameRankCount = rankedStudents.filter(s => s.rank === student.rank).length;
+                                const rankLabel = sameRankCount > 1 ? `${cfg.label} (TIE)` : cfg.label;
+
                                 return (
                                   <div key={student.key} style={{
                                     background: cfg.gradient,
@@ -7156,7 +7160,7 @@ ${pagesHtml}
                                     <div style={{ flex: 1, zIndex: 1 }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                                         <span style={{ fontSize: '32px' }}>{cfg.medal}</span>
-                                        <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{cfg.label}</span>
+                                        <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{rankLabel}</span>
                                       </div>
                                       <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{student.regPart}</div>
                                       <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{student.namePart}</div>
@@ -7177,9 +7181,280 @@ ${pagesHtml}
                                 );
                               })}
                             </div>
+
+                            {/* ── Complete Registered Students Mark List Section (Collapsible) ── */}
+                            {(() => {
+                              // Filter all registered students in this category & gender division
+                              const categoryStudents = students.filter(s => {
+                                if (!s) return false;
+                                if (isChampGeneral) {
+                                  const sCatId = String(s.catid || s.catId || '');
+                                  if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
+                                } else {
+                                  if (String(s.catid || s.catId || '') !== String(champCat)) return false;
+                                }
+                                const sGender = String(s.gender || '').toUpperCase();
+                                if (champGender === 'BOYS' && sGender !== 'BOY') return false;
+                                if (champGender === 'GIRLS' && sGender !== 'GIRL') return false;
+                                return true;
+                              });
+
+                              // Map individual total points for every student
+                              const allStudentMarks = categoryStudents.map(s => {
+                                const sRegNo = String(s.regno || s.regNo || '').trim();
+                                const sNameStr = String(s.name || '').trim().toLowerCase();
+                                const sIdStr = String(s.id || '').trim();
+                                const sTeamId = String(s.teamid || s.teamId || '').trim();
+                                const teamObj = teams.find(t => String(t.id) === sTeamId);
+                                const teamName = teamObj ? teamObj.name : '-';
+
+                                const totalPts = resultsList.filter(r => {
+                                  if ((r.progtype || '').includes('GROUP')) return false; // exclude group events from individual total
+                                  const rStudentName = String(r.studentname || r.student_name || '').trim();
+                                  const rStudentId = String(r.student_id || r.studentid || '').trim();
+                                  if (sIdStr && rStudentId === sIdStr) return true;
+                                  if (sRegNo && (rStudentName.startsWith(sRegNo) || rStudentName.includes(sRegNo))) return true;
+                                  if (sNameStr && rStudentName.toLowerCase().includes(sNameStr)) return true;
+                                  return false;
+                                }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+
+                                return {
+                                  id: s.id,
+                                  regNo: sRegNo,
+                                  name: s.name,
+                                  gender: s.gender,
+                                  teamName: teamName,
+                                  totalPoints: totalPts
+                                };
+                              });
+
+                              // Sort descending by points; equal points sorted by regNo ascending
+                              allStudentMarks.sort((a, b) => {
+                                if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+                                return (parseInt(a.regNo, 10) || 0) - (parseInt(b.regNo, 10) || 0);
+                              });
+
+                              // Assign rank strings: >0 points get 1, 2, 3...; 0 points get "0"
+                              let rTracker = 1;
+                              const finalRankedAllStudents = allStudentMarks.map((st, idx) => {
+                                if (st.totalPoints === 0) {
+                                  return { ...st, rankStr: '0' };
+                                } else {
+                                  if (idx > 0 && st.totalPoints < allStudentMarks[idx - 1].totalPoints) {
+                                    rTracker = idx + 1;
+                                  }
+                                  return { ...st, rankStr: String(rTracker) };
+                                }
+                              });
+
+                              // PDF Generator for complete category mark list
+                              const generateCategoryStudentMarksPDF = () => {
+                                const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                                const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                                const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                                const divTitle = champGender === 'BOYS' ? 'Boys' : champGender === 'GIRLS' ? 'Girls' : 'General';
+                                const reportTitle = `Category Individual Student Marks & Rankings`;
+
+                                const rowsHtml = finalRankedAllStudents.map((st) => {
+                                  const isZero = st.totalPoints === 0;
+                                  return `
+                                    <tr style="${isZero ? 'color:#64748b;background:#f8fafc;' : ''}">
+                                      <td style="text-align:center;font-weight:bold;">${st.rankStr === '0' ? '0' : '#' + st.rankStr}</td>
+                                      <td style="text-align:center;font-weight:bold;">#${st.regNo}</td>
+                                      <td><strong>${st.name}</strong> (${st.gender === 'BOY' ? 'Boy' : 'Girl'})</td>
+                                      <td>${st.teamName}</td>
+                                      <td style="text-align:center;font-weight:bold;color:${isZero ? '#94a3b8' : '#059669'};">${st.totalPoints} Pts</td>
+                                    </tr>
+                                  `;
+                                }).join('');
+
+                                const printWin = window.open('', '_blank');
+                                printWin.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>${reportTitle} - ${madrasaName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; padding: 10px; }
+  .header { text-align: center; border-bottom: 2px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 16px; }
+  .header h1 { font-size: 22px; color: #1e3a5f; margin-bottom: 4px; }
+  .header p { font-size: 13px; color: #64748b; }
+  .title-bar { background: #f1f5f9; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+  th { background: #1e3a5f; color: white; font-weight: 700; text-transform: uppercase; font-size: 11px; }
+  tr:nth-child(even) { background: #f8fafc; }
+  .footer { margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>${madrasaName} ${madrasaPlace ? '(' + madrasaPlace + ')' : ''}</h1>
+    <p>Reg. No: ${madrasaRegNo} | Milad Fest Individual Student Marks Report</p>
+  </div>
+  <div class="title-bar">
+    <span>🏆 ${catName} — ${divTitle} Division (Complete Student Mark List)</span>
+    <span>Total Students: ${finalRankedAllStudents.length}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:10%;text-align:center;">Position</th>
+        <th style="width:15%;text-align:center;">Reg. No</th>
+        <th>Student Name</th>
+        <th style="width:25%;">Team Name</th>
+        <th style="width:15%;text-align:center;">Total Points</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+  <div class="footer">
+    Generated on: ${new Date().toLocaleString()} | Official Milad Fest Record
+  </div>
+  <script>window.onload = function() { window.print(); }</script>
+</body>
+</html>
+                                `);
+                                printWin.document.close();
+                              };
+
+                              return (
+                                <div style={{ marginTop: '26px', background: '#ffffff', borderRadius: '18px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowAllStudentsMarks(prev => !prev)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '14px 20px',
+                                      background: showAllStudentsMarks ? 'linear-gradient(135deg, #1e293b, #0f172a)' : '#ffffff',
+                                      color: showAllStudentsMarks ? '#ffffff' : '#1e293b',
+                                      border: 'none',
+                                      fontWeight: '800',
+                                      fontSize: '14px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <span>📋</span>
+                                      <span>
+                                        {lang === 'EN' ? 'Complete Category Student Marks & Rankings' : 'എല്ലാ വിദ്യാർത്ഥികളുടെയും മാർക്ക് വിവരങ്ങൾ (ലിസ്റ്റ്)'}
+                                      </span>
+                                      <span style={{
+                                        fontSize: '11px',
+                                        background: showAllStudentsMarks ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                                        color: showAllStudentsMarks ? '#ffffff' : '#475569',
+                                        padding: '3px 10px',
+                                        borderRadius: '12px',
+                                        fontWeight: '800'
+                                      }}>
+                                        {finalRankedAllStudents.length} {lang === 'EN' ? 'Students' : 'വിദ്യാർത്ഥികൾ'}
+                                      </span>
+                                    </span>
+                                    <span style={{ fontSize: '14px', fontWeight: '800' }}>
+                                      {showAllStudentsMarks ? (lang === 'EN' ? '▲ Hide' : '▲ മറക്കുക') : (lang === 'EN' ? '▼ Show List' : '▼ കാണിക്കുക')}
+                                    </span>
+                                  </button>
+
+                                  {showAllStudentsMarks && (
+                                    <div style={{ padding: '20px', background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+                                      {loginRole === 'ADMIN' && (
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
+                                          <button
+                                            type="button"
+                                            onClick={generateCategoryStudentMarksPDF}
+                                            style={{
+                                              padding: '10px 20px',
+                                              background: 'linear-gradient(135deg, #047857, #065f46)',
+                                              color: 'white',
+                                              border: 'none',
+                                              borderRadius: '12px',
+                                              fontWeight: '800',
+                                              fontSize: '13px',
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '8px',
+                                              boxShadow: '0 4px 12px rgba(4,120,87,0.25)',
+                                              transition: 'all 0.2s'
+                                            }}
+                                          >
+                                            📥 {lang === 'EN' ? 'Download All Students Mark List (PDF)' : 'ഡൗൺലോഡ് മാർക്ക് ലിസ്റ്റ് (PDF)'}
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {finalRankedAllStudents.length === 0 ? (
+                                        <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>
+                                          {lang === 'EN' ? 'No registered students found in this category / division.' : 'ഈ കാറ്റഗറിയിൽ വിദ്യാർത്ഥികളാരും രജിസ്റ്റർ ചെയ്തിട്ടില്ല.'}
+                                        </p>
+                                      ) : (
+                                        <div style={{ overflowX: 'auto' }}>
+                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                            <thead>
+                                              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', textAlign: 'left' }}>
+                                                <th style={{ padding: '10px 12px', textAlign: 'center', width: '80px' }}>{lang === 'EN' ? 'Position' : 'സ്ഥാനം'}</th>
+                                                <th style={{ padding: '10px 12px', textAlign: 'center', width: '90px' }}>{lang === 'EN' ? 'Reg. No' : 'രജി. നമ്പർ'}</th>
+                                                <th style={{ padding: '10px 12px' }}>{lang === 'EN' ? 'Student Name' : 'വിദ്യാർത്ഥിയുടെ പേര്'}</th>
+                                                <th style={{ padding: '10px 12px' }}>{lang === 'EN' ? 'Team Name' : 'ടീം'}</th>
+                                                <th style={{ padding: '10px 12px', textAlign: 'center', width: '110px' }}>{lang === 'EN' ? 'Total Points' : 'മൊത്തം മാർക്ക്'}</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {finalRankedAllStudents.map(st => {
+                                                const isZero = st.totalPoints === 0;
+                                                return (
+                                                  <tr key={st.id || st.regNo + st.name} style={{ borderBottom: '1px solid #f1f5f9', background: isZero ? '#fafafa' : 'transparent' }}>
+                                                    <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: '800', color: isZero ? '#94a3b8' : '#1e293b' }}>
+                                                      {st.rankStr === '0' ? <span style={{ color: '#94a3b8', background: '#f1f5f9', padding: '2px 8px', borderRadius: '8px', fontSize: '11px' }}>0</span> : <span style={{ color: st.rankStr === '1' ? '#d97706' : st.rankStr === '2' ? '#475569' : st.rankStr === '3' ? '#c2410c' : '#2563eb' }}>#{st.rankStr}</span>}
+                                                    </td>
+                                                    <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: '800', color: '#0f172a' }}>
+                                                      #{st.regNo}
+                                                    </td>
+                                                    <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>
+                                                      {st.name} <span style={{ fontSize: '12px' }}>{(st.gender || '').toUpperCase() === 'BOY' ? '👦' : '👧'}</span>
+                                                    </td>
+                                                    <td style={{ padding: '10px 12px', color: '#475569', fontWeight: '600' }}>
+                                                      {st.teamName}
+                                                    </td>
+                                                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                                      <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '4px 10px',
+                                                        borderRadius: '8px',
+                                                        fontWeight: '800',
+                                                        fontSize: '12px',
+                                                        background: isZero ? '#f1f5f9' : '#ecfdf5',
+                                                        color: isZero ? '#94a3b8' : '#047857',
+                                                        border: isZero ? '1px solid #e2e8f0' : '1px solid #a7f3d0'
+                                                      }}>
+                                                        ⭐ {st.totalPoints} Pts
+                                                      </span>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })()}
+
                     </div>
                   )
                   )}
