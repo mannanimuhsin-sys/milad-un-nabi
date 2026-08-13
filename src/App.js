@@ -693,7 +693,8 @@ function App() {
   // Dynamic Points system state
   const [pointSystem, setPointSystem] = useState({
     p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
-    gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+    gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1,
+    tp1: 15, tp2: 10, tp3: 5, tpA: 5, tpB: 3, tpC: 1
   });
 
   // Input form states
@@ -2025,14 +2026,16 @@ function App() {
         } else {
           setPointSystem({
             p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
-            gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+            gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1,
+            tp1: 15, tp2: 10, tp3: 5, tpA: 5, tpB: 3, tpC: 1
           });
         }
       } catch (e) {
         console.error("Failed to parse stored points", e);
         setPointSystem({
           p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
-          gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1
+          gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1,
+          tp1: 15, tp2: 10, tp3: 5, tpA: 5, tpB: 3, tpC: 1
         });
       }
 
@@ -3920,10 +3923,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     if (!progObj) { alert(t('alertUnexpectedError') + 'Program not found'); return; }
 
     const isGroup = (progObj.type || '').includes('GROUP');
+    const isTeam = (progObj.type || '').includes('TEAM');
     let studentObj = null;
     let groupObj = null;
+    let teamObj = null;
 
-    if (isGroup) {
+    if (isTeam) {
+      teamObj = teams.find(t => String(t.id) === String(selectedResultStudent));
+      if (!teamObj) { alert(t('alertUnexpectedError') + 'Team not found'); return; }
+    } else if (isGroup) {
       groupObj = groupRegistrations.find(g => String(g.id) === String(selectedResultStudent));
       if (!groupObj) { alert(t('alertUnexpectedError') + 'Group not found'); return; }
     } else {
@@ -3933,23 +3941,40 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
     // Dynamic point calculation
     let pts = 0;
-    if (selectedPlace === '1') pts = isGroup ? Number(pointSystem.gp1) : Number(pointSystem.p1);
-    else if (selectedPlace === '2') pts = isGroup ? Number(pointSystem.gp2) : Number(pointSystem.p2);
-    else if (selectedPlace === '3') pts = isGroup ? Number(pointSystem.gp3) : Number(pointSystem.p3);
+    if (isTeam) {
+      if (selectedPlace === '1') pts = Number(pointSystem.tp1 || 0);
+      else if (selectedPlace === '2') pts = Number(pointSystem.tp2 || 0);
+      else if (selectedPlace === '3') pts = Number(pointSystem.tp3 || 0);
+      if (selectedGrade === 'A') pts += Number(pointSystem.tpA || 0);
+      else if (selectedGrade === 'B') pts += Number(pointSystem.tpB || 0);
+      else if (selectedGrade === 'C') pts += Number(pointSystem.tpC || 0);
+    } else if (isGroup) {
+      if (selectedPlace === '1') pts = Number(pointSystem.gp1);
+      else if (selectedPlace === '2') pts = Number(pointSystem.gp2);
+      else if (selectedPlace === '3') pts = Number(pointSystem.gp3);
+      if (selectedGrade === 'A') pts += Number(pointSystem.gpA);
+      else if (selectedGrade === 'B') pts += Number(pointSystem.gpB);
+      else if (selectedGrade === 'C') pts += Number(pointSystem.gpC);
+    } else {
+      if (selectedPlace === '1') pts = Number(pointSystem.p1);
+      else if (selectedPlace === '2') pts = Number(pointSystem.p2);
+      else if (selectedPlace === '3') pts = Number(pointSystem.p3);
+      if (selectedGrade === 'A') pts += Number(pointSystem.gA);
+      else if (selectedGrade === 'B') pts += Number(pointSystem.gB);
+      else if (selectedGrade === 'C') pts += Number(pointSystem.gC);
+    }
 
-    if (selectedGrade === 'A') pts += isGroup ? Number(pointSystem.gpA) : Number(pointSystem.gA);
-    else if (selectedGrade === 'B') pts += isGroup ? Number(pointSystem.gpB) : Number(pointSystem.gB);
-    else if (selectedGrade === 'C') pts += isGroup ? Number(pointSystem.gpC) : Number(pointSystem.gC);
-
-    const computedStudentName = isGroup
+    const computedStudentName = isTeam
+      ? `🏟️ ${teamObj.name}`
+      : isGroup
       ? groupObj.group_name
       : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`;
 
     // ── Duplicate result check ──────────────────────────────────────────────────────
-    // Prevent assigning multiple positions to the same student/group in the same program.
-    const sRegStr = isGroup ? '' : String(studentObj.regno || studentObj.regNo || '').trim();
-    const sNameStr = isGroup ? String(groupObj.group_name || '').trim().toLowerCase() : String(studentObj.name || '').trim().toLowerCase();
-    const sDbIdStr = isGroup ? String(groupObj.id || '').trim() : String(studentObj.id || '').trim();
+    // Prevent assigning multiple positions to the same student/group/team in the same program.
+    const sRegStr = (isGroup || isTeam) ? '' : String(studentObj.regno || studentObj.regNo || '').trim();
+    const sNameStr = isTeam ? String(teamObj.name || '').trim().toLowerCase() : isGroup ? String(groupObj.group_name || '').trim().toLowerCase() : String(studentObj.name || '').trim().toLowerCase();
+    const sDbIdStr = isTeam ? String(teamObj.id || '').trim() : isGroup ? String(groupObj.id || '').trim() : String(studentObj.id || '').trim();
     const pIdStr = String(progObj.id || '').trim();
     const pCodeStr = String(progObj.code || '').trim();
 
@@ -3959,7 +3984,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       if (!pMatch) return false;
 
       const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
-      if (sDbIdStr && String(r.student_id || r.studentid || '') === sDbIdStr) return true;
+      if (sDbIdStr && String(r.student_id || r.studentid || r.teamid || '') === sDbIdStr) return true;
       if (sRegStr && (rName.includes(sRegStr) || rName.startsWith(sRegStr))) return true;
       if (sNameStr && rName.includes(sNameStr)) return true;
       return false;
@@ -3968,8 +3993,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     if (alreadyExists) {
       alert(
         lang === 'EN'
-          ? `⚠️ A result for this student/group is already saved in "${progObj.name}".\nEach student can only have ONE place/grade per program. Please edit or delete the existing result below.`
-          : `⚠️ ഈ വിദ്യാർത്ഥിക്ക്/ഗ്രൂപ്പിന് "${progObj.name}" മത്സരത്തിൽ ഇതിനകം ഫലം നൽകിയിട്ടുണ്ട്.\nഒരു വിദ്യാർത്ഥിക്ക് ഒരു മത്സരത്തിൽ ഒരു സ്ഥാനം/ഗ്രേഡ് മാത്രമേ നൽകാൻ പാടുള്ളൂ. തിരുത്തണമെങ്കിൽ താഴെയുള്ള ടേബിളിൽ എഡിറ്റ് ചെയ്യുക.`
+          ? `⚠️ A result for this student/group/team is already saved in "${progObj.name}".\nPlease edit or delete the existing result below.`
+          : `⚠️ ഈ വിദ്യാർത്ഥിക്ക്/ഗ്രൂപ്പിന്/ടീമിന് "${progObj.name}" മത്സരത്തിൽ ഇതിനകം ഫലം നൽകിയിട്ടുണ്ട്.\nതിരുത്തണമെങ്കിൽ താഴെ എഡിറ്റ് ചെയ്യുക.`
       );
       return;
     }
@@ -3981,9 +4006,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       progtype: progObj.type,
       catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
       studentname: computedStudentName,
-      studentgender: isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : studentObj.gender,
-      teamid: isGroup ? groupObj.team_id : studentObj.teamid,
-      teamname: isGroup
+      studentgender: isTeam ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : studentObj.gender,
+      teamid: isTeam ? teamObj.id : isGroup ? groupObj.team_id : studentObj.teamid,
+      teamname: isTeam
+        ? teamObj.name
+        : isGroup
         ? ((teams.find(t => String(t.id) === String(groupObj.team_id)) || {}).name || '')
         : ((teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || ''),
       place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
@@ -4079,6 +4106,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
     const progObj = programs.find(p => String(p.id) === String(existing.progid));
     const isGroup = progObj && (progObj.type || '').includes('GROUP');
+    const isTeam = progObj && (progObj.type || '').includes('TEAM');
 
     // Resolve new student/group info
     let newStudentName = existing.studentname;
@@ -4087,7 +4115,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     let newGender = existing.studentgender;
 
     if (editingResultStudent && editingResultStudent !== existing.studentname) {
-      if (isGroup) {
+      if (isTeam) {
+        const tObj = teams.find(t => String(t.id) === String(editingResultStudent));
+        if (tObj) {
+          newStudentName = `🏟️ ${tObj.name}`;
+          newTeamId = tObj.id;
+          newTeamName = tObj.name;
+          newGender = progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON';
+        }
+      } else if (isGroup) {
         const gObj = groupRegistrations.find(g => String(g.id) === String(editingResultStudent));
         if (gObj) {
           newStudentName = gObj.group_name;
@@ -4110,12 +4146,28 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     let pts = 0;
     const placeVal = editingResultPlace;
     const gradeVal = editingResultGrade;
-    if (placeVal === '1') pts = isGroup ? Number(pointSystem.gp1) : Number(pointSystem.p1);
-    else if (placeVal === '2') pts = isGroup ? Number(pointSystem.gp2) : Number(pointSystem.p2);
-    else if (placeVal === '3') pts = isGroup ? Number(pointSystem.gp3) : Number(pointSystem.p3);
-    if (gradeVal === 'A') pts += isGroup ? Number(pointSystem.gpA) : Number(pointSystem.gA);
-    else if (gradeVal === 'B') pts += isGroup ? Number(pointSystem.gpB) : Number(pointSystem.gB);
-    else if (gradeVal === 'C') pts += isGroup ? Number(pointSystem.gpC) : Number(pointSystem.gC);
+    if (isTeam) {
+      if (placeVal === '1') pts = Number(pointSystem.tp1 || 0);
+      else if (placeVal === '2') pts = Number(pointSystem.tp2 || 0);
+      else if (placeVal === '3') pts = Number(pointSystem.tp3 || 0);
+      if (gradeVal === 'A') pts += Number(pointSystem.tpA || 0);
+      else if (gradeVal === 'B') pts += Number(pointSystem.tpB || 0);
+      else if (gradeVal === 'C') pts += Number(pointSystem.tpC || 0);
+    } else if (isGroup) {
+      if (placeVal === '1') pts = Number(pointSystem.gp1);
+      else if (placeVal === '2') pts = Number(pointSystem.gp2);
+      else if (placeVal === '3') pts = Number(pointSystem.gp3);
+      if (gradeVal === 'A') pts += Number(pointSystem.gpA);
+      else if (gradeVal === 'B') pts += Number(pointSystem.gpB);
+      else if (gradeVal === 'C') pts += Number(pointSystem.gpC);
+    } else {
+      if (placeVal === '1') pts = Number(pointSystem.p1);
+      else if (placeVal === '2') pts = Number(pointSystem.p2);
+      else if (placeVal === '3') pts = Number(pointSystem.p3);
+      if (gradeVal === 'A') pts += Number(pointSystem.gA);
+      else if (gradeVal === 'B') pts += Number(pointSystem.gB);
+      else if (gradeVal === 'C') pts += Number(pointSystem.gC);
+    }
 
     const placeLabel = placeVal === '0' ? 'No Place' : placeVal === '1' ? 'First' : placeVal === '2' ? 'Second' : 'Third';
     const gradeLabel = gradeVal === 'No' ? '-' : gradeVal;
@@ -9771,6 +9823,7 @@ ${pagesHtml}
                             <select className="settings-input-v2" value={progType} onChange={(e) => setProgType(e.target.value)}>
                               <option value="SINGLE">SINGLE (Individual)</option>
                               <option value="GROUP">GROUP (Group Event)</option>
+                              <option value="TEAM">TEAM (Team Event)</option>
                             </select>
 
                             <button type="submit" className="btn-premium-action">Add Program</button>
@@ -11871,15 +11924,19 @@ ${pagesHtml}
                                            return false;
                                          }
                                         if (markEntrySection === 'SINGLE' && (p.type || '').includes('GROUP')) return false;
+                                        if (markEntrySection === 'SINGLE' && (p.type || '').includes('TEAM')) return false;
                                         if (markEntrySection === 'GROUP' && !(p.type || '').includes('GROUP')) return false;
+                                        if (markEntrySection === 'GROUP' && (p.type || '').includes('TEAM')) return false;
+                                        if (markEntrySection === 'TEAM' && !(p.type || '').includes('TEAM')) return false;
                                         if (!p.type || !p.type.includes('_')) return true;
                                         if (p.type.includes('COMMON')) return true;
                                         if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
                                         return true;
                                       })
                                       .map(p => {
-                                        const pTypeBase = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
-                                        const pGender = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
+                                        const pType = (p.type || '').toUpperCase();
+                                        const pTypeBase = pType.includes('TEAM') ? 'Team 🏟️' : pType.includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                        const pGender = pType.includes('BOY') ? '👦' : pType.includes('GIRL') ? '👧' : '🚻';
                                         return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeBase} {pGender})</option>;
                                       })
                                     }
@@ -11887,20 +11944,33 @@ ${pagesHtml}
                                 </div>
                               </div>
 
-                              {/* Step 3: Student or Group Selector (filtered by category & gender, supporting 'General') */}
+                              {/* Step 3: Student / Group / Team Selector */}
                               <div className={`step-box ${selectedResultStudent ? 'filled' : 'active'}`}>
                                 <div className="step-header">
                                   <div className="step-number">03</div>
                                   <div className="step-title">
-                                    {markEntrySection === 'GROUP' ? "Select Group" : "Select Student"}
+                                    {markEntrySection === 'TEAM' ? 'Select Team' : markEntrySection === 'GROUP' ? 'Select Group' : 'Select Student'}
                                   </div>
                                 </div>
                                 <div className="step-content">
                                   {(() => {
                                     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
                                     const isGroup = progObj && (progObj.type || '').includes('GROUP');
+                                    const isTeam = progObj && (progObj.type || '').includes('TEAM');
 
-                                     if (isGroup) {
+                                     if (isTeam) {
+                                       // Render Team Selector
+                                       return (
+                                         <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
+                                           <option value="">{teams.length === 0 ? '-- No Teams --' : '-- Select Team --'}</option>
+                                           {teams.map(team => (
+                                             <option key={team.id} value={team.id}>
+                                               🏟️ {team.name}
+                                             </option>
+                                           ))}
+                                         </select>
+                                       );
+                                     } else if (isGroup) {
                                        // Render Group Selector
                                        const filteredGroups = groupRegistrations.filter(g => {
                                          if (!progObj) return false;
@@ -12241,6 +12311,38 @@ ${pagesHtml}
                               <div className="points-card-v2">
                                 <label>C Grade</label>
                                 <input type="number" className="settings-input-v2" value={pointSystem.gpC} onChange={e => setPointSystem({ ...pointSystem, gpC: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
+                              </div>
+                            </div>
+
+                            <h4 style={{ margin: '20px 0 14px', color: '#f97316', fontSize: '14px', fontWeight: '800', borderBottom: '2px solid #f1f5f9', paddingBottom: '6px' }}>
+                              🏟️ Team Events Points
+                            </h4>
+                            <div className="points-card-container-v2">
+                              <div className="points-card-v2">
+                                <label>🥇 First Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.tp1 ?? 15} onChange={e => setPointSystem({ ...pointSystem, tp1: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
+                              </div>
+                              <div className="points-card-v2">
+                                <label>🥈 Second Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.tp2 ?? 10} onChange={e => setPointSystem({ ...pointSystem, tp2: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
+                              </div>
+                              <div className="points-card-v2">
+                                <label>🥉 Third Place</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.tp3 ?? 5} onChange={e => setPointSystem({ ...pointSystem, tp3: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
+                              </div>
+                            </div>
+                            <div className="points-card-container-v2">
+                              <div className="points-card-v2">
+                                <label>A Grade</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.tpA ?? 5} onChange={e => setPointSystem({ ...pointSystem, tpA: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
+                              </div>
+                              <div className="points-card-v2">
+                                <label>B Grade</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.tpB ?? 3} onChange={e => setPointSystem({ ...pointSystem, tpB: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
+                              </div>
+                              <div className="points-card-v2">
+                                <label>C Grade</label>
+                                <input type="number" className="settings-input-v2" value={pointSystem.tpC ?? 1} onChange={e => setPointSystem({ ...pointSystem, tpC: e.target.value })} required style={{ textAlign: 'center', fontSize: '16px', fontWeight: '800' }} />
                               </div>
                             </div>
 
