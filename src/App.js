@@ -557,17 +557,21 @@ function App() {
   const [projectorSlide, setProjectorSlide] = useState(0); // 0: Overall, 1: Category, 2: Recent Winners
   const [selectedRecentProgIndex, setSelectedRecentProgIndex] = useState(0);
 
-  // Event / Program Name States (stored in localStorage)
+  // Event / Program Name SFtates (stored in localStorage)
   const [eventName, setEventName] = useState('');
   const [eventYear, setEventYear] = useState('');
   const [eventNameInput, setEventNameInput] = useState('');
   const [eventYearInput, setEventYearInput] = useState('');
   const [isEditingEvent, setIsEditingEvent] = useState(false);
 
-  // Convener / Sadar Muallim States
+  // Sadar Muallim & Coordinator / Convener States
   const [convenerSadar, setConvenerSadar] = useState('');
   const [convenerSadarInput, setConvenerSadarInput] = useState('');
   const [isEditingConvenerSadar, setIsEditingConvenerSadar] = useState(false);
+
+  const [coordinatorConvener, setCoordinatorConvener] = useState('');
+  const [coordinatorConvenerInput, setCoordinatorConvenerInput] = useState('');
+  const [isEditingCoordinatorConvener, setIsEditingCoordinatorConvener] = useState(false);
 
   // Troll Mode States
   const [trollMode, setTrollMode] = useState(false);
@@ -1205,6 +1209,7 @@ function App() {
       const localEv = localStorage.getItem(`event_name_${rNum}`);
       const localYr = localStorage.getItem(`event_year_${rNum}`);
       const localCS = localStorage.getItem(`convener_sadar_${rNum}`);
+      const localCC = localStorage.getItem(`coordinator_convener_${rNum}`);
       const localGen = localStorage.getItem(`general_cats_${rNum}`);
 
       if (raw) {
@@ -1239,6 +1244,7 @@ function App() {
           const evToSet = localEv || cached.eventName || '';
           const yrToSet = localYr || cached.eventYear || '';
           const csToSet = localCS || cached.convenerSadar || '';
+          const ccToSet = localCC || cached.coordinatorConvener || '';
 
           setEventName(evToSet);
           setEventNameInput(evToSet);
@@ -1246,6 +1252,8 @@ function App() {
           setEventYearInput(yrToSet);
           setConvenerSadar(csToSet);
           setConvenerSadarInput(csToSet);
+          setCoordinatorConvener(ccToSet);
+          setCoordinatorConvenerInput(ccToSet);
           return true;
         }
       } else {
@@ -1264,6 +1272,8 @@ function App() {
         setEventYearInput(localYr || '');
         setConvenerSadar(localCS || '');
         setConvenerSadarInput(localCS || '');
+        setCoordinatorConvener(localCC || '');
+        setCoordinatorConvenerInput(localCC || '');
         return false;
       }
 
@@ -1460,16 +1470,18 @@ function App() {
       let loadedEventName = '';
       let loadedEventYear = '';
       let loadedConvenerSadar = '';
+      let loadedCoordinatorConvener = '';
       let loadedGenCats = [];
 
       const localEv = localStorage.getItem(`event_name_${rNum}`) || '';
       const localYr = localStorage.getItem(`event_year_${rNum}`) || '';
       const localCS = localStorage.getItem(`convener_sadar_${rNum}`) || '';
+      const localCC = localStorage.getItem(`coordinator_convener_${rNum}`) || '';
       const localGen = localStorage.getItem(`general_cats_${rNum}`);
 
       if (madrasaData) {
         const parts = (madrasaData.place || '').split('|');
-        const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = parts;
+        const [, , trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar, dbVisCtrls, dbCoordinatorConvener] = parts;
         setTrollMode(trollStatus === 'troll_on');
         setTrollLang(dbTrollLang === 'EN' ? 'EN' : 'ML');
 
@@ -1477,10 +1489,12 @@ function App() {
         loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
         loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
+        loadedCoordinatorConvener = dbCoordinatorConvener ? decodeURIComponent(dbCoordinatorConvener) : '';
 
         if (!dbEventName) { try { localStorage.removeItem(`event_name_${rNum}`); } catch(e){} }
         if (!dbEventYear) { try { localStorage.removeItem(`event_year_${rNum}`); } catch(e){} }
         if (!dbConvenerSadar) { try { localStorage.removeItem(`convener_sadar_${rNum}`); } catch(e){} }
+        if (!dbCoordinatorConvener) { try { localStorage.removeItem(`coordinator_convener_${rNum}`); } catch(e){} }
 
         if (dbGeneralCats) {
           try { loadedGenCats = JSON.parse(decodeURIComponent(dbGeneralCats)); } catch(e){}
@@ -1499,6 +1513,10 @@ function App() {
         setConvenerSadar(loadedConvenerSadar);
         setConvenerSadarInput(loadedConvenerSadar);
         try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
+
+        setCoordinatorConvener(loadedCoordinatorConvener);
+        setCoordinatorConvenerInput(loadedCoordinatorConvener);
+        try { localStorage.setItem(`coordinator_convener_${rNum}`, loadedCoordinatorConvener); } catch(e){}
         if (Array.isArray(loadedGenCats) && loadedGenCats.length > 0) {
           setGeneralCatIds(loadedGenCats);
           try { localStorage.setItem(`general_cats_${rNum}`, JSON.stringify(loadedGenCats)); } catch(e){}
@@ -1604,6 +1622,7 @@ function App() {
             eventName: loadedEventName || localEv,
             eventYear: loadedEventYear || localYr,
             convenerSadar: loadedConvenerSadar || localCS,
+            coordinatorConvener: loadedCoordinatorConvener || localCC,
             visibilityControls: preservedVisibility || undefined,
             savedAt: new Date().toISOString()
           };
@@ -1859,6 +1878,7 @@ function App() {
         setEventName('');
         setEventYear('');
         setConvenerSadar('');
+        setCoordinatorConvener('');
         setGeneralCatIds([]);
         isFetchingRef.current = false;
       }
@@ -2372,7 +2392,7 @@ function App() {
       const isViewMatch = trimmedPass.toLowerCase() === viewPass.toLowerCase();
 
       if (isAdminMatch || isViewMatch) {
-        const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar] = (madrasa.place || '').split('|');
+        const [actualPlace, status, trollStatus, dbTrollLang, dbEventName, dbEventYear, dbGeneralCats, dbConvenerSadar, dbVisCtrls, dbCoordinatorConvener] = (madrasa.place || '').split('|');
         const currentStatus = status || 'approved'; // Default to approved if no suffix
 
         if (currentStatus === 'pending') {
@@ -2427,12 +2447,15 @@ function App() {
         const loadedEventName = dbEventName ? decodeURIComponent(dbEventName) : '';
         const loadedEventYear = dbEventYear ? decodeURIComponent(dbEventYear) : '';
         const loadedConvenerSadar = dbConvenerSadar ? decodeURIComponent(dbConvenerSadar) : '';
+        const loadedCoordinatorConvener = dbCoordinatorConvener ? decodeURIComponent(dbCoordinatorConvener) : '';
         setEventName(loadedEventName);
         setEventYear(loadedEventYear);
         setConvenerSadar(loadedConvenerSadar);
+        setCoordinatorConvener(loadedCoordinatorConvener);
         setEventNameInput(loadedEventName);
         setEventYearInput(loadedEventYear);
         setConvenerSadarInput(loadedConvenerSadar);
+        setCoordinatorConvenerInput(loadedCoordinatorConvener);
         try {
           const loadedGeneral = dbGeneralCats ? JSON.parse(decodeURIComponent(dbGeneralCats)) : [];
           setGeneralCatIds(Array.isArray(loadedGeneral) ? loadedGeneral : []);
@@ -2529,8 +2552,8 @@ function App() {
 
 
 
-  // Helper to safely construct full 9-part place string for Supabase:
-  // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR|VISIBILITY_CONTROLS
+  // Helper to safely construct full 10-part place string for Supabase:
+  // Parts: PLACE|STATUS|TROLL_STATUS|TROLL_LANG|EVENT_NAME|EVENT_YEAR|GENERAL_CATS|CONVENER_SADAR|VISIBILITY_CONTROLS|COORDINATOR_CONVENER
   const makePlaceString = (rawPlace, overrides = {}) => {
     const parts = (rawPlace || '').split('|');
     const actualPlace = overrides.place !== undefined ? overrides.place : (parts[0] || (loggedInMadrasa ? loggedInMadrasa.place : ''));
@@ -2542,8 +2565,9 @@ function App() {
     const genCats = overrides.generalCats !== undefined ? overrides.generalCats : (parts[6] ? parts[6] : (generalCatIds.length > 0 ? encodeURIComponent(JSON.stringify(generalCatIds)) : ''));
     const csVal = overrides.convenerSadar !== undefined ? overrides.convenerSadar : (parts[7] ? parts[7] : (convenerSadar ? encodeURIComponent(convenerSadar) : ''));
     const visCtrls = overrides.visibilityControls !== undefined ? overrides.visibilityControls : (parts[8] ? parts[8] : (visibilityControls ? encodeURIComponent(JSON.stringify(visibilityControls)) : ''));
+    const ccVal = overrides.coordinatorConvener !== undefined ? overrides.coordinatorConvener : (parts[9] ? parts[9] : (coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''));
 
-    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}`;
+    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}|${ccVal}`;
   };
 
   const handleApproveMadrasa = async (madrasa) => {
@@ -5581,6 +5605,7 @@ ${pagesHtml}
                 setEventName('');
                 setEventYear('');
                 setConvenerSadar('');
+                setCoordinatorConvener('');
                 setGeneralCatIds([]);
               }} className="btn-logout-top logout-btn-top">{t('logoutBtn')}</button>
             </div>
@@ -8500,10 +8525,10 @@ ${pagesHtml}
                           )}
                         </div>
 
-                        {/* 👤 Convener / Sadar Muallim Section */}
+                        {/* 👤 Sadar Muallim Section */}
                         <div className="settings-form-box-v2" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1.5px solid #93c5fd', borderRadius: '14px', padding: '18px' }}>
                           <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e40af', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            👤 convener / Sadar muallim
+                            👤 sadar muallim
                           </h3>
                           {convenerSadar && !isEditingConvenerSadar ? (
                             <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '1px solid #bfdbfe', marginBottom: '10px' }}>
@@ -8515,7 +8540,7 @@ ${pagesHtml}
                                 >✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}</button>
                                 <button
                                   onClick={async () => {
-                                    if (!window.confirm(lang === 'EN' ? 'Are you sure you want to clear Convener/Sadar name?' : 'കൺവീനർ/സദ്ർ പേര് നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
+                                    if (!window.confirm(lang === 'EN' ? 'Are you sure you want to clear Sadar Muallim name?' : 'സദ്ർ മുഅല്ലിം പേര് നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
                                     setConvenerSadar('');
                                     setConvenerSadarInput('');
                                     setIsEditingConvenerSadar(false);
@@ -8531,19 +8556,52 @@ ${pagesHtml}
                                         }
                                       } catch(e){}
                                       try {
+                                        const madrasaId = loggedInMadrasa?.id;
                                         const numReg = parseInt(rNum, 10);
                                         const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
                                         const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                                        );
-                                        const updatedPlace = makePlaceString(md ? md.place : '', {
-                                          convenerSadar: ''
+                                        
+                                        let mdPlace = '';
+                                        let targetId = madrasaId;
+                                        if (targetId) {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
+                                          );
+                                          if (md) mdPlace = md.place || '';
+                                        } else {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
+                                          );
+                                          if (md) {
+                                            mdPlace = md.place || '';
+                                            targetId = md.id;
+                                          }
+                                        }
+                                        
+                                        const updatedPlace = makePlaceString(mdPlace, {
+                                          convenerSadar: '',
+                                          coordinatorConvener: coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''
                                         });
-                                        await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                        );
-                                      } catch (err) {}
+
+                                        let error = null;
+                                        if (targetId) {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
+                                          );
+                                          error = res.error;
+                                        } else {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                          );
+                                          error = res.error;
+                                        }
+
+                                        if (error) {
+                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                        } else {
+                                          alert(lang === 'EN' ? '✅ Sadar Muallim cleared!' : '✅ സദ്ർ മുഅല്ലിം പേര് നീക്കം ചെയ്തു!');
+                                        }
+                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
                                   }}
                                   style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
@@ -8555,14 +8613,13 @@ ${pagesHtml}
                               <input
                                 type="text"
                                 className="settings-input-v2"
-                                placeholder={lang === 'EN' ? 'Convener / Sadar Muallim (any language)' : 'കൺവീനർ / സദ്ർ മുഅല്ലിം പേര് (ഏത് ഭാഷയിലും)'}
+                                placeholder={lang === 'EN' ? 'Sadar Muallim (any language)' : 'സദ്ർ മുഅല്ലിം പേര് (ഏത് ഭാഷയിലും)'}
                                 value={convenerSadarInput}
                                 onChange={e => setConvenerSadarInput(e.target.value)}
                               />
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   onClick={async () => {
-                                    // Allow saving empty string to clear convener sadar name
                                     const rNum = loggedInMadrasa?.regNumber;
                                     const newCS = convenerSadarInput.trim();
                                     setConvenerSadar(newCS);
@@ -8578,22 +8635,50 @@ ${pagesHtml}
                                         }
                                       } catch(e){}
                                       try {
+                                        const madrasaId = loggedInMadrasa?.id;
                                         const numReg = parseInt(rNum, 10);
                                         const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
                                         const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                                        );
-                                        const updatedPlace = makePlaceString(md ? md.place : '', {
-                                          convenerSadar: encodeURIComponent(newCS)
+                                        
+                                        let mdPlace = '';
+                                        let targetId = madrasaId;
+                                        if (targetId) {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
+                                          );
+                                          if (md) mdPlace = md.place || '';
+                                        } else {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
+                                          );
+                                          if (md) {
+                                            mdPlace = md.place || '';
+                                            targetId = md.id;
+                                          }
+                                        }
+                                        
+                                        const updatedPlace = makePlaceString(mdPlace, {
+                                          convenerSadar: encodeURIComponent(newCS),
+                                          coordinatorConvener: coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''
                                         });
-                                        const { error } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                        );
+
+                                        let error = null;
+                                        if (targetId) {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
+                                          );
+                                          error = res.error;
+                                        } else {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                          );
+                                          error = res.error;
+                                        }
+
                                         if (error) {
                                           alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
                                         } else {
-                                          alert(lang === 'EN' ? '✅ Convener / Sadar Muallim saved!' : '✅ സദ്ർ മുഅല്ലിം പേര് സേവ് ചെയ്തു!');
+                                          alert(lang === 'EN' ? '✅ Sadar Muallim saved!' : '✅ സദ്ർ മുഅല്ലിം പേര് സേവ് ചെയ്തു!');
                                         }
                                       } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
@@ -8603,6 +8688,177 @@ ${pagesHtml}
                                 {isEditingConvenerSadar && (
                                   <button
                                     onClick={() => setIsEditingConvenerSadar(false)}
+                                    style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                  >{lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}</button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 👤 Coordinator / Convener Section */}
+                        <div className="settings-form-box-v2" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1.5px solid #93c5fd', borderRadius: '14px', padding: '18px' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e40af', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            👤 coordinator / convenar
+                          </h3>
+                          {coordinatorConvener && !isEditingCoordinatorConvener ? (
+                            <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '1px solid #bfdbfe', marginBottom: '10px' }}>
+                              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e3a8a', letterSpacing: '0.5px' }}>{coordinatorConvener}</div>
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                <button
+                                  onClick={() => { setCoordinatorConvenerInput(coordinatorConvener); setIsEditingCoordinatorConvener(true); }}
+                                  style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                >✏️ {lang === 'EN' ? 'Edit' : 'എഡിറ്റ്'}</button>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm(lang === 'EN' ? 'Are you sure you want to clear Coordinator / Convener name?' : 'കോഡിനേറ്റർ / കൺവീനർ പേര് നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
+                                    setCoordinatorConvener('');
+                                    setCoordinatorConvenerInput('');
+                                    setIsEditingCoordinatorConvener(false);
+                                    const rNum = loggedInMadrasa?.regNumber;
+                                    if (rNum) {
+                                      try {
+                                        localStorage.removeItem(`coordinator_convener_${rNum}`);
+                                        const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
+                                        if (cachedRaw) {
+                                          const cached = JSON.parse(cachedRaw);
+                                          cached.coordinatorConvener = '';
+                                          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
+                                        }
+                                      } catch(e){}
+                                      try {
+                                        const madrasaId = loggedInMadrasa?.id;
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+                                        
+                                        let mdPlace = '';
+                                        let targetId = madrasaId;
+                                        if (targetId) {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
+                                          );
+                                          if (md) mdPlace = md.place || '';
+                                        } else {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
+                                          );
+                                          if (md) {
+                                            mdPlace = md.place || '';
+                                            targetId = md.id;
+                                          }
+                                        }
+                                        
+                                        const updatedPlace = makePlaceString(mdPlace, {
+                                          coordinatorConvener: '',
+                                          convenerSadar: convenerSadar ? encodeURIComponent(convenerSadar) : ''
+                                        });
+
+                                        let error = null;
+                                        if (targetId) {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
+                                          );
+                                          error = res.error;
+                                        } else {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                          );
+                                          error = res.error;
+                                        }
+
+                                        if (error) {
+                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                        } else {
+                                          alert(lang === 'EN' ? '✅ Coordinator / Convener cleared!' : '✅ കോഡിനേറ്റർ / കൺവീനർ പേര് നീക്കം ചെയ്തു!');
+                                        }
+                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
+                                    }
+                                  }}
+                                  style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                                >🗑️ {lang === 'EN' ? 'Clear' : 'നീക്കം ചെയ്യുക'}</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              <input
+                                type="text"
+                                className="settings-input-v2"
+                                placeholder={lang === 'EN' ? 'Coordinator / Convener (any language)' : 'കോഡിനേറ്റർ / കൺവീനർ പേര് (ഏത് ഭാഷയിലും)'}
+                                value={coordinatorConvenerInput}
+                                onChange={e => setCoordinatorConvenerInput(e.target.value)}
+                              />
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={async () => {
+                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const newCC = coordinatorConvenerInput.trim();
+                                    setCoordinatorConvener(newCC);
+                                    setIsEditingCoordinatorConvener(false);
+                                    if (rNum) {
+                                      try {
+                                        localStorage.setItem(`coordinator_convener_${rNum}`, newCC);
+                                        const cachedRaw = localStorage.getItem(`cached_data_${rNum}`);
+                                        if (cachedRaw) {
+                                          const cached = JSON.parse(cachedRaw);
+                                          cached.coordinatorConvener = newCC;
+                                          localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
+                                        }
+                                      } catch(e){}
+                                      try {
+                                        const madrasaId = loggedInMadrasa?.id;
+                                        const numReg = parseInt(rNum, 10);
+                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+                                        
+                                        let mdPlace = '';
+                                        let targetId = madrasaId;
+                                        if (targetId) {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
+                                          );
+                                          if (md) mdPlace = md.place || '';
+                                        } else {
+                                          const { data: md } = await queryWithRetry(() =>
+                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
+                                          );
+                                          if (md) {
+                                            mdPlace = md.place || '';
+                                            targetId = md.id;
+                                          }
+                                        }
+                                        
+                                        const updatedPlace = makePlaceString(mdPlace, {
+                                          coordinatorConvener: encodeURIComponent(newCC),
+                                          convenerSadar: convenerSadar ? encodeURIComponent(convenerSadar) : ''
+                                        });
+
+                                        let error = null;
+                                        if (targetId) {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
+                                          );
+                                          error = res.error;
+                                        } else {
+                                          const res = await queryWithRetry(() =>
+                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+                                          );
+                                          error = res.error;
+                                        }
+
+                                        if (error) {
+                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                        } else {
+                                          alert(lang === 'EN' ? '✅ Coordinator / Convener saved!' : '✅ കോഡിനേറ്റർ / കൺവീനർ പേര് സേവ് ചെയ്തു!');
+                                        }
+                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
+                                    }
+                                  }}
+                                  style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
+                                >💾 {isEditingCoordinatorConvener ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
+                                {isEditingCoordinatorConvener && (
+                                  <button
+                                    onClick={() => setIsEditingCoordinatorConvener(false)}
                                     style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                   >{lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}</button>
                                 )}
