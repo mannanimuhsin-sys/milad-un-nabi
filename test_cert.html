@@ -190,19 +190,32 @@
   .cert-sign-col {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
     min-width: 190px;
+  }
+
+  .cert-sign-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    min-height: 22px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 3px;
+    font-family: 'Inter', sans-serif;
   }
 
   .cert-sign-line {
     width: 100%;
-    height: 2px;
+    height: 1.5px;
     background-color: #000000;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .cert-sign-label {
-    font-size: 12.5px;
+    font-size: 11.5px;
     font-weight: 700;
     color: #334155;
     letter-spacing: 0.3px;
@@ -356,12 +369,14 @@
     <!-- Signatures -->
     <div class="cert-signatures">
       <div class="cert-sign-col">
+        <div class="cert-sign-name">Sample Convener</div>
         <div class="cert-sign-line"></div>
-        <div class="cert-sign-label">Festival Coordinator</div>
+        <div class="cert-sign-label">Convener / Coordinator</div>
       </div>
       <div class="cert-sign-col">
+        <div class="cert-sign-name">Sample Sadar</div>
         <div class="cert-sign-line"></div>
-        <div class="cert-sign-label">Head of Madrasa</div>
+        <div class="cert-sign-label">Sadar Muallim</div>
       </div>
     </div>
 

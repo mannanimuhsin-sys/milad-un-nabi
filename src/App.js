@@ -6424,12 +6424,14 @@ ${pagesHtml}
     <!-- Signatures */}
     <div class="cert-signatures">
       <div class="cert-sign-col">
+        <div class="cert-sign-name">${coordinatorConvener || ''}</div>
         <div class="cert-sign-line"></div>
-        <div class="cert-sign-label">Festival Coordinator</div>
+        <div class="cert-sign-label">Convener / Coordinator</div>
       </div>
       <div class="cert-sign-col">
+        <div class="cert-sign-name">${convenerSadar || ''}</div>
         <div class="cert-sign-line"></div>
-        <div class="cert-sign-label">Head of Madrasa</div>
+        <div class="cert-sign-label">Sadar Muallim</div>
       </div>
     </div>
 
@@ -6536,9 +6538,10 @@ ${pagesHtml}
   .cert-description strong.cert-highlight { font-weight: 700; font-style: italic; }
 
   .cert-signatures { display: flex; gap: 70px; margin-top: 35px; align-items: flex-end; }
-  .cert-sign-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 170px; }
-  .cert-sign-line { width: 100%; height: 1.5px; background-color: #000000; margin-bottom: 8px; }
-  .cert-sign-label { font-size: 11.5px; font-weight: 600; color: #334155; letter-spacing: 0.3px; }
+  .cert-sign-col { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 170px; }
+  .cert-sign-name { font-size: 13.5px; font-weight: 700; color: #0f172a; min-height: 22px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; font-family: 'Inter', sans-serif; }
+  .cert-sign-line { width: 100%; height: 1.5px; background-color: #000000; margin-bottom: 6px; }
+  .cert-sign-label { font-size: 11.5px; font-weight: 700; color: #334155; letter-spacing: 0.3px; }
 </style>
 </head>
 <body>
@@ -15000,9 +15003,10 @@ ${pagesHtml}
   .cert-description strong.cert-highlight { font-weight: 700; font-style: italic; }
 
   .cert-signatures { display: flex; gap: 70px; margin-top: 35px; align-items: flex-end; }
-  .cert-sign-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 170px; }
-  .cert-sign-line { width: 100%; height: 1.5px; background-color: #000000; margin-bottom: 8px; }
-  .cert-sign-label { font-size: 11.5px; font-weight: 600; color: #334155; letter-spacing: 0.3px; }
+  .cert-sign-col { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 170px; }
+  .cert-sign-name { font-size: 13.5px; font-weight: 700; color: #0f172a; min-height: 22px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; font-family: 'Inter', sans-serif; }
+  .cert-sign-line { width: 100%; height: 1.5px; background-color: #000000; margin-bottom: 6px; }
+  .cert-sign-label { font-size: 11.5px; font-weight: 700; color: #334155; letter-spacing: 0.3px; }
 </style>
 </head>
 <body>
@@ -15141,12 +15145,14 @@ ${pagesHtml}
 
     <div class="cert-signatures">
       <div class="cert-sign-col">
+        <div class="cert-sign-name">${coordinatorConvener || ''}</div>
         <div class="cert-sign-line"></div>
-        <div class="cert-sign-label">Festival Coordinator</div>
+        <div class="cert-sign-label">Convener / Coordinator</div>
       </div>
       <div class="cert-sign-col">
+        <div class="cert-sign-name">${convenerSadar || ''}</div>
         <div class="cert-sign-line"></div>
-        <div class="cert-sign-label">Head of Madrasa</div>
+        <div class="cert-sign-label">Sadar Muallim</div>
       </div>
     </div>
   </div>
@@ -15366,13 +15372,15 @@ ${pagesHtml}
 
                   {/* Signatures */}
                   <div style={{ display: 'flex', gap: '70px', marginTop: '35px', alignItems: 'flex-end' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '170px' }}>
-                      <div style={{ width: '100%', height: '1.5px', backgroundColor: '#000000', marginBottom: '8px' }}></div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#334155', letterSpacing: '0.3px' }}>Festival Coordinator</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: '170px' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', minHeight: '22px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '3px', fontFamily: "'Inter', sans-serif" }}>{coordinatorConvener || ''}</div>
+                      <div style={{ width: '100%', height: '1.5px', backgroundColor: '#000000', marginBottom: '6px' }}></div>
+                      <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#334155', letterSpacing: '0.3px' }}>Convener / Coordinator</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '170px' }}>
-                      <div style={{ width: '100%', height: '1.5px', backgroundColor: '#000000', marginBottom: '8px' }}></div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#334155', letterSpacing: '0.3px' }}>Head of Madrasa</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: '170px' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', minHeight: '22px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '3px', fontFamily: "'Inter', sans-serif" }}>{convenerSadar || ''}</div>
+                      <div style={{ width: '100%', height: '1.5px', backgroundColor: '#000000', marginBottom: '6px' }}></div>
+                      <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#334155', letterSpacing: '0.3px' }}>Sadar Muallim</div>
                     </div>
                   </div>
                 </div>
