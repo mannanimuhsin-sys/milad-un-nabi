@@ -1436,20 +1436,22 @@ function App() {
       const madrasaData = safe(madrasaResult).data;
       let fetchedVisibility = null;
       if (madrasaData) {
-        if (madrasaData.visibility_controls) {
+        if (madrasaData.place) {
+          const parts = madrasaData.place.split('|');
+          if (parts[8]) {
+            try {
+              fetchedVisibility = JSON.parse(decodeURIComponent(parts[8]));
+            } catch (e) {
+              try { fetchedVisibility = JSON.parse(parts[8]); } catch (e2) {}
+            }
+          }
+        }
+        if ((!fetchedVisibility || typeof fetchedVisibility !== 'object') && madrasaData.visibility_controls) {
           try {
             fetchedVisibility = typeof madrasaData.visibility_controls === 'string'
               ? JSON.parse(madrasaData.visibility_controls)
               : madrasaData.visibility_controls;
           } catch (e) {}
-        }
-        if ((!fetchedVisibility || typeof fetchedVisibility !== 'object') && madrasaData.place) {
-          const parts = madrasaData.place.split('|');
-          if (parts[8]) {
-            try {
-              fetchedVisibility = JSON.parse(decodeURIComponent(parts[8]));
-            } catch (e) {}
-          }
         }
       }
       // ⚠️ VISIBILITY CONTROLS SYNC STRATEGY:
@@ -13265,28 +13267,29 @@ ${pagesHtml}
                               visibilityControls: encodeURIComponent(JSON.stringify(newControls))
                             });
 
+                            // Update place column (always exists in schema and stores part 8 visibilityControls)
                             if (mId) {
                               await queryWithRetry(() =>
-                                supabase.from('madrasas').update({
-                                  place: updatedPlace,
-                                  visibility_controls: JSON.stringify(newControls)
-                                }).eq('id', mId)
+                                supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId)
                               );
                             } else if (isNumValid) {
                               await queryWithRetry(() =>
-                                supabase.from('madrasas').update({
-                                  place: updatedPlace,
-                                  visibility_controls: JSON.stringify(newControls)
-                                }).or(`regNumber.eq.${rNum},regNumber.eq.${numReg}`)
+                                supabase.from('madrasas').update({ place: updatedPlace }).or(`regNumber.eq.${rNum},regNumber.eq.${numReg}`)
                               );
                             } else if (rNum) {
                               await queryWithRetry(() =>
-                                supabase.from('madrasas').update({
-                                  place: updatedPlace,
-                                  visibility_controls: JSON.stringify(newControls)
-                                }).eq('regNumber', String(rNum))
+                                supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum))
                               );
                             }
+
+                            // Secondary fallback: update visibility_controls column if it exists
+                            try {
+                              if (mId) {
+                                await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newControls) }).eq('id', mId);
+                              } else if (rNum) {
+                                await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newControls) }).eq('regNumber', String(rNum));
+                              }
+                            } catch (e2) {}
                           } catch (e) {
                             console.warn("Supabase visibility_controls update error:", e);
                           }
