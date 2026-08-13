@@ -1247,13 +1247,13 @@ function App() {
           const ccToSet = localCC || cached.coordinatorConvener || '';
 
           setEventName(evToSet);
-          setEventNameInput(evToSet);
+          if (!isEditingEvent && (evToSet || !eventNameInput)) setEventNameInput(evToSet);
           setEventYear(yrToSet);
-          setEventYearInput(yrToSet);
+          if (!isEditingEvent && (yrToSet || !eventYearInput)) setEventYearInput(yrToSet);
           setConvenerSadar(csToSet);
-          setConvenerSadarInput(csToSet);
+          if (!isEditingConvenerSadar && (csToSet || !convenerSadarInput)) setConvenerSadarInput(csToSet);
           setCoordinatorConvener(ccToSet);
-          setCoordinatorConvenerInput(ccToSet);
+          if (!isEditingCoordinatorConvener && (ccToSet || !coordinatorConvenerInput)) setCoordinatorConvenerInput(ccToSet);
           return true;
         }
       } else {
@@ -1503,19 +1503,19 @@ function App() {
         }
 
         setEventName(loadedEventName);
-        setEventNameInput(loadedEventName);
+        if (!isEditingEvent && (loadedEventName || !eventNameInput)) setEventNameInput(loadedEventName);
         try { localStorage.setItem(`event_name_${rNum}`, loadedEventName); } catch(e){}
 
         setEventYear(loadedEventYear);
-        setEventYearInput(loadedEventYear);
+        if (!isEditingEvent && (loadedEventYear || !eventYearInput)) setEventYearInput(loadedEventYear);
         try { localStorage.setItem(`event_year_${rNum}`, loadedEventYear); } catch(e){}
 
         setConvenerSadar(loadedConvenerSadar);
-        setConvenerSadarInput(loadedConvenerSadar);
+        if (!isEditingConvenerSadar && (loadedConvenerSadar || !convenerSadarInput)) setConvenerSadarInput(loadedConvenerSadar);
         try { localStorage.setItem(`convener_sadar_${rNum}`, loadedConvenerSadar); } catch(e){}
 
         setCoordinatorConvener(loadedCoordinatorConvener);
-        setCoordinatorConvenerInput(loadedCoordinatorConvener);
+        if (!isEditingCoordinatorConvener && (loadedCoordinatorConvener || !coordinatorConvenerInput)) setCoordinatorConvenerInput(loadedCoordinatorConvener);
         try { localStorage.setItem(`coordinator_convener_${rNum}`, loadedCoordinatorConvener); } catch(e){}
         if (Array.isArray(loadedGenCats) && loadedGenCats.length > 0) {
           setGeneralCatIds(loadedGenCats);
@@ -2452,6 +2452,7 @@ function App() {
         setEventYear(loadedEventYear);
         setConvenerSadar(loadedConvenerSadar);
         setCoordinatorConvener(loadedCoordinatorConvener);
+        // At login time, always set inputs (user can't be typing yet at login)
         setEventNameInput(loadedEventName);
         setEventYearInput(loadedEventYear);
         setConvenerSadarInput(loadedConvenerSadar);
@@ -8459,6 +8460,7 @@ ${pagesHtml}
                                 className="settings-input-v2"
                                 placeholder={lang === 'EN' ? 'Event Name (any language)' : 'ഇവന്റിന്റെ പേര് (ഏത് ഭാഷയിലും)'}
                                 value={eventNameInput}
+                                onFocus={() => setIsEditingEvent(true)}
                                 onChange={e => setEventNameInput(e.target.value)}
                               />
                               <input
@@ -8466,6 +8468,7 @@ ${pagesHtml}
                                 className="settings-input-v2"
                                 placeholder={lang === 'EN' ? 'Year (eg: 2025)' : 'വർഷം (eg: 2025)'}
                                 value={eventYearInput}
+                                onFocus={() => setIsEditingEvent(true)}
                                 onChange={e => setEventYearInput(e.target.value)}
                               />
                               <div style={{ display: 'flex', gap: '8px' }}>
@@ -8615,6 +8618,7 @@ ${pagesHtml}
                                 className="settings-input-v2"
                                 placeholder={lang === 'EN' ? 'Sadar Muallim (any language)' : 'സദ്ർ മുഅല്ലിം പേര് (ഏത് ഭാഷയിലും)'}
                                 value={convenerSadarInput}
+                                onFocus={() => setIsEditingConvenerSadar(true)}
                                 onChange={e => setConvenerSadarInput(e.target.value)}
                               />
                               <div style={{ display: 'flex', gap: '8px' }}>
@@ -8786,6 +8790,7 @@ ${pagesHtml}
                                 className="settings-input-v2"
                                 placeholder={lang === 'EN' ? 'Coordinator / Convener (any language)' : 'കോഡിനേറ്റർ / കൺവീനർ പേര് (ഏത് ഭാഷയിലും)'}
                                 value={coordinatorConvenerInput}
+                                onFocus={() => setIsEditingCoordinatorConvener(true)}
                                 onChange={e => setCoordinatorConvenerInput(e.target.value)}
                               />
                               <div style={{ display: 'flex', gap: '8px' }}>
