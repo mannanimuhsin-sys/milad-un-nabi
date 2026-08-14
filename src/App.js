@@ -38,7 +38,7 @@ function StudentQrCode({ madrasaReg, studentId, size = 70 }) {
 }
 
 // Reusable ID Card Component (Exact printed width 7.5cm × height 10cm at 96dpi)
-function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, className = '' }) {
+function StudentIdCard({ student, loggedInMadrasa, teams, categories, eventName, cardRef, className = '' }) {
   const s = student;
   const sTeamId = s.teamid || s.teamId || '';
   const sCatId = s.catid || s.catId || '';
@@ -92,39 +92,55 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, cardRef, c
       {/* Top gradient stripe */}
       <div style={{ height: '5px', background: 'linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d)', flexShrink: 0, position: 'relative', zIndex: 1 }} />
 
-      {/* Header: Madrasa name + RegNo + Place */}
-      <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '5px 8px 4px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1, borderBottom: '2px solid #fbbf24' }}>
-        <div style={{ fontSize: '9.5px', fontWeight: '900', color: '#fef08a', textAlign: 'center', letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+      {/* Header: Event Name + Madrasa name + RegNo + Place */}
+      <div style={{ background: 'linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%)', padding: '4px 8px 5px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1, borderBottom: '2px solid #fbbf24' }}>
+        {/* Event Name */}
+        {eventName ? (
+          <div style={{ fontSize: '7px', fontWeight: '800', color: '#fbbf24', textAlign: 'center', letterSpacing: '1.2px', textTransform: 'uppercase', lineHeight: 1.2, marginBottom: '3px', background: 'rgba(251,191,36,0.15)', borderRadius: '4px', padding: '2px 8px', border: '1px solid rgba(251,191,36,0.4)', textShadow: '0 1px 2px rgba(0,0,0,0.4)', width: '100%', boxSizing: 'border-box' }}>
+            {eventName}
+          </div>
+        ) : null}
+        {/* Madrasa Name */}
+        <div style={{ fontSize: '10px', fontWeight: '900', color: '#ffffff', textAlign: 'center', letterSpacing: '0.4px', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: '2px', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
           {loggedInMadrasa ? loggedInMadrasa.name : ''}
         </div>
-        <div style={{ fontSize: '6.5px', color: '#bbf7d0', textAlign: 'center', lineHeight: 1.3, opacity: 0.9 }}>
+        {/* Madrasa RegNo | Place */}
+        <div style={{ fontSize: '7px', fontWeight: '700', color: '#fef08a', textAlign: 'center', lineHeight: 1.3, textShadow: '0 1px 2px rgba(0,0,0,0.4)', letterSpacing: '0.3px' }}>
           {loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | {loggedInMadrasa ? loggedInMadrasa.place : ''}
         </div>
       </div>
 
       {/* Photo LEFT + Student Name & RegNo RIGHT */}
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '6px 8px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '8px', position: 'relative', zIndex: 1 }}>
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'stretch', padding: '6px 8px', background: 'rgba(21,128,61,0.06)', borderBottom: '2px solid #fbbf24', gap: '8px', position: 'relative', zIndex: 1 }}>
         {/* Photo */}
-        <div style={{ flexShrink: 0, width: '108px', height: '126px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)' }}>
+        <div style={{ flexShrink: 0, width: '96px', height: '112px', borderRadius: '8px', border: '2px solid #16a34a', overflow: 'hidden', background: '#f0fdf4', boxShadow: '0 3px 12px rgba(22,163,74,0.25)', alignSelf: 'center' }}>
           {photoContent}
         </div>
 
-        {/* Name + RegNo */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '4px', minWidth: 0, width: '100%' }}>
-          {/* Student Name */}
-          <div style={{ fontSize: '13px', fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center', width: '100%', marginBottom: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-            {s.name}
-          </div>
-          {/* Highlighted Reg No badge */}
-          <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '4px 8px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', maxWidth: '105px', margin: '0 auto', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
-            <div style={{ fontSize: '7px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>
-              Register No.
+        {/* Name + RegNo — fills remaining space tightly */}
+        {(() => {
+          const nameStr = s.name || '';
+          const nameLen = nameStr.length;
+          // Dynamic font size: large name → smaller font, short name → bigger font
+          const nameFontSize = nameLen <= 10 ? '15px' : nameLen <= 16 ? '13px' : nameLen <= 22 ? '11px' : '9.5px';
+          return (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '6px', minWidth: 0, width: '100%' }}>
+              {/* Student Name */}
+              <div style={{ fontSize: nameFontSize, fontWeight: '900', color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.3px', lineHeight: 1.25, wordBreak: 'break-word', textAlign: 'center', width: '100%', textShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                {nameStr}
+              </div>
+              {/* Highlighted Reg No badge — width fits the available column */}
+              <div style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', borderRadius: '7px', padding: '5px 8px', boxShadow: '0 3px 10px rgba(251,191,36,0.55)', width: '100%', boxSizing: 'border-box', textAlign: 'center', border: '1.5px solid #d97706' }}>
+                <div style={{ fontSize: '7px', fontWeight: '800', color: '#78350f', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>
+                  Register No.
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
+                  {s.regno || s.regNo || ''}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#1c1917', letterSpacing: '1.5px', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
-              {s.regno || s.regNo || ''}
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Details: Group / Category / Gender */}
@@ -7637,6 +7653,7 @@ ${pagesHtml}
                         loggedInMadrasa={loggedInMadrasa}
                         teams={teams}
                         categories={categories}
+                        eventName={eventName}
                         cardRef={idCardRef}
                       />
 
@@ -8173,6 +8190,7 @@ ${pagesHtml}
                                         loggedInMadrasa={loggedInMadrasa}
                                         teams={teams}
                                         categories={categories}
+                                        eventName={eventName}
                                         className="id-card-mini"
                                       />
                                     </div>
