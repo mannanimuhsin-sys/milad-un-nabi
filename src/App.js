@@ -3725,13 +3725,23 @@ function App() {
     const programIdStr = String(id);
 
     // ── 1. Cascade delete from Supabase ────────────────────────────────────────
+    const progCodeStr = String(prog?.code || '').trim();
+    const deleteRegOps = [
+      supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('program_name', programIdStr),
+    ];
+    if (progCodeStr) {
+      deleteRegOps.push(
+        supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('program_name', progCodeStr)
+      );
+    }
+
     const deleteOps = await Promise.allSettled([
       // Delete the program row itself
       supabase.from('programs').delete().eq('id', id),
       // Delete timetable entry for this program in this madrasa
       supabase.from('timetable').delete().eq('madrasa_id', madrasaId).eq('program_id', programIdStr),
       // Delete all program_registrations for this program + madrasa
-      supabase.from('program_registrations').delete().eq('madrasa_id', madrasaId).eq('prog_id', programIdStr),
+      ...deleteRegOps,
       // Delete group_registrations for this program
       supabase.from('group_registrations').delete().eq('madrasa_id', madrasaId).eq('program_id', programIdStr),
       // Delete results for this program
@@ -3769,12 +3779,16 @@ function App() {
       return updated;
     });
     setProgramRegistrations(prev => {
-      const updated = prev.filter(r => String(r.prog_id) !== programIdStr && String(r.progid) !== programIdStr);
+      const updated = prev.filter(r =>
+        String(r.program_id) !== programIdStr &&
+        String(r.program_name) !== programIdStr &&
+        (!progCodeStr || String(r.program_name) !== progCodeStr)
+      );
       updateCache(c => { c.programRegistrations = updated; });
       return updated;
     });
     setGroupRegistrations(prev => {
-      const updated = prev.filter(r => String(r.program_id) !== programIdStr && String(r.program_id) !== programIdStr);
+      const updated = prev.filter(r => String(r.program_id) !== programIdStr);
       updateCache(c => { c.groupRegistrations = updated; });
       return updated;
     });
@@ -4320,7 +4334,17 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
           .from('group_registrations')
           .select('*')
           .eq('madrasa_id', madrasaId);
-        if (gRegData) setGroupRegistrations(gRegData);
+        if (gRegData) {
+          setGroupRegistrations(gRegData);
+          try {
+            const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+            if (rawCache) {
+              const cacheObj = JSON.parse(rawCache);
+              cacheObj.groupRegistrations = gRegData;
+              localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+            }
+          } catch (e) {}
+        }
       }
     } catch (err) {
       alert(t('alertUploadFailed') + err.message);
