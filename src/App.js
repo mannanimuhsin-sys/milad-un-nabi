@@ -13011,9 +13011,9 @@ ${pagesHtml}
 
                         const filledRows = pItems.map((item, idx) => {
                           const regNoDisplay = item.isGroup ? (item.leaderRegNo || '-') : item.regNo;
-                          return `<tr>
-                            <td style="text-align:center; font-weight:700; color:#475569;">${idx + 1}</td>
-                            <td style="text-align:center; font-weight:800; font-size:12px; color:#064e3b; background:#ecfdf5;">${regNoDisplay}</td>
+                          return `<tr style="height:34px;">
+                            <td style="text-align:center; font-weight:700; color:#475569; font-size:12px;">${idx + 1}</td>
+                            <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5;">${regNoDisplay}</td>
                             <td style="text-align:center;"></td>
                             <td style="text-align:center;"></td>
                             <td style="text-align:center;"></td>
@@ -13024,14 +13024,14 @@ ${pagesHtml}
                           </tr>`;
                         });
 
-                        // If fewer than 16 rows, pad with neat empty lines up to 16 rows
-                        const minRows = 16;
+                        // Pad with neat empty lines up to 20 rows for comfortable scoring
+                        const minRows = 20;
                         const emptyRowsCount = Math.max(0, minRows - pItems.length);
                         const emptyRows = [];
                         for (let i = 0; i < emptyRowsCount; i++) {
                           const rowNum = pItems.length + i + 1;
-                          emptyRows.push(`<tr>
-                            <td style="text-align:center; color:#94a3b8; font-weight:600;">${rowNum}</td>
+                          emptyRows.push(`<tr style="height:34px;">
+                            <td style="text-align:center; color:#94a3b8; font-weight:600; font-size:12px;">${rowNum}</td>
                             <td style="text-align:center; background:#f8fafc;"></td>
                             <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                           </tr>`);
@@ -13044,7 +13044,7 @@ ${pagesHtml}
   <div class="sheet-wrapper">
     <div class="sheet-header">
       <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
-      ${eventName ? `<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+      ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
       <div class="madrasa-name">${madrasaName}</div>
       <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
     </div>
@@ -13065,16 +13065,16 @@ ${pagesHtml}
     <div class="sheet-body">
       <table>
         <thead>
-          <tr>
-            <th style="width:34px; text-align:center;">Sl.No</th>
-            <th style="width:68px; text-align:center;">Reg. No</th>
-            <th style="width:55px; text-align:center;">Chance No</th>
-            <th style="width:50px; text-align:center;">Judge 1</th>
-            <th style="width:50px; text-align:center;">Judge 2</th>
-            <th style="width:50px; text-align:center;">Total</th>
-            <th style="width:44px; text-align:center;">Grade</th>
-            <th style="width:44px; text-align:center;">Rank</th>
-            <th style="text-align:center;">Remarks</th>
+          <tr style="height:36px;">
+            <th style="width:6%; text-align:center;">Sl.No</th>
+            <th style="width:14%; text-align:center;">Reg. No</th>
+            <th style="width:11%; text-align:center;">Chance No</th>
+            <th style="width:13%; text-align:center;">Judge 1</th>
+            <th style="width:13%; text-align:center;">Judge 2</th>
+            <th style="width:12%; text-align:center;">Total</th>
+            <th style="width:9%; text-align:center;">Grade</th>
+            <th style="width:9%; text-align:center;">Rank</th>
+            <th style="width:13%; text-align:center;">Remarks</th>
           </tr>
         </thead>
         <tbody>
@@ -13083,7 +13083,7 @@ ${pagesHtml}
       </table>
       <div class="sheet-footer">
         <div class="signature-box">
-          <div style="height:36px"></div>
+          <div style="height:40px"></div>
           <div class="signature-line">Judge Signature 1</div>
         </div>
         <div class="footer-center">
@@ -13091,7 +13091,7 @@ ${pagesHtml}
           <div style="margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
         </div>
         <div class="signature-box">
-          <div style="height:36px"></div>
+          <div style="height:40px"></div>
           <div class="signature-line">Judge Signature 2</div>
         </div>
       </div>
@@ -13134,7 +13134,7 @@ ${pagesHtml}
     width: 100%;
     page-break-after: always;
     break-after: page;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
   }
   @media print {
     body {
@@ -13142,6 +13142,8 @@ ${pagesHtml}
     }
     .judge-sheet-page {
       margin-bottom: 0;
+      page-break-after: always;
+      break-after: page;
     }
     .judge-sheet-page:last-child {
       page-break-after: auto;
@@ -13158,7 +13160,7 @@ ${pagesHtml}
     background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
     color: white;
     text-align: center;
-    padding: 10px 14px 8px;
+    padding: 12px 16px 10px;
   }
   .festival-title {
     font-size: 11px;
@@ -13169,20 +13171,20 @@ ${pagesHtml}
     margin-bottom: 2px;
   }
   .madrasa-name {
-    font-size: 17px;
+    font-size: 19px;
     font-weight: 900;
     letter-spacing: 0.5px;
     margin-bottom: 2px;
     line-height: 1.2;
   }
   .madrasa-meta {
-    font-size: 10px;
+    font-size: 10.5px;
     opacity: 0.85;
     font-weight: 600;
   }
   .sheet-subtitle-bar {
     background: #f59e0b;
-    padding: 6px 14px;
+    padding: 7px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -13192,30 +13194,32 @@ ${pagesHtml}
   }
   .subtitle-item { display: flex; align-items: center; gap: 5px; }
   .subtitle-label { font-size: 9.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.4px; }
-  .subtitle-value { font-size: 11.5px; font-weight: 900; color: #1c1917; }
-  .sheet-body { padding: 8px 10px 10px; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
-  thead tr { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; }
+  .subtitle-value { font-size: 12px; font-weight: 900; color: #1c1917; }
+  .sheet-body { padding: 10px 12px 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  thead tr { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; height: 36px; }
   th {
     padding: 6px 3px;
     font-weight: 800;
-    font-size: 10px;
+    font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    border: 1px solid #064e3b;
+    border: 1.5px solid #064e3b;
     text-align: center;
     color: #ffffff;
+    vertical-align: middle;
   }
   td {
-    padding: 3.5px 3px;
-    border: 1px solid #cbd5e1;
-    min-height: 24px;
-    height: 24px;
-    font-size: 10.5px;
+    padding: 5px 3px;
+    border: 1.5px solid #cbd5e1;
+    min-height: 34px;
+    height: 34px;
+    font-size: 12px;
+    vertical-align: middle;
   }
   tbody tr:nth-child(even) { background: #f8fafc; }
   .sheet-footer {
-    margin-top: 14px;
+    margin-top: 18px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -13223,19 +13227,19 @@ ${pagesHtml}
   }
   .signature-box {
     text-align: center;
-    width: 140px;
+    width: 160px;
   }
   .signature-line {
     border-top: 1.5px solid #1e293b;
-    padding-top: 4px;
+    padding-top: 5px;
     font-weight: 700;
     color: #1e293b;
-    font-size: 10.5px;
+    font-size: 11px;
   }
   .footer-center {
     text-align: center;
     color: #64748b;
-    font-size: 9.5px;
+    font-size: 10px;
     font-weight: 600;
   }
 </style>
