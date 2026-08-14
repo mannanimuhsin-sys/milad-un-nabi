@@ -4934,16 +4934,21 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
               </svg>
              </div>`;
         const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:68px;height:68px;display:block;" />` : '';
+        // Dynamic font size based on name length
+        const nameStr = s.name || '';
+        const nameLen = nameStr.length;
+        const nameFontSize = nameLen <= 10 ? '11px' : nameLen <= 16 ? '9.5px' : nameLen <= 22 ? '8px' : '7px';
         return `<div class="id-card">
           <div class="stripe"></div>
           <div class="card-header">
+            ${eventName ? `<div class="event-name">${eventName}</div>` : ''}
             <div class="madrasa-name">${loggedInMadrasa ? loggedInMadrasa.name : ''}</div>
             <div class="madrasa-meta">${loggedInMadrasa ? loggedInMadrasa.regNumber : ''} | ${loggedInMadrasa ? loggedInMadrasa.place : ''}</div>
           </div>
           <div class="card-top">
             <div class="photo-box">${photoHtml}</div>
             <div class="name-box">
-              <div class="student-name">${s.name || ''}</div>
+              <div class="student-name" style="font-size:${nameFontSize}">${nameStr}</div>
               <div class="reg-badge">
                 <div class="reg-label">Register No.</div>
                 <div class="reg-num">${s.regno || s.regNo || ''}</div>
@@ -5000,21 +5005,22 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .stripe { height: 4px; background: linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d); flex-shrink: 0; position: relative; z-index: 1; }
   .card-header {
-    background: linear-gradient(135deg, #166534 0%, #15803d 100%);
-    padding: 4px 6px 3px; flex-shrink: 0;
+    background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
+    padding: 4px 6px 4px; flex-shrink: 0;
     display: flex; flex-direction: column; align-items: center;
     position: relative; z-index: 1;
     border-bottom: 2px solid #fbbf24;
   }
-  .madrasa-name { font-size: 7px; font-weight: 900; color: #fef08a; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-  .madrasa-meta { font-size: 5.5px; color: #bbf7d0; text-align: center; opacity: 0.9; }
-  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; padding: 5px 6px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 6px; position: relative; z-index: 1; }
-  .photo-box { flex-shrink: 0; width: 108px; height: 126px; border-radius: 8px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); }
-  .name-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; width: 100%; }
-  .student-name { font-size: 10.5px; font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.2; word-break: break-word; text-align: center; width: 100%; }
-  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 6px; padding: 3px 6px; text-align: center; box-shadow: 0 3px 8px rgba(251,191,36,0.4); border: 1.5px solid #d97706; width: 100%; max-width: 95px; margin: 0 auto; box-sizing: border-box; }
+  .event-name { font-size: 5.5px; font-weight: 800; color: #fbbf24; text-align: center; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; margin-bottom: 2px; background: rgba(251,191,36,0.15); border-radius: 3px; padding: 1px 6px; border: 1px solid rgba(251,191,36,0.4); width: 100%; box-sizing: border-box; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+  .madrasa-name { font-size: 7.5px; font-weight: 900; color: #ffffff; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; text-shadow: 0 1px 3px rgba(0,0,0,0.5); margin-bottom: 1px; }
+  .madrasa-meta { font-size: 5.5px; font-weight: 700; color: #fef08a; text-align: center; letter-spacing: 0.2px; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: stretch; padding: 5px 6px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 6px; position: relative; z-index: 1; }
+  .photo-box { flex-shrink: 0; width: 92px; height: 108px; border-radius: 8px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); align-self: center; }
+  .name-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; width: 100%; }
+  .student-name { font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.25; word-break: break-word; text-align: center; width: 100%; }
+  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 6px; padding: 4px 6px; text-align: center; box-shadow: 0 3px 8px rgba(251,191,36,0.4); border: 1.5px solid #d97706; width: 100%; box-sizing: border-box; }
   .reg-label { font-size: 5.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1px; }
-  .reg-num { font-size: 19px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  .reg-num { font-size: 20px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
   .details { flex-shrink: 0; padding: 4px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
   .detail-row { border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; gap: 1px; }
   .detail-row-group { background: rgba(22,163,74,0.1); border: 1px solid rgba(22,163,74,0.35); border-left: 3px solid #16a34a; }
@@ -5075,7 +5081,7 @@ ${pagesHtml}
       alert(t('alertPDFGenerationFailed') + err.message);
     }
     setProfilePdfGenerating(false);
-  }, [teams, categories, loggedInMadrasa, t]);
+  }, [teams, categories, loggedInMadrasa, eventName, t]);
 
   return (
     <div className="main-container">
