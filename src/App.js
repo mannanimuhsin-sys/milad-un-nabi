@@ -7686,21 +7686,24 @@ ${pagesHtml}
                         const catName = catObj ? catObj.name : 'No Category';
 
                         // Filter programs matching student's category and gender division
+                        // Same logic as used throughout the app (Register tab, QR scan etc.)
                         const catPrograms = programs.filter(p => {
                           if (!p) return false;
                           const pCatId = String(p.catid || p.catId || '');
                           const matchCat = pCatId === sCatId || isGeneralProg(p);
                           if (!matchCat) return false;
-
                           const pType = (p.type || '').toUpperCase();
                           if (pType.includes('COMMON')) return true;
                           if (sGender && pType.includes(sGender)) return true;
+                          // If type is empty or doesn't specify gender, include it
+                          if (!pType || (!pType.includes('BOY') && !pType.includes('GIRL'))) return true;
                           return false;
                         });
 
-                        // Count registered programs
-                        const registeredPrograms = catPrograms.filter(p => checkIsStudentRegisteredForProg(s, p));
-                        const registeredCount = registeredPrograms.length;
+                        // Use getStudentRegisteredPrograms — same canonical function used in
+                        // Register Summary and QR scan — for accurate registered list
+                        const actualRegisteredProgs = getStudentRegisteredPrograms(s.id);
+                        const registeredCount = actualRegisteredProgs.length;
 
                         return (
                           <div style={{ marginTop: '20px', background: '#ffffff', borderRadius: '20px', border: '1.5px solid #cbd5e1', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -7751,7 +7754,20 @@ ${pagesHtml}
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                   {catPrograms.map(p => {
-                                    const isReg = checkIsStudentRegisteredForProg(s, p);
+                                    // Check if this program is in the student's actual registered list
+                                    // (uses same logic as Register Summary and QR scan)
+                                    const pIdStr = String(p.id || '').trim();
+                                    const pCodeStr = String(p.code || '').trim().toLowerCase();
+                                    const pNameStr = String(p.name || '').trim().toLowerCase();
+                                    const isReg = actualRegisteredProgs.some(rp => {
+                                      const rpId = String(rp.id || '').trim();
+                                      const rpCode = String(rp.code || '').trim().toLowerCase();
+                                      const rpName = String(rp.name || '').trim().toLowerCase();
+                                      if (pIdStr && rpId && pIdStr === rpId) return true;
+                                      if (pCodeStr && rpCode && pCodeStr === rpCode) return true;
+                                      if (pNameStr && rpName && pNameStr === rpName) return true;
+                                      return false;
+                                    });
 
                                     // Find if any result exists for this program and student
                                     const sDbIdStr = String(s.id || '').trim();
