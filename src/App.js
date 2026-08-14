@@ -857,13 +857,12 @@ function App() {
 
   const isStudentMatch = useCallback((r, studentObj) => {
     if (!r || !studentObj) return false;
-    const rSid = String(r.student_id || r.studentId || r.studentid || r.student_name || r.studentName || '').trim();
+    const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
     const sId = String(studentObj.id || '').trim();
     const sReg = String(studentObj.regno || studentObj.regNo || '').trim();
-    const sName = String(studentObj.name || '').trim();
 
     if (!rSid) return false;
-    if (rSid === sId) return true;
+    if (sId && rSid === sId) return true;
     if (sReg && rSid === sReg) return true;
 
     const rSidNum = parseInt(rSid, 10);
@@ -875,37 +874,39 @@ function App() {
       if (regPart && (regPart === sReg || parseInt(regPart, 10) === sRegNum)) return true;
     }
 
-    if (sName && rSid.toLowerCase().includes(sName.toLowerCase())) return true;
-
     return false;
   }, []);
 
   const isProgramMatch = useCallback((r, p, exactOnly = false) => {
     if (!r || !p) return false;
-    const pId = String(p.id || '').trim().toLowerCase();
-    const pCode = String(p.code || '').trim().toLowerCase();
+    const pId = String(p.id || '').trim();
+    const pCode = String(p.code || '').trim();
     const pName = String(p.name || '').trim().toLowerCase();
 
-    const rProgName = String(r.program_name || r.programName || r.progname || r.progName || '').trim().toLowerCase();
-    const rProgId = String(r.program_id || r.programId || r.progid || r.progId || '').trim().toLowerCase();
+    const rProgName = String(r.program_name || r.programName || r.progname || r.progName || '').trim();
+    const rProgId = String(r.program_id || r.programId || r.progid || r.progId || '').trim();
 
-    // 1. Direct Exact Program ID / Code Match (Highest Accuracy)
-    if ((rProgId && (rProgId === pId || rProgId === pCode || rProgId === pName)) ||
-        (rProgName && (rProgName === pId || rProgName === pCode || rProgName === pName))) {
+    // 1. Direct Database Program ID match (Highest Accuracy)
+    if (pId && (rProgId === pId || rProgName === pId)) {
+      return true;
+    }
+
+    // 2. Direct Program Code Match
+    if (pCode && (rProgId.toLowerCase() === pCode.toLowerCase() || rProgName.toLowerCase() === pCode.toLowerCase())) {
       return true;
     }
 
     if (exactOnly) return false;
 
-    // 2. Direct Exact Program Name Match
-    if (rProgName && pName && rProgName === pName) {
+    // 3. Direct Program Name Match
+    if (pName && (rProgName.toLowerCase() === pName || rProgId.toLowerCase() === pName)) {
       return true;
     }
 
-    // 3. Numeric Code match
+    // 4. Numeric Code match (e.g. 5 vs 05)
     const pCodeNum = parseInt(pCode, 10);
     const rProgIdNum = parseInt(rProgId || rProgName, 10);
-    if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum) {
+    if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum && String(pCodeNum) === String(rProgIdNum)) {
       return true;
     }
 
@@ -937,52 +938,48 @@ function App() {
         return true;
       };
 
-      // Priority 1: Exact ID / Code match within student's Category + Gender match
-      if (studentCatId) {
-        const exactCatGenMatch = programs.find(p =>
-          (String(p.catid || p.catId || '') === String(studentCatId) || String(p.category || '').toLowerCase() === String(studentCatId).toLowerCase()) &&
-          isGenderMatch(p) &&
-          isProgramMatch(r, p, true)
-        );
-        if (exactCatGenMatch) return exactCatGenMatch;
-      }
+      const isCatEligible = (p) => {
+        if (!studentCatId) return true;
+        const pCatId = String(p.catid || p.catId || '');
+        const sCatId = String(studentCatId);
+        return pCatId === sCatId || isGeneralProg(p);
+      };
 
-      // Priority 2: Exact ID / Code match across all programs + Gender match
-      const exactGenMatch = programs.find(p => isGenderMatch(p) && isProgramMatch(r, p, true));
-      if (exactGenMatch) return exactGenMatch;
+      // Priority 1: Exact ID / Code match WITHIN student's category + Gender match
+      const exactInCat = programs.find(p => isCatEligible(p) && isGenderMatch(p) && isProgramMatch(r, p, true));
+      if (exactInCat) return exactInCat;
 
-      // Priority 3: Name / Code match within student's Category + Gender match
-      if (studentCatId) {
-        const catGenMatch = programs.find(p =>
-          (String(p.catid || p.catId || '') === String(studentCatId) || String(p.category || '').toLowerCase() === String(studentCatId).toLowerCase()) &&
-          isGenderMatch(p) &&
-          isProgramMatch(r, p, false)
-        );
-        if (catGenMatch) return catGenMatch;
-      }
+      // Priority 2: Exact Name match WITHIN student's category + Gender match
+      const nameInCat = programs.find(p => isCatEligible(p) && isGenderMatch(p) && isProgramMatch(r, p, false));
+      if (nameInCat) return nameInCat;
 
-      // Priority 4: Name / Code match across all programs + Gender match
-      const genMatch = programs.find(p => isGenderMatch(p) && isProgramMatch(r, p, false));
-      if (genMatch) return genMatch;
+      // Priority 3: Fallback match in student's category (any gender)
+      const catFallback = programs.find(p => isCatEligible(p) && isProgramMatch(r, p, false));
+      if (catFallback) return catFallback;
 
-    // Priority 5: Fallback match across all programs
-    const fallback = programs.find(p => isProgramMatch(r, p, false));
-    if (fallback) return fallback;
+      // Priority 4: Exact Program primary key ID match across all programs
+      const rId = String(r.program_id || r.program_name || '').trim();
+      const exactIdMatch = programs.find(p => String(p.id) === rId);
+      if (exactIdMatch) return exactIdMatch;
 
-    // Priority 6: Synthesize fallback program object from registration record
-    const pIdStr = String(r.program_id || r.programId || r.progid || r.progId || r.prog_name || r.program_name || r.id || '').trim();
-    const pNameStr = String(r.program_name || r.programName || r.progname || r.progName || r.prog_name || (pIdStr ? `Program ${pIdStr}` : 'Program')).trim();
-    const pCodeStr = String(r.program_code || r.programCode || r.progcode || pIdStr || 'P').trim();
+      // Priority 5: Fallback match across all programs (only when no category match was found)
+      const fallback = programs.find(p => isGenderMatch(p) && isProgramMatch(r, p, false));
+      if (fallback) return fallback;
 
-    if (!pNameStr) return null;
-    return {
-      id: pIdStr || ('p_' + Math.random()),
-      code: pCodeStr,
-      name: pNameStr,
-      type: r.program_type || r.progtype || r.type || 'COMMON',
-      catid: r.category_id || r.catid || r.catId || ''
+      // Priority 6: Synthesize fallback program object from registration record
+      const pIdStr = String(r.program_id || r.programId || r.progid || r.progId || r.prog_name || r.program_name || r.id || '').trim();
+      const pNameStr = String(r.program_name || r.programName || r.progname || r.progName || r.prog_name || (pIdStr ? `Program ${pIdStr}` : 'Program')).trim();
+      const pCodeStr = String(r.program_code || r.programCode || r.progcode || pIdStr || 'P').trim();
+
+      if (!pNameStr) return null;
+      return {
+        id: pIdStr || ('p_' + Math.random()),
+        code: pCodeStr,
+        name: pNameStr,
+        type: r.program_type || r.progtype || r.type || 'COMMON',
+        catid: r.category_id || r.catid || r.catId || ''
+      };
     };
-  };
 
     let sRegs = [];
     if (!studentObj) {
@@ -998,14 +995,14 @@ function App() {
     // Deduplicate so every program appears EXACTLY ONCE for the student
     const uniqueMap = new Map();
     rawProgs.forEach(p => {
-      const pKey = String(p.code || p.id || '').trim().toLowerCase() || String(p.name || '').trim().toLowerCase();
+      const pKey = String(p.id || p.code || '').trim().toLowerCase() || String(p.name || '').trim().toLowerCase();
       if (!uniqueMap.has(pKey)) {
         uniqueMap.set(pKey, p);
       }
     });
 
     return Array.from(uniqueMap.values());
-  }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch]);
+  }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch, isGeneralProg, findStudentByRef]);
 
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
@@ -1360,7 +1357,7 @@ function App() {
     let hasMore = true;
     while (hasMore) {
       const { data, error } = await filter(
-        supabase.from(table).select('*').range(from, from + PAGE - 1)
+        supabase.from(table).select('*').order('id', { ascending: true }).range(from, from + PAGE - 1)
       );
       if (error) return { data: allRows.length > 0 ? allRows : null, error };
       if (!data || data.length === 0) { hasMore = false; break; }
@@ -1675,6 +1672,13 @@ function App() {
           const rawCache = localStorage.getItem(`cached_data_${rNum}`);
           let cacheObj = {};
           if (rawCache) { try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){} }
+          cacheObj.teams = Array.isArray(teamsData) ? teamsData : (cacheObj.teams || teams);
+          cacheObj.categories = Array.isArray(catsData) ? catsData : (cacheObj.categories || categories);
+          cacheObj.programs = Array.isArray(programsData) ? programsData : (cacheObj.programs || programs);
+          cacheObj.students = parsedStudents.length > 0 ? parsedStudents : (cacheObj.students || students);
+          cacheObj.resultsList = Array.isArray(resultsData) ? resultsData : (cacheObj.resultsList || resultsList);
+          cacheObj.groupRegistrations = Array.isArray(groupRegData) ? groupRegData : (cacheObj.groupRegistrations || groupRegistrations);
+          cacheObj.timetable = Array.isArray(timetableData) ? timetableData : (cacheObj.timetable || timetable);
           cacheObj.programRegistrations = finalRegs;
           cacheObj.savedAt = new Date().toISOString();
           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
@@ -10894,7 +10898,9 @@ ${pagesHtml}
                         if (!regTabStudent) { alert(t('alertPleaseSelectStudent')); return; }
                         setRegTabSaving(true);
                         try {
-                          const madrasaId = loggedInMadrasa.regNumber;
+                          const madrasaId = String(loggedInMadrasa?.regNumber || '').trim();
+                          if (!madrasaId) throw new Error('Madrasa ID missing');
+
                           const studentObj = selectedStudentObj || students.find(s => String(s.id) === String(regTabStudent));
                           if (!studentObj) {
                             alert(t('alertStudentNotFound'));
@@ -10903,100 +10909,76 @@ ${pagesHtml}
                           }
 
                           const sDbId = String(studentObj.id);
-                          const sRegNo = String(studentObj.regno || studentObj.regNo || '');
+                          const sRegNo = String(studentObj.regno || studentObj.regNo || '').trim();
 
-                          // Collect string representations of matching student IDs to delete in ONE atomic query
-                          const idsToDelete = Array.from(new Set([
-                            sDbId,
-                            ...(sRegNo ? [sRegNo] : [])
-                          ])).filter(Boolean).map(String);
+                          // Map checked program IDs to actual program objects
+                          const sCatId = String(studentObj.catid || studentObj.catId || studentObj.category || '');
+                          const validProgs = regTabCheckedProgs.map(pId => {
+                            return regPrograms.find(p => String(p.id) === String(pId)) ||
+                                   programs.find(p => String(p.id) === String(pId)) ||
+                                   programs.find(p => (String(p.catid || p.catId || '') === sCatId || isGeneralProg(p)) && String(p.code) === String(pId));
+                          }).filter(Boolean);
 
-                          const targetIdToInsert = sRegNo ? sRegNo : sDbId;
+                          const targetStudentId = sRegNo || sDbId;
+                          const rowsToInsert = validProgs.map(pObj => ({
+                            madrasa_id: madrasaId,
+                            student_id: targetStudentId,
+                            program_name: String(pObj.code || pObj.id)
+                          }));
 
-                          // Normalize checked programs to database IDs, prioritizing student's category programs
-                          const sCatId = studentObj.catid || studentObj.catId || studentObj.category || '';
-                          const normalizedCheckedProgs = Array.from(new Set(regTabCheckedProgs.map(pId => {
-                            const pObj = regPrograms.find(p => String(p.id) === String(pId) || String(p.code) === String(pId)) ||
-                                         programs.find(p => (String(p.catid || p.catId || '') === String(sCatId)) && (String(p.id) === String(pId) || String(p.code) === String(pId) || String(p.name || '').toLowerCase() === String(pId).toLowerCase())) ||
-                                         programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId) || String(p.name || '').toLowerCase() === String(pId).toLowerCase());
-                            return pObj ? String(pObj.id) : String(pId);
-                          })));
+                          // Robust deletion for ONLY this student in this madrasa
+                          const numMadrasaId = parseInt(madrasaId, 10);
+                          const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
+                          const mIds = isMIdNum ? [madrasaId, numMadrasaId] : [madrasaId];
 
-                          // Build optimistic local entries using normalized IDs
-                          const otherRegs = programRegistrations.filter(r => !idsToDelete.some(id => String(r.student_id) === String(id)));
-                          const newLocalEntries = normalizedCheckedProgs.map(pId => {
-                            const pObj = programs.find(p => String(p.id) === String(pId));
-                            return {
-                              id: 'temp_reg_' + Date.now() + '_' + Math.random(),
-                              madrasa_id: madrasaId,
-                              student_id: targetIdToInsert,
-                              program_name: String(pObj ? pObj.name : pId),
-                              program_id: String(pObj ? pObj.id : pId)
-                            };
-                          });
-                          const mappedOptimistic = [...otherRegs, ...newLocalEntries];
-
-                          // 🔒 VERIFIED SAVE FLOW: Perform DB operations first, confirm DB success, then update React state & cache
-                          try {
-                            const numMadrasaId = parseInt(madrasaId, 10);
-                            const isMIdNum = !isNaN(numMadrasaId) && String(numMadrasaId) === String(madrasaId).trim();
-                            const mIds = isMIdNum ? [madrasaId, numMadrasaId] : [madrasaId];
-
-                            if (idsToDelete.length > 0) {
-                              for (const idVal of idsToDelete) {
-                                await supabase
-                                  .from('program_registrations')
-                                  .delete()
-                                  .in('madrasa_id', Array.from(new Set(mIds)))
-                                  .eq('student_id', idVal);
-                              }
-                            }
-
-                            if (normalizedCheckedProgs.length > 0) {
-                              const buildRows = (mId, sId) => normalizedCheckedProgs.map(pId => {
-                                const pObj = programs.find(p => String(p.id) === String(pId) || String(p.code) === String(pId));
-                                const progCodeOrId = pObj ? String(pObj.code || pObj.id) : String(pId);
-                                return {
-                                  madrasa_id: String(mId),
-                                  student_id: String(sId),
-                                  program_name: progCodeOrId
-                                };
-                              });
-
-                              const rowsToInsert = buildRows(madrasaId, targetIdToInsert);
-                              const { error: insErr } = await supabase.from('program_registrations').insert(rowsToInsert);
-                              if (insErr) {
-                                throw new Error(insErr.message);
-                              }
-                            }
-
-                            // Update local state & LocalStorage cache AFTER DB confirmation
-                            fetchReqIdRef.current++;
-                            regTabDirtyRef.current = false;
-                            setProgramRegistrations(mappedOptimistic);
-                            setRegTabCheckedProgs(normalizedCheckedProgs);
-
-                            safeSetLocalStorage(`cached_regs_${madrasaId}`, JSON.stringify(mappedOptimistic));
-                            safeSetLocalStorage(`cached_data_${madrasaId}`, (rawCache) => {
-                              let cacheObj = {};
-                              try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){}
-                              cacheObj.programRegistrations = mappedOptimistic;
-                              cacheObj.savedAt = new Date().toISOString();
-                              return JSON.stringify(cacheObj);
-                            });
-
-                            alert(t('alertSavedRegistrations')
-                              .replace('{count}', normalizedCheckedProgs.length)
-                              .replace('{studentName}', studentObj?.name || '')
-                            );
-                          } catch (dbErr) {
-                            alert(t('alertUploadFailed') + getFriendlyErrorMessage(dbErr.message));
-                            if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
-                          } finally {
-                            setRegTabSaving(false);
+                          const deleteIds = Array.from(new Set([sRegNo, sDbId])).filter(Boolean);
+                          for (const dId of deleteIds) {
+                            await supabase
+                              .from('program_registrations')
+                              .delete()
+                              .in('madrasa_id', mIds)
+                              .eq('student_id', String(dId));
                           }
+
+                          // Insert new rows
+                          if (rowsToInsert.length > 0) {
+                            const { error: insErr } = await supabase.from('program_registrations').insert(rowsToInsert);
+                            if (insErr) throw insErr;
+                          }
+
+                          // Build optimistic local state
+                          const otherRegs = programRegistrations.filter(r => !isStudentMatch(r, studentObj));
+                          const newLocalEntries = validProgs.map(pObj => ({
+                            id: 'temp_reg_' + Date.now() + '_' + Math.random(),
+                            madrasa_id: madrasaId,
+                            student_id: targetStudentId,
+                            program_name: String(pObj.code || pObj.id),
+                            program_id: String(pObj.id)
+                          }));
+                          const updatedAllRegs = [...otherRegs, ...newLocalEntries];
+
+                          // Update React state & LocalStorage cache
+                          fetchReqIdRef.current++;
+                          regTabDirtyRef.current = false;
+                          setProgramRegistrations(updatedAllRegs);
+
+                          safeSetLocalStorage(`cached_regs_${madrasaId}`, JSON.stringify(updatedAllRegs));
+                          safeSetLocalStorage(`cached_data_${madrasaId}`, (rawCache) => {
+                            let cacheObj = {};
+                            try { cacheObj = JSON.parse(rawCache) || {}; } catch(e){}
+                            cacheObj.programRegistrations = updatedAllRegs;
+                            cacheObj.savedAt = new Date().toISOString();
+                            return JSON.stringify(cacheObj);
+                          });
+
+                          alert(t('alertSavedRegistrations')
+                            .replace('{count}', validProgs.length)
+                            .replace('{studentName}', studentObj?.name || '')
+                          );
                         } catch (err) {
                           alert(t('alertUploadFailed') + getFriendlyErrorMessage(err.message));
+                          if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+                        } finally {
                           setRegTabSaving(false);
                         }
                       };
