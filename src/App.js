@@ -832,6 +832,8 @@ function App() {
   const [judgeSheetCat, setJudgeSheetCat] = useState('');
   const [judgeSheetGender, setJudgeSheetGender] = useState('');
   const [judgeSheetProg, setJudgeSheetProg] = useState('');
+  const [judgeSheetBulkProgs, setJudgeSheetBulkProgs] = useState([]);
+  const [judgeSheetMode, setJudgeSheetMode] = useState('SINGLE'); // 'SINGLE' | 'BULK'
 
   // Entry Form states
   const [entryFormCat, setEntryFormCat] = useState('');
@@ -12887,19 +12889,21 @@ ${pagesHtml}
 
                       const selectedProgObj = programs.find(p => String(p.id) === String(judgeSheetProg));
                       const selectedCatObj = categories.find(c => String(c.id) === String(judgeSheetCat));
+                      const genderLabel = judgeSheetGender === 'BOY' ? (lang === 'EN' ? 'Boys' : 'ആൺകുട്ടികൾ') : judgeSheetGender === 'GIRL' ? (lang === 'EN' ? 'Girls' : 'പെൺകുട്ടികൾ') : (lang === 'EN' ? 'Common' : 'കോമൺ');
+                      const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                      const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                      const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                      const catName = selectedCatObj ? selectedCatObj.name : (judgeSheetCat === 'GENERAL' ? 'GENERAL' : '');
 
-                      // Students registered for this program: strictly use program_registrations
-                      const isGroupProg = selectedProgObj && (selectedProgObj.type || '').includes('GROUP');
-
-                      // Build items for Judge Sheet (Single student vs Group/Team)
-                      const judgeItems = (judgeSheetProg && selectedProgObj) ? (() => {
-                        if (isGroupProg) {
-                          // 1. Get explicit group registrations for this program
+                      // Helper: Resolve participants / teams for ANY program
+                      const getJudgeItemsForProg = (pObj) => {
+                        if (!pObj) return [];
+                        const isGroup = (pObj.type || '').includes('GROUP');
+                        if (isGroup) {
                           const progGroupRegs = groupRegistrations.filter(g =>
-                            String(g.program_id) === String(selectedProgObj.id) ||
-                            String(g.program_id) === String(selectedProgObj.code)
+                            String(g.program_id) === String(pObj.id) ||
+                            String(g.program_id) === String(pObj.code)
                           );
-
                           if (progGroupRegs.length > 0) {
                             return progGroupRegs.map(g => {
                               const teamObj = teams.find(t => String(t.id) === String(g.team_id));
@@ -12907,14 +12911,12 @@ ${pagesHtml}
                               const studentIds = Array.isArray(g.student_ids)
                                 ? g.student_ids
                                 : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
-
                               const leaderId = g.leader_id || (studentIds.length > 0 ? studentIds[0] : null);
                               const leaderStudent = students.find(s => String(s.id) === String(leaderId) || String(s.regno || s.regNo || '').trim() === String(leaderId).trim());
                               const memberStudents = students.filter(s =>
                                 studentIds.map(String).some(id => String(s.id) === String(id) || String(s.regno || s.regNo || '').trim() === String(id).trim()) &&
                                 String(s.id) !== String(leaderId)
                               );
-
                               return {
                                 id: g.id,
                                 isGroup: true,
@@ -12929,8 +12931,7 @@ ${pagesHtml}
                               };
                             });
                           } else {
-                            // Group program fallback: filter registered students for this group program (strictly isolated by selected Category & Gender)
-                            const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
+                            const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, pObj));
                             const baseStudents = students.filter(s => {
                               if (!s) return false;
                               if (judgeSheetGender && judgeSheetGender !== 'COMMON' && judgeSheetGender !== 'ALL') {
@@ -12944,20 +12945,17 @@ ${pagesHtml}
                               }
                               return matchingRegs.some(r => isStudentMatch(r, s));
                             });
-
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
                               const tId = String(s.teamid || s.teamId || 'no_team');
                               if (!teamGroupMap[tId]) teamGroupMap[tId] = [];
                               teamGroupMap[tId].push(s);
                             });
-
                             return Object.keys(teamGroupMap).map(tId => {
                               const teamSts = teamGroupMap[tId].sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0));
                               const teamObj = teams.find(t => String(t.id) === String(tId));
                               const leaderStudent = teamSts[0];
                               const memberStudents = teamSts.slice(1);
-
                               return {
                                 id: `team_${tId}`,
                                 isGroup: true,
@@ -12973,31 +12971,23 @@ ${pagesHtml}
                             });
                           }
                         } else {
-                          // Single program: Individual students registered for this program ONLY (strictly isolated by selected Category & Gender)
-                          const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, selectedProgObj));
+                          const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, pObj));
                           const baseStudents = students.filter(s => {
                             if (!s) return false;
-
-                            // 1. Gender Filter (strictly match selected division: BOY / GIRL / COMMON)
                             if (judgeSheetGender && judgeSheetGender !== 'COMMON' && judgeSheetGender !== 'ALL') {
                               if (String(s.gender || '').toUpperCase() !== String(judgeSheetGender).toUpperCase()) return false;
                             }
-
-                            // 2. Category Filter (strictly match selected category: Senior, Junior, etc.)
                             const sCatId = String(s.catid || s.catId || '');
                             if (judgeSheetCat === 'GENERAL' || isJudgeGeneral) {
                               if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
                             } else if (judgeSheetCat) {
                               if (sCatId !== String(judgeSheetCat)) return false;
                             }
-
-                            // 3. Program Registration Check
                             if (matchingRegs.length > 0) {
                               return matchingRegs.some(r => isStudentMatch(r, s));
                             }
-                            return checkIsStudentRegisteredForProg(s, selectedProgObj);
+                            return checkIsStudentRegisteredForProg(s, pObj);
                           });
-
                           return baseStudents
                             .sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0))
                             .map(s => ({
@@ -13009,200 +12999,297 @@ ${pagesHtml}
                               teamObj: teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''))
                             }));
                         }
-                      })() : [];
+                      };
 
-                      const buildJudgeSheetHtml = () => {
-                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
-                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                        const catName = selectedCatObj ? selectedCatObj.name : '';
-                        const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
-                        const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
+                      const currentProgItems = selectedProgObj ? getJudgeItemsForProg(selectedProgObj) : [];
+                      const isGroupProg = selectedProgObj && (selectedProgObj.type || '').includes('GROUP');
 
-                        const rows = judgeItems.map((item, idx) => {
-                          if (item.isGroup) {
-                            return `<tr style="min-height:50px; height:50px;">
-                              <td style="text-align:center; font-weight:700; border:1.5px solid #cbd5e1;">${idx + 1}</td>
-                              <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.leaderRegNo || '-'}</td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                            </tr>`;
-                          } else {
-                            return `<tr style="min-height:45px; height:45px;">
-                              <td style="text-align:center; font-weight:700; border:1.5px solid #cbd5e1;">${idx + 1}</td>
-                              <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5; border:1.5px solid #cbd5e1;">${item.regNo}</td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                              <td style="text-align:center; border:1.5px solid #cbd5e1;"></td>
-                            </tr>`;
-                          }
-                        }).join('');
+                      // Helper: Build a single program's portrait sheet HTML fragment
+                      const buildSingleSheetBlock = (pObj, pItems) => {
+                        const isGrp = (pObj.type || '').includes('GROUP');
+                        const progNameStr = `${pObj.code} - ${pObj.name}`;
+
+                        const filledRows = pItems.map((item, idx) => {
+                          const regNoDisplay = item.isGroup ? (item.leaderRegNo || '-') : item.regNo;
+                          return `<tr>
+                            <td style="text-align:center; font-weight:700; color:#475569;">${idx + 1}</td>
+                            <td style="text-align:center; font-weight:800; font-size:12px; color:#064e3b; background:#ecfdf5;">${regNoDisplay}</td>
+                            <td style="text-align:center;"></td>
+                            <td style="text-align:center;"></td>
+                            <td style="text-align:center;"></td>
+                            <td style="text-align:center;"></td>
+                            <td style="text-align:center;"></td>
+                            <td style="text-align:center;"></td>
+                            <td style="text-align:center;"></td>
+                          </tr>`;
+                        });
+
+                        // If fewer than 16 rows, pad with neat empty lines up to 16 rows
+                        const minRows = 16;
+                        const emptyRowsCount = Math.max(0, minRows - pItems.length);
+                        const emptyRows = [];
+                        for (let i = 0; i < emptyRowsCount; i++) {
+                          const rowNum = pItems.length + i + 1;
+                          emptyRows.push(`<tr>
+                            <td style="text-align:center; color:#94a3b8; font-weight:600;">${rowNum}</td>
+                            <td style="text-align:center; background:#f8fafc;"></td>
+                            <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                          </tr>`);
+                        }
+
+                        const allRowsHtml = [...filledRows, ...emptyRows].join('');
 
                         return `
-<!DOCTYPE html>
+<div class="judge-sheet-page">
+  <div class="sheet-wrapper">
+    <div class="sheet-header">
+      <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
+      ${eventName ? `<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+      <div class="madrasa-name">${madrasaName}</div>
+      <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
+    </div>
+    <div class="sheet-subtitle-bar">
+      <div class="subtitle-item">
+        <span class="subtitle-label">Category:</span>
+        <span class="subtitle-value">${catName} (${genderLabel})</span>
+      </div>
+      <div class="subtitle-item">
+        <span class="subtitle-label">Program:</span>
+        <span class="subtitle-value">${progNameStr}</span>
+      </div>
+      <div class="subtitle-item">
+        <span class="subtitle-label">${isGrp ? 'Total Teams:' : 'Total Participants:'}</span>
+        <span class="subtitle-value">${pItems.length} ${isGrp ? 'Teams' : 'Students'}</span>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px; text-align:center;">Sl.No</th>
+            <th style="width:68px; text-align:center;">Reg. No</th>
+            <th style="width:55px; text-align:center;">Chance No</th>
+            <th style="width:50px; text-align:center;">Judge 1</th>
+            <th style="width:50px; text-align:center;">Judge 2</th>
+            <th style="width:50px; text-align:center;">Total</th>
+            <th style="width:44px; text-align:center;">Grade</th>
+            <th style="width:44px; text-align:center;">Rank</th>
+            <th style="text-align:center;">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${allRowsHtml}
+        </tbody>
+      </table>
+      <div class="sheet-footer">
+        <div class="signature-box">
+          <div style="height:36px"></div>
+          <div class="signature-line">Judge Signature 1</div>
+        </div>
+        <div class="footer-center">
+          <div>Milad Fest | ${catName} | ${progNameStr}</div>
+          <div style="margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        </div>
+        <div class="signature-box">
+          <div style="height:36px"></div>
+          <div class="signature-line">Judge Signature 2</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+                      };
+
+                      // Helper: Build complete HTML document with Portrait styles
+                      const buildCompleteDocumentHtml = (progsList, docTitle = 'Judge Sheet') => {
+                        const pagesHtml = progsList.map(p => {
+                          const pItems = getJudgeItemsForProg(p);
+                          return buildSingleSheetBlock(p, pItems);
+                        }).join('\n');
+
+                        return `<!DOCTYPE html>
 <html>
 <head>
-<title>Judge Sheet - ${progName}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<title>${docTitle}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4 landscape; margin: 12mm 12mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
-  .sheet-wrapper { border: 3px solid #064e3b; border-radius: 10px; overflow: hidden; }
+  @page {
+    size: A4 portrait;
+    margin: 8mm 8mm 10mm 8mm;
+  }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .judge-sheet-page {
+    width: 100%;
+    page-break-after: always;
+    break-after: page;
+    margin-bottom: 25px;
+  }
+  @media print {
+    body {
+      background: transparent;
+    }
+    .judge-sheet-page {
+      margin-bottom: 0;
+    }
+    .judge-sheet-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+  }
+  .sheet-wrapper {
+    border: 2px solid #064e3b;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #ffffff;
+  }
   .sheet-header {
     background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
     color: white;
     text-align: center;
-    padding: 16px 20px 12px;
+    padding: 10px 14px 8px;
   }
   .festival-title {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 3px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
     text-transform: uppercase;
     opacity: 0.9;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
   .madrasa-name {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    margin-bottom: 3px;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    line-height: 1.2;
   }
   .madrasa-meta {
-    font-size: 11px;
-    opacity: 0.8;
+    font-size: 10px;
+    opacity: 0.85;
+    font-weight: 600;
   }
   .sheet-subtitle-bar {
     background: #f59e0b;
-    padding: 8px 20px;
+    padding: 6px 14px;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 30px;
+    gap: 10px;
     flex-wrap: wrap;
+    border-bottom: 1.5px solid #d97706;
   }
-  .subtitle-item { display: flex; align-items: center; gap: 6px; }
-  .subtitle-label { font-size: 10px; font-weight: 700; color: #78350f; text-transform: uppercase; letter-spacing: 0.5px; }
-  .subtitle-value { font-size: 13px; font-weight: 800; color: #1c1917; }
-  .sheet-body { padding: 14px 18px 18px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .subtitle-item { display: flex; align-items: center; gap: 5px; }
+  .subtitle-label { font-size: 9.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.4px; }
+  .subtitle-value { font-size: 11.5px; font-weight: 900; color: #1c1917; }
+  .sheet-body { padding: 8px 10px 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
   thead tr { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; }
   th {
-    padding: 8px 6px;
-    font-weight: 700;
-    font-size: 11px;
+    padding: 6px 3px;
+    font-weight: 800;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border: 1px solid rgba(255,255,255,0.2);
+    letter-spacing: 0.3px;
+    border: 1px solid #064e3b;
     text-align: center;
+    color: #ffffff;
   }
-  td { padding: 8px 6px; border: 1.5px solid #cbd5e1; min-height: 36px; }
+  td {
+    padding: 3.5px 3px;
+    border: 1px solid #cbd5e1;
+    min-height: 24px;
+    height: 24px;
+    font-size: 10.5px;
+  }
   tbody tr:nth-child(even) { background: #f8fafc; }
   .sheet-footer {
-    margin-top: 28px;
+    margin-top: 14px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 10px;
+    padding: 0 8px;
   }
   .signature-box {
     text-align: center;
-    width: 200px;
+    width: 140px;
   }
   .signature-line {
     border-top: 1.5px solid #1e293b;
-    padding-top: 5px;
+    padding-top: 4px;
     font-weight: 700;
     color: #1e293b;
-    font-size: 12px;
+    font-size: 10.5px;
   }
   .footer-center {
     text-align: center;
-    color: #94a3b8;
-    font-size: 10px;
+    color: #64748b;
+    font-size: 9.5px;
+    font-weight: 600;
   }
 </style>
 </head>
 <body>
-<div class="sheet-wrapper">
-  <div class="sheet-header">
-    <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
-    ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#a7f3d0;opacity:0.9;margin-bottom:3px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
-    <div class="madrasa-name">${madrasaName}</div>
-    <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
-  </div>
-  <div class="sheet-subtitle-bar">
-    <div class="subtitle-item">
-      <span class="subtitle-label">Category:</span>
-      <span class="subtitle-value">${catName} (${genderLabel})</span>
-    </div>
-    <div class="subtitle-item">
-      <span class="subtitle-label">Program:</span>
-      <span class="subtitle-value">${progName}</span>
-    </div>
-    <div class="subtitle-item">
-      <span class="subtitle-label">${isGroupProg ? 'Total Teams:' : 'Total Participants:'}</span>
-      <span class="subtitle-value">${judgeItems.length} ${isGroupProg ? 'Teams' : 'Students'}</span>
-    </div>
-  </div>
-  <div class="sheet-body">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:45px; text-align:center;">Sl.No</th>
-          <th style="width:90px; text-align:center;">Reg. No</th>
-          <th style="width:80px; text-align:center;">Chance No</th>
-          <th style="width:75px; text-align:center;">Judge 1</th>
-          <th style="width:75px; text-align:center;">Judge 2</th>
-          <th style="width:75px; text-align:center;">Total</th>
-          <th style="width:65px; text-align:center;">Grade</th>
-          <th style="width:65px; text-align:center;">Rank</th>
-          <th style="text-align:center;">Remarks</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:30px">No entries registered.</td></tr>'}
-      </tbody>
-    </table>
-    <div class="sheet-footer">
-      <div class="signature-box">
-        <div style="height:50px"></div>
-        <div class="signature-line">Judge Signature 1</div>
-      </div>
-      <div class="footer-center">
-        <div>Milad Fest | ${catName} | ${progName}</div>
-        <div style="margin-top:3px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
-      </div>
-      <div class="signature-box">
-        <div style="height:50px"></div>
-        <div class="signature-line">Judge Signature 2</div>
-      </div>
-    </div>
-  </div>
-</div>
+${pagesHtml}
 </body>
 </html>`;
                       };
 
-                      const handlePrintJudgeSheet = () => {
-                        if (!judgeSheetProg) { alert('Please select a program first!'); return; }
-                        printHtml(buildJudgeSheetHtml());
+                      // Single program print & download
+                      const handlePrintSingleJudgeSheet = () => {
+                        if (!selectedProgObj) { alert('Please select a program first!'); return; }
+                        const html = buildCompleteDocumentHtml([selectedProgObj], `Judge Sheet - ${selectedProgObj.name}`);
+                        printHtml(html);
                       };
 
-                      const handleDownloadJudgeSheetPDF = () => {
-                        if (!judgeSheetProg) { alert('Please select a program first!'); return; }
-                        const progName = selectedProgObj ? `${selectedProgObj.code}_${selectedProgObj.name}` : 'JudgeSheet';
-                        downloadHtmlAsPdf(buildJudgeSheetHtml(), `JudgeSheet_${progName}.pdf`);
+                      const handleDownloadSingleJudgeSheetPDF = () => {
+                        if (!selectedProgObj) { alert('Please select a program first!'); return; }
+                        const progCodeName = `${selectedProgObj.code}_${selectedProgObj.name}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const html = buildCompleteDocumentHtml([selectedProgObj], `Judge Sheet - ${selectedProgObj.name}`);
+                        downloadHtmlAsPdf(html, `JudgeSheet_${progCodeName}.pdf`);
+                      };
+
+                      // Bulk programs print & download
+                      const handlePrintBulkJudgeSheets = () => {
+                        const targetProgs = judgePrograms.filter(p => judgeSheetBulkProgs.includes(String(p.id)));
+                        if (targetProgs.length === 0) {
+                          alert(lang === 'EN' ? 'Please select at least one program!' : 'ദയവായി കുറഞ്ഞത് ഒരു പ്രോഗ്രാമെങ്കിലും തിരഞ്ഞെടുക്കുക!');
+                          return;
+                        }
+                        const html = buildCompleteDocumentHtml(targetProgs, `Judge Sheets (${targetProgs.length} Programs)`);
+                        printHtml(html);
+                      };
+
+                      const handleDownloadBulkJudgeSheetsPDF = () => {
+                        const targetProgs = judgePrograms.filter(p => judgeSheetBulkProgs.includes(String(p.id)));
+                        if (targetProgs.length === 0) {
+                          alert(lang === 'EN' ? 'Please select at least one program!' : 'ദയവായി കുറഞ്ഞത് ഒരു പ്രോഗ്രാമെങ്കിലും തിരഞ്ഞെടുക്കുക!');
+                          return;
+                        }
+                        const catClean = (catName || 'Category').replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const html = buildCompleteDocumentHtml(targetProgs, `Judge Sheets - ${catName} (${targetProgs.length} Programs)`);
+                        downloadHtmlAsPdf(html, `JudgeSheets_${catClean}_${targetProgs.length}_Programs.pdf`);
+                      };
+
+                      const handleDownloadAllCategoryPDF = () => {
+                        if (judgePrograms.length === 0) {
+                          alert(lang === 'EN' ? 'No programs available in this category!' : 'ഈ വിഭാഗത്തിൽ പ്രോഗ്രാമുകളൊന്നും ലഭ്യമല്ല!');
+                          return;
+                        }
+                        const catClean = (catName || 'Category').replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const html = buildCompleteDocumentHtml(judgePrograms, `Judge Sheets - All ${catName} (${judgePrograms.length} Programs)`);
+                        downloadHtmlAsPdf(html, `JudgeSheets_ALL_${catClean}_${judgePrograms.length}_Programs.pdf`);
                       };
 
                       return (
@@ -13218,7 +13305,7 @@ ${pagesHtml}
                                 color: !showEntryForm ? 'white' : '#64748b',
                                 transition: 'all 0.2s'
                               }}
-                            >📋 Judge Sheet</button>
+                            >📋 Judge Sheet (പോർട്രെയിറ്റ്)</button>
                             <button
                               type="button"
                               onClick={() => setShowEntryForm(true)}
@@ -13231,228 +13318,332 @@ ${pagesHtml}
                             >📝 Entry Form</button>
                           </div>
 
-                          {/* ── JUDGE SHEET (existing) ── */}
+                          {/* ── JUDGE SHEET ── */}
                           {!showEntryForm && (
                             <>
                               <div className="settings-form-box">
-                                <h3>📋 Judge Evaluation Sheet</h3>
-                                <div className="settings-form">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                  <h3 style={{ margin: 0 }}>📋 Judge Evaluation Sheet (Portrait A4)</h3>
+                                  <span style={{ fontSize: '12px', background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '8px', fontWeight: '800' }}>
+                                    ✨ Portrait Mode (പോർട്രെയിറ്റ്)
+                                  </span>
+                                </div>
 
+                                <div className="settings-form">
                                   {/* Step 1: Category & Gender */}
-                                  <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '6px' }}>① Select Category & Division</label>
+                                  <div style={{ background: '#eff6ff', padding: '12px', borderRadius: '10px', border: '1.5px solid #bfdbfe' }}>
+                                    <label style={{ fontSize: '12px', fontWeight: '800', color: '#1e40af', display: 'block', marginBottom: '6px' }}>
+                                      ① {lang === 'EN' ? 'Select Category & Division' : 'കാറ്റഗറിയും ഡിവിഷനും തിരഞ്ഞെടുക്കുക'}
+                                    </label>
                                     <select className="settings-input" value={judgeSheetCat && judgeSheetGender ? `${judgeSheetCat}_${judgeSheetGender}` : ''} onChange={e => {
                                       const val = e.target.value;
                                       if (!val) { setJudgeSheetCat(''); setJudgeSheetGender(''); }
                                       else { const [cId, g] = val.split('_'); setJudgeSheetCat(cId); setJudgeSheetGender(g); }
                                       setJudgeSheetProg('');
+                                      setJudgeSheetBulkProgs([]);
                                     }}>
-                                      <option value="">-- Select Category & Division --</option>
+                                      <option value="">-- {lang === 'EN' ? 'Select Category & Division' : 'കാറ്റഗറിയും ഡിവിഷനും തിരഞ്ഞെടുക്കുക'} --</option>
                                       {categories.map(c => (
                                         <React.Fragment key={c.id}>
-                                          <option value={`${c.id}_BOY`}>{c.name} - Boys</option>
-                                          <option value={`${c.id}_GIRL`}>{c.name} - Girls</option>
-                                          <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
+                                          <option value={`${c.id}_BOY`}>{c.name} - {lang === 'EN' ? 'Boys' : 'ആൺകുട്ടികൾ'}</option>
+                                          <option value={`${c.id}_GIRL`}>{c.name} - {lang === 'EN' ? 'Girls' : 'പെൺകുട്ടികൾ'}</option>
+                                          <option value={`${c.id}_COMMON`}>{c.name} - {lang === 'EN' ? 'Common' : 'കോമൺ'}</option>
                                         </React.Fragment>
                                       ))}
                                       {generalCatIds.length > 0 && (
                                         <React.Fragment>
-                                          <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                          <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                          <option value="GENERAL_COMMON">GENERAL - Common</option>
+                                          <option value="GENERAL_BOY">GENERAL - {lang === 'EN' ? 'Boys' : 'ആൺകുട്ടികൾ'}</option>
+                                          <option value="GENERAL_GIRL">GENERAL - {lang === 'EN' ? 'Girls' : 'പെൺകുട്ടികൾ'}</option>
+                                          <option value="GENERAL_COMMON">GENERAL - {lang === 'EN' ? 'Common' : 'കോമൺ'}</option>
                                         </React.Fragment>
                                       )}
                                     </select>
                                   </div>
 
-                                  {/* Step 2: Program */}
-                                  <div style={{ background: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '6px' }}>② Select Program</label>
-                                    <select className="settings-input" value={judgeSheetProg} onChange={e => setJudgeSheetProg(e.target.value)} disabled={!judgeSheetCat}>
-                                      <option value="">{judgeSheetCat ? '-- Select Program --' : 'Select Category First'}</option>
-                                      {judgePrograms.map(p => {
-                                        const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
-                                        const pGenderLabel = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
-                                        return <option key={p.id} value={p.id}>{p.code} - {p.name} ({pTypeLabel} {pGenderLabel})</option>;
-                                      })}
-                                    </select>
-                                  </div>
-
-                                  {/* Preview info */}
-                                  {judgeSheetProg && (
-                                    <div style={{ background: '#fefce8', padding: '10px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', marginBottom: '4px' }}>📊 Preview</div>
-                                      <div style={{ fontSize: '13px', color: '#1e293b' }}>
-                                        <strong>{judgeItems.length}</strong> {isGroupProg ? 'teams' : 'participants'} registered in{' '}
-                                        <strong>{selectedProgObj ? selectedProgObj.name : ''}</strong>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                    <button
-                                      type="button"
-                                      onClick={handlePrintJudgeSheet}
-                                      disabled={!judgeSheetProg}
-                                      className="btn-add-action"
-                                      style={{ flex: 1, background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
-                                    >
-                                      🖨️ Print Judge Sheet
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={handleDownloadJudgeSheetPDF}
-                                      disabled={!judgeSheetProg}
-                                      className="btn-add-action"
-                                      style={{ flex: 1, background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
-                                    >
-                                      📥 Download Judge Sheet PDF
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Preview list */}
-                              <div className="settings-list-box" style={{ maxHeight: 'none' }}>
-                                <h3>📋 {judgeSheetProg ? `${isGroupProg ? 'Teams' : 'Participants'} – ${selectedProgObj ? selectedProgObj.name : ''}` : 'Select a Program'}</h3>
-                                {!judgeSheetProg ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>Please select a category and program above.</p>
-                                ) : judgeItems.length === 0 ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>No entries registered in this category/division.</p>
-                                ) : (
-                                  <>
-                                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
-                                      📌 {judgeItems.length} {isGroupProg ? 'teams' : 'participants'} will appear on the sheet.
-                                    </div>
-                                    {judgeItems.map((item, idx) => {
-                                      if (item.isGroup) {
-                                        return (
-                                          <div key={item.id} style={{
-                                            display: 'flex', flexDirection: 'column', gap: '4px',
-                                            padding: '10px 12px', borderBottom: '1px solid #e2e8f0',
-                                            background: idx % 2 === 0 ? '#f8fafc' : '#fff'
-                                          }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#064e3b' }}>
-                                                🚩 {item.teamName}
-                                              </div>
-                                              {item.teamCode && (
-                                                <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 6px', fontWeight: '800' }}>
-                                                  {item.teamCode}
-                                                </span>
-                                              )}
-                                            </div>
-                                            <div style={{ fontSize: '12px', color: '#1e293b', fontWeight: '700' }}>
-                                              👑 Leader: <span style={{ background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px' }}>Reg No: {item.leaderRegNo || '-'}</span> {item.leaderName ? `(${item.leaderName})` : ''}
-                                            </div>
-                                            {item.memberStudents && item.memberStudents.length > 0 && (
-                                              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                                👥 Members: {item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      } else {
-                                        const s = item.student;
-                                        const sRegNo = item.regNo;
-                                        const teamObj = item.teamObj;
-                                        return (
-                                          <div key={item.id} style={{
-                                            display: 'flex', alignItems: 'center', gap: '10px',
-                                            padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
-                                            background: idx % 2 === 0 ? '#f8fafc' : '#fff'
-                                          }}>
-                                            <span style={{
-                                              background: '#064e3b', color: 'white', borderRadius: '6px',
-                                              padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
-                                            }}>{sRegNo}</span>
-                                            <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
-                                            <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
-                                            <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
-                                            >{s.gender === 'BOY' ? '👦' : '👧'}</span>
-                                          </div>
-                                        );
-                                      }
-                                    })}
-                                    {/* Download Participants PDF button */}
-                                    <div style={{ padding: '12px 10px 4px' }}>
+                                  {/* Step 2: Selection Mode Toggle (Single vs Multi-Program Bulk) */}
+                                  {judgeSheetCat && (
+                                    <div style={{ display: 'flex', gap: '8px', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setJudgeSheetMode('SINGLE')}
+                                        style={{
+                                          flex: 1, padding: '8px 14px', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '13px', cursor: 'pointer',
+                                          background: judgeSheetMode === 'SINGLE' ? '#0f766e' : 'transparent',
+                                          color: judgeSheetMode === 'SINGLE' ? 'white' : '#475569',
+                                          boxShadow: judgeSheetMode === 'SINGLE' ? '0 2px 6px rgba(15,118,110,0.3)' : 'none'
+                                        }}
+                                      >
+                                        📌 {lang === 'EN' ? 'Single Program' : 'ഒരു പ്രോഗ്രാം'}
+                                      </button>
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          const catName = selectedCatObj ? selectedCatObj.name : '';
-                                          const genderLabel = judgeSheetGender === 'BOY' ? 'Boys' : judgeSheetGender === 'GIRL' ? 'Girls' : 'Common';
-                                          const progName = selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : '';
-                                          const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-
-                                          const rows = judgeItems.map((item, idx) => {
-                                            if (item.isGroup) {
-                                              const leaderDisplay = item.leaderRegNo ? `Reg No: <b>${item.leaderRegNo}</b> (${item.leaderName})` : '-';
-                                              const membersDisplay = item.memberStudents && item.memberStudents.length > 0
-                                                ? item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')
-                                                : '';
-
-                                              return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
-                                            <td style="text-align:left;font-weight:800;font-size:13px;color:#064e3b;padding:10px 12px;border:1px solid #cbd5e1">🚩 ${item.teamName}</td>
-                                            <td style="padding:10px 12px;font-size:12px;color:#1e293b;border:1px solid #cbd5e1">👑 ${leaderDisplay}</td>
-                                            <td style="padding:10px 12px;font-size:11px;color:#475569;border:1px solid #cbd5e1">👥 ${membersDisplay}</td>
-                                          </tr>`;
-                                            } else {
-                                              const sRegNo = item.regNo;
-                                              const sName = item.name;
-                                              const teamName = item.teamObj ? item.teamObj.name : '';
-                                              return `<tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'}">
-                                            <td style="text-align:center;font-weight:800;font-size:13px;color:#064e3b;background:#ecfdf5;padding:8px 10px;border:1px solid #cbd5e1">${sRegNo}</td>
-                                            <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1e293b;border:1px solid #cbd5e1">${sName}</td>
-                                            <td style="padding:8px 12px;font-size:12px;color:#475569;border:1px solid #cbd5e1">${teamName}</td>
-                                          </tr>`;
-                                            }
-                                          }).join('');
-
-                                          const html = `<!DOCTYPE html><html><head><title>${isGroupProg ? 'Teams' : 'Participants'} - ${progName}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  @page { size: A4 portrait; margin: 15mm; }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; }
-  .wrapper { border:3px solid #064e3b; border-radius:10px; overflow:hidden; }
-  .hdr { background:linear-gradient(135deg,#064e3b,#0f766e); color:#fff; text-align:center; padding:16px 20px 12px; }
-  .hdr-title { font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; opacity:0.85; margin-bottom:4px; }
-  .hdr-name { font-size:20px; font-weight:800; margin-bottom:2px; }
-  .subtitle-bar { background:#f59e0b; padding:7px 20px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap; }
-  .sl { display:flex; align-items:center; gap:5px; }
-  .sl-lbl { font-size:9px; font-weight:700; color:#78350f; text-transform:uppercase; }
-  .sl-val { font-size:12px; font-weight:800; color:#1c1917; }
-  .body { padding:14px 16px 18px; }
-  table { width:100%; border-collapse:collapse; font-size:12px; }
-  thead tr { background:linear-gradient(90deg,#064e3b,#0f766e); color:#fff; }
-  th { padding:9px 10px; font-weight:700; font-size:11px; text-transform:uppercase; border:1px solid rgba(255,255,255,0.2); text-align:left; }
-  td { padding:9px 10px; border:1px solid #cbd5e1; }
-</style></head><body>
-<div class="wrapper">
-  <div class="hdr"><div class="hdr-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>${eventName ? `<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin:1px 0 2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}<div class="hdr-name">${madrasaName}</div></div>
-  <div class="subtitle-bar">
-    <div class="sl"><span class="sl-lbl">Category:</span><span class="sl-val">${catName} (${genderLabel})</span></div>
-    <div class="sl"><span class="sl-lbl">Program:</span><span class="sl-val">${progName}</span></div>
-    <div class="sl"><span class="sl-lbl">Total:</span><span class="sl-val">${judgeItems.length} ${isGroupProg ? 'Teams' : 'Participants'}</span></div>
-  </div>
-  <div class="body">
-    <table><thead><tr>
-      ${isGroupProg ? '<th style="width:140px">Team</th><th style="width:180px">Leader</th><th>Members</th>' : '<th style="width:100px">Reg. No</th><th>Student Name</th><th style="width:150px">Team</th>'}
-    </tr></thead>
-    <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No entries registered.</td></tr>'}</tbody></table>
-  </div>
-</div></body></html>`;
-                                          downloadHtmlAsPdf(html, `Participants_${progName}.pdf`);
+                                          setJudgeSheetMode('BULK');
+                                          if (judgeSheetBulkProgs.length === 0) {
+                                            setJudgeSheetBulkProgs(judgePrograms.map(p => String(p.id)));
+                                          }
                                         }}
-                                        className="btn-add-action"
-                                        style={{ width: '100%', background: '#1d4ed8' }}
+                                        style={{
+                                          flex: 1, padding: '8px 14px', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '13px', cursor: 'pointer',
+                                          background: judgeSheetMode === 'BULK' ? '#0f766e' : 'transparent',
+                                          color: judgeSheetMode === 'BULK' ? 'white' : '#475569',
+                                          boxShadow: judgeSheetMode === 'BULK' ? '0 2px 6px rgba(15,118,110,0.3)' : 'none'
+                                        }}
                                       >
-                                        📄 Download ${isGroupProg ? 'Teams' : 'Participants'} PDF
+                                        📑 {lang === 'EN' ? 'Bulk Multi-Programs' : 'ഒന്നിലധികം പ്രോഗ്രാമുകൾ (Bulk PDF)'}
                                       </button>
                                     </div>
-                                  </>
-                                )}
+                                  )}
+
+                                  {/* ── SINGLE PROGRAM MODE ── */}
+                                  {judgeSheetCat && judgeSheetMode === 'SINGLE' && (
+                                    <>
+                                      <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '10px', border: '1.5px solid #bbf7d0' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: '800', color: '#166534', display: 'block', marginBottom: '6px' }}>
+                                          ② {lang === 'EN' ? 'Select Program' : 'പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'}
+                                        </label>
+                                        <select className="settings-input" value={judgeSheetProg} onChange={e => setJudgeSheetProg(e.target.value)}>
+                                          <option value="">-- {lang === 'EN' ? 'Select Program' : 'പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'} --</option>
+                                          {judgePrograms.map(p => {
+                                            const pTypeLabel = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                            const pGenderLabel = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
+                                            const sCount = getJudgeItemsForProg(p).length;
+                                            return (
+                                              <option key={p.id} value={p.id}>
+                                                {p.code} - {p.name} ({pTypeLabel} {pGenderLabel}) [{sCount} {isGroupProg ? 'teams' : 'students'}]
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      </div>
+
+                                      {/* Preview Info Badge */}
+                                      {judgeSheetProg && (
+                                        <div style={{ background: '#fefce8', padding: '10px 14px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#854d0e', marginBottom: '2px' }}>📊 Preview Info</div>
+                                          <div style={{ fontSize: '13px', color: '#1e293b' }}>
+                                            <strong>{currentProgItems.length}</strong> {isGroupProg ? 'teams' : 'participants'} registered in{' '}
+                                            <strong>{selectedProgObj ? `${selectedProgObj.code} - ${selectedProgObj.name}` : ''}</strong>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Single Print & PDF Buttons */}
+                                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                        <button
+                                          type="button"
+                                          onClick={handlePrintSingleJudgeSheet}
+                                          disabled={!judgeSheetProg}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                        >
+                                          🖨️ {lang === 'EN' ? 'Print Judge Sheet (Portrait)' : 'പ്രിന്റ് ജഡ്ജ് ഷീറ്റ് (പോർട്രെയിറ്റ്)'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={handleDownloadSingleJudgeSheetPDF}
+                                          disabled={!judgeSheetProg}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                        >
+                                          📥 {lang === 'EN' ? 'Download PDF (Portrait)' : 'ഡൗൺലോഡ് PDF (പോർട്രെയിറ്റ്)'}
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {/* ── BULK MULTI-PROGRAM MODE ── */}
+                                  {judgeSheetCat && judgeSheetMode === 'BULK' && (
+                                    <>
+                                      <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1.5px solid #cbd5e1' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                                          <label style={{ fontSize: '13px', fontWeight: '800', color: '#0f766e', margin: 0 }}>
+                                            ② {lang === 'EN' ? 'Select Programs for Combined PDF / Print' : 'ഒന്നിച്ചു PDF / പ്രിന്റ് ചെയ്യേണ്ട പ്രോഗ്രാമുകൾ തിരഞ്ഞെടുക്കുക'}
+                                          </label>
+                                          <div style={{ display: 'flex', gap: '6px' }}>
+                                            <button
+                                              type="button"
+                                              onClick={() => setJudgeSheetBulkProgs(judgePrograms.map(p => String(p.id)))}
+                                              style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}
+                                            >
+                                              ✓ {lang === 'EN' ? 'Select All' : 'എല്ലാം തിരഞ്ഞെടുക്കുക'} ({judgePrograms.length})
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => setJudgeSheetBulkProgs([])}
+                                              style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}
+                                            >
+                                              ✕ {lang === 'EN' ? 'Clear All' : 'ഒഴിവാക്കുക'}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* Program Checklist Box */}
+                                        {judgePrograms.length === 0 ? (
+                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>{lang === 'EN' ? 'No programs in this category.' : 'ഈ കാറ്റഗറിയിൽ പ്രോഗ്രാമുകൾ ഇല്ല.'}</p>
+                                        ) : (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+                                            {judgePrograms.map(p => {
+                                              const isChecked = judgeSheetBulkProgs.includes(String(p.id));
+                                              const pType = (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤';
+                                              const pGender = (p.type || '').includes('BOY') ? '👦' : (p.type || '').includes('GIRL') ? '👧' : '🚻';
+                                              const pCount = getJudgeItemsForProg(p).length;
+
+                                              return (
+                                                <label
+                                                  key={p.id}
+                                                  style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                                                    background: isChecked ? '#f0fdf4' : '#ffffff',
+                                                    border: isChecked ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                                                    transition: 'all 0.15s ease'
+                                                  }}
+                                                >
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isChecked}
+                                                      onChange={e => {
+                                                        const pIdStr = String(p.id);
+                                                        if (e.target.checked) {
+                                                          setJudgeSheetBulkProgs(prev => Array.from(new Set([...prev, pIdStr])));
+                                                        } else {
+                                                          setJudgeSheetBulkProgs(prev => prev.filter(id => id !== pIdStr));
+                                                        }
+                                                      }}
+                                                      style={{ width: '17px', height: '17px', accentColor: '#0f766e', cursor: 'pointer' }}
+                                                    />
+                                                    <div>
+                                                      <span style={{ background: '#1e293b', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '800', marginRight: '6px' }}>
+                                                        {p.code}
+                                                      </span>
+                                                      <strong style={{ fontSize: '13px', color: isChecked ? '#065f46' : '#1e293b' }}>
+                                                        {p.name}
+                                                      </strong>
+                                                      <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>
+                                                        ({pType} {pGender})
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                  <span style={{ fontSize: '12px', fontWeight: '800', color: pCount > 0 ? '#0f766e' : '#94a3b8', background: pCount > 0 ? '#dcfce7' : '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
+                                                    {pCount} {pType.includes('Group') ? 'teams' : 'students'}
+                                                  </span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
+                                        {/* Selection Summary */}
+                                        <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: '700', color: '#0f766e', textAlign: 'right' }}>
+                                          ✓ {judgeSheetBulkProgs.length} / {judgePrograms.length} {lang === 'EN' ? 'programs selected' : 'പ്രോഗ്രാമുകൾ തിരഞ്ഞെടുത്തു'}
+                                        </div>
+                                      </div>
+
+                                      {/* Bulk Action Buttons */}
+                                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                        <button
+                                          type="button"
+                                          onClick={handlePrintBulkJudgeSheets}
+                                          disabled={judgeSheetBulkProgs.length === 0}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, background: judgeSheetBulkProgs.length > 0 ? '#0f766e' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
+                                        >
+                                          🖨️ {lang === 'EN' ? `Print Selected (${judgeSheetBulkProgs.length} Programs)` : `തിരഞ്ഞെടുത്തവ പ്രിന്റ് ചെയ്യുക (${judgeSheetBulkProgs.length} എണ്ണം)`}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={handleDownloadBulkJudgeSheetsPDF}
+                                          disabled={judgeSheetBulkProgs.length === 0}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, background: judgeSheetBulkProgs.length > 0 ? '#064e3b' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
+                                        >
+                                          📥 {lang === 'EN' ? `Download Selected PDF (${judgeSheetBulkProgs.length} Programs)` : `തിരഞ്ഞെടുത്തവ PDF ആക്കുക (${judgeSheetBulkProgs.length} എണ്ണം)`}
+                                        </button>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={handleDownloadAllCategoryPDF}
+                                        disabled={judgePrograms.length === 0}
+                                        className="btn-add-action"
+                                        style={{ width: '100%', background: '#1e40af', marginTop: '2px' }}
+                                      >
+                                        📑 {lang === 'EN' ? `Download ALL ${catName} Programs PDF (${judgePrograms.length} Pages)` : `ഈ കാറ്റഗറിയിലെ മുഴുവൻ പ്രോഗ്രാമുകളുടെയും PDF ഡൗൺലോഡ് ചെയ്യുക (${judgePrograms.length} പേജുകൾ)`}
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
+
+                              {/* Preview list for single selected program */}
+                              {judgeSheetMode === 'SINGLE' && (
+                                <div className="settings-list-box" style={{ maxHeight: 'none' }}>
+                                  <h3>📋 {judgeSheetProg ? `${isGroupProg ? 'Teams' : 'Participants'} – ${selectedProgObj ? selectedProgObj.name : ''}` : (lang === 'EN' ? 'Select a Program' : 'ഒരു പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക')}</h3>
+                                  {!judgeSheetProg ? (
+                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>{lang === 'EN' ? 'Please select a category and program above.' : 'മുകളിൽ കാറ്റഗറിയും പ്രോഗ്രാമും തിരഞ്ഞെടുക്കുക.'}</p>
+                                  ) : currentProgItems.length === 0 ? (
+                                    <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>{lang === 'EN' ? 'No entries registered in this category/division.' : 'ഈ കാറ്റഗറിയിൽ എൻട്രികൾ ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല.'}</p>
+                                  ) : (
+                                    <>
+                                      <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                                        📌 {currentProgItems.length} {isGroupProg ? 'teams' : 'participants'} {lang === 'EN' ? 'will appear on the portrait sheet.' : 'പോർട്രെയിറ്റ് ഷീറ്റിൽ ഉൾപ്പെടും.'}
+                                      </div>
+                                      {currentProgItems.map((item, idx) => {
+                                        if (item.isGroup) {
+                                          return (
+                                            <div key={item.id} style={{
+                                              display: 'flex', flexDirection: 'column', gap: '4px',
+                                              padding: '10px 12px', borderBottom: '1px solid #e2e8f0',
+                                              background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                            }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#064e3b' }}>
+                                                  🚩 {item.teamName}
+                                                </div>
+                                                {item.teamCode && (
+                                                  <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 6px', fontWeight: '800' }}>
+                                                    {item.teamCode}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <div style={{ fontSize: '12px', color: '#1e293b', fontWeight: '700' }}>
+                                                👑 Leader: <span style={{ background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px' }}>Reg No: {item.leaderRegNo || '-'}</span> {item.leaderName ? `(${item.leaderName})` : ''}
+                                              </div>
+                                              {item.memberStudents && item.memberStudents.length > 0 && (
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                  👥 Members: {item.memberStudents.map(m => `Reg No: ${m.regno || m.regNo || ''} (${m.name})`).join(', ')}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        } else {
+                                          const s = item.student;
+                                          const sRegNo = item.regNo;
+                                          const teamObj = item.teamObj;
+                                          return (
+                                            <div key={item.id} style={{
+                                              display: 'flex', alignItems: 'center', gap: '10px',
+                                              padding: '8px 10px', borderBottom: '1px solid #e2e8f0',
+                                              background: idx % 2 === 0 ? '#f8fafc' : '#fff'
+                                            }}>
+                                              <span style={{
+                                                background: '#064e3b', color: 'white', borderRadius: '6px',
+                                                padding: '3px 8px', fontWeight: '700', fontSize: '13px', minWidth: '50px', textAlign: 'center'
+                                              }}>{sRegNo}</span>
+                                              <span style={{ flex: 1, fontSize: '13px', color: '#1e293b' }}>{s.name}</span>
+                                              <span style={{ fontSize: '11px', color: '#64748b' }}>{teamObj ? teamObj.name : ''}</span>
+                                              <span style={{ fontSize: '11px', color: s.gender === 'BOY' ? '#3b82f6' : '#ec4899' }}
+                                              >{s.gender === 'BOY' ? '👦' : '👧'}</span>
+                                            </div>
+                                          );
+                                        }
+                                      })}
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </>
                           )}
 
