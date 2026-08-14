@@ -4885,10 +4885,10 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      const cols = isA3 ? 5 : 2;
+      const cols = isA3 ? 5 : 3;
       const rows = isA3 ? 2 : 2;
       const cardsPerPage = cols * rows;
-      const pageSize = isA3 ? 'A3 landscape' : 'A4 portrait';
+      const pageSize = isA3 ? 'A3 landscape' : 'A4 landscape';
 
       // Build QR data URLs for all students first
       const appUrl = window.location.origin;
@@ -4961,7 +4961,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 <meta charset="UTF-8">
 <title>ID Cards - ${madrasaLabel} - ${paperSize}</title>
 <style>
-  @page { size: ${pageSize}; margin: 8mm; }
+  @page { size: ${pageSize}; margin: 2mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page { page-break-after: always; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -4970,7 +4970,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     display: grid;
     grid-template-columns: repeat(${cols}, 75mm);
     grid-template-rows: repeat(${rows}, 100mm);
-    gap: 4mm;
+    gap: 3mm 4mm;
   }
   .id-card {
     width: 75mm; height: 100mm;
@@ -8148,7 +8148,7 @@ ${pagesHtml}
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '4 cards/page (2×2)' : '10 cards/page (5×2)'} • 300 DPI • 7.5cm × 10cm
+                                {pdfPaperSize === 'A4' ? '6 cards/page (3×2)' : '10 cards/page (5×2)'} • 300 DPI • 7.5cm × 10cm
                               </span>
                             </div>
                             <button
