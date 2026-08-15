@@ -4931,8 +4931,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.5cm × 10.3cm
-      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.5cm × 10.3cm
+      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.7cm × 10.3cm
+      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.7cm × 10.3cm
       const cols = isA3 ? 5 : 3;
       const rows = 2;
       const cardsPerPage = cols * rows;
@@ -4944,11 +4944,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       for (const s of filteredStudentsList) {
         try {
           const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
-          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 150, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 200, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
         } catch (e) { qrMap[s.id] = ''; }
       }
 
-      // Build card HTML for each student (Exact 7.5cm × 10.3cm / 75mm × 103mm with cutting space)
+      // Build card HTML for each student (Exact 7.7cm × 10.3cm / 77mm × 103mm with cutting space)
       const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
@@ -4965,7 +4965,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
              </div>`;
-        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:55px;height:55px;display:block;" />` : '';
+        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:72px;height:72px;display:block;" />` : '';
         // Dynamic font size based on name length
         const nameStr = s.name || '';
         const nameLen = nameStr.length;
@@ -4992,7 +4992,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
             <div class="detail-row detail-row-cat"><span class="dl dl-cat">🏷️ Category</span><span class="dv">${catObj ? catObj.name : 'N/A'}</span></div>
             <div class="detail-row ${isBoy ? 'detail-row-gen-b' : 'detail-row-gen-g'}"><span class="dl ${isBoy ? 'dl-boy' : 'dl-girl'}">${isBoy ? '👦' : '👧'} Gender</span><span class="dv">${isBoy ? 'Boy' : 'Girl'}</span></div>
           </div>
-          <div class="qr-section"><div class="qr-section-inner"><div class="qr-scan-label">Scan QR</div>${qrHtml}</div></div>
+          <div class="qr-section"><div class="qr-section-inner"><div class="qr-scan-label">📷 Scan QR Code</div>${qrHtml}<div class="qr-sub-label">Quick Attendance Check</div></div></div>
           <div class="card-footer"><span class="footer-text">MILAD FEST • ID CARD</span></div>
         </div>`;
       });
@@ -5053,14 +5053,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(${cols}, 75mm);
+    grid-template-columns: repeat(${cols}, 77mm);
     grid-template-rows: repeat(${rows}, 103mm);
-    gap: ${isA3 ? '6mm 8mm' : '2mm 5mm'};
+    gap: ${isA3 ? '6mm 6mm' : '2mm 3mm'};
     justify-content: center;
     align-content: center;
   }
   .id-card {
-    width: 75mm;
+    width: 77mm;
     height: 103mm;
     border: 2px solid #16a34a;
     box-sizing: border-box;
@@ -5229,22 +5229,31 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     z-index: 1;
   }
   .qr-section-inner {
-    background: rgba(255,255,255,0.97);
-    border: 1.5px solid #fbbf24;
-    border-radius: 5px;
-    padding: 2.5px 6px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(240,253,244,0.98));
+    border: 2px solid #fbbf24;
+    border-radius: 8px;
+    padding: 5px 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    gap: 3px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+    width: 90%;
   }
   .qr-scan-label {
-    font-size: 4.5px;
+    font-size: 5.5px;
     font-weight: 900;
     color: #166534;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
+  }
+  .qr-sub-label {
+    font-size: 4.5px;
+    font-weight: 700;
+    color: #15803d;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    opacity: 0.8;
   }
   .card-footer {
     background: linear-gradient(135deg, #166534 0%, #15803d 100%);
