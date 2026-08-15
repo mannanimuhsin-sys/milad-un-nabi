@@ -69,8 +69,8 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, eventName,
       ref={cardRef}
       className={`id-card ${className}`}
       style={{
-        width: '276px',
-        height: '390px',
+        width: '283px',
+        height: '389px',
         background: 'linear-gradient(160deg, #ffffff 0%, #f0fdf4 40%, #ecfdf5 70%, #f0fff4 100%)',
         borderRadius: '0',
         overflow: 'hidden',
@@ -4931,8 +4931,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.3cm × 10.3cm
-      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.3cm × 10.3cm
+      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.5cm × 10.3cm
+      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.5cm × 10.3cm
       const cols = isA3 ? 5 : 3;
       const rows = 2;
       const cardsPerPage = cols * rows;
@@ -4948,7 +4948,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         } catch (e) { qrMap[s.id] = ''; }
       }
 
-      // Build card HTML for each student (Exact 7.3cm × 10.3cm / 73mm × 103mm for ID card pouch)
+      // Build card HTML for each student (Exact 7.5cm × 10.3cm / 75mm × 103mm with cutting space)
       const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
@@ -5042,7 +5042,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
-    padding: 1.5mm 0;
+    padding: 1mm 0;
     margin: 0 auto;
     overflow: hidden;
     background: #ffffff;
@@ -5053,14 +5053,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(${cols}, 73mm);
+    grid-template-columns: repeat(${cols}, 75mm);
     grid-template-rows: repeat(${rows}, 103mm);
-    gap: 0mm 4mm;
+    gap: ${isA3 ? '6mm 8mm' : '2mm 5mm'};
     justify-content: center;
     align-content: center;
   }
   .id-card {
-    width: 73mm;
+    width: 75mm;
     height: 103mm;
     border: 2px solid #16a34a;
     box-sizing: border-box;
@@ -5081,7 +5081,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .card-header {
     background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
-    padding: 3.5px 5px;
+    padding: 3.5px 6px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -5140,8 +5140,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .photo-box {
     flex-shrink: 0;
-    width: 78px;
-    height: 94px;
+    width: 80px;
+    height: 96px;
     border-radius: 6px;
     border: 1.5px solid #16a34a;
     overflow: hidden;
@@ -5171,7 +5171,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .reg-badge {
     background: linear-gradient(135deg,#fbbf24,#f59e0b);
     border-radius: 6px;
-    padding: 3.5px 5px;
+    padding: 3.5px 6px;
     text-align: center;
     box-shadow: 0 2px 6px rgba(251,191,36,0.4);
     border: 1.5px solid #d97706;
@@ -5205,7 +5205,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .detail-row {
     border-radius: 4px;
-    padding: 2.5px 5px;
+    padding: 2.5px 6px;
     display: flex;
     flex-direction: column;
     gap: 1px;
