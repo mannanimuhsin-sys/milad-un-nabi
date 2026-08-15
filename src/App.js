@@ -4931,8 +4931,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.7cm × 10.3cm
-      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.7cm × 10.3cm
+      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.7cm × 9.9cm
+      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.7cm × 9.9cm
       const cols = isA3 ? 5 : 3;
       const rows = 2;
       const cardsPerPage = cols * rows;
@@ -4944,11 +4944,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       for (const s of filteredStudentsList) {
         try {
           const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
-          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 200, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 180, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
         } catch (e) { qrMap[s.id] = ''; }
       }
 
-      // Build card HTML for each student (Exact 7.7cm × 10.3cm / 77mm × 103mm with cutting space)
+      // Build card HTML for each student (Exact 7.7cm × 9.9cm / 77mm × 99mm with zero footer cutoff)
       const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
@@ -4965,11 +4965,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
              </div>`;
-        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:72px;height:72px;display:block;" />` : '';
+        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:58px;height:58px;display:block;" />` : '';
         // Dynamic font size based on name length
         const nameStr = s.name || '';
         const nameLen = nameStr.length;
-        const nameFontSize = nameLen <= 10 ? '11.5px' : nameLen <= 16 ? '10px' : nameLen <= 22 ? '8.5px' : '7.5px';
+        const nameFontSize = nameLen <= 10 ? '11px' : nameLen <= 16 ? '9.5px' : nameLen <= 22 ? '8px' : '7px';
         return `<div class="id-card">
           <div class="stripe"></div>
           <div class="card-header">
@@ -5042,7 +5042,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
-    padding: 0;
+    padding: 3mm 0;
     margin: 0 auto;
     overflow: hidden;
     background: #ffffff;
@@ -5054,14 +5054,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .card-grid {
     display: grid;
     grid-template-columns: repeat(${cols}, 77mm);
-    grid-template-rows: repeat(${rows}, 98mm);
-    gap: ${isA3 ? '6mm 6mm' : '2mm 3mm'};
+    grid-template-rows: repeat(${rows}, 99mm);
+    gap: ${isA3 ? '6mm 6mm' : '3mm 4mm'};
     justify-content: center;
     align-content: center;
   }
   .id-card {
     width: 77mm;
-    height: 98mm;
+    height: 99mm;
     border: 2px solid #16a34a;
     box-sizing: border-box;
     overflow: hidden;
@@ -5073,7 +5073,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     print-color-adjust: exact !important;
   }
   .stripe {
-    height: 3.5px;
+    height: 3px;
     background: linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d);
     flex-shrink: 0;
     position: relative;
@@ -5081,7 +5081,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .card-header {
     background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
-    padding: 3.5px 6px;
+    padding: 2.5px 5px 2px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -5091,35 +5091,35 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     border-bottom: 2px solid #fbbf24;
   }
   .event-name {
-    font-size: 6px;
+    font-size: 5.5px;
     font-weight: 800;
     color: #fbbf24;
     text-align: center;
     letter-spacing: 1px;
     text-transform: uppercase;
     line-height: 1.2;
-    margin-bottom: 2px;
+    margin-bottom: 1.5px;
     background: rgba(251,191,36,0.15);
     border-radius: 3px;
-    padding: 1px 6px;
+    padding: 1px 5px;
     border: 1px solid rgba(251,191,36,0.4);
     width: 100%;
     box-sizing: border-box;
     text-shadow: 0 1px 2px rgba(0,0,0,0.4);
   }
   .madrasa-name {
-    font-size: 8px;
+    font-size: 7.5px;
     font-weight: 900;
     color: #ffffff;
     text-align: center;
     letter-spacing: 0.3px;
     text-transform: uppercase;
-    line-height: 1.25;
+    line-height: 1.2;
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     margin-bottom: 1px;
   }
   .madrasa-meta {
-    font-size: 5.5px;
+    font-size: 5px;
     font-weight: 700;
     color: #fef08a;
     text-align: center;
@@ -5131,17 +5131,17 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    padding: 4px 6px;
+    padding: 3px 5px;
     background: rgba(21,128,61,0.06);
     border-bottom: 2px solid #fbbf24;
-    gap: 6px;
+    gap: 5px;
     position: relative;
     z-index: 1;
   }
   .photo-box {
     flex-shrink: 0;
-    width: 80px;
-    height: 96px;
+    width: 72px;
+    height: 86px;
     border-radius: 6px;
     border: 1.5px solid #16a34a;
     overflow: hidden;
@@ -5155,7 +5155,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
     width: 100%;
   }
@@ -5163,15 +5163,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     font-weight: 900;
     color: #14532d;
     text-transform: uppercase;
-    line-height: 1.25;
+    line-height: 1.2;
     word-break: break-word;
     text-align: center;
     width: 100%;
   }
   .reg-badge {
     background: linear-gradient(135deg,#fbbf24,#f59e0b);
-    border-radius: 6px;
-    padding: 3.5px 6px;
+    border-radius: 5px;
+    padding: 3px 5px;
     text-align: center;
     box-shadow: 0 2px 6px rgba(251,191,36,0.4);
     border: 1.5px solid #d97706;
@@ -5187,7 +5187,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     margin-bottom: 1px;
   }
   .reg-num {
-    font-size: 19px;
+    font-size: 18px;
     font-weight: 900;
     color: #1c1917;
     letter-spacing: 1px;
@@ -5196,16 +5196,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .details {
     flex-shrink: 0;
-    padding: 3.5px 6px 2px;
+    padding: 2.5px 5px 2px;
     display: flex;
     flex-direction: column;
-    gap: 2.5px;
+    gap: 2px;
     position: relative;
     z-index: 1;
   }
   .detail-row {
     border-radius: 4px;
-    padding: 2.5px 6px;
+    padding: 2px 5px;
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -5218,7 +5218,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .dl-cat { color: #b45309; }
   .dl-boy { color: #2563eb; }
   .dl-girl { color: #be185d; }
-  .dv { font-weight: 800; color: #14532d; font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dv { font-weight: 800; color: #14532d; font-size: 6.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .qr-section {
     flex: 1;
     display: flex;
@@ -5230,25 +5230,25 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .qr-section-inner {
     background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(240,253,244,0.98));
-    border: 2px solid #fbbf24;
-    border-radius: 8px;
-    padding: 5px 10px;
+    border: 1.5px solid #fbbf24;
+    border-radius: 7px;
+    padding: 3px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.12);
-    width: 90%;
+    gap: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    width: 88%;
   }
   .qr-scan-label {
-    font-size: 5.5px;
+    font-size: 5px;
     font-weight: 900;
     color: #166534;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1px;
   }
   .qr-sub-label {
-    font-size: 4.5px;
+    font-size: 4px;
     font-weight: 700;
     color: #15803d;
     text-transform: uppercase;
@@ -5264,10 +5264,10 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     justify-content: center;
     flex-shrink: 0;
     position: relative;
-    z-index: 1;
+    z-index: 2;
   }
   .footer-text {
-    font-size: 5px;
+    font-size: 5.5px;
     color: #fef08a;
     font-weight: 700;
     letter-spacing: 1px;
