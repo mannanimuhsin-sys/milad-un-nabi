@@ -9896,7 +9896,254 @@ ${pagesHtml}
                                 || (studentFilterCat === 'GENERAL' ? (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat)) : sCat === String(studentFilterCat));
                               const matchGender = studentFilterGender === 'ALL' || (s.gender || '') === studentFilterGender;
                               return matchTeam && matchCat && matchGender;
-                            });
+                            });                              const generateStudentsParticipatePDF = (mode) => {
+                                const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                                const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                                const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+
+                                let pdfTitle = 'Student Participated Programs List';
+
+                                // Build smart subtitle: team names + gender, no labels
+                                let teamPart = '';
+                                if (studentFilterTeam === 'ALL') {
+                                  teamPart = teams.map(t => t.name).join(' & ');
+                                } else {
+                                  const tObj = teams.find(t => String(t.id) === String(studentFilterTeam));
+                                  teamPart = tObj ? tObj.name : '';
+                                }
+                                let genderPart = '';
+                                if (studentFilterGender === 'BOY') genderPart = 'Boys';
+                                else if (studentFilterGender === 'GIRL') genderPart = 'Girls';
+                                else genderPart = 'Common';
+
+                                const subtitle = [teamPart, genderPart].filter(Boolean).join(' | ');
+
+                                let contentHtml = '';
+
+                                const renderStudentRows = (sts) => {
+                                  return sts.map((s, idx) => {
+                                    const sRegNo = s.regno || s.regNo || '';
+                                    const sTeam = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
+                                    const sProgs = getStudentRegisteredPrograms(s.id);
+                                    const sGroupProgs = groupRegistrations
+                                      .filter(g => {
+                                        const studentIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                        return studentIds.map(String).includes(String(s.id));
+                                      })
+                                      .map(g => programs.find(pr => String(pr.id) === String(g.program_id)))
+                                      .filter(Boolean);
+
+                                    const singleProgsHtml = sProgs.length > 0
+                                      ? sProgs.map(p => `<span class="prog-badge">👤 ${p.code} - ${p.name}</span>`).join(' ')
+                                      : `<span class="no-prog">-</span>`;
+
+                                    const groupProgsHtml = sGroupProgs.length > 0
+                                      ? sGroupProgs.map(p => `<span class="prog-badge-group">👥 ${p.code} - ${p.name}</span>`).join(' ')
+                                      : `<span class="no-prog">-</span>`;
+
+                                    return `<tr>
+                                      <td style="width:6%; text-align:center; font-weight:700;">${idx + 1}</td>
+                                      <td style="width:12%; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff;">${sRegNo}</td>
+                                      <td style="width:22%; font-weight:700; color:#1e293b;">${s.name} ${s.gender === 'BOY' ? '👦' : '👧'}</td>
+                                      <td style="width:14%; color:#475569; font-size:11px;">${sTeam ? sTeam.name : '-'}</td>
+                                      <td style="width:23%;">${singleProgsHtml}</td>
+                                      <td style="width:23%;">${groupProgsHtml}</td>
+                                    </tr>`;
+                                  }).join('');
+                                };
+
+                                if (mode === 'CATEGORIZED') {
+                                  // Group by category
+                                  const catsToShow = categories.filter(c => {
+                                    return filteredStudents.some(s => String(s.catid || s.catId || '') === String(c.id));
+                                  });
+
+                                  if (catsToShow.length === 0) {
+                                    contentHtml = '<p style="color:#94a3b8;text-align:center;padding:30px">No students found.</p>';
+                                  } else {
+                                    contentHtml = catsToShow.map(cat => {
+                                      const catStudents = filteredStudents.filter(s => String(s.catid || s.catId || '') === String(cat.id));
+                                      const rows = renderStudentRows(catStudents);
+                                      return `
+                                        <div class="cat-section">
+                                          <div class="cat-heading">📂 ${cat.name}${cat.classrange ? ' <span class="cat-range">(Class: ' + cat.classrange + ')</span>' : ''} <span style="margin-left:auto;font-size:11px;opacity:0.9;">${catStudents.length} Students</span></div>
+                                          <table>
+                                            <thead>
+                                              <tr>
+                                                <th style="width:6%; text-align:center;">Sl</th>
+                                                <th style="width:12%; text-align:center;">Reg. No</th>
+                                                <th style="width:22%;">Student Name</th>
+                                                <th style="width:14%;">Team</th>
+                                                <th style="width:23%;">Single Programs</th>
+                                                <th style="width:23%;">Group Programs</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>${rows}</tbody>
+                                          </table>
+                                        </div>`;
+                                    }).join('');
+                                  }
+                                } else {
+                                  // Simple list of currently filtered students
+                                  const rows = renderStudentRows(filteredStudents);
+                                  contentHtml = `
+                                    <table>
+                                      <thead>
+                                        <tr>
+                                          <th style="width:6%; text-align:center;">Sl</th>
+                                          <th style="width:12%; text-align:center;">Reg. No</th>
+                                          <th style="width:22%;">Student Name</th>
+                                          <th style="width:14%;">Team</th>
+                                          <th style="width:23%;">Single Programs</th>
+                                          <th style="width:23%;">Group Programs</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        ${rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px">No students found matching current filters.</td></tr>'}
+                                      </tbody>
+                                    </table>`;
+                                }
+
+                                const printWindow = window.open('', '_blank');
+                                printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>${pdfTitle} - ${madrasaName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Serif+Malayalam:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 15mm 10mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+  .notice-board {
+    border: 3px solid #065f46;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  .notice-header {
+    background: linear-gradient(135deg, #064e3b 0%, #0f766e 100%);
+    color: white;
+    text-align: center;
+    padding: 20px 15px 16px;
+  }
+  .madrasa-name { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .madrasa-sub { font-size: 12px; opacity: 0.88; letter-spacing: 0.3px; }
+  .notice-title-bar {
+    background: #f59e0b;
+    color: #78350f;
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .notice-body { padding: 14px 16px 20px; }
+  .cat-section { margin-bottom: 20px; }
+  .cat-heading {
+    background: linear-gradient(90deg, #064e3b, #0f766e);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+  .cat-range { font-size: 11px; opacity: 0.8; font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11.5px; }
+  th {
+    background: #f1f5f9;
+    color: #064e3b;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 2px solid #cbd5e1;
+  }
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 11.5px;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .prog-badge {
+    display: inline-block;
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 2px 3px 2px 0;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .prog-badge-group {
+    display: inline-block;
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 2px 3px 2px 0;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .no-prog { color: #94a3b8; font-size: 11px; }
+  .footer {
+    text-align: center;
+    padding: 12px;
+    font-size: 11px;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 8px;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+  }
+  .print-btn {
+    display: block;
+    margin: 15px auto;
+    padding: 10px 28px;
+    background: linear-gradient(135deg, #064e3b, #0f766e);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
+<div class="notice-board">
+  <div class="notice-header">
+    ${eventName ? `<div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:10.5px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+    <div class="madrasa-name">${madrasaName}</div>
+    <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
+  </div>
+  <div class="notice-title-bar">👥 ${pdfTitle} — ${subtitle}</div>
+  <div class="notice-body">
+    ${contentHtml}
+  </div>
+  <div class="footer">Generated by Milad Fest App • Total Students: ${filteredStudents.length}</div>
+</div>
+</body></html>`);
+                                printWindow.document.close();
+                                printWindow.print();
+                              };
+
+
 
                             const generateStudentsPDF = (mode) => {
                               const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
@@ -10222,15 +10469,27 @@ ${pagesHtml}
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', marginBottom: '16px' }}>
                                   <button
                                     onClick={() => generateStudentsPDF('FILTERED')}
-                                    style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary-deep))', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                    style={{ background: 'linear-gradient(135deg, var(--primary-light), var(--primary-deep))', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
                                   >
-                                    📄 Download PDF (Current Filter)
+                                    📄 {lang === 'EN' ? 'Student List PDF' : 'വിദ്യാർത്ഥി ലിസ്റ്റ് PDF'}
                                   </button>
                                   <button
                                     onClick={() => generateStudentsPDF('CATEGORIZED')}
-                                    style={{ background: 'linear-gradient(135deg, #022c22, #064e3b)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                    style={{ background: 'linear-gradient(135deg, #022c22, #064e3b)', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
                                   >
-                                    📂 Download PDF by Categories
+                                    📂 {lang === 'EN' ? 'List by Categories' : 'വിഭാഗം തിരിച്ചുള്ള ലിസ്റ്റ്'}
+                                  </button>
+                                  <button
+                                    onClick={() => generateStudentsParticipatePDF('FILTERED')}
+                                    style={{ background: 'linear-gradient(135deg, #0f766e, #115e59)', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                  >
+                                    👥 {lang === 'EN' ? 'Participate Programs PDF (Portrait)' : 'പങ്കെടുത്ത പ്രോഗ്രാമുകൾ PDF (പോർട്രെയിറ്റ്)'}
+                                  </button>
+                                  <button
+                                    onClick={() => generateStudentsParticipatePDF('CATEGORIZED')}
+                                    style={{ background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                                  >
+                                    🌟 {lang === 'EN' ? 'Participate by Categories' : 'വിഭാഗം തിരിച്ചുള്ള പ്രോഗ്രാം PDF'}
                                   </button>
                                 </div>
 
@@ -13004,42 +13263,51 @@ ${pagesHtml}
                       const currentProgItems = selectedProgObj ? getJudgeItemsForProg(selectedProgObj) : [];
                       const isGroupProg = selectedProgObj && (selectedProgObj.type || '').includes('GROUP');
 
-                      // Helper: Build a single program's portrait sheet HTML fragment
-                      const buildSingleSheetBlock = (pObj, pItems) => {
+                      // Helper: Build portrait sheet HTML pages for a program (automatically paginates 20 rows per page with full headers & signatures on every page)
+                      const buildProgSheetPages = (pObj, pItems) => {
                         const isGrp = (pObj.type || '').includes('GROUP');
                         const progNameStr = `${pObj.code} - ${pObj.name}`;
+                        const pageSize = 20;
+                        const totalPages = Math.max(1, Math.ceil(pItems.length / pageSize));
+                        const pages = [];
 
-                        const filledRows = pItems.map((item, idx) => {
-                          const regNoDisplay = item.isGroup ? (item.leaderRegNo || '-') : item.regNo;
-                          return `<tr style="height:34px;">
-                            <td style="text-align:center; font-weight:700; color:#475569; font-size:12px;">${idx + 1}</td>
-                            <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5;">${regNoDisplay}</td>
-                            <td style="text-align:center;"></td>
-                            <td style="text-align:center;"></td>
-                            <td style="text-align:center;"></td>
-                            <td style="text-align:center;"></td>
-                            <td style="text-align:center;"></td>
-                            <td style="text-align:center;"></td>
-                            <td style="text-align:center;"></td>
-                          </tr>`;
-                        });
+                        for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+                          const pageNum = pageIdx + 1;
+                          const startIndex = pageIdx * pageSize;
+                          const pageItems = pItems.slice(startIndex, startIndex + pageSize);
 
-                        // Pad with neat empty lines up to 20 rows for comfortable scoring
-                        const minRows = 20;
-                        const emptyRowsCount = Math.max(0, minRows - pItems.length);
-                        const emptyRows = [];
-                        for (let i = 0; i < emptyRowsCount; i++) {
-                          const rowNum = pItems.length + i + 1;
-                          emptyRows.push(`<tr style="height:34px;">
-                            <td style="text-align:center; color:#94a3b8; font-weight:600; font-size:12px;">${rowNum}</td>
-                            <td style="text-align:center; background:#f8fafc;"></td>
-                            <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                          </tr>`);
-                        }
+                          const filledRows = pageItems.map((item, idx) => {
+                            const overallIndex = startIndex + idx + 1;
+                            const regNoDisplay = item.isGroup ? (item.leaderRegNo || '-') : item.regNo;
+                            return `<tr style="height:34px;">
+                              <td style="text-align:center; font-weight:700; color:#475569; font-size:12px;">${overallIndex}</td>
+                              <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5;">${regNoDisplay}</td>
+                              <td style="text-align:center;"></td>
+                              <td style="text-align:center;"></td>
+                              <td style="text-align:center;"></td>
+                              <td style="text-align:center;"></td>
+                              <td style="text-align:center;"></td>
+                              <td style="text-align:center;"></td>
+                              <td style="text-align:center;"></td>
+                            </tr>`;
+                          });
 
-                        const allRowsHtml = [...filledRows, ...emptyRows].join('');
+                          // Pad with neat empty lines up to 20 rows so every page is a complete, full-height A4 sheet
+                          const emptyRowsCount = Math.max(0, pageSize - pageItems.length);
+                          const emptyRows = [];
+                          for (let i = 0; i < emptyRowsCount; i++) {
+                            const rowNum = startIndex + pageItems.length + i + 1;
+                            emptyRows.push(`<tr style="height:34px;">
+                              <td style="text-align:center; color:#94a3b8; font-weight:600; font-size:12px;">${rowNum}</td>
+                              <td style="text-align:center; background:#f8fafc;"></td>
+                              <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                            </tr>`);
+                          }
 
-                        return `
+                          const allRowsHtml = [...filledRows, ...emptyRows].join('');
+                          const pageIndicator = totalPages > 1 ? ` (Page ${pageNum}/${totalPages})` : '';
+
+                          pages.push(`
 <div class="judge-sheet-page">
   <div class="sheet-wrapper">
     <div class="sheet-header">
@@ -13055,11 +13323,11 @@ ${pagesHtml}
       </div>
       <div class="subtitle-item">
         <span class="subtitle-label">Program:</span>
-        <span class="subtitle-value">${progNameStr}</span>
+        <span class="subtitle-value">${progNameStr}${pageIndicator}</span>
       </div>
       <div class="subtitle-item">
         <span class="subtitle-label">${isGrp ? 'Total Teams:' : 'Total Participants:'}</span>
-        <span class="subtitle-value">${pItems.length} ${isGrp ? 'Teams' : 'Students'}</span>
+        <span class="subtitle-value">${pItems.length} ${isGrp ? 'Teams' : 'Students'}${totalPages > 1 ? ` [Page ${pageNum}/${totalPages}]` : ''}</span>
       </div>
     </div>
     <div class="sheet-body">
@@ -13087,7 +13355,7 @@ ${pagesHtml}
           <div class="signature-line">Judge Signature 1</div>
         </div>
         <div class="footer-center">
-          <div>Milad Fest | ${catName} | ${progNameStr}</div>
+          <div>Milad Fest | ${catName} | ${progNameStr}${pageIndicator}</div>
           <div style="margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
         </div>
         <div class="signature-box">
@@ -13097,14 +13365,17 @@ ${pagesHtml}
       </div>
     </div>
   </div>
-</div>`;
+</div>`);
+                        }
+
+                        return pages.join('\n');
                       };
 
                       // Helper: Build complete HTML document with Portrait styles
                       const buildCompleteDocumentHtml = (progsList, docTitle = 'Judge Sheet') => {
                         const pagesHtml = progsList.map(p => {
                           const pItems = getJudgeItemsForProg(p);
-                          return buildSingleSheetBlock(p, pItems);
+                          return buildProgSheetPages(p, pItems);
                         }).join('\n');
 
                         return `<!DOCTYPE html>
@@ -13248,6 +13519,339 @@ ${pagesHtml}
 ${pagesHtml}
 </body>
 </html>`;
+                      };
+
+
+                      // Helper: Build portrait participant sheet HTML pages for a program (A4 portrait, 20 rows per page with neat headers & signatures)
+                      const buildParticipantProgSheetPages = (pObj, pItems) => {
+                        const isGrp = (pObj.type || '').includes('GROUP');
+                        const progNameStr = `${pObj.code} - ${pObj.name}`;
+                        const pageSize = 20;
+                        const totalPages = Math.max(1, Math.ceil(pItems.length / pageSize));
+                        const pages = [];
+
+                        for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+                          const pageNum = pageIdx + 1;
+                          const startIndex = pageIdx * pageSize;
+                          const pageItems = pItems.slice(startIndex, startIndex + pageSize);
+
+                          const filledRows = pageItems.map((item, idx) => {
+                            const overallIndex = startIndex + idx + 1;
+                            if (item.isGroup) {
+                              const teamName = item.teamName || 'Team';
+                              const leaderInfo = item.leaderName ? `<strong>${item.leaderRegNo || '-'}</strong> - ${item.leaderName}` : (item.leaderRegNo || '-');
+                              const membersList = (item.memberStudents && item.memberStudents.length > 0)
+                                ? item.memberStudents.map(m => `${m.regno || m.regNo || ''} (${m.name})`).join(', ')
+                                : '-';
+                              return `<tr style="height:34px;">
+                                <td style="text-align:center; font-weight:700; color:#475569; font-size:12px;">${overallIndex}</td>
+                                <td style="font-weight:800; font-size:13px; color:#064e3b; padding-left:8px;">${teamName}</td>
+                                <td style="font-size:12px; color:#1e293b; padding-left:8px;">${leaderInfo}</td>
+                                <td style="font-size:11px; color:#64748b; padding-left:8px;">${membersList}</td>
+                                <td style="text-align:center;"></td>
+                              </tr>`;
+                            } else {
+                              const s = item.student;
+                              const sRegNo = item.regNo || (s ? (s.regno || s.regNo) : '-');
+                              const sName = s ? s.name : '-';
+                              const teamObj = item.teamObj;
+                              const teamName = teamObj ? teamObj.name : '-';
+                              return `<tr style="height:34px;">
+                                <td style="text-align:center; font-weight:700; color:#475569; font-size:12px;">${overallIndex}</td>
+                                <td style="text-align:center; font-weight:800; font-size:13px; color:#064e3b; background:#ecfdf5;">${sRegNo}</td>
+                                <td style="font-weight:700; font-size:13px; color:#1e293b; padding-left:10px;">${sName}</td>
+                                <td style="font-size:12px; color:#475569; padding-left:10px;">${teamName}</td>
+                                <td style="text-align:center;"></td>
+                              </tr>`;
+                            }
+                          });
+
+                          // Pad with empty rows up to pageSize (20)
+                          const emptyRowsCount = Math.max(0, pageSize - pageItems.length);
+                          const emptyRows = [];
+                          for (let i = 0; i < emptyRowsCount; i++) {
+                            const rowNum = startIndex + pageItems.length + i + 1;
+                            if (isGrp) {
+                              emptyRows.push(`<tr style="height:34px;">
+                                <td style="text-align:center; color:#94a3b8; font-weight:600; font-size:12px;">${rowNum}</td>
+                                <td></td><td></td><td></td><td></td>
+                              </tr>`);
+                            } else {
+                              emptyRows.push(`<tr style="height:34px;">
+                                <td style="text-align:center; color:#94a3b8; font-weight:600; font-size:12px;">${rowNum}</td>
+                                <td style="text-align:center; background:#f8fafc;"></td>
+                                <td></td><td></td><td></td>
+                              </tr>`);
+                            }
+                          }
+
+                          const allRowsHtml = [...filledRows, ...emptyRows].join('');
+                          const pageIndicator = totalPages > 1 ? ` (Page ${pageNum}/${totalPages})` : '';
+
+                          const theadHtml = isGrp
+                            ? `<tr style="height:36px;">
+                                <th style="width:8%; text-align:center;">Sl.No</th>
+                                <th style="width:24%; text-align:left; padding-left:8px;">Team Name</th>
+                                <th style="width:28%; text-align:left; padding-left:8px;">Leader (Reg & Name)</th>
+                                <th style="width:26%; text-align:left; padding-left:8px;">Members</th>
+                                <th style="width:14%; text-align:center;">Call / Attendance</th>
+                              </tr>`
+                            : `<tr style="height:36px;">
+                                <th style="width:8%; text-align:center;">Sl.No</th>
+                                <th style="width:16%; text-align:center;">Reg. No</th>
+                                <th style="width:40%; text-align:left; padding-left:10px;">Student Name</th>
+                                <th style="width:22%; text-align:left; padding-left:10px;">Team</th>
+                                <th style="width:14%; text-align:center;">Call / Attendance</th>
+                              </tr>`;
+
+                          pages.push(`
+<div class="judge-sheet-page">
+  <div class="sheet-wrapper">
+    <div class="sheet-header">
+      <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
+      ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+      <div class="madrasa-name">${madrasaName}</div>
+      <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
+    </div>
+    <div class="sheet-subtitle-bar">
+      <div class="subtitle-item">
+        <span class="subtitle-label">Category:</span>
+        <span class="subtitle-value">${catName} (${genderLabel})</span>
+      </div>
+      <div class="subtitle-item">
+        <span class="subtitle-label">👥 Participant List:</span>
+        <span class="subtitle-value">${progNameStr}${pageIndicator}</span>
+      </div>
+      <div class="subtitle-item">
+        <span class="subtitle-label">${isGrp ? 'Total Teams:' : 'Total Participants:'}</span>
+        <span class="subtitle-value">${pItems.length} ${isGrp ? 'Teams' : 'Students'}${totalPages > 1 ? ` [Page ${pageNum}/${totalPages}]` : ''}</span>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <table>
+        <thead>
+          ${theadHtml}
+        </thead>
+        <tbody>
+          ${allRowsHtml}
+        </tbody>
+      </table>
+      <div class="sheet-footer">
+        <div class="signature-box">
+          <div style="height:40px"></div>
+          <div class="signature-line">Stage Convener</div>
+        </div>
+        <div class="footer-center">
+          <div>Milad Fest • Participant List | ${catName} | ${progNameStr}${pageIndicator}</div>
+          <div style="margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        </div>
+        <div class="signature-box">
+          <div style="height:40px"></div>
+          <div class="signature-line">General Convener</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`);
+                        }
+
+                        return pages.join('\n');
+                      };
+
+                      // Helper: Build complete HTML document for Participant Lists with Portrait styles
+                      const buildCompleteParticipantDocumentHtml = (progsList, docTitle = 'Participant List') => {
+                        const pagesHtml = progsList.map(p => {
+                          const pItems = getJudgeItemsForProg(p);
+                          return buildParticipantProgSheetPages(p, pItems);
+                        }).join('\n');
+
+                        return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${docTitle}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 8mm 8mm 10mm 8mm;
+  }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .judge-sheet-page {
+    width: 100%;
+    page-break-after: always;
+    break-after: page;
+    margin-bottom: 30px;
+  }
+  @media print {
+    body {
+      background: transparent;
+    }
+    .judge-sheet-page {
+      margin-bottom: 0;
+      page-break-after: always;
+      break-after: page;
+    }
+    .judge-sheet-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+  }
+  .sheet-wrapper {
+    border: 2px solid #064e3b;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+  .sheet-header {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f766e 100%);
+    color: white;
+    text-align: center;
+    padding: 12px 16px 10px;
+  }
+  .festival-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    margin-bottom: 2px;
+  }
+  .madrasa-name {
+    font-size: 19px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    line-height: 1.2;
+  }
+  .madrasa-meta {
+    font-size: 10.5px;
+    opacity: 0.85;
+    font-weight: 600;
+  }
+  .sheet-subtitle-bar {
+    background: #f59e0b;
+    padding: 7px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    border-bottom: 1.5px solid #d97706;
+  }
+  .subtitle-item { display: flex; align-items: center; gap: 5px; }
+  .subtitle-label { font-size: 9.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.4px; }
+  .subtitle-value { font-size: 12px; font-weight: 900; color: #1c1917; }
+  .sheet-body { padding: 10px 12px 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  thead tr { background: linear-gradient(90deg, #064e3b, #0f766e); color: white; height: 36px; }
+  th {
+    padding: 6px 3px;
+    font-weight: 800;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border: 1.5px solid #064e3b;
+    text-align: center;
+    color: #ffffff;
+    vertical-align: middle;
+  }
+  td {
+    padding: 5px 3px;
+    border: 1.5px solid #cbd5e1;
+    min-height: 34px;
+    height: 34px;
+    font-size: 12px;
+    vertical-align: middle;
+  }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  .sheet-footer {
+    margin-top: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 8px;
+  }
+  .signature-box {
+    text-align: center;
+    width: 160px;
+  }
+  .signature-line {
+    border-top: 1.5px solid #1e293b;
+    padding-top: 5px;
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 11px;
+  }
+  .footer-center {
+    text-align: center;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+${pagesHtml}
+</body>
+</html>`;
+                      };
+
+                      // Single program participant list print & download
+                      const handlePrintSingleParticipantSheet = () => {
+                        if (!selectedProgObj) { alert('Please select a program first!'); return; }
+                        const html = buildCompleteParticipantDocumentHtml([selectedProgObj], `Participant List - ${selectedProgObj.name}`);
+                        printHtml(html);
+                      };
+
+                      const handleDownloadSingleParticipantSheetPDF = () => {
+                        if (!selectedProgObj) { alert('Please select a program first!'); return; }
+                        const progCodeName = `${selectedProgObj.code}_${selectedProgObj.name}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const html = buildCompleteParticipantDocumentHtml([selectedProgObj], `Participant List - ${selectedProgObj.name}`);
+                        downloadHtmlAsPdf(html, `ParticipantList_${progCodeName}.pdf`);
+                      };
+
+                      // Bulk programs participant list print & download
+                      const handlePrintBulkParticipantSheets = () => {
+                        const targetProgs = judgePrograms.filter(p => judgeSheetBulkProgs.includes(String(p.id)));
+                        if (targetProgs.length === 0) {
+                          alert(lang === 'EN' ? 'Please select at least one program!' : 'ദയവായി കുറഞ്ഞത് ഒരു പ്രോഗ്രാമെങ്കിലും തിരഞ്ഞെടുക്കുക!');
+                          return;
+                        }
+                        const html = buildCompleteParticipantDocumentHtml(targetProgs, `Participant Lists (${targetProgs.length} Programs)`);
+                        printHtml(html);
+                      };
+
+                      const handleDownloadBulkParticipantSheetsPDF = () => {
+                        const targetProgs = judgePrograms.filter(p => judgeSheetBulkProgs.includes(String(p.id)));
+                        if (targetProgs.length === 0) {
+                          alert(lang === 'EN' ? 'Please select at least one program!' : 'ദയവായി കുറഞ്ഞത് ഒരു പ്രോഗ്രാമെങ്കിലും തിരഞ്ഞെടുക്കുക!');
+                          return;
+                        }
+                        const catClean = (catName || 'Category').replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const html = buildCompleteParticipantDocumentHtml(targetProgs, `Participant Lists - ${catName} (${targetProgs.length} Programs)`);
+                        downloadHtmlAsPdf(html, `ParticipantLists_${catClean}_${targetProgs.length}_Programs.pdf`);
+                      };
+
+                      const handleDownloadAllCategoryParticipantPDF = () => {
+                        if (judgePrograms.length === 0) {
+                          alert(lang === 'EN' ? 'No programs available in this category!' : 'ഈ വിഭാഗത്തിൽ പ്രോഗ്രാമുകളൊന്നും ലഭ്യമല്ല!');
+                          return;
+                        }
+                        const catClean = (catName || 'Category').replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const html = buildCompleteParticipantDocumentHtml(judgePrograms, `Participant Lists - All ${catName} (${judgePrograms.length} Programs)`);
+                        downloadHtmlAsPdf(html, `ParticipantLists_ALL_${catClean}_${judgePrograms.length}_Programs.pdf`);
                       };
 
                       // Single program print & download
@@ -13439,18 +14043,36 @@ ${pagesHtml}
                                           onClick={handlePrintSingleJudgeSheet}
                                           disabled={!judgeSheetProg}
                                           className="btn-add-action"
-                                          style={{ flex: 1, background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                          style={{ flex: 1, minWidth: '180px', background: judgeSheetProg ? '#0f766e' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
                                         >
-                                          🖨️ {lang === 'EN' ? 'Print Judge Sheet (Portrait)' : 'പ്രിന്റ് ജഡ്ജ് ഷീറ്റ് (പോർട്രെയിറ്റ്)'}
+                                          🖨️ {lang === 'EN' ? 'Print Judge Sheet' : 'പ്രിന്റ് ജഡ്ജ് ഷീറ്റ് (പോർട്രെയിറ്റ്)'}
                                         </button>
                                         <button
                                           type="button"
                                           onClick={handleDownloadSingleJudgeSheetPDF}
                                           disabled={!judgeSheetProg}
                                           className="btn-add-action"
-                                          style={{ flex: 1, background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                          style={{ flex: 1, minWidth: '180px', background: judgeSheetProg ? '#064e3b' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
                                         >
-                                          📥 {lang === 'EN' ? 'Download PDF (Portrait)' : 'ഡൗൺലോഡ് PDF (പോർട്രെയിറ്റ്)'}
+                                          📥 {lang === 'EN' ? 'Download Judge Sheet PDF' : 'ഡൗൺലോഡ് ജഡ്ജ് ഷീറ്റ് PDF'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={handlePrintSingleParticipantSheet}
+                                          disabled={!judgeSheetProg}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, minWidth: '180px', background: judgeSheetProg ? '#2563eb' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                        >
+                                          🖨️ {lang === 'EN' ? 'Print Participant List' : 'പങ്കെടുക്കുന്നവരുടെ ലിസ്റ്റ് പ്രിന്റ്'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={handleDownloadSingleParticipantSheetPDF}
+                                          disabled={!judgeSheetProg}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, minWidth: '180px', background: judgeSheetProg ? '#1d4ed8' : '#94a3b8', cursor: judgeSheetProg ? 'pointer' : 'not-allowed' }}
+                                        >
+                                          📥 {lang === 'EN' ? 'Download Participant PDF' : 'പങ്കെടുക്കുന്നവരുടെ ലിസ്റ്റ് PDF'}
                                         </button>
                                       </div>
                                     </>
@@ -13546,36 +14168,79 @@ ${pagesHtml}
                                       </div>
 
                                       {/* Bulk Action Buttons */}
-                                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                        <button
-                                          type="button"
-                                          onClick={handlePrintBulkJudgeSheets}
-                                          disabled={judgeSheetBulkProgs.length === 0}
-                                          className="btn-add-action"
-                                          style={{ flex: 1, background: judgeSheetBulkProgs.length > 0 ? '#0f766e' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
-                                        >
-                                          🖨️ {lang === 'EN' ? `Print Selected (${judgeSheetBulkProgs.length} Programs)` : `തിരഞ്ഞെടുത്തവ പ്രിന്റ് ചെയ്യുക (${judgeSheetBulkProgs.length} എണ്ണം)`}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={handleDownloadBulkJudgeSheetsPDF}
-                                          disabled={judgeSheetBulkProgs.length === 0}
-                                          className="btn-add-action"
-                                          style={{ flex: 1, background: judgeSheetBulkProgs.length > 0 ? '#064e3b' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
-                                        >
-                                          📥 {lang === 'EN' ? `Download Selected PDF (${judgeSheetBulkProgs.length} Programs)` : `തിരഞ്ഞെടുത്തവ PDF ആക്കുക (${judgeSheetBulkProgs.length} എണ്ണം)`}
-                                        </button>
-                                      </div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        {/* Group A: Judge Sheets Bulk */}
+                                        <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '10px', border: '1.5px solid #86efac' }}>
+                                          <div style={{ fontSize: '13px', fontWeight: '800', color: '#064e3b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            📋 {lang === 'EN' ? 'Judge Evaluation Sheets (Portrait A4)' : 'ജഡ്ജ് ഇവാലുവേഷൻ ഷീറ്റുകൾ (പോർട്രെയിറ്റ് A4)'}
+                                          </div>
+                                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <button
+                                              type="button"
+                                              onClick={handlePrintBulkJudgeSheets}
+                                              disabled={judgeSheetBulkProgs.length === 0}
+                                              className="btn-add-action"
+                                              style={{ flex: 1, minWidth: '180px', background: judgeSheetBulkProgs.length > 0 ? '#0f766e' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
+                                            >
+                                              🖨️ {lang === 'EN' ? `Print Judge Sheets (${judgeSheetBulkProgs.length})` : `ജഡ്ജ് ഷീറ്റ് പ്രിന്റ് (${judgeSheetBulkProgs.length})`}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={handleDownloadBulkJudgeSheetsPDF}
+                                              disabled={judgeSheetBulkProgs.length === 0}
+                                              className="btn-add-action"
+                                              style={{ flex: 1, minWidth: '180px', background: judgeSheetBulkProgs.length > 0 ? '#064e3b' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
+                                            >
+                                              📥 {lang === 'EN' ? `Download Judge Sheets PDF (${judgeSheetBulkProgs.length})` : `ജഡ്ജ് ഷീറ്റ് PDF (${judgeSheetBulkProgs.length})`}
+                                            </button>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={handleDownloadAllCategoryPDF}
+                                            disabled={judgePrograms.length === 0}
+                                            className="btn-add-action"
+                                            style={{ width: '100%', background: '#047857', marginTop: '6px' }}
+                                          >
+                                            📑 {lang === 'EN' ? `Download ALL ${catName} Judge Sheets PDF (${judgePrograms.length} Pages)` : `ഈ കാറ്റഗറിയിലെ മുഴുവൻ ജഡ്ജ് ഷീറ്റുകളും PDF (${judgePrograms.length} പേജുകൾ)`}
+                                          </button>
+                                        </div>
 
-                                      <button
-                                        type="button"
-                                        onClick={handleDownloadAllCategoryPDF}
-                                        disabled={judgePrograms.length === 0}
-                                        className="btn-add-action"
-                                        style={{ width: '100%', background: '#1e40af', marginTop: '2px' }}
-                                      >
-                                        📑 {lang === 'EN' ? `Download ALL ${catName} Programs PDF (${judgePrograms.length} Pages)` : `ഈ കാറ്റഗറിയിലെ മുഴുവൻ പ്രോഗ്രാമുകളുടെയും PDF ഡൗൺലോഡ് ചെയ്യുക (${judgePrograms.length} പേജുകൾ)`}
-                                      </button>
+                                        {/* Group B: Participate Programs / Participant Lists Bulk */}
+                                        <div style={{ background: '#eff6ff', padding: '12px', borderRadius: '10px', border: '1.5px solid #93c5fd' }}>
+                                          <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e40af', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            👥 {lang === 'EN' ? 'Participate Programs / Participant Lists (Portrait A4)' : 'പങ്കെടുക്കുന്ന പ്രോഗ്രാമുകൾ / പാർട്ടിസിപ്പന്റ് ലിസ്റ്റ് (പോർട്രെയിറ്റ് A4)'}
+                                          </div>
+                                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <button
+                                              type="button"
+                                              onClick={handlePrintBulkParticipantSheets}
+                                              disabled={judgeSheetBulkProgs.length === 0}
+                                              className="btn-add-action"
+                                              style={{ flex: 1, minWidth: '180px', background: judgeSheetBulkProgs.length > 0 ? '#2563eb' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
+                                            >
+                                              🖨️ {lang === 'EN' ? `Print Participant Lists (${judgeSheetBulkProgs.length})` : `പാർട്ടിസിപ്പന്റ് ലിസ്റ്റ് പ്രിന്റ് (${judgeSheetBulkProgs.length})`}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={handleDownloadBulkParticipantSheetsPDF}
+                                              disabled={judgeSheetBulkProgs.length === 0}
+                                              className="btn-add-action"
+                                              style={{ flex: 1, minWidth: '180px', background: judgeSheetBulkProgs.length > 0 ? '#1d4ed8' : '#94a3b8', cursor: judgeSheetBulkProgs.length > 0 ? 'pointer' : 'not-allowed' }}
+                                            >
+                                              📥 {lang === 'EN' ? `Download Participant Lists PDF (${judgeSheetBulkProgs.length})` : `പാർട്ടിസിപ്പന്റ് ലിസ്റ്റ് PDF (${judgeSheetBulkProgs.length})`}
+                                            </button>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={handleDownloadAllCategoryParticipantPDF}
+                                            disabled={judgePrograms.length === 0}
+                                            className="btn-add-action"
+                                            style={{ width: '100%', background: '#1e40af', marginTop: '6px' }}
+                                          >
+                                            📑 {lang === 'EN' ? `Download ALL ${catName} Participant Lists PDF (${judgePrograms.length} Pages)` : `ഈ കാറ്റഗറിയിലെ മുഴുവൻ പാർട്ടിസിപ്പന്റ് ലിസ്റ്റുകളും PDF (${judgePrograms.length} പേജുകൾ)`}
+                                          </button>
+                                        </div>
+                                      </div>
                                     </>
                                   )}
                                 </div>
@@ -13644,6 +14309,25 @@ ${pagesHtml}
                                           );
                                         }
                                       })}
+                                      {/* Direct Action buttons under Participate Program / Participant List preview */}
+                                      <div style={{ marginTop: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
+                                        <button
+                                          type="button"
+                                          onClick={handlePrintSingleParticipantSheet}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, minWidth: '180px', background: '#0f766e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                        >
+                                          🖨️ {lang === 'EN' ? 'Print Participant List (Portrait A4)' : 'പങ്കെടുക്കുന്നവരുടെ ലിസ്റ്റ് പ്രിന്റ് ചെയ്യുക'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={handleDownloadSingleParticipantSheetPDF}
+                                          className="btn-add-action"
+                                          style={{ flex: 1, minWidth: '180px', background: '#064e3b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                        >
+                                          📥 {lang === 'EN' ? 'Download Participant PDF (Portrait A4)' : 'പങ്കെടുക്കുന്നവരുടെ ലിസ്റ്റ് PDF ഡൗൺലോഡ്'}
+                                        </button>
+                                      </div>
                                     </>
                                   )}
                                 </div>
