@@ -69,8 +69,8 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, eventName,
       ref={cardRef}
       className={`id-card ${className}`}
       style={{
-        width: '283px',
-        height: '435px',
+        width: '276px',
+        height: '390px',
         background: 'linear-gradient(160deg, #ffffff 0%, #f0fdf4 40%, #ecfdf5 70%, #f0fff4 100%)',
         borderRadius: '0',
         overflow: 'hidden',
@@ -4931,12 +4931,12 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      // A4: 2 columns × 3 rows = 6 cards per page on A4 Portrait (210mm × 297mm)
-      // A3: 5 columns × 2 rows = 10 cards per page on A3 Landscape (420mm × 297mm)
-      const cols = isA3 ? 5 : 2;
-      const rows = isA3 ? 2 : 3;
+      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.3cm × 10.3cm
+      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.3cm × 10.3cm
+      const cols = isA3 ? 5 : 3;
+      const rows = 2;
       const cardsPerPage = cols * rows;
-      const pageSize = isA3 ? 'A3 landscape' : 'A4 portrait';
+      const pageSize = isA3 ? 'A3 landscape' : 'A4 landscape';
 
       // Build QR data URLs for all students first
       const appUrl = window.location.origin;
@@ -4944,11 +4944,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       for (const s of filteredStudentsList) {
         try {
           const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
-          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 140, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 150, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
         } catch (e) { qrMap[s.id] = ''; }
       }
 
-      // Build card HTML for each student (Exact 72mm × 92mm to fit 6 cards per A4 page at 100% scale)
+      // Build card HTML for each student (Exact 7.3cm × 10.3cm / 73mm × 103mm for ID card pouch)
       const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
@@ -4965,11 +4965,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
              </div>`;
-        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:52px;height:52px;display:block;" />` : '';
+        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:55px;height:55px;display:block;" />` : '';
         // Dynamic font size based on name length
         const nameStr = s.name || '';
         const nameLen = nameStr.length;
-        const nameFontSize = nameLen <= 10 ? '11px' : nameLen <= 16 ? '9.5px' : nameLen <= 22 ? '8px' : '7px';
+        const nameFontSize = nameLen <= 10 ? '11.5px' : nameLen <= 16 ? '10px' : nameLen <= 22 ? '8.5px' : '7.5px';
         return `<div class="id-card">
           <div class="stripe"></div>
           <div class="card-header">
@@ -4997,7 +4997,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         </div>`;
       });
 
-      // Group cards into pages (6 cards per page on A4, 10 on A3)
+      // Group cards into pages (6 cards per page on A4 Landscape, 10 on A3 Landscape)
       const pages = [];
       for (let i = 0; i < cardHtmlList.length; i += cardsPerPage) {
         pages.push(cardHtmlList.slice(i, i + cardsPerPage));
@@ -5032,17 +5032,17 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     print-color-adjust: exact !important;
   }
   .page {
-    width: ${isA3 ? '420mm' : '210mm'};
-    height: ${isA3 ? '297mm' : '297mm'};
-    min-height: ${isA3 ? '297mm' : '297mm'};
-    max-height: ${isA3 ? '297mm' : '297mm'};
+    width: ${isA3 ? '420mm' : '297mm'};
+    height: ${isA3 ? '297mm' : '210mm'};
+    min-height: ${isA3 ? '297mm' : '210mm'};
+    max-height: ${isA3 ? '297mm' : '210mm'};
     page-break-after: always;
     break-after: page;
     display: flex;
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
-    padding: 0;
+    padding: 1.5mm 0;
     margin: 0 auto;
     overflow: hidden;
     background: #ffffff;
@@ -5053,15 +5053,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(${cols}, 72mm);
-    grid-template-rows: repeat(${rows}, 92mm);
-    gap: ${isA3 ? '6mm 8mm' : '3mm 8mm'};
+    grid-template-columns: repeat(${cols}, 73mm);
+    grid-template-rows: repeat(${rows}, 103mm);
+    gap: 0mm 4mm;
     justify-content: center;
     align-content: center;
   }
   .id-card {
-    width: 72mm;
-    height: 92mm;
+    width: 73mm;
+    height: 103mm;
     border: 2px solid #16a34a;
     box-sizing: border-box;
     overflow: hidden;
@@ -5073,7 +5073,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     print-color-adjust: exact !important;
   }
   .stripe {
-    height: 3px;
+    height: 3.5px;
     background: linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d);
     flex-shrink: 0;
     position: relative;
@@ -5081,7 +5081,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .card-header {
     background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
-    padding: 3px 5px 3px;
+    padding: 3.5px 5px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -5091,7 +5091,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     border-bottom: 2px solid #fbbf24;
   }
   .event-name {
-    font-size: 5.5px;
+    font-size: 6px;
     font-weight: 800;
     color: #fbbf24;
     text-align: center;
@@ -5101,25 +5101,25 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     margin-bottom: 2px;
     background: rgba(251,191,36,0.15);
     border-radius: 3px;
-    padding: 1px 5px;
+    padding: 1px 6px;
     border: 1px solid rgba(251,191,36,0.4);
     width: 100%;
     box-sizing: border-box;
     text-shadow: 0 1px 2px rgba(0,0,0,0.4);
   }
   .madrasa-name {
-    font-size: 7.5px;
+    font-size: 8px;
     font-weight: 900;
     color: #ffffff;
     text-align: center;
     letter-spacing: 0.3px;
     text-transform: uppercase;
-    line-height: 1.2;
+    line-height: 1.25;
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     margin-bottom: 1px;
   }
   .madrasa-meta {
-    font-size: 5px;
+    font-size: 5.5px;
     font-weight: 700;
     color: #fef08a;
     text-align: center;
@@ -5131,17 +5131,17 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    padding: 3px 5px;
+    padding: 4px 6px;
     background: rgba(21,128,61,0.06);
     border-bottom: 2px solid #fbbf24;
-    gap: 5px;
+    gap: 6px;
     position: relative;
     z-index: 1;
   }
   .photo-box {
     flex-shrink: 0;
-    width: 72px;
-    height: 86px;
+    width: 78px;
+    height: 94px;
     border-radius: 6px;
     border: 1.5px solid #16a34a;
     overflow: hidden;
@@ -5155,7 +5155,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
     min-width: 0;
     width: 100%;
   }
@@ -5163,15 +5163,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     font-weight: 900;
     color: #14532d;
     text-transform: uppercase;
-    line-height: 1.2;
+    line-height: 1.25;
     word-break: break-word;
     text-align: center;
     width: 100%;
   }
   .reg-badge {
     background: linear-gradient(135deg,#fbbf24,#f59e0b);
-    border-radius: 5px;
-    padding: 3px 4px;
+    border-radius: 6px;
+    padding: 3.5px 5px;
     text-align: center;
     box-shadow: 0 2px 6px rgba(251,191,36,0.4);
     border: 1.5px solid #d97706;
@@ -5187,7 +5187,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     margin-bottom: 1px;
   }
   .reg-num {
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 900;
     color: #1c1917;
     letter-spacing: 1px;
@@ -5196,16 +5196,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   }
   .details {
     flex-shrink: 0;
-    padding: 3px 5px;
+    padding: 3.5px 6px 2px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 2.5px;
     position: relative;
     z-index: 1;
   }
   .detail-row {
     border-radius: 4px;
-    padding: 2px 4px;
+    padding: 2.5px 5px;
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -5218,7 +5218,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .dl-cat { color: #b45309; }
   .dl-boy { color: #2563eb; }
   .dl-girl { color: #be185d; }
-  .dv { font-weight: 800; color: #14532d; font-size: 6.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dv { font-weight: 800; color: #14532d; font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .qr-section {
     flex: 1;
     display: flex;
@@ -5232,11 +5232,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     background: rgba(255,255,255,0.97);
     border: 1.5px solid #fbbf24;
     border-radius: 5px;
-    padding: 2px 5px;
+    padding: 2.5px 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1px;
+    gap: 1.5px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
   .qr-scan-label {
@@ -8433,7 +8433,7 @@ ${pagesHtml}
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '6 cards/page (2×3 Portrait)' : '10 cards/page (5×2 Landscape)'} • 100% Scale Fit • 7.2cm × 9.2cm
+                                {pdfPaperSize === 'A4' ? '6 cards/page (3×2 Landscape) • 7.3cm × 10.3cm' : '10 cards/page (5×2 Landscape) • 7.3cm × 10.3cm'}
                               </span>
                             </div>
                             <button
