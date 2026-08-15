@@ -4931,10 +4931,12 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      const cols = isA3 ? 5 : 3;
-      const rows = isA3 ? 2 : 2;
+      // A4: 2 columns × 3 rows = 6 cards per page on A4 Portrait (210mm × 297mm)
+      // A3: 5 columns × 2 rows = 10 cards per page on A3 Landscape (420mm × 297mm)
+      const cols = isA3 ? 5 : 2;
+      const rows = isA3 ? 2 : 3;
       const cardsPerPage = cols * rows;
-      const pageSize = isA3 ? 'A3 landscape' : 'A4 landscape';
+      const pageSize = isA3 ? 'A3 landscape' : 'A4 portrait';
 
       // Build QR data URLs for all students first
       const appUrl = window.location.origin;
@@ -4942,11 +4944,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       for (const s of filteredStudentsList) {
         try {
           const qrUrl = `${appUrl}/?qr=${loggedInMadrasa.regNumber}_${s.id}`;
-          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 160, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
+          qrMap[s.id] = await QRCode.toDataURL(qrUrl, { width: 140, margin: 1, color: { dark: '#064e3b', light: '#ffffff' } });
         } catch (e) { qrMap[s.id] = ''; }
       }
 
-      // Build card HTML for each student
+      // Build card HTML for each student (Exact 72mm × 92mm to fit 6 cards per A4 page at 100% scale)
       const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
@@ -4963,7 +4965,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
              </div>`;
-        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:68px;height:68px;display:block;" />` : '';
+        const qrHtml = qrMap[s.id] ? `<img src="${qrMap[s.id]}" style="width:52px;height:52px;display:block;" />` : '';
         // Dynamic font size based on name length
         const nameStr = s.name || '';
         const nameLen = nameStr.length;
@@ -4995,13 +4997,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         </div>`;
       });
 
-      // Group cards into pages
+      // Group cards into pages (6 cards per page on A4, 10 on A3)
       const pages = [];
       for (let i = 0; i < cardHtmlList.length; i += cardsPerPage) {
         pages.push(cardHtmlList.slice(i, i + cardsPerPage));
       }
 
-      const pagesHtml = pages.map(pageCards =>
+      const pagesHtml = pages.map((pageCards, pageIndex) =>
         `<div class="page"><div class="card-grid">${pageCards.join('')}</div></div>`
       ).join('');
 
@@ -5012,64 +5014,278 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 <meta charset="UTF-8">
 <title>ID Cards - ${madrasaLabel} - ${paperSize}</title>
 <style>
-  @page { size: ${pageSize}; margin: 2mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .page { page-break-after: always; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-  .page:last-child { page-break-after: auto; }
+  @page {
+    size: ${pageSize};
+    margin: 0mm;
+  }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .page {
+    width: ${isA3 ? '420mm' : '210mm'};
+    height: ${isA3 ? '297mm' : '297mm'};
+    min-height: ${isA3 ? '297mm' : '297mm'};
+    max-height: ${isA3 ? '297mm' : '297mm'};
+    page-break-after: always;
+    break-after: page;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #ffffff;
+  }
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(${cols}, 75mm);
-    grid-template-rows: repeat(${rows}, 100mm);
-    gap: 3mm 4mm;
+    grid-template-columns: repeat(${cols}, 72mm);
+    grid-template-rows: repeat(${rows}, 92mm);
+    gap: ${isA3 ? '6mm 8mm' : '3mm 8mm'};
+    justify-content: center;
+    align-content: center;
   }
   .id-card {
-    width: 75mm; height: 100mm;
+    width: 72mm;
+    height: 92mm;
     border: 2px solid #16a34a;
+    box-sizing: border-box;
     overflow: hidden;
-    display: flex; flex-direction: column;
+    display: flex;
+    flex-direction: column;
     background: linear-gradient(160deg, #ffffff 0%, #f0fdf4 40%, #ecfdf5 70%, #f0fff4 100%);
     position: relative;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .stripe { height: 4px; background: linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d); flex-shrink: 0; position: relative; z-index: 1; }
+  .stripe {
+    height: 3px;
+    background: linear-gradient(90deg,#15803d,#fbbf24,#4ade80,#15803d);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
   .card-header {
     background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
-    padding: 4px 6px 4px; flex-shrink: 0;
-    display: flex; flex-direction: column; align-items: center;
-    position: relative; z-index: 1;
+    padding: 3px 5px 3px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
     border-bottom: 2px solid #fbbf24;
   }
-  .event-name { font-size: 5.5px; font-weight: 800; color: #fbbf24; text-align: center; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; margin-bottom: 2px; background: rgba(251,191,36,0.15); border-radius: 3px; padding: 1px 6px; border: 1px solid rgba(251,191,36,0.4); width: 100%; box-sizing: border-box; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
-  .madrasa-name { font-size: 7.5px; font-weight: 900; color: #ffffff; text-align: center; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.3; text-shadow: 0 1px 3px rgba(0,0,0,0.5); margin-bottom: 1px; }
-  .madrasa-meta { font-size: 5.5px; font-weight: 700; color: #fef08a; text-align: center; letter-spacing: 0.2px; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
-  .card-top { flex-shrink: 0; display: flex; flex-direction: row; align-items: stretch; padding: 5px 6px; background: rgba(21,128,61,0.06); border-bottom: 2px solid #fbbf24; gap: 6px; position: relative; z-index: 1; }
-  .photo-box { flex-shrink: 0; width: 92px; height: 108px; border-radius: 8px; border: 2px solid #16a34a; overflow: hidden; background: #f0fdf4; box-shadow: 0 3px 10px rgba(22,163,74,0.25); align-self: center; }
-  .name-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; width: 100%; }
-  .student-name { font-weight: 900; color: #14532d; text-transform: uppercase; line-height: 1.25; word-break: break-word; text-align: center; width: 100%; }
-  .reg-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); border-radius: 6px; padding: 4px 6px; text-align: center; box-shadow: 0 3px 8px rgba(251,191,36,0.4); border: 1.5px solid #d97706; width: 100%; box-sizing: border-box; }
-  .reg-label { font-size: 5.5px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1px; }
-  .reg-num { font-size: 20px; font-weight: 900; color: #1c1917; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.15); }
-  .details { flex-shrink: 0; padding: 4px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
-  .detail-row { border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; gap: 1px; }
+  .event-name {
+    font-size: 5.5px;
+    font-weight: 800;
+    color: #fbbf24;
+    text-align: center;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    line-height: 1.2;
+    margin-bottom: 2px;
+    background: rgba(251,191,36,0.15);
+    border-radius: 3px;
+    padding: 1px 5px;
+    border: 1px solid rgba(251,191,36,0.4);
+    width: 100%;
+    box-sizing: border-box;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .madrasa-name {
+    font-size: 7.5px;
+    font-weight: 900;
+    color: #ffffff;
+    text-align: center;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    line-height: 1.2;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    margin-bottom: 1px;
+  }
+  .madrasa-meta {
+    font-size: 5px;
+    font-weight: 700;
+    color: #fef08a;
+    text-align: center;
+    letter-spacing: 0.2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .card-top {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 3px 5px;
+    background: rgba(21,128,61,0.06);
+    border-bottom: 2px solid #fbbf24;
+    gap: 5px;
+    position: relative;
+    z-index: 1;
+  }
+  .photo-box {
+    flex-shrink: 0;
+    width: 72px;
+    height: 86px;
+    border-radius: 6px;
+    border: 1.5px solid #16a34a;
+    overflow: hidden;
+    background: #f0fdf4;
+    box-shadow: 0 2px 8px rgba(22,163,74,0.25);
+    align-self: center;
+  }
+  .name-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    width: 100%;
+  }
+  .student-name {
+    font-weight: 900;
+    color: #14532d;
+    text-transform: uppercase;
+    line-height: 1.2;
+    word-break: break-word;
+    text-align: center;
+    width: 100%;
+  }
+  .reg-badge {
+    background: linear-gradient(135deg,#fbbf24,#f59e0b);
+    border-radius: 5px;
+    padding: 3px 4px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(251,191,36,0.4);
+    border: 1.5px solid #d97706;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .reg-label {
+    font-size: 5px;
+    font-weight: 800;
+    color: #78350f;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 1px;
+  }
+  .reg-num {
+    font-size: 18px;
+    font-weight: 900;
+    color: #1c1917;
+    letter-spacing: 1px;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .details {
+    flex-shrink: 0;
+    padding: 3px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+    z-index: 1;
+  }
+  .detail-row {
+    border-radius: 4px;
+    padding: 2px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
   .detail-row-group { background: rgba(22,163,74,0.1); border: 1px solid rgba(22,163,74,0.35); border-left: 3px solid #16a34a; }
   .detail-row-cat   { background: rgba(251,191,36,0.12); border: 1px solid rgba(217,119,6,0.35); border-left: 3px solid #f59e0b; }
   .detail-row-gen-b { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.4); border-left: 3px solid #60a5fa; }
   .detail-row-gen-g { background: rgba(244,114,182,0.1); border: 1px solid rgba(244,114,182,0.4); border-left: 3px solid #f472b6; }
-  .dl { font-size: 5.5px; font-weight: 900; text-transform: uppercase; color: #15803d; letter-spacing: 0.8px; }
+  .dl { font-size: 5px; font-weight: 900; text-transform: uppercase; color: #15803d; letter-spacing: 0.8px; }
   .dl-cat { color: #b45309; }
   .dl-boy { color: #2563eb; }
   .dl-girl { color: #be185d; }
-  .dv { font-weight: 800; color: #14532d; font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .qr-section { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; z-index: 1; }
-  .qr-section-inner { background: rgba(255,255,255,0.97); border: 2px solid #fbbf24; border-radius: 7px; padding: 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
-  .qr-scan-label { font-size: 4.5px; font-weight: 900; color: #166534; text-transform: uppercase; letter-spacing: 1.2px; }
-  .card-footer { background: linear-gradient(135deg, #166534 0%, #15803d 100%); border-top: 2px solid #fbbf24; padding: 4px 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 1; }
-  .footer-text { font-size: 5.5px; color: #fef08a; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+  .dv { font-weight: 800; color: #14532d; font-size: 6.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qr-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2px 0;
+    position: relative;
+    z-index: 1;
+  }
+  .qr-section-inner {
+    background: rgba(255,255,255,0.97);
+    border: 1.5px solid #fbbf24;
+    border-radius: 5px;
+    padding: 2px 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .qr-scan-label {
+    font-size: 4.5px;
+    font-weight: 900;
+    color: #166534;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .card-footer {
+    background: linear-gradient(135deg, #166534 0%, #15803d 100%);
+    border-top: 2px solid #fbbf24;
+    padding: 3px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .footer-text {
+    font-size: 5px;
+    color: #fef08a;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .print-floating-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #064e3b, #0f766e);
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    z-index: 99999;
+  }
+  @media print {
+    .no-print { display: none !important; }
+  }
 </style>
 </head>
 <body>
+<button class="print-floating-btn no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
 ${pagesHtml}
 <script>
   window.addEventListener('load', function() {
@@ -8217,7 +8433,7 @@ ${pagesHtml}
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '6 cards/page (3×2)' : '10 cards/page (5×2)'} • 300 DPI • 7.5cm × 10cm
+                                {pdfPaperSize === 'A4' ? '6 cards/page (2×3 Portrait)' : '10 cards/page (5×2 Landscape)'} • 100% Scale Fit • 7.2cm × 9.2cm
                               </span>
                             </div>
                             <button
