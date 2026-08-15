@@ -5042,7 +5042,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
-    padding: 1mm 0;
+    padding: 0;
     margin: 0 auto;
     overflow: hidden;
     background: #ffffff;
@@ -5054,14 +5054,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .card-grid {
     display: grid;
     grid-template-columns: repeat(${cols}, 77mm);
-    grid-template-rows: repeat(${rows}, 103mm);
+    grid-template-rows: repeat(${rows}, 98mm);
     gap: ${isA3 ? '6mm 6mm' : '2mm 3mm'};
     justify-content: center;
     align-content: center;
   }
   .id-card {
     width: 77mm;
-    height: 103mm;
+    height: 98mm;
     border: 2px solid #16a34a;
     box-sizing: border-box;
     overflow: hidden;
@@ -5291,9 +5291,22 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   @media print {
     .no-print { display: none !important; }
   }
+  .landscape-warn {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: linear-gradient(90deg, #b45309, #d97706);
+    color: #fff;
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 800;
+    z-index: 999999;
+    letter-spacing: 0.5px;
+  }
 </style>
 </head>
 <body>
+<div class="landscape-warn no-print">⚠️ IMPORTANT — Print Settings: Set Paper = <strong>A4</strong> | Orientation = <strong>LANDSCAPE (തിരശ്ചീനം)</strong> | Scale = <strong>100%</strong></div>
 <button class="print-floating-btn no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
 ${pagesHtml}
 <script>
