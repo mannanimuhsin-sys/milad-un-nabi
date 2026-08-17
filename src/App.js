@@ -837,11 +837,19 @@ function App() {
   const [bulkCertExcludedKeys, setBulkCertExcludedKeys] = useState([]);
 
   // 🚀 Individual Program Result Publishing (Draft / Staging vs Published Gate)
+  // ⚠️ FIX: VIEW role must NEVER use localStorage for published_programs — always use DB.
+  // Admin phone's localStorage must NOT pollute or gate view phones.
   const [publishedPrograms, setPublishedPrograms] = useState(() => {
     try {
-      const _rNum = _initCache?.regNumber || localStorage.getItem('madrasa_reg_num') || '';
-      const stored = localStorage.getItem(`milad_published_programs_${_rNum}`);
-      if (stored) return JSON.parse(stored);
+      const _initRole = savedSession?.role || '';
+      const _isAdminInit = _initRole === 'ADMIN';
+      // ADMIN only: restore from localStorage for instant UI (their own publish actions)
+      if (_isAdminInit) {
+        const _rNum = _initCache?.regNumber || localStorage.getItem('madrasa_reg_num') || '';
+        const stored = localStorage.getItem(`milad_published_programs_${_rNum}`);
+        if (stored) return JSON.parse(stored);
+      }
+      // Both roles: use DB cache (initCache) — the only source of truth for cross-device sync
       if (_initCache && Array.isArray(_initCache.publishedPrograms)) return _initCache.publishedPrograms;
       if (_initCache && _initCache.visibilityControls && Array.isArray(_initCache.visibilityControls.published_programs)) {
         return _initCache.visibilityControls.published_programs;
@@ -874,7 +882,7 @@ function App() {
     setPublishedPrograms(updated);
 
     const rNum = loggedInMadrasa?.regNumber;
-    if (rNum) {
+    if (rNum || loggedInMadrasa?.id) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
@@ -884,10 +892,32 @@ function App() {
         const newVis = { ...(visibilityControls || {}), published_programs: updated };
         setVisibilityControls(newVis);
         const mId = loggedInMadrasa?.id;
+
+        // Fetch latest madrasa place to safely update part 8
+        let currentPlace = loggedInMadrasa?.place || '';
+        try {
+          const { data: mData } = await queryWithRetry(() =>
+            mId
+              ? supabase.from('madrasas').select('place').eq('id', mId).maybeSingle()
+              : supabase.from('madrasas').select('place').eq('regNumber', String(rNum)).maybeSingle()
+          );
+          if (mData && mData.place) currentPlace = mData.place;
+        } catch (e) {}
+
+        const updatedPlace = makePlaceString(currentPlace, {
+          visibilityControls: encodeURIComponent(JSON.stringify(newVis))
+        });
+
         if (mId) {
-          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('id', mId);
+          await supabase.from('madrasas').update({
+            place: updatedPlace,
+            visibility_controls: JSON.stringify(newVis)
+          }).eq('id', mId);
         } else {
-          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum));
+          await supabase.from('madrasas').update({
+            place: updatedPlace,
+            visibility_controls: JSON.stringify(newVis)
+          }).eq('regNumber', String(rNum));
         }
       } catch (err) {
         console.warn("Error syncing published_programs to cloud:", err);
@@ -909,7 +939,7 @@ function App() {
       updated = progsWithResults;
     }
     setPublishedPrograms(updated);
-    if (rNum) {
+    if (rNum || loggedInMadrasa?.id) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
@@ -918,10 +948,31 @@ function App() {
         const newVis = { ...(visibilityControls || {}), published_programs: updated };
         setVisibilityControls(newVis);
         const mId = loggedInMadrasa?.id;
+
+        let currentPlace = loggedInMadrasa?.place || '';
+        try {
+          const { data: mData } = await queryWithRetry(() =>
+            mId
+              ? supabase.from('madrasas').select('place').eq('id', mId).maybeSingle()
+              : supabase.from('madrasas').select('place').eq('regNumber', String(rNum)).maybeSingle()
+          );
+          if (mData && mData.place) currentPlace = mData.place;
+        } catch (e) {}
+
+        const updatedPlace = makePlaceString(currentPlace, {
+          visibilityControls: encodeURIComponent(JSON.stringify(newVis))
+        });
+
         if (mId) {
-          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('id', mId);
+          await supabase.from('madrasas').update({
+            place: updatedPlace,
+            visibility_controls: JSON.stringify(newVis)
+          }).eq('id', mId);
         } else {
-          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum));
+          await supabase.from('madrasas').update({
+            place: updatedPlace,
+            visibility_controls: JSON.stringify(newVis)
+          }).eq('regNumber', String(rNum));
         }
       } catch (err) {}
     }
@@ -1270,13 +1321,17 @@ function App() {
     if (!parsed || typeof parsed !== 'object') {
       return { ...DEFAULT_VISIBILITY_CONTROLS };
     }
-    return {
+    const res = {
       scoreboard: parsed.scoreboard !== undefined ? Boolean(parsed.scoreboard) : DEFAULT_VISIBILITY_CONTROLS.scoreboard,
       results_PROGRAM_WINNERS: parsed.results_PROGRAM_WINNERS !== undefined ? Boolean(parsed.results_PROGRAM_WINNERS) : DEFAULT_VISIBILITY_CONTROLS.results_PROGRAM_WINNERS,
       results_STUDENT_REPORT: parsed.results_STUDENT_REPORT !== undefined ? Boolean(parsed.results_STUDENT_REPORT) : DEFAULT_VISIBILITY_CONTROLS.results_STUDENT_REPORT,
       results_RESULTS_HISTORY: parsed.results_RESULTS_HISTORY !== undefined ? Boolean(parsed.results_RESULTS_HISTORY) : DEFAULT_VISIBILITY_CONTROLS.results_RESULTS_HISTORY,
       results_CHAMPIONS: parsed.results_CHAMPIONS !== undefined ? Boolean(parsed.results_CHAMPIONS) : DEFAULT_VISIBILITY_CONTROLS.results_CHAMPIONS,
     };
+    if (Array.isArray(parsed.published_programs)) {
+      res.published_programs = parsed.published_programs.map(String);
+    }
+    return res;
   };
 
   const [visibilityControls, setVisibilityControls] = useState(() => {
@@ -1626,22 +1681,33 @@ function App() {
       const madrasaData = safe(madrasaResult).data;
       let fetchedVisibility = null;
       if (madrasaData) {
+        let visFromPlace = null;
+        let visFromCol = null;
         if (madrasaData.place) {
           const parts = madrasaData.place.split('|');
           if (parts[8]) {
             try {
-              fetchedVisibility = JSON.parse(decodeURIComponent(parts[8]));
+              visFromPlace = JSON.parse(decodeURIComponent(parts[8]));
             } catch (e) {
-              try { fetchedVisibility = JSON.parse(parts[8]); } catch (e2) {}
+              try { visFromPlace = JSON.parse(parts[8]); } catch (e2) {}
             }
           }
         }
-        if ((!fetchedVisibility || typeof fetchedVisibility !== 'object') && madrasaData.visibility_controls) {
+        if (madrasaData.visibility_controls) {
           try {
-            fetchedVisibility = typeof madrasaData.visibility_controls === 'string'
+            visFromCol = typeof madrasaData.visibility_controls === 'string'
               ? JSON.parse(madrasaData.visibility_controls)
               : madrasaData.visibility_controls;
           } catch (e) {}
+        }
+        fetchedVisibility = {
+          ...(visFromPlace && typeof visFromPlace === 'object' ? visFromPlace : {}),
+          ...(visFromCol && typeof visFromCol === 'object' ? visFromCol : {})
+        };
+        if (Array.isArray(visFromCol?.published_programs)) {
+          fetchedVisibility.published_programs = visFromCol.published_programs;
+        } else if (Array.isArray(visFromPlace?.published_programs)) {
+          fetchedVisibility.published_programs = visFromPlace.published_programs;
         }
       }
       // ⚠️ VISIBILITY CONTROLS SYNC STRATEGY:
@@ -1668,12 +1734,17 @@ function App() {
           if (fetchedVisibility) {
             const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
             setVisibilityControls(normalizedVis);
-            if (Array.isArray(fetchedVisibility.published_programs)) {
-              setPublishedPrograms(fetchedVisibility.published_programs);
-            }
+            // ⚠️ FIX: Always sync published_programs for VIEW role — even if empty array.
+            // This ensures unpublish actions also propagate to all view phones.
+            const freshPublished = Array.isArray(fetchedVisibility.published_programs)
+              ? fetchedVisibility.published_programs
+              : [];
+            setPublishedPrograms(freshPublished.map(String));
           } else {
             // DB had no value — fall back to DEFAULT (all ON) so view user is not locked out
             setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
+            // No visibility record means all programs visible to view users
+            // Keep existing publishedPrograms state — do NOT clear it
           }
         }
       } catch (e) {}
@@ -2202,18 +2273,60 @@ function App() {
         setIsInitialDataLoading(false);
       }
 
-      // 🔄 Realtime auto-refresh interval (every 30 seconds) only when online and not currently fetching
+      // 🔄 Realtime auto-refresh interval
+      // VIEW role: every 5s for near-instant result sync
+      // ADMIN role: every 30s is fine (they set data themselves)
+      const pollMs = loginRole === 'VIEW' ? 5000 : 30000;
       const intervalId = setInterval(() => {
         if (navigator.onLine && !isFetchingRef.current) {
           fetchSupabaseData(rNum);
         }
-      }, 30000);
+      }, pollMs);
 
-      // 🔄 Sync when user switches back to this browser tab (with 15s cooldown)
+      // ⚡ Supabase Realtime subscription for VIEW role:
+      // When admin updates visibility_controls / published_programs or results in cloud,
+      // VIEW phones get an instant push — no waiting for the poll timer.
+      let realtimeChannel = null;
+      if (loginRole === 'VIEW') {
+        realtimeChannel = supabase
+          .channel(`madrasas_vis_${rNum}_${Date.now()}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'madrasas',
+            },
+            () => {
+              // Admin changed something (visibility, published programs, place, etc.)
+              if (navigator.onLine && !isFetchingRef.current) {
+                fetchSupabaseData(rNum);
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'results',
+            },
+            () => {
+              // Admin entered new marks or updated results
+              if (navigator.onLine && !isFetchingRef.current) {
+                fetchSupabaseData(rNum);
+              }
+            }
+          )
+          .subscribe();
+      }
+
+      // 🔄 Sync when user switches back to this browser tab (with 5s cooldown for VIEW, 15s for ADMIN)
       let lastFocusTime = 0;
       const handleFocus = () => {
         const now = Date.now();
-        if (navigator.onLine && !isFetchingRef.current && now - lastFocusTime > 15000) {
+        const focusCooldown = loginRole === 'VIEW' ? 5000 : 15000;
+        if (navigator.onLine && !isFetchingRef.current && now - lastFocusTime > focusCooldown) {
           lastFocusTime = now;
           fetchSupabaseData(rNum);
         }
@@ -2241,15 +2354,18 @@ function App() {
         });
       }
 
-      // Load visibility controls safely from madrasa-specific cache
-      try {
-        const storedControls = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
-                               localStorage.getItem(`visibility_controls_${rNum}`);
-        if (storedControls) {
-          setVisibilityControls(JSON.parse(storedControls));
+      // Load visibility controls from localStorage ONLY for ADMIN role.
+      // VIEW role must always get fresh data from DB (via fetchSupabaseData above).
+      if (loginRole === 'ADMIN') {
+        try {
+          const storedControls = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
+                                 localStorage.getItem(`visibility_controls_${rNum}`);
+          if (storedControls) {
+            setVisibilityControls(JSON.parse(storedControls));
+          }
+        } catch (e) {
+          console.error("Failed to parse stored visibility controls", e);
         }
-      } catch (e) {
-        console.error("Failed to parse stored visibility controls", e);
       }
 
       // Checker to set default categories on first login if database is empty
@@ -2258,6 +2374,10 @@ function App() {
       return () => {
         clearInterval(intervalId);
         window.removeEventListener('focus', handleFocus);
+        // Clean up Realtime subscription if it was created
+        if (realtimeChannel) {
+          supabase.removeChannel(realtimeChannel);
+        }
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
