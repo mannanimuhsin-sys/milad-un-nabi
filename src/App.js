@@ -863,14 +863,13 @@ function App() {
 
   const isProgPublished = (progId) => {
     if (!progId) return false;
-    if (loginRole === 'ADMIN') return true;
 
-    // VIEW role: null = still loading from DB → show nothing (never auto-publish)
+    // If publishedPrograms is not yet loaded from DB: default to false (Draft)
     if (publishedPrograms === null || publishedPrograms === undefined) {
       return false;
     }
 
-    // Empty array = Admin has not published anything yet / all moved to Draft
+    // Empty array = Admin has not published anything yet / all in Draft
     if (Array.isArray(publishedPrograms) && publishedPrograms.length === 0) {
       return false;
     }
