@@ -865,12 +865,12 @@ function App() {
     if (!progId) return false;
     if (loginRole === 'ADMIN') return true;
 
-    // If published_programs is not yet loaded / not configured: default to true so view phones don't flash 0
+    // VIEW role: null = still loading from DB → show nothing (never auto-publish)
     if (publishedPrograms === null || publishedPrograms === undefined) {
-      return true;
+      return false;
     }
 
-    // If published_programs is explicitly an empty array (Admin moved all to Draft):
+    // Empty array = Admin has not published anything yet / all moved to Draft
     if (Array.isArray(publishedPrograms) && publishedPrograms.length === 0) {
       return false;
     }
@@ -1767,18 +1767,26 @@ function App() {
         if (fetchedVisibility) {
           const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
           setVisibilityControls(normalizedVis);
-          if (Array.isArray(fetchedVisibility.published_programs)) {
-            const freshPublished = fetchedVisibility.published_programs.map(String);
-            setPublishedPrograms(freshPublished);
-            if (rNum) {
-              try {
-                localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(freshPublished));
-                localStorage.setItem('milad_published_programs_latest', JSON.stringify(freshPublished));
-              } catch (e) {}
-            }
+          // Always set publishedPrograms from DB — even empty array means "all draft"
+          // NEVER leave it as null after DB load (null = loading state only)
+          const freshPublished = Array.isArray(fetchedVisibility.published_programs)
+            ? fetchedVisibility.published_programs.map(String)
+            : []; // No published_programs key in DB = all programs are in Draft
+          setPublishedPrograms(freshPublished);
+          if (rNum) {
+            try {
+              localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(freshPublished));
+              localStorage.setItem('milad_published_programs_latest', JSON.stringify(freshPublished));
+            } catch (e) {}
           }
+        } else {
+          // DB returned no visibility data at all → all programs are Draft
+          setPublishedPrograms([]);
         }
-      } catch (e) {}
+      } catch (e) {
+        // On error, default to empty (all draft) — never auto-publish
+        setPublishedPrograms([]);
+      }
 
       let parsedStudents = [];
       let parsedRegs = [];
@@ -6698,7 +6706,15 @@ ${pagesHtml}
                   </div>
                 </div>
                 <div style={{ marginTop: '20px' }}>
-                  {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
+                  {/* VIEW role: show loading spinner while published_programs loads from DB */}
+                  {loginRole === 'VIEW' && publishedPrograms === null ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                      <div style={{ fontSize: '36px', marginBottom: '12px' }}>⏳</div>
+                      <p style={{ fontSize: '14px', fontWeight: '700' }}>
+                        {lang === 'EN' ? 'Loading scoreboard...' : 'സ്കോർബോർഡ് ലോഡ് ചെയ്യുന്നു...'}
+                      </p>
+                    </div>
+                  ) : teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
                     <div className="live-leaderboard">
                       {(() => {
                         const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
