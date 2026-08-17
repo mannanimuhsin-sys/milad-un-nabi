@@ -832,6 +832,9 @@ function App() {
   const [searchRegNo, setSearchRegNo] = useState('');
   const [bulkCertCat, setBulkCertCat] = useState('ALL');
   const [bulkCertGender, setBulkCertGender] = useState('ALL');
+  const [bulkCertPlace, setBulkCertPlace] = useState('ALL');
+  const [bulkCertSearch, setBulkCertSearch] = useState('');
+  const [bulkCertExcludedKeys, setBulkCertExcludedKeys] = useState([]);
 
   // Champion section states
   const [champCat, setChampCat] = useState('');
@@ -6752,7 +6755,7 @@ ${pagesHtml}
                   )
                 )}
 
-                  {/* ── Section 2: Student Search by Register Number ── */}
+                  {/* ── Section 2: Student Search by Register Number & Admin Bulk Certificates ── */}
                   {resultsSubTab === 'STUDENT_REPORT' && (
                     loginRole === 'VIEW' && !visibilityControls.results_STUDENT_REPORT ? (
                       <div className="card animate-tab" style={{ textAlign: 'center', padding: '45px 20px', background: '#ffffff', borderRadius: '16px', border: '1.5px solid #fecaca', boxShadow: '0 4px 20px rgba(239,68,68,0.08)' }}>
@@ -6770,37 +6773,69 @@ ${pagesHtml}
                         </div>
                       </div>
                     ) : (() => {
-                    const generateBulkCertificates = () => {
-                      const winnerResults = resultsList.filter(r => {
-                        const p = (r.place || '').toString().toLowerCase();
-                        const isWinner = p === 'first' || p === '1' || p === 'second' || p === '2' || p === 'third' || p === '3';
-                        if (!isWinner) return false;
-
+                      // 1. Gather all winner results with full resolved metadata
+                      const allWinnerResults = resultsList.filter(r => {
+                        const p = (r.place || '').toString().trim().toLowerCase();
+                        return p === 'first' || p === '1' || p === '1st' ||
+                               p === 'second' || p === '2' || p === '2nd' ||
+                               p === 'third' || p === '3' || p === '3rd';
+                      }).map((r, idx) => {
                         const sName = r.studentname || r.studentName || '';
                         const dashIdx = sName.indexOf(' - ');
-                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
-                        const student = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === String(regPart).toLowerCase());
+                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx).trim() : '';
+                        const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3).trim() : sName;
+                        const student = students.find(s => String(s.regno || s.regNo || '').trim().toLowerCase() === regPart.toLowerCase()) || {
+                          name: namePart,
+                          regno: regPart,
+                          gender: (r.studentgender || r.studentGender || 'BOY').toUpperCase()
+                        };
                         const prog = programs.find(p => String(p.id) === String(r.progid));
+                        const isGeneral = isGeneralResult(r) || (prog && isGeneralProg(prog)) || String(r.catid || (prog ? prog.catid : '')) === '-1' || (r.catname || (prog ? prog.catname : '') || '').toLowerCase().includes('general');
+                        const rCatId = String(r.catid || r.catId || (prog ? prog.catid || prog.catId : '') || (student ? student.catid || student.catId : ''));
+                        const catObj = categories.find(c => String(c.id) === rCatId);
+                        const rCatName = r.catname || r.catName || (catObj ? catObj.name : (prog ? prog.catname || prog.catName : ''));
+                        const sRegNo = student.regno || student.regNo || regPart;
+                        const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || '')) || teams.find(t => t.name === (r.teamname || r.teamName));
+                        const pRaw = (r.place || '').toString().trim().toLowerCase();
+                        const placeNorm = (pRaw === 'first' || pRaw === '1' || pRaw === '1st') ? '1' : (pRaw === 'second' || pRaw === '2' || pRaw === '2nd') ? '2' : (pRaw === 'third' || pRaw === '3' || pRaw === '3rd') ? '3' : '1';
+                        const uniqueKey = r.id ? String(r.id) : `res_${r.progid}_${sRegNo}_${placeNorm}_${idx}`;
 
-                        // Category Filter
+                        return {
+                          result: r,
+                          student,
+                          prog,
+                          catObj,
+                          teamObj,
+                          isGeneral,
+                          rCatId,
+                          rCatName,
+                          sRegNo,
+                          placeNorm,
+                          uniqueKey
+                        };
+                      });
+
+                      // 2. Apply Category, Gender, Place, and Search Filters
+                      const filteredWinners = allWinnerResults.filter(item => {
+                        // Category filter
                         if (bulkCertCat !== 'ALL') {
                           if (bulkCertCat === 'GENERAL') {
-                            if (!isGeneralResult(r)) return false;
+                            if (!item.isGeneral) return false;
                           } else {
-                            const rCatId = String(r.catid || r.catId || (prog ? prog.catid || prog.catId : '') || (student ? student.catid || student.catId : ''));
                             const catObj = categories.find(c => String(c.id) === String(bulkCertCat));
-                            const targetCatName = catObj ? catObj.name : '';
-
-                            if (rCatId !== String(bulkCertCat) && (r.catname || r.catName) !== targetCatName) {
+                            const targetCatName = (catObj ? catObj.name : '').trim().toLowerCase();
+                            const itemCatName = (item.rCatName || '').trim().toLowerCase();
+                            if (item.isGeneral) return false;
+                            if (item.rCatId !== String(bulkCertCat) && itemCatName !== targetCatName) {
                               return false;
                             }
                           }
                         }
 
-                        // Gender / Division Filter
+                        // Gender filter
                         if (bulkCertGender !== 'ALL') {
-                          const genderVal = (r.studentgender || r.studentGender || (student ? student.gender : '') || (prog ? prog.type : '')).toUpperCase();
-                          const progType = (r.progtype || r.progType || (prog ? prog.type : '')).toUpperCase();
+                          const genderVal = (item.result.studentgender || item.result.studentGender || item.student?.gender || (item.prog ? item.prog.type : '') || '').toUpperCase();
+                          const progType = (item.result.progtype || item.result.progType || (item.prog ? item.prog.type : '') || '').toUpperCase();
 
                           if (bulkCertGender === 'BOY') {
                             if (!genderVal.includes('BOY') && !progType.includes('BOY')) return false;
@@ -6811,66 +6846,92 @@ ${pagesHtml}
                           }
                         }
 
+                        // Place filter
+                        if (bulkCertPlace !== 'ALL') {
+                          if (item.placeNorm !== bulkCertPlace) return false;
+                        }
+
+                        // Search query
+                        if (bulkCertSearch.trim()) {
+                          const q = bulkCertSearch.trim().toLowerCase();
+                          const matchName = (item.student.name || '').toLowerCase().includes(q);
+                          const matchReg = (item.sRegNo || '').toLowerCase().includes(q);
+                          const matchProg = (item.result.progname || item.result.progName || (item.prog ? item.prog.name : '') || '').toLowerCase().includes(q);
+                          const matchCode = (item.prog ? item.prog.code : '').toLowerCase().includes(q);
+                          const matchTeam = (item.teamObj ? item.teamObj.name : '').toLowerCase().includes(q);
+                          if (!matchName && !matchReg && !matchProg && !matchCode && !matchTeam) return false;
+                        }
+
                         return true;
                       });
 
-                      if (winnerResults.length === 0) {
-                        alert(
-                          lang === 'EN'
-                            ? 'No 1st, 2nd, or 3rd place winners found matching the selected Category and Gender filters.'
-                            : 'സെലക്ട് ചെയ്ത കാറ്റഗറിയിലും ജെൻഡറിലും 1, 2, 3 സ്ഥാനങ്ങൾ ലഭിച്ച വിജയികളാരും ഇല്ല.'
-                        );
-                        return;
-                      }
+                      // Selected winners (excluding excluded keys)
+                      const selectedWinners = filteredWinners.filter(w => !bulkCertExcludedKeys.includes(w.uniqueKey));
+                      const isAllFilteredSelected = filteredWinners.length > 0 && filteredWinners.every(w => !bulkCertExcludedKeys.includes(w.uniqueKey));
 
-                      const logoUrl = window.location.origin + '/logo192.png';
-                      const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                      const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
-                      const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                      // Selection togglers
+                      const toggleStudentSelection = (key) => {
+                        setBulkCertExcludedKeys(prev => {
+                          if (prev.includes(key)) {
+                            return prev.filter(k => k !== key);
+                          } else {
+                            return [...prev, key];
+                          }
+                        });
+                      };
 
-                      const certificatesPagesHtml = winnerResults.map(result => {
-                        const sName = result.studentname || result.studentName || '';
-                        const dashIdx = sName.indexOf(' - ');
-                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
-                        const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                      const selectAllFiltered = () => {
+                        const filteredKeys = filteredWinners.map(w => w.uniqueKey);
+                        setBulkCertExcludedKeys(prev => prev.filter(k => !filteredKeys.includes(k)));
+                      };
 
-                        const student = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === String(regPart).toLowerCase()) || {
-                          name: namePart,
-                          regno: regPart,
-                          gender: (result.studentgender || result.studentGender || 'BOY').toUpperCase()
-                        };
+                      const deselectAllFiltered = () => {
+                        const filteredKeys = filteredWinners.map(w => w.uniqueKey);
+                        setBulkCertExcludedKeys(prev => Array.from(new Set([...prev, ...filteredKeys])));
+                      };
 
-                        const sRegNo = student.regno || student.regNo || regPart;
-                        const teamObj = teams.find(t => String(t.id) === String(student.teamid || student.teamId || '')) || teams.find(t => t.name === (result.teamname || result.teamName));
-                        const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || '')) || categories.find(c => c.name === (result.catname || result.catName));
+                      // 3. Multi-page Bulk Certificate Generator
+                      const generateBulkCertificates = () => {
+                        if (selectedWinners.length === 0) {
+                          alert(
+                            lang === 'EN'
+                              ? 'Please select at least one student to generate certificates.'
+                              : 'സർട്ടിഫിക്കറ്റ് തയ്യാറാക്കാൻ കുറഞ്ഞത് ഒരു വിദ്യാർത്ഥിയെയെങ്കിലും തിരഞ്ഞെടുക്കുക.'
+                          );
+                          return;
+                        }
 
-                        const placeRaw = (result.place || '').toString().toLowerCase();
-                        const prizeText = placeRaw === 'first' || placeRaw === '1' ? 'First Prize' : placeRaw === 'second' || placeRaw === '2' ? 'Second Prize' : placeRaw === 'third' || placeRaw === '3' ? 'Third Prize' : (result.place ? result.place + ' Prize' : 'Prize');
+                        const logoUrl = window.location.origin + '/logo192.png';
+                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
+                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
+                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
 
-                        const prog = programs.find(p => String(p.id) === String(result.progid));
-                        const progName = result.progname || result.progName || (prog ? prog.name : '');
-                        const catName = result.catname || result.catName || (catObj ? catObj.name : '');
-                        const progAndCatText = `${progName}${catName && !progName.toLowerCase().includes(catName.toLowerCase()) ? ` (${catName})` : ''}`;
+                        const certificatesPagesHtml = selectedWinners.map(({ result, student, prog, catObj, teamObj, sRegNo, placeNorm }, certIdx) => {
+                          const prizeText = placeNorm === '1' ? 'First Prize' : placeNorm === '2' ? 'Second Prize' : 'Third Prize';
+                          const progName = result.progname || result.progName || (prog ? prog.name : '');
+                          const catName = result.catname || result.catName || (catObj ? catObj.name : '');
+                          const progAndCatText = `${progName}${catName && !progName.toLowerCase().includes(catName.toLowerCase()) ? ` (${catName})` : ''}`;
 
-                        const madrasaNameText = madrasaName ? madrasaName.toUpperCase() : 'MADRASA NAME';
-                        const madrasaPlaceText = madrasaPlace ? madrasaPlace.toUpperCase() : 'PLACE';
-                        const eventNameText = eventName ? eventName : 'EVENT NAME';
-                        const eventYearText = eventYear ? eventYear : '2026';
-                        const eventAndYearText = `${eventNameText} ${eventYearText}`;
+                          const madrasaNameText = madrasaName ? madrasaName.toUpperCase() : 'MADRASA NAME';
+                          const madrasaPlaceText = madrasaPlace ? madrasaPlace.toUpperCase() : 'PLACE';
+                          const eventNameText = eventName ? eventName : 'EVENT NAME';
+                          const eventYearText = eventYear ? eventYear : '2026';
+                          const eventAndYearText = `${eventNameText} ${eventYearText}`;
+                          const certId = result.id || `c_${certIdx}_${Math.random().toString(36).substring(7)}`;
 
-                        return `
+                          return `
 <div class="certificate-wrapper">
-  <!-- Right Green Geometric Banner with Arabic Calligraphy */}
+  <!-- Right Green Geometric Banner with Arabic Calligraphy -->
   <div class="cert-right-banner">
-        <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="380" height="740" viewBox="0 0 380 740" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <pattern id="islamicPattern_${result.id || Math.random()}" width="70" height="70" patternUnits="userSpaceOnUse">
+        <pattern id="islamicPattern_${certId}" width="70" height="70" patternUnits="userSpaceOnUse">
           <path d="M35 0 L70 35 L35 70 L0 35 Z" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.35"/>
           <path d="M0 0 L70 70 M70 0 L0 70" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.2"/>
           <circle cx="35" cy="35" r="14" stroke="#0d6e53" stroke-width="0.8" fill="none" opacity="0.25"/>
           <polygon points="35,12 42,27 58,27 44,37 50,53 35,43 20,53 26,37 12,27 28,27" stroke="#0d6e53" stroke-width="0.6" fill="none" opacity="0.25"/>
         </pattern>
-        <linearGradient id="ferruleGrad_${result.id || Math.random()}" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="ferruleGrad_${certId}" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" style="stop-color:#94a3b8"/>
           <stop offset="50%" style="stop-color:#f1f5f9"/>
           <stop offset="100%" style="stop-color:#64748b"/>
@@ -6879,7 +6940,7 @@ ${pagesHtml}
       
       <!-- Green Polygon Cut Path -->
       <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="#064e3b" />
-      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_${result.id || Math.random()})" opacity="0.8" />
+      <path d="M120 0 L380 0 L380 740 L290 740 L230 540 L270 510 L160 360 L120 0 Z" fill="url(#islamicPattern_${certId})" opacity="0.8" />
       <path d="M120 0 L160 360 L270 510 L230 540 L290 740" stroke="#022c22" stroke-width="4" fill="none"/>
 
       <!-- WHITE MILAD FEST LOGO (TOP RIGHT) -->
@@ -6923,7 +6984,7 @@ ${pagesHtml}
           <!-- Brush 1: Flat Wash Brush (Left) -->
           <g transform="translate(20, 30) rotate(-10)">
             <path d="M 30 180 L 44 180 L 40 390 L 34 390 Z" fill="#143023" stroke="#064e3b" stroke-width="1"/>
-            <rect x="27" y="130" width="18" height="50" rx="2" fill="url(#ferruleGrad_${result.id || Math.random()})"/>
+            <rect x="27" y="130" width="18" height="50" rx="2" fill="url(#ferruleGrad_${certId})"/>
             <line x1="27" y1="145" x2="45" y2="145" stroke="#475569" stroke-width="1"/>
             <line x1="27" y1="160" x2="45" y2="160" stroke="#475569" stroke-width="1"/>
             <path d="M 25 45 L 47 45 L 45 130 L 27 130 Z" fill="#064e3b"/>
@@ -6937,7 +6998,7 @@ ${pagesHtml}
           <!-- Brush 2: Medium Round Brush (Center) -->
           <g transform="translate(70, 10) rotate(4)">
             <path d="M 34 190 L 42 190 L 40 410 L 36 410 Z" fill="#0f291e" stroke="#064e3b" stroke-width="1"/>
-            <path d="M 32 140 L 44 140 L 42 190 L 34 190 Z" fill="url(#ferruleGrad_${result.id || Math.random()})"/>
+            <path d="M 32 140 L 44 140 L 42 190 L 34 190 Z" fill="url(#ferruleGrad_${certId})"/>
             <line x1="33" y1="155" x2="43" y2="155" stroke="#475569" stroke-width="1"/>
             <line x1="33" y1="170" x2="43" y2="170" stroke="#475569" stroke-width="1"/>
             <path d="M 38 35 C 30 65, 30 105, 32 140 L 44 140 C 46 105, 46 65, 38 35 Z" fill="#047857"/>
@@ -6948,7 +7009,7 @@ ${pagesHtml}
           <!-- Brush 3: Fine Detail Brush (Right) -->
           <g transform="translate(110, 50) rotate(14)">
             <path d="M 28 170 L 34 170 L 32 380 L 30 380 Z" fill="#0d241a" stroke="#064e3b" stroke-width="0.8"/>
-            <rect x="27" y="130" width="8" height="40" rx="1" fill="url(#ferruleGrad_${result.id || Math.random()})"/>
+            <rect x="27" y="130" width="8" height="40" rx="1" fill="url(#ferruleGrad_${certId})"/>
             <line x1="27" y1="145" x2="35" y2="145" stroke="#475569" stroke-width="0.8"/>
             <path d="M 31 55 C 26 80, 26 105, 27 130 L 35 130 C 36 105, 36 80, 31 55 Z" fill="#047857"/>
             <path d="M 31 55 C 28 70, 27 85, 28 100 L 34 100 C 35 85, 34 70, 31 55 Z" fill="#34d399"/>
@@ -6958,10 +7019,10 @@ ${pagesHtml}
     </svg>
   </div>
 
-  <!-- Content Section */}
+  <!-- Content Section -->
   <div class="cert-content">
     
-    <!-- Top Header */}
+    <!-- Top Header -->
     <div class="cert-header">
       <div class="cert-logo-section">
         <img src="${logoUrl}" class="cert-app-logo" style="width:75px; height:75px; object-fit:contain; border-radius:12px; box-shadow: 0 2px 8px rgba(6,78,59,0.15);" alt="Milad Fest Logo" />
@@ -6977,7 +7038,7 @@ ${pagesHtml}
       </div>
     </div>
 
-    <!-- Main Title */}
+    <!-- Main Title -->
     <div>
       <div class="cert-title-section">
         <div class="cert-main-title">Certificate</div>
@@ -6997,7 +7058,7 @@ ${pagesHtml}
       </div>
     </div>
 
-    <!-- Signatures */}
+    <!-- Signatures -->
     <div class="cert-signatures">
       <div class="cert-sign-col">
         <div class="cert-sign-name">${coordinatorConvener || ''}</div>
@@ -7013,15 +7074,15 @@ ${pagesHtml}
 
   </div>
 </div>`;
-                      }).join('');
+                        }).join('');
 
-                      const html = `
+                        const html = `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bulk Certificates (${winnerResults.length} Winners)</title>
+<title>Bulk Certificates (${selectedWinners.length} Selected Winners)</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Scheherazade+New:wght@700&display=swap" rel="stylesheet">
 <script>
   window.onload = function() {
@@ -7122,7 +7183,7 @@ ${pagesHtml}
 </head>
 <body>
   <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #064e3b; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
-    <span style="font-weight: 800; font-size: 14px; font-family: sans-serif;">📜 Certificates Preview (${winnerResults.length} Certificates)</span>
+    <span style="font-weight: 800; font-size: 14px; font-family: sans-serif;">📜 Certificates Preview (${selectedWinners.length} Winners Selected)</span>
     <div style="display: flex; gap: 10px;">
       <button onclick="window.print()" style="background: #fbbf24; color: #78350f; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">🖨️ Save as PDF / Print</button>
       <button onclick="window.close()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">✕ Close</button>
@@ -7134,154 +7195,337 @@ ${pagesHtml}
 </html>
 `;
 
-                      printHtml(html, `MiladFest_Bulk_Certificates_${winnerResults.length}`);
-                    };
+                        try {
+                          const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                          const blobUrl = URL.createObjectURL(blob);
+                          const win = window.open(blobUrl, '_blank');
+                          if (!win) {
+                            printHtml(html, `MiladFest_Bulk_Certificates_${selectedWinners.length}`);
+                          }
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+                        } catch (e) {
+                          printHtml(html, `MiladFest_Bulk_Certificates_${selectedWinners.length}`);
+                        }
+                      };
 
-                    return (
-                      <div style={{ marginBottom: '20px' }}>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: loginRole === 'ADMIN' ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
-                          gap: '16px',
-                          marginTop: '10px',
-                          marginBottom: '20px'
-                        }}>
-                          {/* Card 1: Single Student Register Number Search */}
+                      return (
+                        <div style={{ marginBottom: '20px' }}>
                           <div style={{
-                            background: 'white',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '16px',
-                            padding: '20px',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between'
+                            display: 'grid',
+                            gridTemplateColumns: loginRole === 'ADMIN' ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
+                            gap: '16px',
+                            marginTop: '10px',
+                            marginBottom: '20px'
                           }}>
-                            <div>
-                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>🔍</span>
-                                <span>{lang === 'EN' ? 'Student Report & Single Certificate' : 'സ്റ്റുഡന്റ് റിപ്പോർട്ട് & സർട്ടിഫിക്കറ്റ്'}</span>
-                              </div>
-                              <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px', lineHeight: '1.4' }}>
-                                {lang === 'EN'
-                                  ? 'Enter register number to view student performance report and print individual certificate.'
-                                  : 'വിദ്യാർത്ഥിയുടെ ഫലങ്ങളും സർട്ടിഫിക്കറ്റും കാണാൻ താഴെ രജിസ്റ്റർ നമ്പർ നൽകുക.'
-                                }
-                              </p>
-                            </div>
-                            <input
-                              type="text"
-                              className="settings-input-v2"
-                              placeholder={lang === 'EN' ? 'Enter Register Number (e.g. 101)...' : 'രജിസ്റ്റർ നമ്പർ നൽകുക (e.g. 101)...'}
-                              value={searchRegNo}
-                              onChange={(e) => setSearchRegNo(e.target.value)}
-                              style={{ width: '100%', fontSize: '14px', padding: '10px 14px' }}
-                            />
-                          </div>
-
-                          {/* Card 2 (ADMIN MODE ONLY): Bulk Certificate Generation & PDF Export */}
-                          {loginRole === 'ADMIN' && (
+                            {/* Card 1: Single Student Register Number Search */}
                             <div style={{
-                              background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-                              border: '1.5px solid #bbf7d0',
+                              background: 'white',
+                              border: '1.5px solid #e2e8f0',
                               borderRadius: '16px',
                               padding: '20px',
-                              boxShadow: '0 4px 15px rgba(22,163,74,0.06)'
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between'
                             }}>
-                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#166534', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>📜</span>
-                                <span>{lang === 'EN' ? 'Bulk Certificate (PDF / Print)' : 'സർട്ടിഫിക്കറ്റ് (Bulk PDF / പ്രിന്റ്)'}</span>
-                              </div>
-                              <p style={{ fontSize: '12px', color: '#15803d', marginBottom: '14px', lineHeight: '1.4' }}>
-                                {lang === 'EN'
-                                  ? 'Filter 1st, 2nd & 3rd place winners by category and gender division to export all certificates into PDF.'
-                                  : 'കാറ്റഗറിയും ജെൻഡറും സെലക്ട് ചെയ്ത് 1, 2, 3 വിജയികളുടെ എല്ലാ സർട്ടിഫിക്കറ്റുകളും ഒന്നിച്ച് PDF ആക്കുക.'
-                                }
-                              </p>
-
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                                {/* Category Dropdown */}
-                                <div>
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>
-                                    {lang === 'EN' ? 'Category' : 'കാറ്റഗറി'}
-                                  </label>
-                                  <select
-                                    className="settings-input-v2"
-                                    value={bulkCertCat}
-                                    onChange={(e) => setBulkCertCat(e.target.value)}
-                                    style={{ width: '100%', padding: '8px 10px', fontSize: '13px', background: 'white' }}
-                                  >
-                                    <option value="ALL">{lang === 'EN' ? 'All Categories (എല്ലാം)' : 'All Categories (എല്ലാ കാറ്റഗറിയും)'}</option>
-                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    <option value="GENERAL">🌟 GENERAL (പൊതുവിഭാഗം)</option>
-                                  </select>
+                              <div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span>🔍</span>
+                                  <span>{lang === 'EN' ? 'Student Report & Single Certificate' : 'സ്റ്റുഡന്റ് റിപ്പോർട്ട് & സർട്ടിഫിക്കറ്റ്'}</span>
                                 </div>
-
-                                {/* Gender / Division Dropdown */}
-                                <div>
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '4px' }}>
-                                    {lang === 'EN' ? 'Gender / Division' : 'വിഭാഗം (Division)'}
-                                  </label>
-                                  <select
-                                    className="settings-input-v2"
-                                    value={bulkCertGender}
-                                    onChange={(e) => setBulkCertGender(e.target.value)}
-                                    style={{ width: '100%', padding: '8px 10px', fontSize: '13px', background: 'white' }}
-                                  >
-                                    <option value="ALL">{lang === 'EN' ? 'All (എല്ലാം)' : 'All (എല്ലാം)'}</option>
-                                    <option value="BOY">👦 {lang === 'EN' ? 'Boys' : 'ബോയ്സ്'}</option>
-                                    <option value="GIRL">👧 {lang === 'EN' ? 'Girls' : 'ഗേൾസ്'}</option>
-                                    <option value="COMMON">👥 {lang === 'EN' ? 'Common' : 'കോമൺ'}</option>
-                                  </select>
-                                </div>
+                                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px', lineHeight: '1.4' }}>
+                                  {lang === 'EN'
+                                    ? 'Enter register number to view student performance report and print individual certificate.'
+                                    : 'വിദ്യാർത്ഥിയുടെ ഫലങ്ങളും സർട്ടിഫിക്കറ്റും കാണാൻ താഴെ രജിസ്റ്റർ നമ്പർ നൽകുക.'
+                                  }
+                                </p>
                               </div>
-
-                              {/* PDF / Print Button */}
-                              <button
-                                onClick={generateBulkCertificates}
-                                style={{
-                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                  color: 'white',
-                                  border: 'none',
-                                  padding: '11px 16px',
-                                  borderRadius: '10px',
-                                  cursor: 'pointer',
-                                  fontWeight: '800',
-                                  fontSize: '13px',
-                                  width: '100%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 12px rgba(22,163,74,0.25)',
-                                  transition: 'all 0.2s'
-                                }}
-                              >
-                                🖨️ {lang === 'EN' ? 'PDF / Print All Certificates' : 'PDF / പ്രിന്റ് ഓൾ സർട്ടിഫിക്കറ്റുകൾ'}
-                              </button>
+                              <input
+                                type="text"
+                                className="settings-input-v2"
+                                placeholder={lang === 'EN' ? 'Enter Register Number (e.g. 101)...' : 'രജിസ്റ്റർ നമ്പർ നൽകുക (e.g. 101)...'}
+                                value={searchRegNo}
+                                onChange={(e) => setSearchRegNo(e.target.value)}
+                                style={{ width: '100%', fontSize: '14px', padding: '10px 14px' }}
+                              />
                             </div>
-                          )}
-                        </div>
 
-                      {searchRegNo.trim() && (() => {
-                        const matchedStudent = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === searchRegNo.trim().toLowerCase());
-                        if (!matchedStudent) return <p style={{ color: '#ef4444', marginTop: '15px', fontWeight: '600' }}>No student found with this register number.</p>;
+                            {/* Card 2 (ADMIN MODE ONLY): Upgraded Bulk Certificate Generator & Filter Box */}
+                            {loginRole === 'ADMIN' && (
+                              <div style={{
+                                background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                                border: '1.5px solid #86efac',
+                                borderRadius: '16px',
+                                padding: '20px',
+                                boxShadow: '0 6px 20px rgba(22,163,74,0.08)'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                                  <div style={{ fontSize: '15px', fontWeight: '900', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span>📜</span>
+                                    <span>{lang === 'EN' ? 'Bulk Certificate Generator' : 'ബൾക്ക് സർട്ടിഫിക്കറ്റ് ജനറേറ്റർ'}</span>
+                                  </div>
+                                  <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11.5px', fontWeight: '800', padding: '3px 10px', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
+                                    {selectedWinners.length} / {filteredWinners.length} {lang === 'EN' ? 'Selected' : 'തിരഞ്ഞെടുത്തു'}
+                                  </span>
+                                </div>
 
-                        const sRegNo = matchedStudent.regno || matchedStudent.regNo || '';
-                        const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
-                        const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
-                        const sResults = resultsList.filter(r => {
-                          const sName = r.studentname || r.studentName || '';
-                          return sName.startsWith(sRegNo + ' - ');
-                        });
+                                <p style={{ fontSize: '12px', color: '#15803d', marginBottom: '14px', lineHeight: '1.4' }}>
+                                  {lang === 'EN'
+                                    ? 'Filter winners by category, gender, and prize position. Select or uncheck specific students to print custom certificates.'
+                                    : 'കാറ്റഗറിയും ജെൻഡറും സ്ഥാനവും ഫിൽട്ടർ ചെയ്യുക. ആവശ്യമുള്ള വിദ്യാർത്ഥികളെ മാത്രം ടിക്ക് ചെയ്ത് സർട്ടിഫിക്കറ്റുകൾ PDF ആക്കാം.'
+                                  }
+                                </p>
 
-                        const printReport = () => {
-                          const rows = sResults.map(r => {
-                            let placeLabel = r.place || '-';
-                            let gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
-                            return `<tr><td>${r.progname || r.progName}</td><td>${r.catname || r.catName}</td><td>${placeLabel}</td><td>${gradeLabel}</td><td>${r.points} Pts</td></tr>`;
-                          }).join('');
-                          const html = `
+                                {/* Filter Controls Grid */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                                  {/* Category Dropdown */}
+                                  <div>
+                                    <label style={{ fontSize: '11px', fontWeight: '800', color: '#166534', display: 'block', marginBottom: '4px' }}>
+                                      {lang === 'EN' ? 'Category' : 'കാറ്റഗറി'}
+                                    </label>
+                                    <select
+                                      className="settings-input-v2"
+                                      value={bulkCertCat}
+                                      onChange={(e) => setBulkCertCat(e.target.value)}
+                                      style={{ width: '100%', padding: '7px 9px', fontSize: '12px', background: 'white' }}
+                                    >
+                                      <option value="ALL">{lang === 'EN' ? 'All Categories (എല്ലാം)' : 'All Categories (എല്ലാ കാറ്റഗറിയും)'}</option>
+                                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                      <option value="GENERAL">🌟 GENERAL (പൊതുവിഭാഗം)</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Gender / Division Dropdown */}
+                                  <div>
+                                    <label style={{ fontSize: '11px', fontWeight: '800', color: '#166534', display: 'block', marginBottom: '4px' }}>
+                                      {lang === 'EN' ? 'Division' : 'വിഭാഗം'}
+                                    </label>
+                                    <select
+                                      className="settings-input-v2"
+                                      value={bulkCertGender}
+                                      onChange={(e) => setBulkCertGender(e.target.value)}
+                                      style={{ width: '100%', padding: '7px 9px', fontSize: '12px', background: 'white' }}
+                                    >
+                                      <option value="ALL">{lang === 'EN' ? 'All Divisions (എല്ലാം)' : 'All Divisions (എല്ലാം)'}</option>
+                                      <option value="BOY">👦 {lang === 'EN' ? 'Boys' : 'ബോയ്സ്'}</option>
+                                      <option value="GIRL">👧 {lang === 'EN' ? 'Girls' : 'ഗേൾസ്'}</option>
+                                      <option value="COMMON">👥 {lang === 'EN' ? 'Common' : 'കോമൺ'}</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Position / Place Dropdown */}
+                                  <div>
+                                    <label style={{ fontSize: '11px', fontWeight: '800', color: '#166534', display: 'block', marginBottom: '4px' }}>
+                                      {lang === 'EN' ? 'Place / Prize' : 'സ്ഥാനം'}
+                                    </label>
+                                    <select
+                                      className="settings-input-v2"
+                                      value={bulkCertPlace}
+                                      onChange={(e) => setBulkCertPlace(e.target.value)}
+                                      style={{ width: '100%', padding: '7px 9px', fontSize: '12px', background: 'white' }}
+                                    >
+                                      <option value="ALL">🥇 🥈 🥉 {lang === 'EN' ? 'All (1, 2, 3)' : 'എല്ലാ വിജയികളും'}</option>
+                                      <option value="1">🥇 1st Place Only</option>
+                                      <option value="2">🥈 2nd Place Only</option>
+                                      <option value="3">🥉 3rd Place Only</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Search Bar inside Bulk Box */}
+                                <div style={{ marginBottom: '12px' }}>
+                                  <input
+                                    type="text"
+                                    className="settings-input-v2"
+                                    placeholder={lang === 'EN' ? '🔍 Filter by student name, reg no or program...' : '🔍 വിദ്യാർത്ഥി, രജി.നമ്പർ, പ്രോഗ്രാം തിരയുക...'}
+                                    value={bulkCertSearch}
+                                    onChange={(e) => setBulkCertSearch(e.target.value)}
+                                    style={{ width: '100%', padding: '7px 12px', fontSize: '12px', background: 'white' }}
+                                  />
+                                </div>
+
+                                {/* Checkbox Select All / Deselect All Bar */}
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  background: 'rgba(255,255,255,0.75)',
+                                  border: '1px solid #bbf7d0',
+                                  borderRadius: '10px',
+                                  padding: '8px 12px',
+                                  marginBottom: '12px',
+                                  flexWrap: 'wrap',
+                                  gap: '8px'
+                                }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '800', color: '#14532d' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isAllFilteredSelected}
+                                      onChange={(e) => e.target.checked ? selectAllFiltered() : deselectAllFiltered()}
+                                      style={{ width: '17px', height: '17px', accentColor: '#16a34a', cursor: 'pointer' }}
+                                    />
+                                    <span>{lang === 'EN' ? 'Select All Filtered' : 'എല്ലാം തിരഞ്ഞെടുക്കുക'} ({filteredWinners.length})</span>
+                                  </label>
+
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={selectAllFiltered}
+                                      style={{ background: '#16a34a', color: 'white', border: 'none', padding: '4px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                                    >
+                                      ✓ All
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={deselectAllFiltered}
+                                      style={{ background: '#94a3b8', color: 'white', border: 'none', padding: '4px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                                    >
+                                      ✕ Clear
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Scrollable Student Selection Checklist */}
+                                <div style={{
+                                  maxHeight: '220px',
+                                  overflowY: 'auto',
+                                  background: '#ffffff',
+                                  border: '1.5px solid #cbd5e1',
+                                  borderRadius: '12px',
+                                  padding: '8px',
+                                  marginBottom: '14px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '6px'
+                                }}>
+                                  {filteredWinners.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '24px 10px', color: '#64748b', fontSize: '12.5px', fontWeight: '600' }}>
+                                      {lang === 'EN' ? 'No winners match the selected filters.' : 'ഈ ഫിൽട്ടറുകളിൽ വിജയികളാരും ഇല്ല.'}
+                                    </div>
+                                  ) : (
+                                    filteredWinners.map(item => {
+                                      const isChecked = !bulkCertExcludedKeys.includes(item.uniqueKey);
+                                      const medal = item.placeNorm === '1' ? '🥇 1st' : item.placeNorm === '2' ? '🥈 2nd' : '🥉 3rd';
+                                      const medalBg = item.placeNorm === '1' ? '#fef3c7' : item.placeNorm === '2' ? '#f1f5f9' : '#ffedd5';
+                                      const medalColor = item.placeNorm === '1' ? '#b45309' : item.placeNorm === '2' ? '#475569' : '#c2410c';
+
+                                      return (
+                                        <div
+                                          key={item.uniqueKey}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '8px',
+                                            padding: '7px 10px',
+                                            borderRadius: '8px',
+                                            background: isChecked ? '#f0fdf4' : '#ffffff',
+                                            border: isChecked ? '1px solid #86efac' : '1px solid #e2e8f0',
+                                            transition: 'background 0.15s ease'
+                                          }}
+                                        >
+                                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, cursor: 'pointer', margin: 0 }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={() => toggleStudentSelection(item.uniqueKey)}
+                                              style={{ width: '16px', height: '16px', accentColor: '#16a34a', cursor: 'pointer', flexShrink: 0 }}
+                                            />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                <span style={{ fontSize: '13px', fontWeight: '800', color: isChecked ? '#0f172a' : '#64748b' }}>
+                                                  {item.student.name}
+                                                </span>
+                                                {item.sRegNo && (
+                                                  <span style={{ fontSize: '10.5px', background: '#e2e8f0', color: '#475569', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                                    #{item.sRegNo}
+                                                  </span>
+                                                )}
+                                                <span style={{ fontSize: '10.5px', background: medalBg, color: medalColor, padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                                                  {medal}
+                                                </span>
+                                              </div>
+                                              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                🎯 {item.result.progname || item.result.progName || (item.prog ? item.prog.name : '')} {item.rCatName ? `(${item.rCatName})` : ''} {item.teamObj ? `• ${item.teamObj.name}` : ''}
+                                              </div>
+                                            </div>
+                                          </label>
+
+                                          {/* Direct Single Certificate Preview */}
+                                          <button
+                                            type="button"
+                                            onClick={() => setActiveCertificate({ student: item.student, result: item.result })}
+                                            style={{
+                                              background: '#ffffff',
+                                              border: '1px solid #cbd5e1',
+                                              color: '#0f766e',
+                                              padding: '4px 8px',
+                                              borderRadius: '6px',
+                                              fontSize: '11px',
+                                              fontWeight: '700',
+                                              cursor: 'pointer',
+                                              flexShrink: 0
+                                            }}
+                                            title="Preview Single Certificate"
+                                          >
+                                            👁️
+                                          </button>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+
+                                {/* PDF / Print Action Button */}
+                                <button
+                                  type="button"
+                                  onClick={generateBulkCertificates}
+                                  disabled={selectedWinners.length === 0}
+                                  style={{
+                                    background: selectedWinners.length > 0 ? 'linear-gradient(135deg, #16a34a, #15803d)' : '#94a3b8',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '12px 18px',
+                                    borderRadius: '10px',
+                                    cursor: selectedWinners.length > 0 ? 'pointer' : 'not-allowed',
+                                    fontWeight: '800',
+                                    fontSize: '13.5px',
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    boxShadow: selectedWinners.length > 0 ? '0 4px 14px rgba(22,163,74,0.3)' : 'none',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  🖨️ {lang === 'EN'
+                                    ? `Generate & Print Selected Certificates (${selectedWinners.length})`
+                                    : `തിരഞ്ഞെടുത്ത സർട്ടിഫിക്കറ്റുകൾ PDF ആക്കുക (${selectedWinners.length})`}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                        {searchRegNo.trim() && (() => {
+                          const matchedStudent = students.find(s => String(s.regno || s.regNo || '').toLowerCase() === searchRegNo.trim().toLowerCase());
+                          if (!matchedStudent) return <p style={{ color: '#ef4444', marginTop: '15px', fontWeight: '600' }}>No student found with this register number.</p>;
+
+                          const sRegNo = matchedStudent.regno || matchedStudent.regNo || '';
+                          const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
+                          const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
+                          const sResults = resultsList.filter(r => {
+                            const sName = r.studentname || r.studentName || '';
+                            return sName.startsWith(sRegNo + ' - ');
+                          });
+
+                          const printReport = () => {
+                            const rows = sResults.map(r => {
+                              let placeLabel = r.place || '-';
+                              let gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+                              return `<tr><td>${r.progname || r.progName}</td><td>${r.catname || r.catName}</td><td>${placeLabel}</td><td>${gradeLabel}</td><td>${r.points} Pts</td></tr>`;
+                            }).join('');
+                            const html = `
                     <html><head><title>${matchedStudent.name} - Report</title>
                     <style>body{font-family:Arial,sans-serif;padding:30px;background:#fff} h1{color:#1e1b4b} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:10px;border:1px solid #e2e8f0;text-align:center} .header{background:linear-gradient(135deg,#1e1b4b,#3730a3);color:white;padding:30px;border-radius:12px;margin-bottom:20px} .badge{display:inline-block;background:#f59e0b;color:#78350f;padding:4px 12px;border-radius:20px;font-weight:700;font-size:14px;margin-top:8px}</style></head>
                     <body>
@@ -7293,88 +7537,87 @@ ${pagesHtml}
                     <table><thead><tr><th>Program</th><th>Category</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${rows}</tbody></table>
                     <p style='margin-top:20px;color:#64748b;font-size:13px'>Total Points: <b>${sResults.reduce((s, r) => s + r.points, 0)}</b></p>
                     </body></html>`;
-                          printHtml(html);
-                        };
+                            printHtml(html);
+                          };
 
-                        const generateCertificate = (result) => {
-                          setActiveCertificate({
-                            student: matchedStudent,
-                            result: result
-                          });
-                        };
+                          const generateCertificate = (result) => {
+                            setActiveCertificate({
+                              student: matchedStudent,
+                              result: result
+                            });
+                          };
 
-                        return (
-                          <div style={{ marginTop: '20px' }}>
-                            {/* Student Info Card */}
-                            <div style={{
-                              background: 'linear-gradient(135deg, #1e1b4b, #3730a3)',
-                              borderRadius: '24px',
-                              padding: '24px',
-                              color: 'white',
-                              position: 'relative',
-                              overflow: 'hidden',
-                              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-                              display: 'flex',
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: '20px',
-                              flexWrap: 'wrap'
-                            }}>
-                              {/* Profile Photo */}
-                              <div style={{ position: 'relative', zIndex: 1 }}>
-                                {renderStudentPhoto(sRegNo, matchedStudent.gender, '100px', '16px')}
-                              </div>
-                              <div style={{ flex: 1, minWidth: '200px', zIndex: 1 }}>
-                                <div style={{ fontSize: '11px', fontWeight: '800', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Profile & Report</div>
-                                <div style={{ fontSize: '26px', fontWeight: '900', marginTop: '6px', letterSpacing: '0.5px' }}>{matchedStudent.name}</div>
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Reg: {sRegNo}</span>
-                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
-                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Category: {catObj ? catObj.name : '' || '-'}</span>
-                                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                          return (
+                            <div style={{ marginTop: '20px' }}>
+                              {/* Student Info Card */}
+                              <div style={{
+                                background: 'linear-gradient(135deg, #1e1b4b, #3730a3)',
+                                borderRadius: '24px',
+                                padding: '24px',
+                                color: 'white',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                                display: 'flex',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: '20px',
+                                flexWrap: 'wrap'
+                              }}>
+                                <div style={{ position: 'relative', zIndex: 1 }}>
+                                  {renderStudentPhoto(sRegNo, matchedStudent.gender, '100px', '16px')}
                                 </div>
-                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24', marginTop: '14px' }}>
-                                  {sResults.reduce((s, r) => s + r.points, 0)}{' '}
-                                  <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '600' }}>Total Points</span>
+                                <div style={{ flex: 1, minWidth: '200px', zIndex: 1 }}>
+                                  <div style={{ fontSize: '11px', fontWeight: '800', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '2px' }}>Student Profile & Report</div>
+                                  <div style={{ fontSize: '26px', fontWeight: '900', marginTop: '6px', letterSpacing: '0.5px' }}>{matchedStudent.name}</div>
+                                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                    <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Reg: {sRegNo}</span>
+                                    <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Team: {teamObj ? teamObj.name : '' || '-'}</span>
+                                    <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>Category: {catObj ? catObj.name : '' || '-'}</span>
+                                    <span style={{ background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{matchedStudent.gender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
+                                  </div>
+                                  <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24', marginTop: '14px' }}>
+                                    {sResults.reduce((s, r) => s + r.points, 0)}{' '}
+                                    <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '600' }}>Total Points</span>
+                                  </div>
                                 </div>
+                                <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '100px', opacity: 0.05, pointerEvents: 'none' }}>🏆</div>
                               </div>
-                              <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '100px', opacity: 0.05, pointerEvents: 'none' }}>🏆</div>
+
+                              {/* Results */}
+                              {sResults.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results.</p>
+                              ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '15px' }}>
+                                  {sResults.map((r, idx) => {
+                                    const medal = r.place === 'First' ? '🥇' : r.place === 'Second' ? '🥈' : r.place === 'Third' ? '🥉' : '🏅';
+                                    const bg = r.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : r.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #64748b)' : r.place === 'Third' ? 'linear-gradient(135deg, #f97316, #c2410c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)';
+                                    return (
+                                      <div key={idx} style={{ background: bg, borderRadius: '14px', padding: '16px', color: 'white', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
+                                        <div style={{ fontSize: '24px', marginBottom: '6px' }}>{medal}</div>
+                                        <div style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>{r.progname || r.progName}</div>
+                                        <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>{r.catname || r.catName}</div>
+                                        <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontWeight: '700', marginBottom: '10px' }}>{r.place} | {(r.grade === '-' || r.grade === 'No') ? 'No Grade' : r.grade} | {r.points} Pts</div>
+                                        <button onClick={() => generateCertificate(r)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(6px)', border: '1.5px solid rgba(255,255,255,0.35)', color: 'white', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', transition: 'all 0.2s ease' }}>
+                                          📜 Certificate
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Download / Print Report Button */}
+                              <button onClick={printReport} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#78350f', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
+                                📥 Download / Print Report
+                              </button>
                             </div>
-
-                            {/* Results */}
-                            {sResults.length === 0 ? (
-                              <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: '20px' }}>No results.</p>
-                            ) : (
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '15px' }}>
-                                {sResults.map((r, idx) => {
-                                  const medal = r.place === 'First' ? '🥇' : r.place === 'Second' ? '🥈' : r.place === 'Third' ? '🥉' : '🏅';
-                                  const bg = r.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : r.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #64748b)' : r.place === 'Third' ? 'linear-gradient(135deg, #f97316, #c2410c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)';
-                                  return (
-                                    <div key={idx} style={{ background: bg, borderRadius: '14px', padding: '16px', color: 'white', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
-                                      <div style={{ fontSize: '24px', marginBottom: '6px' }}>{medal}</div>
-                                      <div style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>{r.progname || r.progName}</div>
-                                      <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>{r.catname || r.catName}</div>
-                                      <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontWeight: '700', marginBottom: '10px' }}>{r.place} | {(r.grade === '-' || r.grade === 'No') ? 'No Grade' : r.grade} | {r.points} Pts</div>
-                                      <button onClick={() => generateCertificate(r)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(6px)', border: '1.5px solid rgba(255,255,255,0.35)', color: 'white', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', transition: 'all 0.2s ease' }}>
-                                        📜 Certificate
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {/* Download / Print Report Button */}
-                            <button onClick={printReport} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#78350f', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
-                              📥 Download / Print Report
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })()
-                  )}
+                          );
+                        })()}
+                      </div>
+                    );
+                  })()
+                    )}
 
                   {/* ── Section 3: Results History Table ── */}
                   {resultsSubTab === 'RESULTS_HISTORY' && (
