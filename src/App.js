@@ -8022,9 +8022,107 @@ ${pagesHtml}
                       printHtml(html);
                     };
 
+                    const totalProgsInResults = Array.from(new Set(resultsList.map(r => String(r.progid)))).filter(Boolean).length;
+                    const publishedProgsCount = Array.from(new Set(resultsList.filter(r => isProgPublished(r.progid)).map(r => String(r.progid)))).filter(Boolean).length;
+                    const draftProgsCount = Math.max(0, totalProgsInResults - publishedProgsCount);
+
                     return (
                       <div>
-                        <div className="table-responsive-wrapper" style={{ marginTop: '15px' }}>
+                        {loginRole === 'ADMIN' && (
+                          <div style={{
+                            background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '12px',
+                            padding: '14px 18px',
+                            marginTop: '12px',
+                            marginBottom: '16px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                          }}>
+                            <div>
+                              <div style={{ fontWeight: '800', fontSize: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>📢</span>
+                                <span>{lang === 'EN' ? 'Results Publishing Control' : 'റിസൽറ്റ് പബ്ലിഷിംഗ് നിയന്ത്രണം'}</span>
+                              </div>
+                              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '3px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <span>✅ {lang === 'EN' ? 'Live Published:' : 'ലൈവ് ആയവ:'} <b style={{ color: '#15803d' }}>{publishedProgsCount}</b></span>
+                                <span>🟡 {lang === 'EN' ? 'Drafts (Hidden from View):' : 'ഡ്രാഫ്റ്റ് (വ്യൂവിൽ മറഞ്ഞവ):'} <b style={{ color: '#b45309' }}>{draftProgsCount}</b></span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                onClick={() => handlePublishAllPrograms(true)}
+                                style={{
+                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  padding: '9px 18px',
+                                  borderRadius: '8px',
+                                  fontSize: '13px',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
+                                }}
+                              >
+                                <span>🚀</span>
+                                <span>{lang === 'EN' ? 'Publish All Live' : 'എല്ലാം ലൈവായി പബ്ലിഷ് ചെയ്യുക'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handlePublishAllPrograms(false)}
+                                style={{
+                                  background: '#64748b',
+                                  color: '#fff',
+                                  border: 'none',
+                                  padding: '9px 16px',
+                                  borderRadius: '8px',
+                                  fontSize: '13px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <span>🔒</span>
+                                <span>{lang === 'EN' ? 'Move All to Draft' : 'എല്ലാം Draft ആക്കുക'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={printResultsHistory}
+                                style={{
+                                  background: '#0284c7',
+                                  color: '#fff',
+                                  border: 'none',
+                                  padding: '9px 16px',
+                                  borderRadius: '8px',
+                                  fontSize: '13px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <span>🖨️</span>
+                                <span>{lang === 'EN' ? 'Print / PDF' : 'പ്രിന്റ് / PDF'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="table-responsive-wrapper" style={{ marginTop: '10px' }}>
                           <table>
                             <thead>
                               <tr>
@@ -14658,35 +14756,84 @@ ${pagesHtml}
                             return (
                               <div style={{ marginTop: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', paddingBottom: '10px', borderBottom: '2px solid #e2e8f0', flexWrap: 'wrap' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                     <span style={{ fontSize: '15px', fontWeight: '800', color: '#064e3b' }}>
                                       📋 {lang === 'EN' ? 'Saved Results' : 'സേവ് ചെയ്ത ഫലങ്ങൾ'}
                                     </span>
                                     <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
                                       {progSavedResults.length} {lang === 'EN' ? 'entries' : 'എൻട്രികൾ'}
                                     </span>
+                                    {isPublished ? (
+                                      <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
+                                        ✅ {lang === 'EN' ? 'Live Published' : 'ലൈവായി പബ്ലിഷ് ചെയ്തിട്ടുണ്ട്'}
+                                      </span>
+                                    ) : (
+                                      <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
+                                        🟡 {lang === 'EN' ? 'Draft Mode (Hidden from View)' : 'Draft മോഡിലാണ് (വ്യൂവിൽ മറഞ്ഞിരിക്കുന്നു)'}
+                                      </span>
+                                    )}
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={handleCleanDuplicateResults}
-                                    style={{
-                                      padding: '5px 12px',
-                                      background: '#f8fafc',
-                                      border: '1.5px solid #cbd5e1',
-                                      borderRadius: '8px',
-                                      fontSize: '12px',
-                                      fontWeight: '700',
-                                      color: '#475569',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px'
-                                    }}
-                                    title={lang === 'EN' ? 'Scan & remove duplicate entries' : 'ഡ്യൂപ്ലിക്കേറ്റ് ഫലങ്ങൾ നീക്കം ചെയ്യുക'}
-                                  >
-                                    <span>🧹</span>
-                                    <span>{lang === 'EN' ? 'Clean Duplicates' : 'ഡ്യൂപ്ലിക്കേറ്റ് ഒഴിവാക്കുക'}</span>
-                                  </button>
+
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    {isPublished ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleTogglePublishProgram(selectedResultProg, false)}
+                                        style={{
+                                          padding: '7px 14px',
+                                          background: '#64748b',
+                                          color: '#fff',
+                                          border: 'none',
+                                          borderRadius: '8px',
+                                          fontSize: '12px',
+                                          fontWeight: '700',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        🔒 {lang === 'EN' ? 'Unpublish (Move to Draft)' : 'ഡ്രാഫ്റ്റ് ആക്കുക (ഹൈഡ് ചെയ്യുക)'}
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleTogglePublishProgram(selectedResultProg, true)}
+                                        style={{
+                                          padding: '8px 16px',
+                                          background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                          color: '#fff',
+                                          border: 'none',
+                                          borderRadius: '8px',
+                                          fontSize: '12.5px',
+                                          fontWeight: '800',
+                                          cursor: 'pointer',
+                                          boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
+                                        }}
+                                      >
+                                        🚀 {lang === 'EN' ? 'Publish This Program Live!' : 'ഈ പ്രോഗ്രാം ലൈവായി പബ്ലിഷ് ചെയ്യുക!'}
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={handleCleanDuplicateResults}
+                                      style={{
+                                        padding: '7px 12px',
+                                        background: '#f8fafc',
+                                        border: '1.5px solid #cbd5e1',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                        color: '#475569',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}
+                                      title={lang === 'EN' ? 'Scan & remove duplicate entries' : 'ഡ്യൂപ്ലിക്കേറ്റ് ഫലങ്ങൾ നീക്കം ചെയ്യുക'}
+                                    >
+                                      <span>🧹</span>
+                                      <span>{lang === 'EN' ? 'Clean Duplicates' : 'ഡ്യൂപ്ലിക്കേറ്റ് ഒഴിവാക്കുക'}</span>
+                                    </button>
+                                  </div>
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
