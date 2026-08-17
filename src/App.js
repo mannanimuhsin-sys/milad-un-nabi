@@ -855,15 +855,21 @@ function App() {
         return _initCache.visibilityControls.published_programs;
       }
     } catch {}
-    return [];
+    return null;
   });
 
   const isProgPublished = (progId) => {
     if (!progId) return false;
     if (loginRole === 'ADMIN') return true;
 
-    // 🔒 In View Mode: strictly hide all results until Admin explicitly publishes them
-    if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) {
+    // If published_programs is not defined in DB (default state for madrasas):
+    // ALL entered results are visible by default!
+    if (!publishedPrograms || !Array.isArray(publishedPrograms)) {
+      return true;
+    }
+
+    // If published_programs is explicitly an empty array (Admin clicked "Move All to Draft"):
+    if (publishedPrograms.length === 0) {
       return false;
     }
 
@@ -1762,12 +1768,12 @@ function App() {
             setVisibilityControls(normalizedVis);
             const freshPublished = Array.isArray(fetchedVisibility.published_programs)
               ? fetchedVisibility.published_programs.map(String)
-              : [];
+              : null;
             setPublishedPrograms(freshPublished);
           } else {
             // DB had no value — fall back to DEFAULT
             setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
-            setPublishedPrograms([]);
+            setPublishedPrograms(null);
           }
         }
       } catch (e) {}
