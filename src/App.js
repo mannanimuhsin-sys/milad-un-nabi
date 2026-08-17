@@ -6739,10 +6739,7 @@ ${pagesHtml}
                               if (filterGender === 'BOY') return pType.includes('BOY') || (!pType.includes('BOY') && !pType.includes('GIRL'));
                               if (filterGender === 'GIRL') return pType.includes('GIRL') || (!pType.includes('BOY') && !pType.includes('GIRL'));
                               return true;
-                            }).map(p => {
-                              const pubTag = loginRole === 'ADMIN' ? (isProgPublished(p.id) ? ' ✅' : ' 🟡 [Draft]') : '';
-                              return <option key={p.id} value={p.id}>{p.code} - {p.name}{pubTag}</option>;
-                            })}
+                            }).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
                           </select>
                         </div>
 
@@ -6779,46 +6776,7 @@ ${pagesHtml}
                         </div>
                       </div>
 
-                      {/* Admin Quick Publish All Bar */}
-                      {loginRole === 'ADMIN' && (
-                        <div style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: '10px',
-                          background: '#f8fafc',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '12px',
-                          padding: '10px 14px',
-                          marginTop: '12px',
-                          marginBottom: '6px'
-                        }}>
-                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>🚀</span>
-                            <span>{lang === 'EN' ? 'Publish Status Controls:' : 'ഫലങ്ങൾ പബ്ലിഷ് ചെയ്യാനുള്ള കൺട്രോളുകൾ:'}</span>
-                            <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '800' }}>
-                              {(publishedPrograms || []).length} {lang === 'EN' ? 'Published' : 'പബ്ലിഷ് ചെയ്തവ'}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handlePublishAllPrograms(true)}
-                              style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '8px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer' }}
-                            >
-                              🚀 {lang === 'EN' ? 'Publish All' : 'എല്ലാം പബ്ലിഷ് ചെയ്യുക'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePublishAllPrograms(false)}
-                              style={{ background: '#64748b', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '8px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer' }}
-                            >
-                              🔒 {lang === 'EN' ? 'Unpublish All' : 'എല്ലാം ഡ്രാഫ്റ്റാക്കുക'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
+
 
                       {/* Winners Display */}
                       {filterProg && (() => {
@@ -6919,47 +6877,7 @@ ${pagesHtml}
 
                         return (
                           <div style={{ marginTop: '20px' }}>
-                            {/* Admin Program Publish Toggle Pill */}
-                            {loginRole === 'ADMIN' && (
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: '10px',
-                                background: isPublished ? '#f0fdf4' : '#fffbeb',
-                                border: `1.5px solid ${isPublished ? '#86efac' : '#fcd34d'}`,
-                                borderRadius: '12px',
-                                padding: '10px 16px',
-                                marginBottom: '16px'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontSize: '18px' }}>{isPublished ? '✅' : '🟡'}</span>
-                                  <div>
-                                    <span style={{ fontSize: '12.5px', fontWeight: '900', color: isPublished ? '#166534' : '#92400e' }}>
-                                      {isPublished ? (lang === 'EN' ? 'PUBLISHED LIVE (Visible to Visitors)' : 'പബ്ലിഷ് ചെയ്തിട്ടുണ്ട് (Live)') : (lang === 'EN' ? 'DRAFT MODE (Hidden from Visitors)' : 'ഡ്രാഫ്റ്റ് മോഡ് (സന്ദർശകർക്ക് കാണാനാകില്ല)')}
-                                    </span>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleTogglePublishProgram(filterProg)}
-                                  style={{
-                                    background: isPublished ? '#64748b' : 'linear-gradient(135deg, #16a34a, #15803d)',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    padding: '6px 14px',
-                                    borderRadius: '8px',
-                                    fontSize: '12px',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                                  }}
-                                >
-                                  {isPublished ? (lang === 'EN' ? '🔒 Unpublish (Move to Draft)' : '🔒 Draft മോഡിലേക്ക് മാറ്റുക') : (lang === 'EN' ? '🚀 Publish Program Live' : '🚀 ഇപ്പോൾ പബ്ലിഷ് ചെയ്യുക')}
-                                </button>
-                              </div>
-                            )}
+
 
                             <div style={{ textAlign: 'center', marginBottom: '15px' }}>
                               <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
@@ -7959,7 +7877,7 @@ ${pagesHtml}
                           <table>
                             <thead>
                               <tr>
-                                <th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th>Delete</th>}
+                                <th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Register Number</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th>{loginRole === 'ADMIN' && <th style={{ textAlign: 'center' }}>Publish Status</th>}{loginRole === 'ADMIN' && <th style={{ textAlign: 'center' }}>Delete</th>}
                               </tr>
                             </thead>
                             <tbody>
@@ -7984,7 +7902,44 @@ ${pagesHtml}
                                       <td><span style={{ background: placeLabel === 'First' ? '#fbbf24' : placeLabel === 'Second' ? '#94a3b8' : placeLabel === 'Third' ? '#f97316' : '#e2e8f0', color: placeLabel === 'First' ? '#78350f' : placeLabel === 'Second' ? '#1e293b' : placeLabel === 'Third' ? '#7c2d12' : '#475569', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', fontSize: '12px' }}>{placeLabel}</span></td>
                                       <td><span style={{ fontWeight: '700', color: gradeLabel === 'A' ? '#059669' : gradeLabel === 'B' ? '#2563eb' : gradeLabel === 'C' ? '#7c3aed' : '#94a3b8' }}>{gradeLabel}</span></td>
                                       <td><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
-                                      {loginRole === 'ADMIN' && <td><button onClick={() => handleDeleteResult(r.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button></td>}
+                                      {loginRole === 'ADMIN' && (
+                                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                          {isProgPublished(r.progid) ? (
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                              <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800' }}>
+                                                ✅ Published
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleTogglePublishProgram(r.progid, false)}
+                                                style={{ background: '#64748b', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '5px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                                                title={lang === 'EN' ? 'Unpublish (Move to Draft)' : 'ഡ്രാഫ്റ്റ് ആക്കുക (ഹൈഡ് ചെയ്യുക)'}
+                                              >
+                                                🔒 Unpublish
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                              <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800' }}>
+                                                🟡 Draft
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleTogglePublishProgram(r.progid, true)}
+                                                style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 2px 6px rgba(22,163,74,0.3)' }}
+                                                title={lang === 'EN' ? 'Publish Live' : 'ലൈവായി പബ്ലിഷ് ചെയ്യുക'}
+                                              >
+                                                🚀 Publish
+                                              </button>
+                                            </div>
+                                          )}
+                                        </td>
+                                      )}
+                                      {loginRole === 'ADMIN' && (
+                                        <td style={{ textAlign: 'center' }}>
+                                          <button onClick={() => handleDeleteResult(r.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '11.5px' }}>Delete</button>
+                                        </td>
+                                      )}
                                     </tr>
                                   );
                                 })
@@ -14476,64 +14431,35 @@ ${pagesHtml}
                                     </div>
                                   </div>
 
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginTop: '16px' }}>
-                                    {/* Button 1: Save as Draft */}
-                                    <button
-                                      type="submit"
-                                      disabled={isSavingResult}
-                                      className="btn-premium-action"
-                                      onClick={(e) => handleAddResult(e, false)}
-                                      style={{
-                                        background: isSavingResult ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #0f766e 0%, #064e3b 100%)',
-                                        boxShadow: isSavingResult ? 'none' : '0 4px 12px rgba(15, 118, 110, 0.2)',
-                                        cursor: isSavingResult ? 'not-allowed' : 'pointer',
-                                        opacity: isSavingResult ? 0.75 : 1,
-                                        transition: 'all 0.2s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        padding: '11px 16px',
-                                        fontSize: '13px'
-                                      }}
-                                    >
-                                      {isSavingResult ? (
-                                        <>
-                                          <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                                          <span>{lang === 'EN' ? '⏳ Saving...' : '⏳ സേവ് ചെയ്യുന്നു...'}</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span>💾</span>
-                                          <span>{lang === 'EN' ? 'Save as Draft' : 'ഡ്രാഫ്റ്റായി സേവ് ചെയ്യുക'}</span>
-                                        </>
-                                      )}
-                                    </button>
-
-                                    {/* Button 2: Save & Publish Immediately */}
-                                    <button
-                                      type="button"
-                                      disabled={isSavingResult}
-                                      className="btn-premium-action"
-                                      onClick={(e) => handleAddResult(e, true)}
-                                      style={{
-                                        background: isSavingResult ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #e21c34 0%, #9a0f20 100%)',
-                                        boxShadow: isSavingResult ? 'none' : '0 4px 12px rgba(226, 28, 52, 0.25)',
-                                        cursor: isSavingResult ? 'not-allowed' : 'pointer',
-                                        opacity: isSavingResult ? 0.75 : 1,
-                                        transition: 'all 0.2s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        padding: '11px 16px',
-                                        fontSize: '13px'
-                                      }}
-                                    >
-                                      <span>🚀</span>
-                                      <span>{lang === 'EN' ? 'Save & Publish Live' : 'സേവ് & ലൈവായി പബ്ലിഷ് ചെയ്യുക'}</span>
-                                    </button>
-                                  </div>
+                                  <button
+                                    type="submit"
+                                    disabled={isSavingResult}
+                                    className="btn-premium-action"
+                                    style={{
+                                      marginTop: '16px',
+                                      background: isSavingResult ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #e21c34 0%, #9a0f20 100%)',
+                                      boxShadow: isSavingResult ? 'none' : '0 4px 12px rgba(226, 28, 52, 0.2)',
+                                      cursor: isSavingResult ? 'not-allowed' : 'pointer',
+                                      opacity: isSavingResult ? 0.75 : 1,
+                                      transition: 'all 0.2s ease',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '8px'
+                                    }}
+                                  >
+                                    {isSavingResult ? (
+                                      <>
+                                        <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                        <span>{lang === 'EN' ? '⏳ Saving Result...' : '⏳ ഫലം സേവ് ചെയ്യുന്നു...'}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>💾</span>
+                                        <span>{lang === 'EN' ? 'Save Result' : 'ഫലം സേവ് ചെയ്യുക'}</span>
+                                      </>
+                                    )}
+                                  </button>
                                 </div>
                               </div>
 
@@ -14576,69 +14502,10 @@ ${pagesHtml}
                             const gradeBgColor = { 'A': '#dcfce7', 'B': '#dbeafe', 'C': '#fef9c3', '-': '#f1f5f9' };
                             const gradeTextColor = { 'A': '#15803d', 'B': '#1d4ed8', 'C': '#a16207', '-': '#94a3b8' };
 
+                            if (progSavedResults.length === 0) return null;
+
                             return (
                               <div style={{ marginTop: '24px' }}>
-                                {/* 🚀 Publish Status Control Banner */}
-                                <div style={{
-                                  background: isPublished ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)' : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-                                  border: isPublished ? '1.5px solid #86efac' : '1.5px solid #fcd34d',
-                                  borderRadius: '14px',
-                                  padding: '14px 18px',
-                                  marginBottom: '16px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  flexWrap: 'wrap',
-                                  gap: '12px',
-                                  boxShadow: isPublished ? '0 4px 15px rgba(22,163,74,0.08)' : '0 4px 15px rgba(217,119,6,0.08)'
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{ fontSize: '26px' }}>{isPublished ? '✅' : '🟡'}</div>
-                                    <div>
-                                      <div style={{ fontSize: '13px', fontWeight: '900', color: isPublished ? '#166534' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        {isPublished
-                                          ? (lang === 'EN' ? 'PUBLISHED LIVE (Visible on Scoreboard & QR)' : 'ഫലങ്ങൾ പബ്ലിഷ് ചെയ്തിട്ടുണ്ട് (Live)')
-                                          : (lang === 'EN' ? 'DRAFT MODE (Hidden from Public & Scoreboard)' : 'ഡ്രാഫ്റ്റ് മോഡ് (പൊതുജനങ്ങൾക്ക് കാണാനാകില്ല)')}
-                                      </div>
-                                      <div style={{ fontSize: '11.5px', color: isPublished ? '#15803d' : '#b45309', marginTop: '2px', fontWeight: '600' }}>
-                                        {isPublished
-                                          ? (lang === 'EN' ? `Results for "${progObj?.name}" are visible to everyone.` : `"${progObj?.name}" ഫലങ്ങളും പോയിന്റുകളും എല്ലാവർക്കും കാണാം.`)
-                                          : (lang === 'EN' ? `Results are staged in private. Click "Publish" to announce live.` : `ഫലങ്ങൾ രഹസ്യമായി രേഖപ്പെടുത്തിയിരിക്കുന്നു. അനൗൺസ് ചെയ്യുമ്പോൾ "Publish" ക്ലിക്ക് ചെയ്യുക.`)}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTogglePublishProgram(selectedResultProg)}
-                                    style={{
-                                      background: isPublished ? 'linear-gradient(135deg, #64748b, #475569)' : 'linear-gradient(135deg, #16a34a, #15803d)',
-                                      color: '#ffffff',
-                                      border: 'none',
-                                      padding: '9px 18px',
-                                      borderRadius: '10px',
-                                      fontWeight: '800',
-                                      fontSize: '12.5px',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      boxShadow: isPublished ? '0 2px 8px rgba(0,0,0,0.15)' : '0 4px 12px rgba(22,163,74,0.3)',
-                                      transition: 'all 0.2s'
-                                    }}
-                                  >
-                                    {isPublished
-                                      ? (lang === 'EN' ? '🔒 Unpublish (Move to Draft)' : '🔒 Draft മോഡിലേക്ക് മാറ്റുക')
-                                      : (lang === 'EN' ? '🚀 Publish Program Results' : '🚀 ഇപ്പോൾ പബ്ലിഷ് ചെയ്യുക')}
-                                  </button>
-                                </div>
-
-                                {progSavedResults.length === 0 ? (
-                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', margin: '20px 0' }}>
-                                    {lang === 'EN' ? 'No results entered for this program yet.' : 'ഈ മത്സരത്തിന് ഇതുവരെ ഫലങ്ങൾ രേഖപ്പെടുത്തിയിട്ടില്ല.'}
-                                  </p>
-                                ) : (
-                                  <div style={{ marginTop: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', paddingBottom: '10px', borderBottom: '2px solid #e2e8f0', flexWrap: 'wrap' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontSize: '15px', fontWeight: '800', color: '#064e3b' }}>
@@ -14759,13 +14626,11 @@ ${pagesHtml}
                                   })}
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                ); })()}
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ); })()}
 
                     {/* POINTS SETUP SUB-TAB */}
                     {settingsSubTab === 'POINTS' && (
