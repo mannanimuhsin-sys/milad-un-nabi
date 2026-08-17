@@ -860,7 +860,20 @@ function App() {
 
   const isProgPublished = (progId) => {
     if (!progId) return false;
-    return (publishedPrograms || []).map(String).includes(String(progId));
+    if (loginRole === 'ADMIN') return true;
+    if (publishedPrograms === null || publishedPrograms === undefined) return true;
+    if (Array.isArray(publishedPrograms) && publishedPrograms.length === 0) return true;
+
+    const pIdStr = String(progId).trim();
+    const progObj = programs.find(p => String(p.id).trim() === pIdStr || String(p.code).trim() === pIdStr || String(p.name).trim().toLowerCase() === pIdStr.toLowerCase());
+    const candidates = [pIdStr];
+    if (progObj) {
+      if (progObj.id) candidates.push(String(progObj.id).trim());
+      if (progObj.code) candidates.push(String(progObj.code).trim());
+      if (progObj.name) candidates.push(String(progObj.name).trim());
+    }
+    const pubList = (publishedPrograms || []).map(String).map(s => s.trim());
+    return candidates.some(c => pubList.includes(c));
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
@@ -1736,15 +1749,14 @@ function App() {
             setVisibilityControls(normalizedVis);
             // ⚠️ FIX: Always sync published_programs for VIEW role — even if empty array.
             // This ensures unpublish actions also propagate to all view phones.
-            const freshPublished = Array.isArray(fetchedVisibility.published_programs)
+            const freshPublished = Array.isArray(fetchedVisibility.published_programs) && fetchedVisibility.published_programs.length > 0
               ? fetchedVisibility.published_programs
-              : [];
-            setPublishedPrograms(freshPublished.map(String));
+              : null;
+            setPublishedPrograms(freshPublished ? freshPublished.map(String) : null);
           } else {
             // DB had no value — fall back to DEFAULT (all ON) so view user is not locked out
             setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
-            // No visibility record means all programs visible to view users
-            // Keep existing publishedPrograms state — do NOT clear it
+            setPublishedPrograms(null);
           }
         }
       } catch (e) {}
@@ -4901,8 +4913,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
   const getTeamTotalPoints = (teamId) => {
     const cleanList = getCleanResultsList(resultsList);
+    const targetTeam = teams.find(t => String(t.id).trim() === String(teamId).trim());
+    const targetName = targetTeam ? String(targetTeam.name || '').trim().toLowerCase() : '';
     return cleanList
-      .filter(r => String(r.teamId) === String(teamId) || String(r.teamid) === String(teamId))
+      .filter(r => {
+        const rTid = String(r.teamId || r.teamid || '').trim();
+        if (rTid && rTid === String(teamId).trim()) return true;
+        const rTName = String(r.teamname || r.teamName || '').trim().toLowerCase();
+        if (targetName && rTName && rTName === targetName) return true;
+        return false;
+      })
       .reduce((sum, r) => sum + (Number(r.points) || 0), 0);
   };
 
