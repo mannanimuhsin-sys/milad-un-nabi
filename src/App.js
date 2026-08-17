@@ -8897,17 +8897,15 @@ ${pagesHtml}
                     {timetableView === 'GRID' ? '📝 ' + (lang === 'EN' ? 'List View' : 'ലിസ്റ്റ് വ്യൂ') : '🎴 ' + (lang === 'EN' ? 'Cards View' : 'കാർഡ് വ്യൂ')}
                   </button>
 
-                  {/* Admin Day Poster / PDF Generator Button */}
-                  {loginRole === 'ADMIN' && (
-                    <button
-                      type="button"
-                      onClick={() => setTimetablePosterModal(true)}
-                      className="btn-add-action"
-                      style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', fontSize: '13px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(2,132,199,0.25)' }}
-                    >
-                      📄 {lang === 'EN' ? 'Day Poster / PDF' : 'ഡേ പോസ്റ്റർ / PDF'}
-                    </button>
-                  )}
+                  {/* Day Poster / PDF Generator Button (Available for View Mode & Admin Mode) */}
+                  <button
+                    type="button"
+                    onClick={() => setTimetablePosterModal(true)}
+                    className="btn-add-action"
+                    style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', fontSize: '13px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(2,132,199,0.25)', fontWeight: '800' }}
+                  >
+                    📄 {lang === 'EN' ? 'Day Poster / PDF' : 'ഡേ പോസ്റ്റർ / PDF'}
+                  </button>
                 </div>
               </div>
 
@@ -9481,9 +9479,31 @@ ${pagesHtml}
                       {/* 1. Date / Day Filter Chips */}
                       {allScheduledDates.length > 0 && (
                         <div>
-                          <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>📅</span>
-                            <span>{lang === 'EN' ? 'Select Day / Date' : 'ദിവസം തിരഞ്ഞെടുക്കുക'}:</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>📅</span>
+                              <span>{lang === 'EN' ? 'Select Day / Date' : 'ദിവസം തിരഞ്ഞെടുക്കുക'}:</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => generateDayOrAllPosterPdf(timetableFilterDate)}
+                              style={{
+                                background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '4px 11px',
+                                borderRadius: '8px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 2px 6px rgba(2,132,199,0.2)'
+                              }}
+                            >
+                              🖼️ {timetableFilterDate === 'ALL' ? (lang === 'EN' ? 'Print All Days PDF' : 'സമ്പൂർണ്ണ PDF ഡൗൺലോഡ്') : (lang === 'EN' ? 'Print This Day Poster' : 'ഈ ദിവസത്തെ പോസ്റ്റർ')}
+                            </button>
                           </div>
                           <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                             <button
