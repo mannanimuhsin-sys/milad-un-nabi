@@ -862,19 +862,18 @@ function App() {
     if (!progId) return false;
     if (loginRole === 'ADMIN') return true;
 
-    // If published_programs is not defined in DB (default state for madrasas):
-    // ALL entered results are visible by default!
-    if (!publishedPrograms || !Array.isArray(publishedPrograms)) {
-      return true;
-    }
-
-    // If published_programs is explicitly an empty array (Admin clicked "Move All to Draft"):
-    if (publishedPrograms.length === 0) {
+    // In View Mode: Only programs in publishedPrograms array are visible.
+    // If not published or empty, return false (Draft mode - hidden from public).
+    if (!publishedPrograms || !Array.isArray(publishedPrograms) || publishedPrograms.length === 0) {
       return false;
     }
 
     const pIdStr = String(progId).trim();
-    const progObj = programs.find(p => String(p.id).trim() === pIdStr || String(p.code).trim() === pIdStr || String(p.name).trim().toLowerCase() === pIdStr.toLowerCase());
+    const progObj = programs.find(p =>
+      String(p.id).trim() === pIdStr ||
+      String(p.code).trim() === pIdStr ||
+      String(p.name).trim().toLowerCase() === pIdStr.toLowerCase()
+    );
     const candidates = [pIdStr];
     if (progObj) {
       if (progObj.id) candidates.push(String(progObj.id).trim());
@@ -899,18 +898,21 @@ function App() {
       const toAdd = [pIdStr];
       if (progObj?.id) toAdd.push(String(progObj.id));
       if (progObj?.code) toAdd.push(String(progObj.code));
+      if (progObj?.name) toAdd.push(String(progObj.name));
       updated = Array.from(new Set([...(publishedPrograms || []).map(String), ...toAdd]));
     } else {
       const toRemove = new Set([pIdStr]);
       if (progObj?.id) toRemove.add(String(progObj.id));
       if (progObj?.code) toRemove.add(String(progObj.code));
+      if (progObj?.name) toRemove.add(String(progObj.name));
       updated = (publishedPrograms || []).map(String).filter(id => !toRemove.has(id));
     }
 
     setPublishedPrograms(updated);
 
     const rNum = loggedInMadrasa?.regNumber;
-    if (rNum || loggedInMadrasa?.id) {
+    const mId = loggedInMadrasa?.id;
+    if (rNum || mId) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
@@ -919,7 +921,6 @@ function App() {
       try {
         const newVis = { ...(visibilityControls || {}), published_programs: updated };
         setVisibilityControls(newVis);
-        const mId = loggedInMadrasa?.id;
 
         // Fetch latest madrasa place to safely update part 8
         let currentPlace = loggedInMadrasa?.place || '';
@@ -937,15 +938,9 @@ function App() {
         });
 
         if (mId) {
-          await supabase.from('madrasas').update({
-            place: updatedPlace,
-            visibility_controls: JSON.stringify(newVis)
-          }).eq('id', mId);
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
         } else {
-          await supabase.from('madrasas').update({
-            place: updatedPlace,
-            visibility_controls: JSON.stringify(newVis)
-          }).eq('regNumber', String(rNum));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
         }
       } catch (err) {
         console.warn("Error syncing published_programs to cloud:", err);
@@ -961,17 +956,20 @@ function App() {
 
   const handlePublishAllPrograms = async (publish = true) => {
     const rNum = loggedInMadrasa?.regNumber;
+    const mId = loggedInMadrasa?.id;
     let updated = [];
     if (publish) {
       const progsWithResults = Array.from(new Set([
         ...resultsList.map(r => String(r.progid || '')),
-        ...programs.map(p => String(p.id || '')),
-        ...programs.map(p => String(p.code || ''))
+        ...resultsList.map(r => {
+          const p = programs.find(pr => String(pr.id) === String(r.progid) || String(pr.code) === String(r.progid));
+          return p ? [String(p.id), String(p.code), String(p.name)] : [];
+        }).flat()
       ])).filter(Boolean);
       updated = progsWithResults;
     }
     setPublishedPrograms(updated);
-    if (rNum || loggedInMadrasa?.id) {
+    if (rNum || mId) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
@@ -979,7 +977,6 @@ function App() {
       try {
         const newVis = { ...(visibilityControls || {}), published_programs: updated };
         setVisibilityControls(newVis);
-        const mId = loggedInMadrasa?.id;
 
         let currentPlace = loggedInMadrasa?.place || '';
         try {
@@ -996,25 +993,21 @@ function App() {
         });
 
         if (mId) {
-          await supabase.from('madrasas').update({
-            place: updatedPlace,
-            visibility_controls: JSON.stringify(newVis)
-          }).eq('id', mId);
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
         } else {
-          await supabase.from('madrasas').update({
-            place: updatedPlace,
-            visibility_controls: JSON.stringify(newVis)
-          }).eq('regNumber', String(rNum));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
         }
-      } catch (err) {}
+      } catch (err) {
+        console.warn("Error in handlePublishAllPrograms:", err);
+      }
     }
     alert(publish
-      ? (lang === 'EN' ? '✅ All program results published live!' : '✅ എല്ലാ പ്രോഗ്രാമുകളുടെയും ഫലങ്ങൾ പബ്ലിഷ് ചെയ്തു!')
+      ? (lang === 'EN' ? '✅ All program results published live!' : '✅ എല്ലാ പ്രോഗ്രാമുകളുടെയും ഫലങ്ങൾ ലൈവായി പബ്ലിഷ് ചെയ്തു!')
       : (lang === 'EN' ? '🔒 All program results moved to Draft mode.' : '🔒 എല്ലാ പ്രോഗ്രാമുകളുടെയും ഫലങ്ങൾ Draft മോഡിലേക്ക് മാറ്റി.')
     );
   };
 
-  // Champion section states
+    // Champion section states
   const [champCat, setChampCat] = useState('');
   const [champGender, setChampGender] = useState('BOYS');
 
@@ -4488,10 +4481,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         if (andPublish && progObj) {
           await handleTogglePublishProgram(progObj.id, true);
         } else {
+          if (publishedPrograms === null) {
+            setPublishedPrograms([]);
+          }
           alert(
             lang === 'EN'
-              ? `✅ Result saved successfully for ${computedStudentName} (Draft mode)!`
-              : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു (Draft)!`
+              ? `✅ Result saved successfully for ${computedStudentName} (Draft mode)! Go to Results -> Results History and click 'Publish' to make it live in View mode.`
+              : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു (Draft മോഡിൽ)! Results -> Results History-ൽ പോയി 'Publish' ക്ലിക്ക് ചെയ്താൽ ഇത് വ്യൂ മോഡിൽ ലൈവാകും.`
           );
         }
       }
