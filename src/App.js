@@ -8287,39 +8287,67 @@ ${pagesHtml}
                                       </div>
                                     </div>
 
-                                    {/* Single Program Publish Button for this entire program */}
+                                    {/* Per-Program Publish/Draft Controls: Both buttons always visible */}
                                     {loginRole === 'ADMIN' ? (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {isPub ? (
-                                          <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800' }}>
-                                            ✅ Published Live
-                                          </span>
-                                        ) : (
-                                          <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800' }}>
-                                            🟡 Draft Mode (Hidden)
-                                          </span>
-                                        )}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        {/* Status badge */}
+                                        <span style={{
+                                          background: isPub ? '#dcfce7' : '#fef3c7',
+                                          color: isPub ? '#15803d' : '#92400e',
+                                          border: `1px solid ${isPub ? '#86efac' : '#fcd34d'}`,
+                                          padding: '4px 10px',
+                                          borderRadius: '20px',
+                                          fontSize: '11.5px',
+                                          fontWeight: '800'
+                                        }}>
+                                          {isPub ? '✅ Published' : '🟡 Draft'}
+                                        </span>
+                                        {/* Green Publish button - dimmed when already published */}
                                         <button
                                           type="button"
-                                          onClick={() => handleTogglePublishProgram(group.progId, !isPub)}
+                                          onClick={() => !isPub && handleTogglePublishProgram(group.progId, true)}
                                           style={{
-                                            background: isPub ? '#64748b' : 'linear-gradient(135deg, #16a34a, #15803d)',
-                                            color: '#fff',
-                                            border: 'none',
-                                            padding: '7px 14px',
+                                            background: isPub ? '#bbf7d0' : 'linear-gradient(135deg, #16a34a, #15803d)',
+                                            color: isPub ? '#6b7280' : '#fff',
+                                            border: isPub ? '1px solid #86efac' : 'none',
+                                            padding: '6px 13px',
                                             borderRadius: '7px',
                                             fontSize: '12px',
                                             fontWeight: '800',
-                                            cursor: 'pointer',
+                                            cursor: isPub ? 'default' : 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '5px',
-                                            boxShadow: isPub ? 'none' : '0 2px 8px rgba(22, 163, 74, 0.3)'
+                                            gap: '4px',
+                                            boxShadow: isPub ? 'none' : '0 2px 8px rgba(22,163,74,0.35)',
+                                            opacity: isPub ? 0.55 : 1,
+                                            transition: 'all 0.2s'
                                           }}
-                                          title={isPub ? (lang === 'EN' ? 'Move this program to Draft' : 'ഡ്രാഫ്റ്റ് ആക്കുക') : (lang === 'EN' ? 'Publish this program Live' : 'ഈ പ്രോഗ്രാം ലൈവാക്കുക')}
+                                          title={lang === 'EN' ? 'Publish this program live' : 'ഈ പ്രോഗ്രാം ലൈവ് ആക്കുക'}
                                         >
-                                          <span>{isPub ? '🔒' : '🚀'}</span>
-                                          <span>{isPub ? (lang === 'EN' ? 'Move to Draft' : 'ഡ്രാഫ്റ്റ് ആക്കുക') : (lang === 'EN' ? 'Publish Live' : 'പബ്ലിഷ് ചെയ്യുക')}</span>
+                                          🚀 {lang === 'EN' ? 'Publish' : 'പബ്ലിഷ്'}
+                                        </button>
+                                        {/* Grey Move to Draft button - dimmed when already draft */}
+                                        <button
+                                          type="button"
+                                          onClick={() => isPub && handleTogglePublishProgram(group.progId, false)}
+                                          style={{
+                                            background: !isPub ? '#f1f5f9' : '#64748b',
+                                            color: !isPub ? '#94a3b8' : '#fff',
+                                            border: !isPub ? '1px solid #cbd5e1' : 'none',
+                                            padding: '6px 13px',
+                                            borderRadius: '7px',
+                                            fontSize: '12px',
+                                            fontWeight: '800',
+                                            cursor: !isPub ? 'default' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            opacity: !isPub ? 0.5 : 1,
+                                            transition: 'all 0.2s'
+                                          }}
+                                          title={lang === 'EN' ? 'Move to Draft (hide from view phones)' : 'ഡ്രാഫ്റ്റ് ആക്കുക (വ്യൂ ഫോണിൽ മറയ്ക്കുക)'}
+                                        >
+                                          🔒 {lang === 'EN' ? 'Move to Draft' : 'ഡ്രാഫ്റ്റ് ആക്കുക'}
                                         </button>
                                       </div>
                                     ) : (
