@@ -1442,12 +1442,24 @@ function App() {
           if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
           if (cached.visibilityControls && typeof cached.visibilityControls === 'object') {
             setVisibilityControls(normalizeVisibilityControls(cached.visibilityControls));
+            if (Array.isArray(cached.visibilityControls.published_programs)) {
+              setPublishedPrograms(cached.visibilityControls.published_programs);
+            }
           } else {
             const savedV = localStorage.getItem(`milad_visibility_controls_${rNum}`) || localStorage.getItem(`visibility_controls_${rNum}`) || localStorage.getItem('milad_visibility_controls_latest');
             if (savedV) {
               try { setVisibilityControls(normalizeVisibilityControls(savedV)); } catch(e){}
             } else {
               setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
+            }
+          }
+
+          if (Array.isArray(cached.publishedPrograms)) {
+            setPublishedPrograms(cached.publishedPrograms);
+          } else {
+            const savedPub = localStorage.getItem(`milad_published_programs_${rNum}`) || localStorage.getItem('milad_published_programs_latest');
+            if (savedPub) {
+              try { setPublishedPrograms(JSON.parse(savedPub)); } catch(e){}
             }
           }
 
@@ -1656,6 +1668,9 @@ function App() {
           if (fetchedVisibility) {
             const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
             setVisibilityControls(normalizedVis);
+            if (Array.isArray(fetchedVisibility.published_programs)) {
+              setPublishedPrograms(fetchedVisibility.published_programs);
+            }
           } else {
             // DB had no value — fall back to DEFAULT (all ON) so view user is not locked out
             setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
@@ -6587,8 +6602,11 @@ ${pagesHtml}
                               {/* Category Breakdown for this Team */}
                               <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                 {categories.map(c => {
-                                  // Calculate points for this category and team
-                                  const catResults = resultsList.filter(r => (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name);
+                                  // Calculate points for this category and team (gate by published programs in View Mode)
+                                  const catResults = resultsList.filter(r => {
+                                    if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                                    return (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name;
+                                  });
                                   if (catResults.length === 0) return null;
 
                                   const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
@@ -17794,6 +17812,7 @@ ${pagesHtml}
                       // Get team points breakdown for this category (including boys/girls split)
                       const teamPointsList = teams.map(t => {
                         const catResults = resultsList.filter(r => {
+                          if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
                           const teamMatch = String(r.teamId || r.teamid || '') === String(t.id);
                           if (!teamMatch) return false;
 
