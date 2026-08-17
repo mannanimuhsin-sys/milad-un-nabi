@@ -836,6 +836,101 @@ function App() {
   const [bulkCertSearch, setBulkCertSearch] = useState('');
   const [bulkCertExcludedKeys, setBulkCertExcludedKeys] = useState([]);
 
+  // 🚀 Individual Program Result Publishing (Draft / Staging vs Published Gate)
+  const [publishedPrograms, setPublishedPrograms] = useState(() => {
+    try {
+      const _rNum = _initCache?.regNumber || localStorage.getItem('madrasa_reg_num') || '';
+      const stored = localStorage.getItem(`milad_published_programs_${_rNum}`);
+      if (stored) return JSON.parse(stored);
+      if (_initCache && Array.isArray(_initCache.publishedPrograms)) return _initCache.publishedPrograms;
+      if (_initCache && _initCache.visibilityControls && Array.isArray(_initCache.visibilityControls.published_programs)) {
+        return _initCache.visibilityControls.published_programs;
+      }
+    } catch {}
+    return [];
+  });
+
+  const isProgPublished = (progId) => {
+    if (!progId) return false;
+    return (publishedPrograms || []).map(String).includes(String(progId));
+  };
+
+  const handleTogglePublishProgram = async (progId, forceState = null) => {
+    if (!progId) return;
+    const pIdStr = String(progId);
+    const progObj = programs.find(p => String(p.id) === pIdStr || String(p.code) === pIdStr);
+    const progName = progObj ? progObj.name : 'Program';
+    
+    let updated;
+    const currentlyPublished = (publishedPrograms || []).map(String).includes(pIdStr);
+    const shouldPublish = forceState !== null ? forceState : !currentlyPublished;
+
+    if (shouldPublish) {
+      updated = Array.from(new Set([...(publishedPrograms || []).map(String), pIdStr]));
+    } else {
+      updated = (publishedPrograms || []).map(String).filter(id => id !== pIdStr);
+    }
+
+    setPublishedPrograms(updated);
+
+    const rNum = loggedInMadrasa?.regNumber;
+    if (rNum) {
+      try {
+        localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
+        localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
+      } catch {}
+      
+      try {
+        const newVis = { ...(visibilityControls || {}), published_programs: updated };
+        setVisibilityControls(newVis);
+        const mId = loggedInMadrasa?.id;
+        if (mId) {
+          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('id', mId);
+        } else {
+          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum));
+        }
+      } catch (err) {
+        console.warn("Error syncing published_programs to cloud:", err);
+      }
+    }
+
+    if (shouldPublish) {
+      alert(lang === 'EN' ? `✅ "${progName}" results are now PUBLISHED LIVE!` : `✅ "${progName}" - ഫലങ്ങൾ ലൈവായി പബ്ലിഷ് ചെയ്തു!`);
+    } else {
+      alert(lang === 'EN' ? `🔒 "${progName}" results moved to DRAFT mode (hidden from public)` : `🔒 "${progName}" - ഫലങ്ങൾ Draft മോഡിലേക്ക് മാറ്റി (പൊതുജനങ്ങൾക്ക് കാണാനാകില്ല)`);
+    }
+  };
+
+  const handlePublishAllPrograms = async (publish = true) => {
+    const rNum = loggedInMadrasa?.regNumber;
+    let updated = [];
+    if (publish) {
+      const progsWithResults = Array.from(new Set(resultsList.map(r => String(r.progid)))).filter(Boolean);
+      updated = progsWithResults;
+    }
+    setPublishedPrograms(updated);
+    if (rNum) {
+      try {
+        localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
+        localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
+      } catch {}
+      try {
+        const newVis = { ...(visibilityControls || {}), published_programs: updated };
+        setVisibilityControls(newVis);
+        const mId = loggedInMadrasa?.id;
+        if (mId) {
+          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('id', mId);
+        } else {
+          await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum));
+        }
+      } catch (err) {}
+    }
+    alert(publish
+      ? (lang === 'EN' ? '✅ All program results published live!' : '✅ എല്ലാ പ്രോഗ്രാമുകളുടെയും ഫലങ്ങൾ പബ്ലിഷ് ചെയ്തു!')
+      : (lang === 'EN' ? '🔒 All program results moved to Draft mode.' : '🔒 എല്ലാ പ്രോഗ്രാമുകളുടെയും ഫലങ്ങൾ Draft മോഡിലേക്ക് മാറ്റി.')
+    );
+  };
+
   // Champion section states
   const [champCat, setChampCat] = useState('');
   const [champGender, setChampGender] = useState('BOYS');
@@ -2255,6 +2350,8 @@ function App() {
 
       const matchedResults = (localResults || []).filter(r => {
         if (!r) return false;
+        // In View Mode, do not reveal results for unpublished/draft programs via QR scan
+        if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
         const rName = String(r.studentname || r.studentName || '').trim();
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
         if (rSid && (rSid === sDbId || (sRegNo && rSid === sRegNo))) return true;
@@ -4064,7 +4161,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   };
 
   // 📝 6. MARK ENTRY ACTIONS (SUPABASE)
-  const handleAddResult = async (e) => {
+  const handleAddResult = async (e, andPublish = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSavingResult) return; // Prevent multiple rapid clicks
 
@@ -4224,11 +4321,15 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         else if (selectedPlace === '2') setSelectedPlace('3');
         else if (selectedPlace === '3') setSelectedPlace('0');
 
-        alert(
-          lang === 'EN'
-            ? `✅ Result saved successfully for ${computedStudentName}!`
-            : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു!`
-        );
+        if (andPublish && progObj) {
+          await handleTogglePublishProgram(progObj.id, true);
+        } else {
+          alert(
+            lang === 'EN'
+              ? `✅ Result saved successfully for ${computedStudentName} (Draft mode)!`
+              : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു (Draft)!`
+          );
+        }
       }
     } catch (err) {
       alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
@@ -4652,6 +4753,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     const seen = new Set();
     return list.filter(r => {
       if (!r) return false;
+      // In View Mode, only results from published programs are counted for points/scoreboard
+      if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
       const pKey = String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase();
       const sKey = String(r.studentname || r.student_name || '').trim().toLowerCase();
       const uniqueKey = `${pKey}___${sKey}`;
@@ -6618,7 +6721,10 @@ ${pagesHtml}
                               if (filterGender === 'BOY') return pType.includes('BOY') || (!pType.includes('BOY') && !pType.includes('GIRL'));
                               if (filterGender === 'GIRL') return pType.includes('GIRL') || (!pType.includes('BOY') && !pType.includes('GIRL'));
                               return true;
-                            }).map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                            }).map(p => {
+                              const pubTag = loginRole === 'ADMIN' ? (isProgPublished(p.id) ? ' ✅' : ' 🟡 [Draft]') : '';
+                              return <option key={p.id} value={p.id}>{p.code} - {p.name}{pubTag}</option>;
+                            })}
                           </select>
                         </div>
 
@@ -6655,9 +6761,51 @@ ${pagesHtml}
                         </div>
                       </div>
 
+                      {/* Admin Quick Publish All Bar */}
+                      {loginRole === 'ADMIN' && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '10px',
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          padding: '10px 14px',
+                          marginTop: '12px',
+                          marginBottom: '6px'
+                        }}>
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>🚀</span>
+                            <span>{lang === 'EN' ? 'Publish Status Controls:' : 'ഫലങ്ങൾ പബ്ലിഷ് ചെയ്യാനുള്ള കൺട്രോളുകൾ:'}</span>
+                            <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '800' }}>
+                              {(publishedPrograms || []).length} {lang === 'EN' ? 'Published' : 'പബ്ലിഷ് ചെയ്തവ'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handlePublishAllPrograms(true)}
+                              style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '8px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer' }}
+                            >
+                              🚀 {lang === 'EN' ? 'Publish All' : 'എല്ലാം പബ്ലിഷ് ചെയ്യുക'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePublishAllPrograms(false)}
+                              style={{ background: '#64748b', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '8px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer' }}
+                            >
+                              🔒 {lang === 'EN' ? 'Unpublish All' : 'എല്ലാം ഡ്രാഫ്റ്റാക്കുക'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Winners Display */}
                       {filterProg && (() => {
                         const progObj = programs.find(p => String(p.id) === String(filterProg));
+                        const isPublished = isProgPublished(filterProg);
                         const progResults = resultsList.filter(r => {
                           const matchProg = String(r.progid) === String(filterProg);
                           const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
@@ -6734,8 +6882,67 @@ ${pagesHtml}
                           );
                         };
 
+                        // In View Mode: If program results are not published yet, show friendly pending banner
+                        if (loginRole !== 'ADMIN' && !isPublished) {
+                          return (
+                            <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fffbeb', borderRadius: '16px', border: '1.5px solid #fde68a', marginTop: '20px', boxShadow: '0 4px 15px rgba(217,119,6,0.06)' }}>
+                              <div style={{ fontSize: '48px', marginBottom: '10px' }}>⏳</div>
+                              <h3 style={{ color: '#92400e', fontSize: '18px', fontWeight: '900', margin: '0 0 8px' }}>
+                                {lang === 'EN' ? 'Results Not Yet Announced' : 'ഫലം ഇതുവരെ പ്രഖ്യാപിച്ചിട്ടില്ല'}
+                              </h3>
+                              <p style={{ color: '#b45309', fontSize: '13px', maxWidth: '460px', margin: '0 auto' }}>
+                                {lang === 'EN'
+                                  ? `The official results for "${progObj?.name}" are awaiting final announcement.`
+                                  : `"${progObj?.name}" മത്സരത്തിന്റെ ഔദ്യോഗിക ഫലപ്രഖ്യാപനം ഉടൻ നടക്കുന്നതാണ്.`}
+                              </p>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div style={{ marginTop: '20px' }}>
+                            {/* Admin Program Publish Toggle Pill */}
+                            {loginRole === 'ADMIN' && (
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                                background: isPublished ? '#f0fdf4' : '#fffbeb',
+                                border: `1.5px solid ${isPublished ? '#86efac' : '#fcd34d'}`,
+                                borderRadius: '12px',
+                                padding: '10px 16px',
+                                marginBottom: '16px'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '18px' }}>{isPublished ? '✅' : '🟡'}</span>
+                                  <div>
+                                    <span style={{ fontSize: '12.5px', fontWeight: '900', color: isPublished ? '#166534' : '#92400e' }}>
+                                      {isPublished ? (lang === 'EN' ? 'PUBLISHED LIVE (Visible to Visitors)' : 'പബ്ലിഷ് ചെയ്തിട്ടുണ്ട് (Live)') : (lang === 'EN' ? 'DRAFT MODE (Hidden from Visitors)' : 'ഡ്രാഫ്റ്റ് മോഡ് (സന്ദർശകർക്ക് കാണാനാകില്ല)')}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePublishProgram(filterProg)}
+                                  style={{
+                                    background: isPublished ? '#64748b' : 'linear-gradient(135deg, #16a34a, #15803d)',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    padding: '6px 14px',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                                  }}
+                                >
+                                  {isPublished ? (lang === 'EN' ? '🔒 Unpublish (Move to Draft)' : '🔒 Draft മോഡിലേക്ക് മാറ്റുക') : (lang === 'EN' ? '🚀 Publish Program Live' : '🚀 ഇപ്പോൾ പബ്ലിഷ് ചെയ്യുക')}
+                                </button>
+                              </div>
+                            )}
+
                             <div style={{ textAlign: 'center', marginBottom: '15px' }}>
                               <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
                             </div>
@@ -7515,6 +7722,7 @@ ${pagesHtml}
                           const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
                           const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
                           const sResults = resultsList.filter(r => {
+                            if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
                             const sName = r.studentname || r.studentName || '';
                             return sName.startsWith(sRegNo + ' - ');
                           });
@@ -7650,8 +7858,9 @@ ${pagesHtml}
                       return 4;
                     };
 
+                    const displayHistoryResults = loginRole === 'ADMIN' ? resultsList : resultsList.filter(r => isProgPublished(r.progid));
                     const groupMap = new Map();
-                    resultsList.forEach(r => {
+                    displayHistoryResults.forEach(r => {
                       const pKey = String(r.progid || r.progId || r.progname || '').trim();
                       const cKey = String(r.catid || r.catId || r.catname || '').trim();
                       const groupKey = `${pKey}___${cKey}`;
@@ -7837,6 +8046,7 @@ ${pagesHtml}
                         const isChampGeneral = champCat === 'GENERAL';
 
                         const catResults = resultsList.filter(r => {
+                          if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
                           const rCatName = r.catname || r.catName || '';
                           const matchCat = isChampGeneral
                             ? isGeneralResult(r)
@@ -14284,49 +14494,76 @@ ${pagesHtml}
                                     </div>
                                   </div>
 
-                                  <button
-                                    type="submit"
-                                    disabled={isSavingResult}
-                                    className="btn-premium-action"
-                                    style={{
-                                      marginTop: '16px',
-                                      background: isSavingResult ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #e21c34 0%, #9a0f20 100%)',
-                                      boxShadow: isSavingResult ? 'none' : '0 4px 12px rgba(226, 28, 52, 0.2)',
-                                      cursor: isSavingResult ? 'not-allowed' : 'pointer',
-                                      opacity: isSavingResult ? 0.75 : 1,
-                                      transition: 'all 0.2s ease',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '8px'
-                                    }}
-                                  >
-                                    {isSavingResult ? (
-                                      <>
-                                        <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                                        <span>{lang === 'EN' ? '⏳ Saving Result...' : '⏳ ഫലം സേവ് ചെയ്യുന്നു...'}</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span>💾</span>
-                                        <span>{lang === 'EN' ? 'Save Result' : 'ഫലം സേവ് ചെയ്യുക'}</span>
-                                      </>
-                                    )}
-                                  </button>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginTop: '16px' }}>
+                                    {/* Button 1: Save as Draft */}
+                                    <button
+                                      type="submit"
+                                      disabled={isSavingResult}
+                                      className="btn-premium-action"
+                                      onClick={(e) => handleAddResult(e, false)}
+                                      style={{
+                                        background: isSavingResult ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #0f766e 0%, #064e3b 100%)',
+                                        boxShadow: isSavingResult ? 'none' : '0 4px 12px rgba(15, 118, 110, 0.2)',
+                                        cursor: isSavingResult ? 'not-allowed' : 'pointer',
+                                        opacity: isSavingResult ? 0.75 : 1,
+                                        transition: 'all 0.2s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        padding: '11px 16px',
+                                        fontSize: '13px'
+                                      }}
+                                    >
+                                      {isSavingResult ? (
+                                        <>
+                                          <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                          <span>{lang === 'EN' ? '⏳ Saving...' : '⏳ സേവ് ചെയ്യുന്നു...'}</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>💾</span>
+                                          <span>{lang === 'EN' ? 'Save as Draft' : 'ഡ്രാഫ്റ്റായി സേവ് ചെയ്യുക'}</span>
+                                        </>
+                                      )}
+                                    </button>
+
+                                    {/* Button 2: Save & Publish Immediately */}
+                                    <button
+                                      type="button"
+                                      disabled={isSavingResult}
+                                      className="btn-premium-action"
+                                      onClick={(e) => handleAddResult(e, true)}
+                                      style={{
+                                        background: isSavingResult ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #e21c34 0%, #9a0f20 100%)',
+                                        boxShadow: isSavingResult ? 'none' : '0 4px 12px rgba(226, 28, 52, 0.25)',
+                                        cursor: isSavingResult ? 'not-allowed' : 'pointer',
+                                        opacity: isSavingResult ? 0.75 : 1,
+                                        transition: 'all 0.2s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        padding: '11px 16px',
+                                        fontSize: '13px'
+                                      }}
+                                    >
+                                      <span>🚀</span>
+                                      <span>{lang === 'EN' ? 'Save & Publish Live' : 'സേവ് & ലൈവായി പബ്ലിഷ് ചെയ്യുക'}</span>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
 
                             </div>
                           </form>
 
-                          {/* ── Saved Results for this Program ── */}
+                          {/* ── Saved Results & Publish Gate for this Program ── */}
                           {selectedResultProg && (() => {
                             const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
                             const isGroup = progObj && (progObj.type || '').includes('GROUP');
-
                             const progSavedResults = currentProgSavedResults;
-
-                            if (progSavedResults.length === 0) return null;
+                            const isPublished = isProgPublished(selectedResultProg);
 
                             const replacementOptions = isGroup
                               ? groupRegistrations.filter(g => {
@@ -14359,6 +14596,67 @@ ${pagesHtml}
 
                             return (
                               <div style={{ marginTop: '24px' }}>
+                                {/* 🚀 Publish Status Control Banner */}
+                                <div style={{
+                                  background: isPublished ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)' : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                                  border: isPublished ? '1.5px solid #86efac' : '1.5px solid #fcd34d',
+                                  borderRadius: '14px',
+                                  padding: '14px 18px',
+                                  marginBottom: '16px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '12px',
+                                  boxShadow: isPublished ? '0 4px 15px rgba(22,163,74,0.08)' : '0 4px 15px rgba(217,119,6,0.08)'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ fontSize: '26px' }}>{isPublished ? '✅' : '🟡'}</div>
+                                    <div>
+                                      <div style={{ fontSize: '13px', fontWeight: '900', color: isPublished ? '#166534' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        {isPublished
+                                          ? (lang === 'EN' ? 'PUBLISHED LIVE (Visible on Scoreboard & QR)' : 'ഫലങ്ങൾ പബ്ലിഷ് ചെയ്തിട്ടുണ്ട് (Live)')
+                                          : (lang === 'EN' ? 'DRAFT MODE (Hidden from Public & Scoreboard)' : 'ഡ്രാഫ്റ്റ് മോഡ് (പൊതുജനങ്ങൾക്ക് കാണാനാകില്ല)')}
+                                      </div>
+                                      <div style={{ fontSize: '11.5px', color: isPublished ? '#15803d' : '#b45309', marginTop: '2px', fontWeight: '600' }}>
+                                        {isPublished
+                                          ? (lang === 'EN' ? `Results for "${progObj?.name}" are visible to everyone.` : `"${progObj?.name}" ഫലങ്ങളും പോയിന്റുകളും എല്ലാവർക്കും കാണാം.`)
+                                          : (lang === 'EN' ? `Results are staged in private. Click "Publish" to announce live.` : `ഫലങ്ങൾ രഹസ്യമായി രേഖപ്പെടുത്തിയിരിക്കുന്നു. അനൗൺസ് ചെയ്യുമ്പോൾ "Publish" ക്ലിക്ക് ചെയ്യുക.`)}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePublishProgram(selectedResultProg)}
+                                    style={{
+                                      background: isPublished ? 'linear-gradient(135deg, #64748b, #475569)' : 'linear-gradient(135deg, #16a34a, #15803d)',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      padding: '9px 18px',
+                                      borderRadius: '10px',
+                                      fontWeight: '800',
+                                      fontSize: '12.5px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      boxShadow: isPublished ? '0 2px 8px rgba(0,0,0,0.15)' : '0 4px 12px rgba(22,163,74,0.3)',
+                                      transition: 'all 0.2s'
+                                    }}
+                                  >
+                                    {isPublished
+                                      ? (lang === 'EN' ? '🔒 Unpublish (Move to Draft)' : '🔒 Draft മോഡിലേക്ക് മാറ്റുക')
+                                      : (lang === 'EN' ? '🚀 Publish Program Results' : '🚀 ഇപ്പോൾ പബ്ലിഷ് ചെയ്യുക')}
+                                  </button>
+                                </div>
+
+                                {progSavedResults.length === 0 ? (
+                                  <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', margin: '20px 0' }}>
+                                    {lang === 'EN' ? 'No results entered for this program yet.' : 'ഈ മത്സരത്തിന് ഇതുവരെ ഫലങ്ങൾ രേഖപ്പെടുത്തിയിട്ടില്ല.'}
+                                  </p>
+                                ) : (
+                                  <div style={{ marginTop: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', paddingBottom: '10px', borderBottom: '2px solid #e2e8f0', flexWrap: 'wrap' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontSize: '15px', fontWeight: '800', color: '#064e3b' }}>
@@ -14479,11 +14777,13 @@ ${pagesHtml}
                                   })}
                                 </div>
                               </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    ); })()}
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ); })()}
 
                     {/* POINTS SETUP SUB-TAB */}
                     {settingsSubTab === 'POINTS' && (
