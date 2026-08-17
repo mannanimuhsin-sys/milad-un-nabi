@@ -3746,6 +3746,41 @@ tr:nth-child(even) {
     background: #0f766e !important;
 }
 
+/* Modern Timetable Card Styles */
+.timetable-card-modern {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.timetable-card-modern:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+}
+
+.timetable-card-modern.live-card {
+    background: #ffffff !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2), 0 8px 24px rgba(239, 68, 68, 0.15) !important;
+}
+
+.timetable-card-modern.done-card {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+.timetable-card-modern.done-card:hover {
+    transform: none;
+    box-shadow: none !important;
+}
+
+@media (max-width: 600px) {
+    .timetable-tab-container {
+        padding: 12px 10px !important;
+    }
+    .timetable-card-modern {
+        padding: 13px 12px !important;
+    }
+}
+
 /* Print CSS */
 @media print {
     body {

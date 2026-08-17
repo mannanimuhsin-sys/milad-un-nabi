@@ -658,6 +658,8 @@ function App() {
   });
   const [timetableFilterCat, setTimetableFilterCat] = useState('ALL');
   const [timetableFilterGender, setTimetableFilterGender] = useState('ALL');
+  const [timetableFilterDate, setTimetableFilterDate] = useState('ALL'); // 'ALL' | 'YYYY-MM-DD'
+  const [timetablePosterModal, setTimetablePosterModal] = useState(false);
   const [timetableView, setTimetableView] = useState('GRID'); // 'GRID' | 'LIST'
   const [editingTimetableId, setEditingTimetableId] = useState(null);
   const [timetableFormData, setTimetableFormData] = useState({ scheduled_time: '', date: '', hour12: '09', minute: '00', ampm: 'AM', venue: '' });
@@ -8869,263 +8871,57 @@ ${pagesHtml}
 
           {/* ---------------- 📅 TAB: TIMETABLE ---------------- */}
           {!isInitialDataLoading && activeTab === 'TIMETABLE' && (
-            <div className="card animate-tab">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0 }}>📅 {t('timetableTitle')}</h2>
-                <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="card animate-tab timetable-tab-container">
+              {/* ── Timetable Header & Action Bar ── */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>
+                    <span>📅</span>
+                    <span>{t('timetableTitle')}</span>
+                  </h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                    {loginRole === 'ADMIN'
+                      ? (lang === 'EN' ? 'Manage event schedules, dates, venues & generate day posters' : 'മത്സര സമയക്രമം, വേദി നിശ്ചയിക്കാനും ഡേ പോസ്റ്ററുകൾ നിർമ്മിക്കാനും')
+                      : (lang === 'EN' ? 'Official Program Schedule & Live Updates' : 'പരിപാടികളുടെ തത്സമയ സമയക്രമ വിവരങ്ങൾ')}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {/* View Mode Toggle (Grid / List) */}
                   <button
+                    type="button"
                     onClick={() => setTimetableView(prev => prev === 'GRID' ? 'LIST' : 'GRID')}
                     className="btn-add-action"
-                    style={{ background: '#0f766e', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
+                    style={{ background: '#0f766e', display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', fontSize: '13px', borderRadius: '10px' }}
                   >
-                    {timetableView === 'GRID' ? '📝 List View' : '🎴 Grid View'}
+                    {timetableView === 'GRID' ? '📝 ' + (lang === 'EN' ? 'List View' : 'ലിസ്റ്റ് വ്യൂ') : '🎴 ' + (lang === 'EN' ? 'Cards View' : 'കാർഡ് വ്യൂ')}
                   </button>
+
+                  {/* Admin Day Poster / PDF Generator Button */}
                   {loginRole === 'ADMIN' && (
                     <button
-                      onClick={() => {
-                        // Build scheduled programs for print
-                        const scheduledItems = programs
-                          .map(p => {
-                            const entry = timetable.find(tt => String(tt.program_id) === String(p.id));
-                            const cat = categories.find(c => String(c.id) === String(p.catid));
-                            return { program: p, scheduled_time: entry?.scheduled_time || null, venue: entry?.venue || '', category: cat };
-                          })
-                          .filter(item => item.scheduled_time)
-                          .sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
-
-                        const formatDT = (iso) => {
-                          if (!iso) return '-';
-                          return new Date(iso).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-                        };
-
-                        const madrasaName = loggedInMadrasa?.name || 'MILAD FEST';
-                        const regNum = loggedInMadrasa?.regNumber || '';
-                        const placeRaw = (loggedInMadrasa?.place || '').split('|')[0].trim();
-
-                        // Group by category, then by gender within each category
-                        const catOrder = categories.map(c => ({ id: String(c.id), name: c.name }));
-                        const grouped = {};
-                        scheduledItems.forEach(item => {
-                          const catName = item.category?.name || 'Common';
-                          const pType = (item.program.type || '').toUpperCase();
-                          let gKey = 'COMMON';
-                          if (pType.includes('BOY')) gKey = 'BOY';
-                          else if (pType.includes('GIRL')) gKey = 'GIRL';
-                          if (!grouped[catName]) grouped[catName] = { BOY: [], GIRL: [], COMMON: [] };
-                          grouped[catName][gKey].push(item);
-                        });
-
-                        const orderedCatNames = catOrder.map(c => c.name).filter(n => grouped[n]);
-                        Object.keys(grouped).forEach(n => { if (!orderedCatNames.includes(n)) orderedCatNames.push(n); });
-
-                        const gLbl = { BOY: '&#128102; Boys', GIRL: '&#128103; Girls', COMMON: '&#128101; Common' };
-                        const gBg = { BOY: '#1e40af', GIRL: '#be185d', COMMON: '#0f766e' };
-
-                        let sectionsHtml = '';
-                        if (scheduledItems.length === 0) {
-                          sectionsHtml = '<p style="text-align:center;padding:40px;color:#64748b;font-style:italic;">No programs scheduled yet.</p>';
-                        } else {
-                          orderedCatNames.forEach(catName => {
-                            const catData = grouped[catName];
-                            sectionsHtml += `<div style="margin-bottom:28px;">
-                              <div style="font-size:17px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1e293b,#334155);padding:10px 18px;border-radius:10px 10px 0 0;letter-spacing:.5px;">${catName}</div>`;
-                            ['BOY', 'GIRL', 'COMMON'].forEach(gKey => {
-                              const items = catData[gKey] || [];
-                              if (!items.length) return;
-                              sectionsHtml += `
-                              <div style="border:1px solid #e2e8f0;border-top:none;">
-                                <div style="font-size:12px;font-weight:700;color:#fff;background:${gBg[gKey]};padding:6px 18px;letter-spacing:1px;text-transform:uppercase;">${gLbl[gKey]}</div>
-                                <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                                  <thead>
-                                    <tr style="background:#f1f5f9;">
-                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:60px;">Code</th>
-                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;">Program Name</th>
-                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:170px;">&#9200; Time</th>
-                                      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:140px;">&#128205; Venue</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    ${items.map((item, idx) => `
-                                      <tr style="background:${idx % 2 === 0 ? '#f8fafc' : '#fff'};">
-                                        <td style="padding:9px 12px;font-weight:700;color:#0f766e;border-bottom:1px solid #f1f5f9;">${item.program.code}</td>
-                                        <td style="padding:9px 12px;font-weight:600;border-bottom:1px solid #f1f5f9;">${item.program.name}</td>
-                                        <td style="padding:9px 12px;color:#0369a1;font-weight:600;border-bottom:1px solid #f1f5f9;">${formatDT(item.scheduled_time)}</td>
-                                        <td style="padding:9px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${item.venue || '&#8212;'}</td>
-                                      </tr>`).join('')}
-                                  </tbody>
-                                </table>
-                              </div>`;
-                            });
-                            sectionsHtml += '</div>';
-                          });
-                        }
-
-                        const timetablePrintHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${madrasaName} - Program Timetable</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-    body { font-family:Arial,Helvetica,sans-serif; background:#fff; color:#1e293b; }
-    .page { padding:28px 32px; max-width:960px; margin:0 auto; }
-    .header { display:flex; align-items:flex-start; justify-content:space-between; padding:20px 24px; background:linear-gradient(135deg,#064e3b,#0f766e); border-radius:12px; margin-bottom:26px; color:#fff; }
-    .header h1 { font-size:22px; font-weight:900; line-height:1.2; }
-    .header .sub { font-size:12px; color:#bbf7d0; margin-top:5px; }
-    .header .tt-title { font-size:15px; font-weight:700; color:#fef08a; margin-top:8px; }
-    .stats { background:rgba(255,255,255,0.15); border-radius:10px; padding:10px 16px; text-align:center; }
-    .stats .num { font-size:28px; font-weight:900; color:#fef08a; line-height:1; }
-    .stats .lbl { font-size:10px; color:#bbf7d0; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-top:3px; }
-    .footer { margin-top:24px; text-align:center; font-size:11px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:14px; }
-    .footer strong { color:#0f766e; }
-    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .page { padding:16px; } }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div class="header">
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#a7f3d0;text-transform:uppercase;margin-bottom:6px;">${eventName ? eventName + (eventYear ? ' — Milad_fest ' + eventYear : '') : '&#128332; MILAD FEST &#8211; Official Schedule'}</div>
-        <h1>${madrasaName}</h1>
-        <div class="sub">Reg No: <strong style="color:#fef08a;">${regNum}</strong>${placeRaw ? ` &nbsp;|&nbsp; ${placeRaw}` : ''}</div>
-        <div class="tt-title">&#128197; Program Timetable</div>
-      </div>
-      <div class="stats">
-        <div class="num">${scheduledItems.length}</div>
-        <div class="lbl">Programs</div>
-      </div>
-    </div>
-
-    ${sectionsHtml}
-
-    <div class="footer">
-      Printed from <strong>MILAD FEST App</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-    </div>
-  </div>
-  <script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
-</body>
-</html>`;
-
-                        // Open as blob URL in new tab — works on both desktop and Android (no blank PDF)
-                        const blob = new Blob([timetablePrintHtml], { type: 'text/html;charset=utf-8' });
-                        const blobUrl = URL.createObjectURL(blob);
-                        const win = window.open(blobUrl, '_blank');
-                        if (!win) {
-                          // Popup blocked: fallback to direct download
-                          const a = document.createElement('a');
-                          a.href = blobUrl;
-                          a.download = `${madrasaName.replace(/\s+/g, '-')}-Timetable.html`;
-                          a.click();
-                        }
-                        setTimeout(() => URL.revokeObjectURL(blobUrl), 12000);
-                      }}
+                      type="button"
+                      onClick={() => setTimetablePosterModal(true)}
                       className="btn-add-action"
-                      style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '14px' }}
+                      style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', fontSize: '13px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(2,132,199,0.25)' }}
                     >
-                      🖨️ {t('printTimetable')}
+                      📄 {lang === 'EN' ? 'Day Poster / PDF' : 'ഡേ പോസ്റ്റർ / PDF'}
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Category Filter Chips */}
-              <div className="category-chips-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '20px' }}>
-                <button
-                  onClick={() => setTimetableFilterCat('ALL')}
-                  className={`category-chip ${timetableFilterCat === 'ALL' ? 'active' : ''}`}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    border: 'none',
-                    background: timetableFilterCat === 'ALL' ? '#0f766e' : '#f1f5f9',
-                    color: timetableFilterCat === 'ALL' ? '#fff' : '#475569',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {t('allCategories')}
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setTimetableFilterCat(cat.id)}
-                    className={`category-chip ${String(timetableFilterCat) === String(cat.id) ? 'active' : ''}`}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: '20px',
-                      border: 'none',
-                      background: String(timetableFilterCat) === String(cat.id) ? '#0f766e' : '#f1f5f9',
-                      color: String(timetableFilterCat) === String(cat.id) ? '#fff' : '#475569',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-                {generalCatIds.length > 0 && (
-                  <button
-                    onClick={() => setTimetableFilterCat('GENERAL')}
-                    className={`category-chip ${timetableFilterCat === 'GENERAL' ? 'active' : ''}`}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: '20px',
-                      border: 'none',
-                      background: timetableFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '#f1f5f9',
-                      color: timetableFilterCat === 'GENERAL' ? '#fff' : '#475569',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    🌟 GENERAL
-                  </button>
-                )}
-              </div>
-
-              {/* Gender Filter Chips */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                {[['ALL', '🌐 All', '#475569'], ['BOY', '👦 Boys', '#1e40af'], ['GIRL', '👧 Girls', '#be185d'], ['COMMON', '🤝 Common', '#0f766e']].map(([key, label, activeColor]) => (
-                  <button
-                    key={key}
-                    onClick={() => setTimetableFilterGender(key)}
-                    style={{
-                      padding: '5px 14px',
-                      borderRadius: '20px',
-                      border: `2px solid ${timetableFilterGender === key ? activeColor : '#e2e8f0'}`,
-                      background: timetableFilterGender === key ? activeColor : '#fff',
-                      color: timetableFilterGender === key ? '#fff' : '#475569',
-                      fontWeight: 'bold',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Print Only Header */}
-              <div className="timetable-print-only-header" style={{ display: 'none', textAlign: 'center', marginBottom: '20px' }}>
-                <h1 style={{ color: '#0f766e', margin: '0 0 5px 0' }}>{loggedInMadrasa?.name || 'MILAD FEST'}</h1>
-                <p style={{ margin: 0, color: '#64748b', fontWeight: 'bold' }}>📅 {t('timetableTitle')}</p>
-                <div style={{ borderBottom: '2px solid #0f766e', margin: '15px 0' }}></div>
-              </div>
-
-              {/* Timetable List / Grid */}
+              {/* ── Timetable Calculations & Filter Pipelines ── */}
               {(() => {
+                const madrasaName = loggedInMadrasa?.name || 'MILAD FEST';
+                const regNum = loggedInMadrasa?.regNumber || '';
+                const placeRaw = (loggedInMadrasa?.place || '').split('|')[0].trim();
+                const nowTime = new Date();
+
+                // 1. Map programs with their timetable and category details
                 const mappedTimetable = programs.map(p => {
                   const entry = timetable.find(t => String(t.program_id) === String(p.id));
                   let cat = categories.find(c => String(c.id) === String(p.catid));
-                  // For General programs (catid=-1), provide a synthetic category
                   if (!cat && isGeneralProg(p)) {
                     cat = { id: -1, name: 'GENERAL', color: '#d97706' };
                   }
@@ -9145,7 +8941,74 @@ ${pagesHtml}
                   return 'COMMON';
                 };
 
-                // Filter by category
+                // Helper to format ISO to Date String YYYY-MM-DD
+                const getIsoDateKey = (isoStr) => {
+                  if (!isoStr) return null;
+                  try {
+                    const d = new Date(isoStr);
+                    if (isNaN(d.getTime())) return null;
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                  } catch (e) { return null; }
+                };
+
+                // Helper to format date nicely
+                const formatDayTitle = (dateKey) => {
+                  if (!dateKey) return '';
+                  try {
+                    const [y, m, d] = dateKey.split('-').map(Number);
+                    const dt = new Date(y, m - 1, d);
+                    return dt.toLocaleDateString(lang === 'EN' ? 'en-US' : 'ml-IN', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
+                    });
+                  } catch (e) { return dateKey; }
+                };
+
+                // Helper for detailed date-time display
+                const formatDateTime = (isoString) => {
+                  if (!isoString) return '';
+                  const d = new Date(isoString);
+                  return d.toLocaleString(lang === 'EN' ? 'en-US' : 'ml-IN', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  });
+                };
+
+                // 2. Discover all distinct scheduled dates
+                const allScheduledDates = Array.from(new Set(
+                  mappedTimetable
+                    .filter(item => item.scheduled_time)
+                    .map(item => getIsoDateKey(item.scheduled_time))
+                    .filter(Boolean)
+                )).sort();
+
+                // 3. Program Timing Status Classifier
+                const classifyProgramTime = (isoString) => {
+                  if (!isoString) return { status: 'UNSCHEDULED', label: t('noTimetable'), priority: 4 };
+                  const sched = new Date(isoString);
+                  const diffMs = sched - nowTime;
+
+                  // Ongoing / Live: from 45 mins before scheduled time up to 45 mins after
+                  if (diffMs <= 15 * 60 * 1000 && diffMs >= -45 * 60 * 1000) {
+                    return { status: 'LIVE', label: lang === 'EN' ? '🔴 LIVE NOW' : '🔴 ഇപ്പോൾ നടക്കുന്നു', priority: 1 };
+                  }
+                  // Upcoming: in the future
+                  if (diffMs > 15 * 60 * 1000) {
+                    return { status: 'UPCOMING', label: lang === 'EN' ? '⏰ UPCOMING' : '⏰ വരാനിരിക്കുന്നു', priority: 2 };
+                  }
+                  // Completed / Done: time has passed (past 45 mins)
+                  return { status: 'DONE', label: lang === 'EN' ? '✅ COMPLETED' : '✅ പൂർത്തിയായി', priority: 3 };
+                };
+
+                // 4. Filter Pipeline
                 const filteredTimetable = mappedTimetable.filter(item => {
                   // Category filter
                   let catMatch = true;
@@ -9156,22 +9019,48 @@ ${pagesHtml}
                       catMatch = String(item.program.catid) === String(timetableFilterCat);
                     }
                   }
+
                   // Gender filter
                   let genderMatch = true;
                   if (timetableFilterGender !== 'ALL') {
                     genderMatch = getGenderKey(item.program) === timetableFilterGender;
                   }
-                  return catMatch && genderMatch;
+
+                  // Date filter
+                  let dateMatch = true;
+                  if (timetableFilterDate !== 'ALL') {
+                    if (!item.scheduled_time) {
+                      dateMatch = false;
+                    } else {
+                      dateMatch = getIsoDateKey(item.scheduled_time) === timetableFilterDate;
+                    }
+                  }
+
+                  return catMatch && genderMatch && dateMatch;
                 });
 
-                // In view mode, we hide unscheduled programs from visitors to keep the schedule tidy
-                // but always show all programs for admins so they can schedule them.
+                // In view mode, we show only scheduled programs
                 const displayedTimetable = loginRole === 'ADMIN'
                   ? filteredTimetable
                   : filteredTimetable.filter(item => item.scheduled_time);
 
-                // Sort: Scheduled first (time asc), then unscheduled
+                // 5. Intelligent Sorting
+                // In View Mode: Live first (1), Upcoming next (2, sorted by time), Completed last (3, sorted by time)
+                // In Admin Mode: Scheduled first (time asc), then unscheduled by code
                 const sortedTimetable = [...displayedTimetable].sort((a, b) => {
+                  if (loginRole !== 'ADMIN') {
+                    const classA = classifyProgramTime(a.scheduled_time);
+                    const classB = classifyProgramTime(b.scheduled_time);
+                    if (classA.priority !== classB.priority) {
+                      return classA.priority - classB.priority;
+                    }
+                    if (a.scheduled_time && b.scheduled_time) {
+                      return new Date(a.scheduled_time) - new Date(b.scheduled_time);
+                    }
+                    return a.program.code.localeCompare(b.program.code);
+                  }
+
+                  // Admin sort
                   if (a.scheduled_time && b.scheduled_time) {
                     return new Date(a.scheduled_time) - new Date(b.scheduled_time);
                   }
@@ -9180,14 +9069,315 @@ ${pagesHtml}
                   return a.program.code.localeCompare(b.program.code);
                 });
 
-                if (sortedTimetable.length === 0) {
-                  return (
-                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '10px' }}>📅</div>
-                      <p>{t('noTimetable')}</p>
-                    </div>
-                  );
-                }
+                // Count metrics for top bar
+                const scheduledTotal = mappedTimetable.filter(item => item.scheduled_time).length;
+                const liveCount = mappedTimetable.filter(item => classifyProgramTime(item.scheduled_time).status === 'LIVE').length;
+                const upcomingCount = mappedTimetable.filter(item => classifyProgramTime(item.scheduled_time).status === 'UPCOMING').length;
+                const doneCount = mappedTimetable.filter(item => classifyProgramTime(item.scheduled_time).status === 'DONE').length;
+
+                // 6. Day Poster & Multi-Day HTML Generator
+                const generateDayOrAllPosterPdf = (targetDay = 'ALL') => {
+                  const scheduledItems = mappedTimetable
+                    .filter(item => item.scheduled_time)
+                    .sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+
+                  const itemsToPrint = targetDay === 'ALL'
+                    ? scheduledItems
+                    : scheduledItems.filter(item => getIsoDateKey(item.scheduled_time) === targetDay);
+
+                  if (itemsToPrint.length === 0) {
+                    alert(lang === 'EN' ? 'No programs scheduled for the selected day.' : 'ഈ ദിവസത്തേക്ക് പ്രോഗ്രാമുകളൊന്നും നിശ്ചയിച്ചിട്ടില്ല.');
+                    return;
+                  }
+
+                  // Group items by date
+                  const dayGroups = {};
+                  itemsToPrint.forEach(item => {
+                    const dKey = getIsoDateKey(item.scheduled_time);
+                    if (!dayGroups[dKey]) dayGroups[dKey] = [];
+                    dayGroups[dKey].push(item);
+                  });
+
+                  const sortedDayKeys = Object.keys(dayGroups).sort();
+
+                  const formatPosterTime = (iso) => {
+                    if (!iso) return '-';
+                    const d = new Date(iso);
+                    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                  };
+
+                  const formatPosterDateHeading = (dKey) => {
+                    const [y, m, d] = dKey.split('-').map(Number);
+                    const dt = new Date(y, m - 1, d);
+                    return dt.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                  };
+
+                  const posterPagesHtml = sortedDayKeys.map((dKey, dayIndex) => {
+                    const dayItems = dayGroups[dKey];
+                    const dayTitle = formatPosterDateHeading(dKey);
+
+                    return `
+                      <div class="poster-page">
+                        <!-- Poster Header -->
+                        <div class="poster-header-box">
+                          <div class="poster-top-tag">${eventName ? eventName + (eventYear ? ' — ' + eventYear : '') : 'MILAD FESTIVAL OFFICIAL SCHEDULE'}</div>
+                          <h1 class="poster-inst-title">${madrasaName}</h1>
+                          <div class="poster-inst-meta">
+                            <span>Reg No: <strong>${regNum}</strong></span>
+                            ${placeRaw ? `<span>•</span><span>${placeRaw}</span>` : ''}
+                          </div>
+                          
+                          <div class="poster-day-banner">
+                            <div class="day-badge-num">DAY ${dayIndex + 1}</div>
+                            <div class="day-badge-text">📅 ${dayTitle}</div>
+                            <div class="day-count-badge">${dayItems.length} Programs</div>
+                          </div>
+                        </div>
+
+                        <!-- Programs Table / Grid -->
+                        <table class="poster-table">
+                          <thead>
+                            <tr>
+                              <th style="width: 100px; text-align: center;">⏰ Time</th>
+                              <th style="width: 65px; text-align: center;">Code</th>
+                              <th>Program Name</th>
+                              <th style="width: 130px;">Category</th>
+                              <th style="width: 90px; text-align: center;">Division</th>
+                              <th style="width: 120px;">📍 Venue</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${dayItems.map((item, idx) => {
+                              const gk = getGenderKey(item.program);
+                              const gLabel = gk === 'BOY' ? 'Boys' : gk === 'GIRL' ? 'Girls' : 'Common';
+                              const gClass = gk === 'BOY' ? 'boy' : gk === 'GIRL' ? 'girl' : 'common';
+                              const isGen = isGeneralProg(item.program);
+                              const catName = isGen ? 'General' : (item.category?.name || 'Common');
+                              const pType = (item.program.type || '').toUpperCase();
+                              const isGroup = pType.includes('GROUP') || pType.includes('TEAM');
+
+                              return `
+                                <tr class="${idx % 2 === 0 ? 'even' : 'odd'}">
+                                  <td style="text-align: center; font-weight: 800; color: #047857; font-size: 13px;">
+                                    ${formatPosterTime(item.scheduled_time)}
+                                  </td>
+                                  <td style="text-align: center; font-weight: 800; color: #1e293b;">
+                                    <span class="code-badge">${item.program.code}</span>
+                                  </td>
+                                  <td>
+                                    <div class="prog-title">${item.program.name}</div>
+                                    <div class="prog-sub">${isGroup ? '👥 Group Program' : '👤 Single Competition'}</div>
+                                  </td>
+                                  <td>
+                                    <span class="cat-badge ${isGen ? 'gen' : ''}">${catName}</span>
+                                  </td>
+                                  <td style="text-align: center;">
+                                    <span class="gender-badge ${gClass}">${gLabel}</span>
+                                  </td>
+                                  <td style="font-weight: 600; color: #334155;">
+                                    ${item.venue ? `📍 ${item.venue}` : '<span style="color:#94a3b8;">—</span>'}
+                                  </td>
+                                </tr>
+                              `;
+                            }).join('')}
+                          </tbody>
+                        </table>
+
+                        <!-- Footer -->
+                        <div class="poster-footer-box">
+                          <div>✨ MILAD FESTIVAL PROGRAM SCHEDULE • OFFICIAL TIMETABLE ✨</div>
+                          <div style="font-size: 9px; opacity: 0.8; margin-top: 4px;">Printed on ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('');
+
+                  const fullPrintHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${madrasaName} - Program Schedule Poster</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    body { font-family:'Segoe UI', Arial, Helvetica, sans-serif; background:#f1f5f9; color:#1e293b; }
+    .poster-page {
+      max-width: 900px;
+      margin: 20px auto;
+      background: #ffffff;
+      border: 3px solid #064e3b;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      page-break-after: always;
+    }
+    .poster-page:last-child { page-break-after: auto; }
+    .poster-header-box {
+      background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #0f766e 100%);
+      color: #ffffff;
+      padding: 24px 20px 20px;
+      text-align: center;
+      border-bottom: 4px solid #fbbf24;
+    }
+    .poster-top-tag {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #a7f3d0;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .poster-inst-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin: 0;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .poster-inst-meta {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #fef08a;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+    .poster-day-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 8px 18px;
+      border-radius: 30px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .day-badge-num {
+      background: #fbbf24;
+      color: #78350f;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 3px 10px;
+      border-radius: 12px;
+      letter-spacing: 0.5px;
+    }
+    .day-badge-text {
+      font-size: 14px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .day-count-badge {
+      background: rgba(0,0,0,0.25);
+      font-size: 11px;
+      font-weight: 700;
+      color: #a7f3d0;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+    .poster-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .poster-table th {
+      background: #064e3b;
+      color: #ffffff;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #022c22;
+    }
+    .poster-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+    .poster-table tr.even { background: #ffffff; }
+    .poster-table tr.odd { background: #f8fafc; }
+    .code-badge {
+      background: #1e293b;
+      color: #ffffff;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      display: inline-block;
+    }
+    .prog-title {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 14px;
+    }
+    .prog-sub {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-top: 1px;
+    }
+    .cat-badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .cat-badge.gen {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+    .gender-badge {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 8px;
+      display: inline-block;
+    }
+    .gender-badge.boy { background: #dbeafe; color: #1e40af; }
+    .gender-badge.girl { background: #fce7f3; color: #be185d; }
+    .gender-badge.common { background: #d1fae5; color: #065f46; }
+    .poster-footer-box {
+      background: #f8fafc;
+      padding: 12px;
+      text-align: center;
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #64748b;
+      border-top: 2px solid #e2e8f0;
+      letter-spacing: 0.5px;
+    }
+    @media print {
+      body { background: #fff; }
+      .poster-page { margin: 0; border-radius: 0; box-shadow: none; border: 2px solid #064e3b; }
+    }
+  </style>
+</head>
+<body>
+  ${posterPagesHtml}
+  <script>window.onload=function(){setTimeout(function(){window.print();},700);};</script>
+</body>
+</html>`;
+
+                  const blob = new Blob([fullPrintHtml], { type: 'text/html;charset=utf-8' });
+                  const blobUrl = URL.createObjectURL(blob);
+                  const win = window.open(blobUrl, '_blank');
+                  if (!win) {
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = `${madrasaName.replace(/\s+/g, '-')}-Timetable-${targetDay}.html`;
+                    a.click();
+                  }
+                  setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+                };
 
                 const startEditingTimetable = (item) => {
                   setEditingTimetableId(item.program.id);
@@ -9230,410 +9420,750 @@ ${pagesHtml}
                   });
                 };
 
-                // Function to format date & time nicely
-                const formatDateTime = (isoString) => {
-                  if (!isoString) return '';
-                  const date = new Date(isoString);
-                  return date.toLocaleString(lang === 'EN' ? 'en-US' : 'ml-IN', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                  });
-                };
-
-                // Helper to get relative time badge
-                const getStatusBadge = (isoString) => {
-                  if (!isoString) return null;
-                  const date = new Date(isoString);
-                  const now = new Date();
-                  const diffMs = date - now;
-
-                  if (diffMs > 0) {
-                    return <span className="status-badge upcoming" style={{ background: '#dbeafe', color: '#1e40af', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{t('upcomingBadge')}</span>;
-                  } else if (diffMs <= 0 && diffMs > -3600000) { // 1 hour duration assumption
-                    return <span className="status-badge now-live" style={{ background: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>{t('ongoingBadge')}</span>;
-                  } else {
-                    return <span className="status-badge done" style={{ background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{t('doneBadge')}</span>;
-                  }
-                };
-
                 return (
                   <div>
-                    {timetableView === 'GRID' ? (
-                      /* GRID VIEW */
-                      <div className="timetable-grid-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                        {sortedTimetable.map(item => {
-                          const isEditing = editingTimetableId === item.program.id;
-                          const hasTime = !!item.scheduled_time;
-                          const categoryColor = item.category?.color || '#0f766e';
+                    {/* ── Top Status Metrics Banner ── */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #0f766e 100%)',
+                      borderRadius: '16px',
+                      padding: '14px 18px',
+                      color: '#ffffff',
+                      marginBottom: '16px',
+                      boxShadow: '0 4px 15px rgba(6,78,59,0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+                          ⏰
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', color: '#a7f3d0' }}>
+                            {eventName || 'MILAD FESTIVAL'}
+                          </div>
+                          <div style={{ fontSize: '15px', fontWeight: '900', color: '#ffffff' }}>
+                            {lang === 'EN' ? 'Schedule Overview' : 'തത്സമയ സമയക്രമ വിവരങ്ങൾ'}
+                          </div>
+                        </div>
+                      </div>
 
-                          return (
-                            <div
-                              key={item.program.id}
-                              className={`timetable-card-item ${hasTime ? 'scheduled' : 'unscheduled'}`}
+                      {/* Quick Metric Badges */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.12)', padding: '6px 12px', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '900', color: '#ffffff' }}>{scheduledTotal}</div>
+                          <div style={{ fontSize: '9px', fontWeight: '800', color: '#a7f3d0', textTransform: 'uppercase' }}>{lang === 'EN' ? 'Scheduled' : 'നിശ്ചയിച്ചവ'}</div>
+                        </div>
+                        {liveCount > 0 && (
+                          <div style={{ background: 'rgba(239,68,68,0.25)', border: '1px solid #ef4444', padding: '6px 12px', borderRadius: '10px', textAlign: 'center', animation: 'pulse 1.5s infinite' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#fca5a5' }}>{liveCount}</div>
+                            <div style={{ fontSize: '9px', fontWeight: '800', color: '#fecaca', textTransform: 'uppercase' }}>{lang === 'EN' ? 'Live' : 'ഇപ്പോൾ'}</div>
+                          </div>
+                        )}
+                        <div style={{ background: 'rgba(255,255,255,0.12)', padding: '6px 12px', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '900', color: '#fef08a' }}>{upcomingCount}</div>
+                          <div style={{ fontSize: '9px', fontWeight: '800', color: '#fef9c3', textTransform: 'uppercase' }}>{lang === 'EN' ? 'Upcoming' : 'ഇനി ഉള്ളവ'}</div>
+                        </div>
+                        {doneCount > 0 && (
+                          <div style={{ background: 'rgba(255,255,255,0.12)', padding: '6px 12px', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '900', color: '#cbd5e1' }}>{doneCount}</div>
+                            <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>{lang === 'EN' ? 'Done' : 'കഴിഞ്ഞവ'}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── Filter Controls Container ── */}
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '12px 14px', marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      
+                      {/* 1. Date / Day Filter Chips */}
+                      {allScheduledDates.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📅</span>
+                            <span>{lang === 'EN' ? 'Select Day / Date' : 'ദിവസം തിരഞ്ഞെടുക്കുക'}:</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setTimetableFilterDate('ALL')}
                               style={{
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '12px',
-                                padding: '16px',
-                                background: '#fff',
-                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                position: 'relative',
-                                borderLeft: `5px solid ${categoryColor}`,
-                                transition: 'transform 0.2s, box-shadow 0.2s'
+                                padding: '6px 13px',
+                                borderRadius: '20px',
+                                border: timetableFilterDate === 'ALL' ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                                background: timetableFilterDate === 'ALL' ? 'linear-gradient(135deg, #059669, #047857)' : '#ffffff',
+                                color: timetableFilterDate === 'ALL' ? '#ffffff' : '#334155',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.15s ease',
+                                boxShadow: timetableFilterDate === 'ALL' ? '0 2px 8px rgba(5,150,105,0.25)' : 'none'
                               }}
                             >
-                              <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px' }}>
-                                      {item.category?.name || 'Common'}
-                                    </span>
-                                    {(() => {
-                                      const gk = getGenderKey(item.program);
-                                      const gConfig = { BOY: { label: '👦 Boys', bg: '#dbeafe', color: '#1e40af' }, GIRL: { label: '👧 Girls', bg: '#fce7f3', color: '#be185d' }, COMMON: { label: '🤝 Common', bg: '#d1fae5', color: '#065f46' } };
-                                      const gc = gConfig[gk];
-                                      return <span style={{ fontSize: '10px', fontWeight: 'bold', background: gc.bg, color: gc.color, padding: '2px 7px', borderRadius: '6px' }}>{gc.label}</span>;
-                                    })()}
-                                  </div>
-                                  {getStatusBadge(item.scheduled_time)}
-                                </div>
+                              🌟 {lang === 'EN' ? `All Days (${scheduledTotal})` : `എല്ലാ ദിവസവും (${scheduledTotal})`}
+                            </button>
 
-                                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1e293b' }}>
-                                  {item.program.name}
-                                  <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px', fontWeight: 'normal' }}>
-                                    ({item.program.code})
-                                  </span>
-                                </h3>
+                            {allScheduledDates.map((dKey, idx) => {
+                              const dayItemCount = mappedTimetable.filter(item => getIsoDateKey(item.scheduled_time) === dKey).length;
+                              const isSelected = timetableFilterDate === dKey;
+                              return (
+                                <button
+                                  key={dKey}
+                                  type="button"
+                                  onClick={() => setTimetableFilterDate(dKey)}
+                                  style={{
+                                    padding: '6px 13px',
+                                    borderRadius: '20px',
+                                    border: isSelected ? '1.5px solid #0284c7' : '1px solid #cbd5e1',
+                                    background: isSelected ? 'linear-gradient(135deg, #0284c7, #0369a1)' : '#ffffff',
+                                    color: isSelected ? '#ffffff' : '#334155',
+                                    fontSize: '12px',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: isSelected ? '0 2px 8px rgba(2,132,199,0.25)' : 'none'
+                                  }}
+                                >
+                                  📅 {lang === 'EN' ? `Day ${idx + 1}` : `ദിനം ${idx + 1}`}: {formatDayTitle(dKey)} ({dayItemCount})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
-                                {isEditing ? (
-                                  /* Admin Editing Form */
-                                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <div>
-                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>📅 Date</label>
-                                      <input
-                                        type="date"
-                                        value={timetableFormData.date || ''}
-                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, date: e.target.value }))}
-                                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff' }}
-                                      />
-                                    </div>
-                                    <div>
-                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>⏰ Time (12-Hour AM/PM)</label>
-                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                        <select
-                                          value={timetableFormData.hour12 || '09'}
-                                          onChange={(e) => setTimetableFormData(prev => ({ ...prev, hour12: e.target.value }))}
-                                          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 'bold', background: '#fff' }}
-                                        >
-                                          {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
-                                            <option key={h} value={h}>{h}</option>
-                                          ))}
-                                        </select>
-                                        <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#475569' }}>:</span>
-                                        <select
-                                          value={timetableFormData.minute || '00'}
-                                          onChange={(e) => setTimetableFormData(prev => ({ ...prev, minute: e.target.value }))}
-                                          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 'bold', background: '#fff' }}
-                                        >
-                                          {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
-                                            <option key={m} value={m}>{m}</option>
-                                          ))}
-                                        </select>
-                                        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #0284c7' }}>
-                                          <button
-                                            type="button"
-                                            onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'AM' }))}
-                                            style={{
-                                              padding: '6px 10px',
-                                              fontSize: '13px',
-                                              fontWeight: 'bold',
-                                              border: 'none',
-                                              cursor: 'pointer',
-                                              background: (timetableFormData.ampm || 'AM') === 'AM' ? '#0284c7' : '#f0f9ff',
-                                              color: (timetableFormData.ampm || 'AM') === 'AM' ? '#ffffff' : '#0369a1'
-                                            }}
-                                          >
-                                            AM
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'PM' }))}
-                                            style={{
-                                              padding: '6px 10px',
-                                              fontSize: '13px',
-                                              fontWeight: 'bold',
-                                              border: 'none',
-                                              cursor: 'pointer',
-                                              background: timetableFormData.ampm === 'PM' ? '#0284c7' : '#f0f9ff',
-                                              color: timetableFormData.ampm === 'PM' ? '#ffffff' : '#0369a1'
-                                            }}
-                                          >
-                                            PM
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>📍 {t('setVenue')}</label>
-                                      <input
-                                        type="text"
-                                        placeholder={t('venuePlaceholder')}
-                                        value={timetableFormData.venue || ''}
-                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
-                                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-                                      />
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                                      <button
-                                        onClick={() => handleSaveTimetableEntry(item.program.id)}
-                                        className="btn-add-action"
-                                        style={{ padding: '6px 12px', fontSize: '12px', flex: 1, background: '#10b981', color: '#fff', fontWeight: 'bold' }}
-                                      >
-                                        💾 Save
-                                      </button>
-                                      <button
-                                        onClick={() => setEditingTimetableId(null)}
-                                        className="btn-add-action"
-                                        style={{ padding: '6px 12px', fontSize: '12px', flex: 1, background: '#64748b', color: '#fff' }}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* Display Info */
-                                  <div style={{ marginTop: '12px', fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}>
-                                      <span>⏰</span>
-                                      <strong>{hasTime ? formatDateTime(item.scheduled_time) : <span style={{ color: '#94a3b8', fontWeight: 'normal', fontStyle: 'italic' }}>{t('noTimetable')}</span>}</strong>
-                                    </div>
-                                    {item.venue && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}>
-                                        <span>📍</span>
-                                        <strong>{item.venue}</strong>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
+                      {/* 2. Category Filter Chips */}
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>📂</span>
+                          <span>{lang === 'EN' ? 'Category' : 'വിഭാഗം'}:</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setTimetableFilterCat('ALL')}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '16px',
+                              border: timetableFilterCat === 'ALL' ? '1.5px solid #0f766e' : '1px solid #cbd5e1',
+                              background: timetableFilterCat === 'ALL' ? '#0f766e' : '#ffffff',
+                              color: timetableFilterCat === 'ALL' ? '#ffffff' : '#475569',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {t('allCategories')}
+                          </button>
+                          {categories.map(cat => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => setTimetableFilterCat(cat.id)}
+                              style={{
+                                padding: '5px 12px',
+                                borderRadius: '16px',
+                                border: String(timetableFilterCat) === String(cat.id) ? '1.5px solid #0f766e' : '1px solid #cbd5e1',
+                                background: String(timetableFilterCat) === String(cat.id) ? '#0f766e' : '#ffffff',
+                                color: String(timetableFilterCat) === String(cat.id) ? '#ffffff' : '#475569',
+                                fontSize: '11.5px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {cat.name}
+                            </button>
+                          ))}
+                          {generalCatIds.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setTimetableFilterCat('GENERAL')}
+                              style={{
+                                padding: '5px 12px',
+                                borderRadius: '16px',
+                                border: timetableFilterCat === 'GENERAL' ? '1.5px solid #d97706' : '1px solid #cbd5e1',
+                                background: timetableFilterCat === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '#ffffff',
+                                color: timetableFilterCat === 'GENERAL' ? '#ffffff' : '#475569',
+                                fontSize: '11.5px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              🌟 GENERAL
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
-                              {loginRole === 'ADMIN' && !isEditing && (
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                                  <button
-                                    onClick={() => startEditingTimetable(item)}
-                                    className="btn-add-action"
-                                    style={{ flex: 1, padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                                  >
-                                    ✏️ Edit
-                                  </button>
-                                  {hasTime && (
-                                    <button
-                                      onClick={() => handleClearTimetableEntry(item.program.id)}
-                                      className="btn-add-action"
-                                      style={{ padding: '4px 8px', fontSize: '12px', background: '#ef4444' }}
-                                    >
-                                      🗑️ Clear
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                      {/* 3. Gender Division Filter Chips */}
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>👥</span>
+                          <span>{lang === 'EN' ? 'Division' : 'മത്സര വിഭാഗം'}:</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {[['ALL', '🌐 All', '#475569'], ['BOY', '👦 Boys', '#1e40af'], ['GIRL', '👧 Girls', '#be185d'], ['COMMON', '🤝 Common', '#0f766e']].map(([key, label, activeColor]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setTimetableFilterGender(key)}
+                              style={{
+                                padding: '4px 11px',
+                                borderRadius: '14px',
+                                border: `1.5px solid ${timetableFilterGender === key ? activeColor : '#cbd5e1'}`,
+                                background: timetableFilterGender === key ? activeColor : '#ffffff',
+                                color: timetableFilterGender === key ? '#ffffff' : '#475569',
+                                fontWeight: '700',
+                                fontSize: '11.5px',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Timetable Programs Render (Empty State or List/Cards) ── */}
+                    {sortedTimetable.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '48px 20px', background: '#f8fafc', borderRadius: '16px', border: '1.5px dashed #cbd5e1' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '10px' }}>📅</div>
+                        <h4 style={{ margin: '0 0 6px', color: '#1e293b', fontSize: '16px', fontWeight: '800' }}>
+                          {lang === 'EN' ? 'No Programs Scheduled' : 'പ്രോഗ്രാമുകളൊന്നും കണ്ടെത്തിയില്ല'}
+                        </h4>
+                        <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
+                          {loginRole === 'ADMIN'
+                            ? (lang === 'EN' ? 'No programs match the selected filter.' : 'തിരഞ്ഞെടുത്ത ഫിൽറ്ററിൽ പ്രോഗ്രാമുകളൊന്നും ലഭ്യമല്ല.')
+                            : (lang === 'EN' ? 'Schedule for this day/category will be updated soon.' : 'ഈ ദിവസത്തെ/വിഭാഗത്തിലെ സമയക്രമം ഉടൻ പ്രസിദ്ധീകരിക്കുന്നതാണ്.')}
+                        </p>
                       </div>
                     ) : (
-                      /* LIST / TABLE VIEW */
-                      <div className="timetable-list-layout" style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-                          <thead>
-                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Code</th>
-                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Program</th>
-                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Category</th>
-                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Time</th>
-                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Venue</th>
-                              <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold' }}>Status</th>
-                              {loginRole === 'ADMIN' && <th style={{ padding: '12px 16px', color: '#475569', fontWeight: 'bold', width: '120px' }}>Actions</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
+                      <div>
+                        {timetableView === 'GRID' ? (
+                          /* ── GRID / CARD TIMELINE VIEW ── */
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '14px' }}>
                             {sortedTimetable.map(item => {
                               const isEditing = editingTimetableId === item.program.id;
                               const hasTime = !!item.scheduled_time;
                               const categoryColor = item.category?.color || '#0f766e';
+                              const timeInfo = classifyProgramTime(item.scheduled_time);
+                              const isDone = timeInfo.status === 'DONE';
+                              const isLive = timeInfo.status === 'LIVE';
+                              const gk = getGenderKey(item.program);
+                              const gConfig = {
+                                BOY: { label: '👦 Boys', bg: '#dbeafe', color: '#1e40af' },
+                                GIRL: { label: '👧 Girls', bg: '#fce7f3', color: '#be185d' },
+                                COMMON: { label: '🤝 Common', bg: '#d1fae5', color: '#065f46' }
+                              };
+                              const gc = gConfig[gk];
+                              const pType = (item.program.type || '').toUpperCase();
+                              const isGroup = pType.includes('GROUP') || pType.includes('TEAM');
 
                               return (
-                                <tr key={item.program.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
-                                  <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#475569' }}>{item.program.code}</td>
-                                  <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#1e293b' }}>{item.program.name}</td>
-                                  <td style={{ padding: '12px 16px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      <span style={{ fontSize: '11px', fontWeight: 'bold', background: `${categoryColor}20`, color: categoryColor, padding: '3px 8px', borderRadius: '6px', display: 'inline-block' }}>
-                                        {item.category?.name || 'Common'}
-                                      </span>
-                                      {(() => {
-                                        const gk = getGenderKey(item.program);
-                                        const gConfig = { BOY: { label: '👦 Boys', bg: '#dbeafe', color: '#1e40af' }, GIRL: { label: '👧 Girls', bg: '#fce7f3', color: '#be185d' }, COMMON: { label: '🤝 Common', bg: '#d1fae5', color: '#065f46' } };
-                                        const gc = gConfig[gk];
-                                        return <span style={{ fontSize: '10px', fontWeight: 'bold', background: gc.bg, color: gc.color, padding: '2px 7px', borderRadius: '6px', display: 'inline-block' }}>{gc.label}</span>;
-                                      })()}
+                                <div
+                                  key={item.program.id}
+                                  className={`timetable-card-modern ${isLive ? 'live-card' : isDone ? 'done-card' : 'scheduled-card'}`}
+                                  style={{
+                                    background: isDone ? '#f8fafc' : '#ffffff',
+                                    borderRadius: '16px',
+                                    border: isLive ? '2px solid #ef4444' : isDone ? '1px solid #cbd5e1' : '1.5px solid #e2e8f0',
+                                    borderLeft: `5px solid ${isLive ? '#ef4444' : isDone ? '#94a3b8' : categoryColor}`,
+                                    padding: '16px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    boxShadow: isLive ? '0 6px 20px rgba(239,68,68,0.2)' : isDone ? 'none' : '0 4px 12px rgba(0,0,0,0.04)',
+                                    opacity: isDone && loginRole !== 'ADMIN' ? 0.78 : 1,
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative'
+                                  }}
+                                >
+                                  <div>
+                                    {/* Card Top: Badges & Timing Status */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
+                                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: '800', background: `${categoryColor}18`, color: categoryColor, padding: '2px 8px', borderRadius: '6px', border: `1px solid ${categoryColor}30` }}>
+                                          {item.category?.name || 'Common'}
+                                        </span>
+                                        <span style={{ fontSize: '10.5px', fontWeight: '800', background: gc.bg, color: gc.color, padding: '2px 7px', borderRadius: '6px' }}>
+                                          {gc.label}
+                                        </span>
+                                        <span style={{ fontSize: '10px', fontWeight: '700', background: isGroup ? '#fef3c7' : '#f1f5f9', color: isGroup ? '#b45309' : '#475569', padding: '2px 6px', borderRadius: '6px' }}>
+                                          {isGroup ? '👥 Group' : '👤 Single'}
+                                        </span>
+                                      </div>
+
+                                      {/* Status Badge */}
+                                      {hasTime && (
+                                        <span style={{
+                                          fontSize: '10.5px',
+                                          fontWeight: '900',
+                                          padding: '3px 9px',
+                                          borderRadius: '20px',
+                                          background: isLive ? '#fee2e2' : isDone ? '#f1f5f9' : '#dcfce7',
+                                          color: isLive ? '#b91c1c' : isDone ? '#64748b' : '#15803d',
+                                          border: isLive ? '1px solid #fca5a5' : isDone ? '1px solid #cbd5e1' : '1px solid #86efac',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          animation: isLive ? 'pulse 1.5s infinite' : 'none'
+                                        }}>
+                                          {timeInfo.label}
+                                        </span>
+                                      )}
                                     </div>
-                                  </td>
-                                  <td style={{ padding: '12px 16px', color: '#1e293b' }}>
+
+                                    {/* Program Code & Name */}
+                                    <div style={{ marginBottom: '12px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+                                        <span style={{ background: '#1e293b', color: '#ffffff', padding: '2px 6px', borderRadius: '5px', fontSize: '11px', fontWeight: '800' }}>
+                                          {item.program.code}
+                                        </span>
+                                        <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: '900', color: isDone ? '#475569' : '#0f172a', textDecoration: isDone ? 'none' : 'none', lineHeight: '1.3' }}>
+                                          {item.program.name}
+                                        </h3>
+                                      </div>
+                                    </div>
+
+                                    {/* Editing Form (Admin) */}
                                     {isEditing ? (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
-                                        <input
-                                          type="date"
-                                          value={timetableFormData.date || ''}
-                                          onChange={(e) => setTimetableFormData(prev => ({ ...prev, date: e.target.value }))}
-                                          style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }}
-                                        />
-                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                          <select
-                                            value={timetableFormData.hour12 || '09'}
-                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, hour12: e.target.value }))}
-                                            style={{ flex: 1, padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
-                                          >
-                                            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
-                                              <option key={h} value={h}>{h}</option>
-                                            ))}
-                                          </select>
-                                          <span style={{ fontWeight: 'bold' }}>:</span>
-                                          <select
-                                            value={timetableFormData.minute || '00'}
-                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, minute: e.target.value }))}
-                                            style={{ flex: 1, padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
-                                          >
-                                            {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
-                                              <option key={m} value={m}>{m}</option>
-                                            ))}
-                                          </select>
-                                          <div style={{ display: 'flex', borderRadius: '4px', overflow: 'hidden', border: '1px solid #0284c7' }}>
-                                            <button
-                                              type="button"
-                                              onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'AM' }))}
-                                              style={{
-                                                padding: '3px 6px',
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                background: (timetableFormData.ampm || 'AM') === 'AM' ? '#0284c7' : '#f0f9ff',
-                                                color: (timetableFormData.ampm || 'AM') === 'AM' ? '#ffffff' : '#0369a1'
-                                              }}
+                                      <div style={{ marginTop: '10px', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div>
+                                          <label style={{ fontSize: '11.5px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '3px' }}>📅 {lang === 'EN' ? 'Date' : 'തീയതി'}</label>
+                                          <input
+                                            type="date"
+                                            value={timetableFormData.date || ''}
+                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, date: e.target.value }))}
+                                            style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff' }}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label style={{ fontSize: '11.5px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '3px' }}>⏰ {lang === 'EN' ? 'Time (12-Hour AM/PM)' : 'സമയം'}</label>
+                                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                            <select
+                                              value={timetableFormData.hour12 || '09'}
+                                              onChange={(e) => setTimetableFormData(prev => ({ ...prev, hour12: e.target.value }))}
+                                              style={{ flex: 1, padding: '5px 4px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 'bold', background: '#fff' }}
                                             >
-                                              AM
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'PM' }))}
-                                              style={{
-                                                padding: '3px 6px',
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                background: timetableFormData.ampm === 'PM' ? '#0284c7' : '#f0f9ff',
-                                                color: timetableFormData.ampm === 'PM' ? '#ffffff' : '#0369a1'
-                                              }}
+                                              {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
+                                                <option key={h} value={h}>{h}</option>
+                                              ))}
+                                            </select>
+                                            <span style={{ fontWeight: 'bold', color: '#475569' }}>:</span>
+                                            <select
+                                              value={timetableFormData.minute || '00'}
+                                              onChange={(e) => setTimetableFormData(prev => ({ ...prev, minute: e.target.value }))}
+                                              style={{ flex: 1, padding: '5px 4px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 'bold', background: '#fff' }}
                                             >
-                                              PM
-                                            </button>
+                                              {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                              ))}
+                                            </select>
+                                            <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #0284c7' }}>
+                                              <button
+                                                type="button"
+                                                onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'AM' }))}
+                                                style={{
+                                                  padding: '5px 8px',
+                                                  fontSize: '12px',
+                                                  fontWeight: '800',
+                                                  border: 'none',
+                                                  cursor: 'pointer',
+                                                  background: (timetableFormData.ampm || 'AM') === 'AM' ? '#0284c7' : '#f0f9ff',
+                                                  color: (timetableFormData.ampm || 'AM') === 'AM' ? '#ffffff' : '#0369a1'
+                                                }}
+                                              >
+                                                AM
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'PM' }))}
+                                                style={{
+                                                  padding: '5px 8px',
+                                                  fontSize: '12px',
+                                                  fontWeight: '800',
+                                                  border: 'none',
+                                                  cursor: 'pointer',
+                                                  background: timetableFormData.ampm === 'PM' ? '#0284c7' : '#f0f9ff',
+                                                  color: timetableFormData.ampm === 'PM' ? '#ffffff' : '#0369a1'
+                                                }}
+                                              >
+                                                PM
+                                              </button>
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    ) : hasTime ? (
-                                      formatDateTime(item.scheduled_time)
-                                    ) : (
-                                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('noTimetable')}</span>
-                                    )}
-                                  </td>
-                                  <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#334155' }}>
-                                    {isEditing ? (
-                                      <input
-                                        type="text"
-                                        placeholder={t('venuePlaceholder')}
-                                        value={timetableFormData.venue}
-                                        onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
-                                        style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '120px' }}
-                                      />
-                                    ) : (
-                                      item.venue || '-'
-                                    )}
-                                  </td>
-                                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(item.scheduled_time)}</td>
-                                  {loginRole === 'ADMIN' && (
-                                    <td style={{ padding: '12px 16px' }}>
-                                      {isEditing ? (
-                                        <div style={{ display: 'flex', gap: '6px' }}>
+
+                                        <div>
+                                          <label style={{ fontSize: '11.5px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '3px' }}>📍 {t('setVenue')}</label>
+                                          <input
+                                            type="text"
+                                            placeholder={t('venuePlaceholder')}
+                                            value={timetableFormData.venue || ''}
+                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
+                                            style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                          />
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
                                           <button
+                                            type="button"
                                             onClick={() => handleSaveTimetableEntry(item.program.id)}
                                             className="btn-add-action"
-                                            style={{ padding: '3px 6px', fontSize: '11px', background: '#10b981' }}
+                                            style={{ padding: '6px 12px', fontSize: '12px', flex: 1, background: '#10b981', color: '#fff', fontWeight: '800' }}
                                           >
-                                            Save
+                                            💾 Save
                                           </button>
                                           <button
-                                            onClick={() => {
-                                              const rNum = loggedInMadrasa?.regNumber;
-                                              const newName = eventNameInput.trim();
-                                              const newYear = eventYearInput.trim();
-                                              const numReg = parseInt(rNum, 10);
-                                              const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                              const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq."${numReg}"` : `regNumber.eq."${rNum}"`;
-                                              (async () => {
-                                                const { data: md } = await queryWithRetry(() =>
-                                                  supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                                                );
-                                                const updatedPlace = makePlaceString(md ? md.place : '', {
-                                                  eventName: encodeURIComponent(newName),
-                                                  eventYear: encodeURIComponent(newYear)
-                                                });
-                                                const { error } = await queryWithRetry(() =>
-                                                  supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                                );
-                                              })();
-                                              setEditingTimetableId(null);
-                                            }}
+                                            type="button"
+                                            onClick={() => setEditingTimetableId(null)}
                                             className="btn-add-action"
-                                            style={{ padding: '3px 6px', fontSize: '11px', background: '#64748b' }}
+                                            style={{ padding: '6px 12px', fontSize: '12px', flex: 1, background: '#64748b', color: '#fff' }}
                                           >
                                             Cancel
                                           </button>
                                         </div>
-                                      ) : (
-                                        <div style={{ display: 'flex', gap: '6px' }}>
-                                          <button
-                                            onClick={() => startEditingTimetable(item)}
-                                            className="btn-add-action"
-                                            style={{ padding: '3px 6px', fontSize: '11px' }}
-                                          >
-                                            Edit
-                                          </button>
-                                          {hasTime && (
-                                            <button
-                                              onClick={() => handleClearTimetableEntry(item.program.id)}
-                                              className="btn-add-action"
-                                              style={{ padding: '3px 6px', fontSize: '11px', background: '#ef4444' }}
-                                            >
-                                              Clear
-                                            </button>
-                                          )}
+                                      </div>
+                                    ) : (
+                                      /* Display Scheduled Time & Venue */
+                                      <div style={{ background: isLive ? '#fef2f2' : isDone ? '#f1f5f9' : '#f0fdf4', padding: '10px 12px', borderRadius: '10px', border: isLive ? '1px solid #fecaca' : isDone ? '1px solid #e2e8f0' : '1px solid #bbf7d0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isLive ? '#991b1b' : isDone ? '#64748b' : '#065f46' }}>
+                                          <span style={{ fontSize: '16px' }}>⏰</span>
+                                          <strong style={{ fontSize: '13.5px', fontWeight: '800' }}>
+                                            {hasTime ? formatDateTime(item.scheduled_time) : <span style={{ color: '#94a3b8', fontWeight: 'normal', fontStyle: 'italic' }}>{t('noTimetable')}</span>}
+                                          </strong>
                                         </div>
+
+                                        {item.venue && (
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#334155', fontSize: '12.5px' }}>
+                                            <span>📍</span>
+                                            <span style={{ fontWeight: '700' }}>{item.venue}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Admin Actions */}
+                                  {loginRole === 'ADMIN' && !isEditing && (
+                                    <div style={{ display: 'flex', gap: '6px', marginTop: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => startEditingTimetable(item)}
+                                        className="btn-add-action"
+                                        style={{ flex: 1, padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', background: '#0f766e' }}
+                                      >
+                                        ✏️ Edit
+                                      </button>
+                                      {hasTime && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleClearTimetableEntry(item.program.id)}
+                                          className="btn-add-action"
+                                          style={{ padding: '5px 10px', fontSize: '12px', background: '#ef4444' }}
+                                          title="Clear Schedule"
+                                        >
+                                          🗑️ Clear
+                                        </button>
                                       )}
-                                    </td>
+                                    </div>
                                   )}
-                                </tr>
+                                </div>
                               );
                             })}
-                          </tbody>
-                        </table>
+                          </div>
+                        ) : (
+                          /* ── TABLE / LIST VIEW ── */
+                          <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+                              <thead>
+                                <tr style={{ background: '#064e3b', color: '#ffffff' }}>
+                                  <th style={{ padding: '12px 14px', width: '70px', textAlign: 'center' }}>Code</th>
+                                  <th style={{ padding: '12px 14px' }}>Program</th>
+                                  <th style={{ padding: '12px 14px', width: '120px' }}>Category</th>
+                                  <th style={{ padding: '12px 14px', width: '160px' }}>Time</th>
+                                  <th style={{ padding: '12px 14px', width: '130px' }}>Venue</th>
+                                  <th style={{ padding: '12px 14px', width: '120px', textAlign: 'center' }}>Status</th>
+                                  {loginRole === 'ADMIN' && <th style={{ padding: '12px 14px', width: '120px', textAlign: 'center' }}>Actions</th>}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sortedTimetable.map((item, idx) => {
+                                  const isEditing = editingTimetableId === item.program.id;
+                                  const hasTime = !!item.scheduled_time;
+                                  const categoryColor = item.category?.color || '#0f766e';
+                                  const timeInfo = classifyProgramTime(item.scheduled_time);
+                                  const isDone = timeInfo.status === 'DONE';
+                                  const isLive = timeInfo.status === 'LIVE';
+                                  const gk = getGenderKey(item.program);
+                                  const gConfig = {
+                                    BOY: { label: '👦 Boys', bg: '#dbeafe', color: '#1e40af' },
+                                    GIRL: { label: '👧 Girls', bg: '#fce7f3', color: '#be185d' },
+                                    COMMON: { label: '🤝 Common', bg: '#d1fae5', color: '#065f46' }
+                                  };
+                                  const gc = gConfig[gk];
+
+                                  return (
+                                    <tr key={item.program.id} style={{
+                                      borderBottom: '1px solid #f1f5f9',
+                                      background: isLive ? '#fef2f2' : isDone ? '#f8fafc' : idx % 2 === 0 ? '#ffffff' : '#fbfcfd',
+                                      opacity: isDone && loginRole !== 'ADMIN' ? 0.75 : 1
+                                    }}>
+                                      <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: '800' }}>
+                                        <span style={{ background: '#1e293b', color: '#fff', padding: '2px 6px', borderRadius: '5px', fontSize: '11px' }}>
+                                          {item.program.code}
+                                        </span>
+                                      </td>
+                                      <td style={{ padding: '11px 14px', fontWeight: '800', color: isDone ? '#64748b' : '#0f172a' }}>
+                                        {item.program.name}
+                                      </td>
+                                      <td style={{ padding: '11px 14px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                          <span style={{ fontSize: '11px', fontWeight: '800', color: categoryColor }}>
+                                            {item.category?.name || 'Common'}
+                                          </span>
+                                          <span style={{ fontSize: '10px', fontWeight: '700', background: gc.bg, color: gc.color, padding: '1px 6px', borderRadius: '6px', width: 'fit-content' }}>
+                                            {gc.label}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td style={{ padding: '11px 14px', color: '#0f172a', fontWeight: '700' }}>
+                                        {isEditing ? (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
+                                            <input
+                                              type="date"
+                                              value={timetableFormData.date || ''}
+                                              onChange={(e) => setTimetableFormData(prev => ({ ...prev, date: e.target.value }))}
+                                              style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }}
+                                            />
+                                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                              <select
+                                                value={timetableFormData.hour12 || '09'}
+                                                onChange={(e) => setTimetableFormData(prev => ({ ...prev, hour12: e.target.value }))}
+                                                style={{ flex: 1, padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                              >
+                                                {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
+                                                  <option key={h} value={h}>{h}</option>
+                                                ))}
+                                              </select>
+                                              <span style={{ fontWeight: 'bold' }}>:</span>
+                                              <select
+                                                value={timetableFormData.minute || '00'}
+                                                onChange={(e) => setTimetableFormData(prev => ({ ...prev, minute: e.target.value }))}
+                                                style={{ flex: 1, padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                              >
+                                                {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                                                  <option key={m} value={m}>{m}</option>
+                                                ))}
+                                              </select>
+                                              <div style={{ display: 'flex', borderRadius: '4px', overflow: 'hidden', border: '1px solid #0284c7' }}>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'AM' }))}
+                                                  style={{ padding: '3px 6px', fontSize: '11px', fontWeight: 'bold', border: 'none', cursor: 'pointer', background: (timetableFormData.ampm || 'AM') === 'AM' ? '#0284c7' : '#f0f9ff', color: (timetableFormData.ampm || 'AM') === 'AM' ? '#ffffff' : '#0369a1' }}
+                                                >
+                                                  AM
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setTimetableFormData(prev => ({ ...prev, ampm: 'PM' }))}
+                                                  style={{ padding: '3px 6px', fontSize: '11px', fontWeight: 'bold', border: 'none', cursor: 'pointer', background: timetableFormData.ampm === 'PM' ? '#0284c7' : '#f0f9ff', color: timetableFormData.ampm === 'PM' ? '#ffffff' : '#0369a1' }}
+                                                >
+                                                  PM
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : hasTime ? (
+                                          formatDateTime(item.scheduled_time)
+                                        ) : (
+                                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('noTimetable')}</span>
+                                        )}
+                                      </td>
+                                      <td style={{ padding: '11px 14px', color: '#475569', fontWeight: '600' }}>
+                                        {isEditing ? (
+                                          <input
+                                            type="text"
+                                            placeholder={t('venuePlaceholder')}
+                                            value={timetableFormData.venue}
+                                            onChange={(e) => setTimetableFormData(prev => ({ ...prev, venue: e.target.value }))}
+                                            style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', width: '110px' }}
+                                          />
+                                        ) : (
+                                          item.venue || '-'
+                                        )}
+                                      </td>
+                                      <td style={{ padding: '11px 14px', textAlign: 'center' }}>
+                                        {hasTime ? (
+                                          <span style={{
+                                            fontSize: '10.5px',
+                                            fontWeight: '800',
+                                            padding: '2.5px 8px',
+                                            borderRadius: '12px',
+                                            background: isLive ? '#fee2e2' : isDone ? '#f1f5f9' : '#dcfce7',
+                                            color: isLive ? '#b91c1c' : isDone ? '#64748b' : '#15803d',
+                                            border: isLive ? '1px solid #fca5a5' : isDone ? '1px solid #cbd5e1' : '1px solid #86efac'
+                                          }}>
+                                            {timeInfo.label}
+                                          </span>
+                                        ) : (
+                                          <span style={{ color: '#94a3b8', fontSize: '11px' }}>—</span>
+                                        )}
+                                      </td>
+                                      {loginRole === 'ADMIN' && (
+                                        <td style={{ padding: '11px 14px', textAlign: 'center' }}>
+                                          {isEditing ? (
+                                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                              <button type="button" onClick={() => handleSaveTimetableEntry(item.program.id)} className="btn-add-action" style={{ padding: '3px 7px', fontSize: '11px', background: '#10b981' }}>Save</button>
+                                              <button type="button" onClick={() => setEditingTimetableId(null)} className="btn-add-action" style={{ padding: '3px 7px', fontSize: '11px', background: '#64748b' }}>Cancel</button>
+                                            </div>
+                                          ) : (
+                                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                              <button type="button" onClick={() => startEditingTimetable(item)} className="btn-add-action" style={{ padding: '3px 7px', fontSize: '11px', background: '#0f766e' }}>Edit</button>
+                                              {hasTime && (
+                                                <button type="button" onClick={() => handleClearTimetableEntry(item.program.id)} className="btn-add-action" style={{ padding: '3px 7px', fontSize: '11px', background: '#ef4444' }}>Clear</button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </td>
+                                      )}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── Day Poster / PDF Modal (Admin Only) ── */}
+                    {timetablePosterModal && (
+                      <div className="qr-modal-overlay" onClick={(e) => { if (e.target.classList.contains('qr-modal-overlay')) setTimetablePosterModal(false); }}>
+                        <div className="qr-modal-container" style={{ maxWidth: '520px' }}>
+                          <button
+                            type="button"
+                            className="qr-modal-close-icon"
+                            onClick={() => setTimetablePosterModal(false)}
+                            aria-label="Close"
+                          >
+                            ✕
+                          </button>
+
+                          <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                            <div style={{ fontSize: '36px', marginBottom: '6px' }}>📄</div>
+                            <h3 style={{ margin: '0 0 4px', fontSize: '19px', fontWeight: '900', color: '#0f172a' }}>
+                              {lang === 'EN' ? 'Download Timetable Poster & PDF' : 'ടൈംടേബിൾ പോസ്റ്റർ & PDF ഡൗൺലോഡ്'}
+                            </h3>
+                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                              {lang === 'EN' ? 'Download individual day posters or all days in a single printable PDF' : 'ഓരോ ദിവസത്തെയും പ്രത്യേകം പോസ്റ്ററായും എല്ലാ ദിവസങ്ങളും ഒരുമിച്ച് PDF ആയും ഡൗൺലോഡ് ചെയ്യാം'}
+                            </p>
+                          </div>
+
+                          {/* Quick Download All Days Button */}
+                          <div style={{ marginBottom: '18px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                generateDayOrAllPosterPdf('ALL');
+                                setTimetablePosterModal(false);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '13px 18px',
+                                borderRadius: '12px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #064e3b 0%, #0f766e 100%)',
+                                color: '#ffffff',
+                                fontWeight: '800',
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 14px rgba(6,78,59,0.3)'
+                              }}
+                            >
+                              🌟 {lang === 'EN' ? 'Download All Days Complete PDF (Multi-Page)' : 'എല്ലാ ദിവസത്തെയും പൂർണ്ണ PDF (All Days Complete PDF)'}
+                            </button>
+                          </div>
+
+                          {/* Day-by-Day Selection Cards */}
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+                              📅 {lang === 'EN' ? 'Individual Day Posters' : 'ഓരോ ദിവസത്തെയും പ്രത്യേകം പോസ്റ്ററുകൾ'}:
+                            </div>
+
+                            {allScheduledDates.length === 0 ? (
+                              <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '15px' }}>
+                                {lang === 'EN' ? 'No programs with dates scheduled yet.' : 'തീയതി നിശ്ചയിച്ച പ്രോഗ്രാമുകളൊന്നും ലഭ്യമല്ല.'}
+                              </p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '260px', overflowY: 'auto' }}>
+                                {allScheduledDates.map((dKey, idx) => {
+                                  const dayItemCount = mappedTimetable.filter(item => getIsoDateKey(item.scheduled_time) === dKey).length;
+                                  return (
+                                    <div
+                                      key={dKey}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '10px 14px',
+                                        background: '#f8fafc',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '10px'
+                                      }}
+                                    >
+                                      <div>
+                                        <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#0f172a' }}>
+                                          Day {idx + 1} — {formatDayTitle(dKey)}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
+                                          {dayItemCount} {lang === 'EN' ? 'Programs Scheduled' : 'മത്സരങ്ങൾ'}
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          generateDayOrAllPosterPdf(dKey);
+                                          setTimetablePosterModal(false);
+                                        }}
+                                        style={{
+                                          padding: '6px 14px',
+                                          borderRadius: '8px',
+                                          border: 'none',
+                                          background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                                          color: '#ffffff',
+                                          fontSize: '12px',
+                                          fontWeight: '800',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '5px'
+                                        }}
+                                      >
+                                        🖼️ {lang === 'EN' ? 'Day Poster' : 'ഡേ പോസ്റ്റർ'}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
