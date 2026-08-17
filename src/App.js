@@ -865,9 +865,13 @@ function App() {
     if (!progId) return false;
     if (loginRole === 'ADMIN') return true;
 
-    // In View Mode: Only programs in publishedPrograms array are visible.
-    // If not published or empty, return false (Draft mode - hidden from public).
-    if (!publishedPrograms || !Array.isArray(publishedPrograms) || publishedPrograms.length === 0) {
+    // If published_programs is not yet loaded / not configured: default to true so view phones don't flash 0
+    if (publishedPrograms === null || publishedPrograms === undefined) {
+      return true;
+    }
+
+    // If published_programs is explicitly an empty array (Admin moved all to Draft):
+    if (Array.isArray(publishedPrograms) && publishedPrograms.length === 0) {
       return false;
     }
 
@@ -889,32 +893,38 @@ function App() {
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
     if (!progId) return;
-    const pIdStr = String(progId);
-    const progObj = programs.find(p => String(p.id) === pIdStr || String(p.code) === pIdStr);
+    const pIdStr = String(progId).trim();
+    const progObj = programs.find(p => String(p.id) === pIdStr || String(p.code) === pIdStr || String(p.name).toLowerCase() === pIdStr.toLowerCase());
     const progName = progObj ? progObj.name : 'Program';
     
-    let updated;
-    const currentlyPublished = (publishedPrograms || []).map(String).includes(pIdStr);
-    const shouldPublish = forceState !== null ? forceState : !currentlyPublished;
+    // Get latest published list from state, falling back to localStorage
+    const rNum = loggedInMadrasa?.regNumber;
+    const mId = loggedInMadrasa?.id;
+    let baseList = Array.isArray(publishedPrograms) ? [...publishedPrograms] : [];
+    if (baseList.length === 0 && rNum) {
+      try {
+        const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
+        if (stored) baseList = JSON.parse(stored);
+      } catch (e) {}
+    }
 
+    const isCurrentlyPub = isProgPublished(progId);
+    const shouldPublish = forceState !== null ? forceState : !isCurrentlyPub;
+
+    const toRemoveOrAdd = new Set([pIdStr]);
+    if (progObj?.id) toRemoveOrAdd.add(String(progObj.id).trim());
+    if (progObj?.code) toRemoveOrAdd.add(String(progObj.code).trim());
+    if (progObj?.name) toRemoveOrAdd.add(String(progObj.name).trim());
+
+    let updated;
     if (shouldPublish) {
-      const toAdd = [pIdStr];
-      if (progObj?.id) toAdd.push(String(progObj.id));
-      if (progObj?.code) toAdd.push(String(progObj.code));
-      if (progObj?.name) toAdd.push(String(progObj.name));
-      updated = Array.from(new Set([...(publishedPrograms || []).map(String), ...toAdd]));
+      updated = Array.from(new Set([...baseList.map(String), ...Array.from(toRemoveOrAdd)]));
     } else {
-      const toRemove = new Set([pIdStr]);
-      if (progObj?.id) toRemove.add(String(progObj.id));
-      if (progObj?.code) toRemove.add(String(progObj.code));
-      if (progObj?.name) toRemove.add(String(progObj.name));
-      updated = (publishedPrograms || []).map(String).filter(id => !toRemove.has(id));
+      updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
     }
 
     setPublishedPrograms(updated);
 
-    const rNum = loggedInMadrasa?.regNumber;
-    const mId = loggedInMadrasa?.id;
     if (rNum || mId) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
@@ -963,11 +973,12 @@ function App() {
     let updated = [];
     if (publish) {
       const progsWithResults = Array.from(new Set([
-        ...resultsList.map(r => String(r.progid || '')),
+        ...resultsList.map(r => String(r.progid || '').trim()),
         ...resultsList.map(r => {
-          const p = programs.find(pr => String(pr.id) === String(r.progid) || String(pr.code) === String(r.progid));
-          return p ? [String(p.id), String(p.code), String(p.name)] : [];
-        }).flat()
+          const p = programs.find(pr => String(pr.id) === String(r.progid) || String(pr.code) === String(r.progid) || String(pr.name).toLowerCase() === String(r.progid || '').toLowerCase());
+          return p ? [String(p.id).trim(), String(p.code).trim(), String(p.name).trim()] : [];
+        }).flat(),
+        ...programs.map(p => [String(p.id).trim(), String(p.code).trim(), String(p.name).trim()]).flat()
       ])).filter(Boolean);
       updated = progsWithResults;
     }
@@ -1720,6 +1731,19 @@ function App() {
               try { visFromPlace = JSON.parse(parts[8]); } catch (e2) {}
             }
           }
+          // Fallback: search all parts for scoreboard or published_programs
+          if (!visFromPlace) {
+            for (const p of parts) {
+              if (p && (p.includes('%22scoreboard%22') || p.includes('"scoreboard"') || p.includes('published_programs'))) {
+                try {
+                  visFromPlace = JSON.parse(decodeURIComponent(p));
+                  break;
+                } catch (e) {
+                  try { visFromPlace = JSON.parse(p); break; } catch (e2) {}
+                }
+              }
+            }
+          }
         }
         if (madrasaData.visibility_controls) {
           try {
@@ -1738,38 +1762,20 @@ function App() {
           fetchedVisibility.published_programs = visFromPlace.published_programs;
         }
       }
-      // ⚠️ VISIBILITY CONTROLS SYNC STRATEGY:
-      // • ADMIN role  → prefer localStorage (so 5-second polling never reverts a toggle they just set)
-      // • VIEW role   → always use DB value (so admin's ON/OFF reaches view users immediately)
+
       try {
-        if (loginRole === 'ADMIN') {
-          // ADMIN: prefer localStorage so their own toggle is never overwritten by polling
-          const localVis = localStorage.getItem(`milad_visibility_controls_${rNum}`) ||
-                           localStorage.getItem(`visibility_controls_${rNum}`);
-          if (localVis) {
-            setVisibilityControls(normalizeVisibilityControls(localVis));
-          } else if (fetchedVisibility) {
-            const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
-            setVisibilityControls(normalizedVis);
-            try {
-              localStorage.setItem(`visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
-              localStorage.setItem(`milad_visibility_controls_${rNum}`, JSON.stringify(normalizedVis));
-              localStorage.setItem('milad_visibility_controls_latest', JSON.stringify(normalizedVis));
-            } catch (e) {}
-          }
-        } else {
-          // VIEW role: always pull fresh from DB so admin's changes are immediately visible
-          if (fetchedVisibility) {
-            const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
-            setVisibilityControls(normalizedVis);
-            const freshPublished = Array.isArray(fetchedVisibility.published_programs)
-              ? fetchedVisibility.published_programs.map(String)
-              : null;
+        if (fetchedVisibility) {
+          const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
+          setVisibilityControls(normalizedVis);
+          if (Array.isArray(fetchedVisibility.published_programs)) {
+            const freshPublished = fetchedVisibility.published_programs.map(String);
             setPublishedPrograms(freshPublished);
-          } else {
-            // DB had no value — fall back to DEFAULT
-            setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
-            setPublishedPrograms(null);
+            if (rNum) {
+              try {
+                localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(freshPublished));
+                localStorage.setItem('milad_published_programs_latest', JSON.stringify(freshPublished));
+              } catch (e) {}
+            }
           }
         }
       } catch (e) {}
