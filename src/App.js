@@ -8055,66 +8055,82 @@ ${pagesHtml}
                         </div>
                       )}
 
-                      {/* Champion Rankings by Total Points across all programs */}
+                      {/* Champion Rankings by Total Points across all programs (Unified Calculation) */}
                       {champCat && (() => {
                         const selectedCatObj = categories.find(c => String(c.id) === String(champCat));
-                        const catName = (selectedCatObj || {}).name || '';
-
-                        // Filter results for this category and exclude group events
+                        const catName = (selectedCatObj || {}).name || (champCat === 'GENERAL' ? 'GENERAL' : '');
                         const isChampGeneral = champCat === 'GENERAL';
 
-                        const catResults = resultsList.filter(r => {
-                          if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
-                          const rCatName = r.catname || r.catName || '';
-                          const matchCat = isChampGeneral
-                            ? isGeneralResult(r)
-                            : rCatName === catName;
-                          return matchCat && !(r.progtype || '').includes('GROUP');
-                        });
-
-                        // Filter by gender division
-                        const genderFilteredResults = catResults.filter(r => {
-                          const gender = (r.studentgender || r.studentGender || '').toUpperCase();
-                          if (champGender === 'BOYS') return gender === 'BOY';
-                          if (champGender === 'GIRLS') return gender === 'GIRL';
-                          return true; // GENERAL: include everyone
-                        });
-
-                        if (genderFilteredResults.length === 0) return (
-                          <p style={{ marginTop: '20px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
-                            No results in this Category / Division.
-                          </p>
-                        );
-
-                        // Aggregate total points per student
-                        const studentMap = {};
-                        genderFilteredResults.forEach(r => {
-                          const sName = r.studentname || r.studentName || '';
-                          if (!studentMap[sName]) {
-                            const dashIdx = sName.indexOf(' - ');
-                            studentMap[sName] = {
-                              key: sName,
-                              regPart: dashIdx !== -1 ? sName.substring(0, dashIdx) : '',
-                              namePart: dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName,
-                              teamname: r.teamname || r.teamName || '-',
-                              studentgender: r.studentgender || r.studentGender || '',
-                              totalPoints: 0
-                            };
+                        // 1. Filter all registered students in this category & gender division
+                        const categoryStudents = students.filter(s => {
+                          if (!s) return false;
+                          if (isChampGeneral) {
+                            const sCatId = String(s.catid || s.catId || '');
+                            if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
+                          } else {
+                            if (String(s.catid || s.catId || '') !== String(champCat)) return false;
                           }
-                          studentMap[sName].totalPoints += r.points;
+                          const sGender = String(s.gender || '').toUpperCase();
+                          if (champGender === 'BOYS' && sGender !== 'BOY') return false;
+                          if (champGender === 'GIRLS' && sGender !== 'GIRL') return false;
+                          return true;
                         });
 
-                        // Sort descending by total points
-                        const sortedStudents = Object.values(studentMap).sort((a, b) => b.totalPoints - a.totalPoints);
+                        // 2. Map individual total points for every registered student (strictly matching student ID/regNo)
+                        const allStudentMarks = categoryStudents.map(s => {
+                          const sRegNo = String(s.regno || s.regNo || '').trim();
+                          const sNameStr = String(s.name || '').trim().toLowerCase();
+                          const sIdStr = String(s.id || '').trim();
+                          const sTeamId = String(s.teamid || s.teamId || '').trim();
+                          const teamObj = teams.find(t => String(t.id) === sTeamId);
+                          const teamName = teamObj ? teamObj.name : '-';
 
-                        // Assign ranks with tie handling
-                        let currentRank = 1;
-                        const rankedStudents = sortedStudents.map((s, i) => {
-                          if (i > 0 && s.totalPoints < sortedStudents[i - 1].totalPoints) currentRank = i + 1;
-                          return { ...s, rank: currentRank };
+                          const totalPts = resultsList.filter(r => {
+                            if (!r) return false;
+                            // Gate by published programs in View mode
+                            if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                            // Exclude group events from individual championship total
+                            if ((r.progtype || '').includes('GROUP')) return false;
+
+                            const rStudentName = String(r.studentname || r.student_name || '').trim();
+                            const rStudentId = String(r.student_id || r.studentid || '').trim();
+                            if (sIdStr && rStudentId === sIdStr) return true;
+                            if (sRegNo && (rStudentName.startsWith(sRegNo + ' -') || rStudentName.startsWith(sRegNo + '-') || rStudentName.startsWith(sRegNo + ' ') || rStudentName === sRegNo)) return true;
+                            if (sNameStr && rStudentName.toLowerCase() === sNameStr) return true;
+                            return false;
+                          }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+
+                          return {
+                            id: s.id,
+                            regNo: sRegNo,
+                            name: s.name,
+                            gender: s.gender,
+                            teamName: teamName,
+                            totalPoints: totalPts
+                          };
                         });
 
-                        const displayStudents = rankedStudents.filter(s => s.rank <= 3);
+                        // 3. Sort descending by points; equal points sorted by regNo ascending
+                        allStudentMarks.sort((a, b) => {
+                          if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+                          return (parseInt(a.regNo, 10) || 0) - (parseInt(b.regNo, 10) || 0);
+                        });
+
+                        // 4. Assign canonical ranks with tie handling
+                        let rTracker = 1;
+                        const finalRankedAllStudents = allStudentMarks.map((st, idx) => {
+                          if (st.totalPoints === 0) {
+                            return { ...st, rankStr: '0', rankNum: 0 };
+                          } else {
+                            if (idx > 0 && st.totalPoints < allStudentMarks[idx - 1].totalPoints) {
+                              rTracker = idx + 1;
+                            }
+                            return { ...st, rankStr: String(rTracker), rankNum: rTracker };
+                          }
+                        });
+
+                        // 5. Extract top champions (Rank 1, 2, 3 with >0 points) for Top Podium Cards
+                        const displayStudents = finalRankedAllStudents.filter(s => s.totalPoints > 0 && s.rankNum >= 1 && s.rankNum <= 3);
 
                         const rankConfig = {
                           1: { medal: '🥇', gradient: 'linear-gradient(135deg, #f59e0b, #b45309)', border: '#fbbf24', label: 'FIRST PLACE' },
@@ -8129,117 +8145,65 @@ ${pagesHtml}
                                 🏆 {catName} — {champGender === 'BOYS' ? '👦 Boys' : champGender === 'GIRLS' ? '👧 Girls' : '👥 General'}
                               </span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
-                              {displayStudents.map(student => {
-                                const cfg = rankConfig[student.rank] || rankConfig[3];
-                                const sameRankCount = rankedStudents.filter(s => s.rank === student.rank).length;
-                                const rankLabel = sameRankCount > 1 ? `${cfg.label} (TIE)` : cfg.label;
 
-                                return (
-                                  <div key={student.key} style={{
-                                    background: cfg.gradient,
-                                    borderRadius: '24px',
-                                    padding: '20px',
-                                    color: 'white',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-                                    border: `3px solid ${cfg.border}`,
-                                    animation: 'fadeInTab 0.5s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '15px'
-                                  }}>
-                                    <div style={{ flex: 1, zIndex: 1 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <span style={{ fontSize: '32px' }}>{cfg.medal}</span>
-                                        <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{rankLabel}</span>
+                            {/* Top Podium Champion Cards */}
+                            {displayStudents.length === 0 ? (
+                              <p style={{ marginTop: '20px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
+                                {lang === 'EN' ? 'No results in this Category / Division.' : 'ഈ കാറ്റഗറി / ഡിവിഷനിൽ ഫലങ്ങൾ ഒന്നും ലഭ്യമായിട്ടില്ല.'}
+                              </p>
+                            ) : (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+                                {displayStudents.map(student => {
+                                  const cfg = rankConfig[student.rankNum] || rankConfig[3];
+                                  const sameRankCount = displayStudents.filter(s => s.rankNum === student.rankNum).length;
+                                  const rankLabel = sameRankCount > 1 ? `${cfg.label} (TIE)` : cfg.label;
+
+                                  return (
+                                    <div key={student.id || student.regNo} style={{
+                                      background: cfg.gradient,
+                                      borderRadius: '24px',
+                                      padding: '20px',
+                                      color: 'white',
+                                      position: 'relative',
+                                      overflow: 'hidden',
+                                      boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
+                                      border: `3px solid ${cfg.border}`,
+                                      animation: 'fadeInTab 0.5s ease',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      gap: '15px'
+                                    }}>
+                                      <div style={{ flex: 1, zIndex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                          <span style={{ fontSize: '32px' }}>{cfg.medal}</span>
+                                          <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>{rankLabel}</span>
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{student.regNo}</div>
+                                        <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{student.name}</div>
+                                        <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{student.teamName}</span></div>
+                                        <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
+                                          {(student.gender || '').toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
+                                        </div>
+                                        <div style={{ marginTop: '10px', background: 'rgba(255,255,255,0.25)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '900', fontSize: '16px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                                          ⭐ {student.totalPoints} Pts
+                                        </div>
                                       </div>
-                                      <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>#{student.regPart}</div>
-                                      <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '4px', lineHeight: 1.25, letterSpacing: '0.5px' }}>{student.namePart}</div>
-                                      <div style={{ fontSize: '12px', opacity: 0.9 }}>Team: <span style={{ fontWeight: '800' }}>{student.teamname}</span></div>
-                                      <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px' }}>
-                                        {(student.studentgender || '').toUpperCase() === 'BOY' ? '👦 Boy' : '👧 Girl'}
+                                      {/* Photo frame */}
+                                      <div style={{ position: 'relative', zIndex: 1 }}>
+                                        {renderStudentPhoto(student.regNo, student.gender, '95px', '14px')}
                                       </div>
-                                      <div style={{ marginTop: '10px', background: 'rgba(255,255,255,0.25)', borderRadius: '8px', padding: '6px 12px', display: 'inline-block', fontWeight: '900', fontSize: '16px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                                        ⭐ {student.totalPoints} Pts
-                                      </div>
+                                      <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '110px', opacity: 0.07, pointerEvents: 'none' }}>{cfg.medal}</div>
                                     </div>
-                                    {/* Photo frame */}
-                                    <div style={{ position: 'relative', zIndex: 1 }}>
-                                      {renderStudentPhoto(student.regPart, student.studentgender, '95px', '14px')}
-                                    </div>
-                                    <div style={{ position: 'absolute', bottom: '-20px', right: '-15px', fontSize: '110px', opacity: 0.07, pointerEvents: 'none' }}>{cfg.medal}</div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                  );
+                                })}
+                              </div>
+                            )}
 
                             {/* ── Complete Registered Students Mark List Section (Collapsible) ── */}
                             {(() => {
-                              // Filter all registered students in this category & gender division
-                              const categoryStudents = students.filter(s => {
-                                if (!s) return false;
-                                if (isChampGeneral) {
-                                  const sCatId = String(s.catid || s.catId || '');
-                                  if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
-                                } else {
-                                  if (String(s.catid || s.catId || '') !== String(champCat)) return false;
-                                }
-                                const sGender = String(s.gender || '').toUpperCase();
-                                if (champGender === 'BOYS' && sGender !== 'BOY') return false;
-                                if (champGender === 'GIRLS' && sGender !== 'GIRL') return false;
-                                return true;
-                              });
 
-                              // Map individual total points for every student
-                              const allStudentMarks = categoryStudents.map(s => {
-                                const sRegNo = String(s.regno || s.regNo || '').trim();
-                                const sNameStr = String(s.name || '').trim().toLowerCase();
-                                const sIdStr = String(s.id || '').trim();
-                                const sTeamId = String(s.teamid || s.teamId || '').trim();
-                                const teamObj = teams.find(t => String(t.id) === sTeamId);
-                                const teamName = teamObj ? teamObj.name : '-';
-
-                                const totalPts = resultsList.filter(r => {
-                                  if ((r.progtype || '').includes('GROUP')) return false; // exclude group events from individual total
-                                  const rStudentName = String(r.studentname || r.student_name || '').trim();
-                                  const rStudentId = String(r.student_id || r.studentid || '').trim();
-                                  if (sIdStr && rStudentId === sIdStr) return true;
-                                  if (sRegNo && (rStudentName.startsWith(sRegNo) || rStudentName.includes(sRegNo))) return true;
-                                  if (sNameStr && rStudentName.toLowerCase().includes(sNameStr)) return true;
-                                  return false;
-                                }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
-
-                                return {
-                                  id: s.id,
-                                  regNo: sRegNo,
-                                  name: s.name,
-                                  gender: s.gender,
-                                  teamName: teamName,
-                                  totalPoints: totalPts
-                                };
-                              });
-
-                              // Sort descending by points; equal points sorted by regNo ascending
-                              allStudentMarks.sort((a, b) => {
-                                if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-                                return (parseInt(a.regNo, 10) || 0) - (parseInt(b.regNo, 10) || 0);
-                              });
-
-                              // Assign rank strings: >0 points get 1, 2, 3...; 0 points get "0"
-                              let rTracker = 1;
-                              const finalRankedAllStudents = allStudentMarks.map((st, idx) => {
-                                if (st.totalPoints === 0) {
-                                  return { ...st, rankStr: '0' };
-                                } else {
-                                  if (idx > 0 && st.totalPoints < allStudentMarks[idx - 1].totalPoints) {
-                                    rTracker = idx + 1;
-                                  }
-                                  return { ...st, rankStr: String(rTracker) };
-                                }
-                              });
+                              // finalRankedAllStudents is already unified above
 
                               // PDF Generator for complete category mark list
                               const generateCategoryStudentMarksPDF = () => {
