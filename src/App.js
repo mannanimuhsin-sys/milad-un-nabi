@@ -861,8 +861,11 @@ function App() {
   const isProgPublished = (progId) => {
     if (!progId) return false;
     if (loginRole === 'ADMIN') return true;
-    if (publishedPrograms === null || publishedPrograms === undefined) return true;
-    if (Array.isArray(publishedPrograms) && publishedPrograms.length === 0) return true;
+
+    // 🔒 In View Mode: strictly hide all results until Admin explicitly publishes them
+    if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) {
+      return false;
+    }
 
     const pIdStr = String(progId).trim();
     const progObj = programs.find(p => String(p.id).trim() === pIdStr || String(p.code).trim() === pIdStr || String(p.name).trim().toLowerCase() === pIdStr.toLowerCase());
@@ -872,7 +875,7 @@ function App() {
       if (progObj.code) candidates.push(String(progObj.code).trim());
       if (progObj.name) candidates.push(String(progObj.name).trim());
     }
-    const pubList = (publishedPrograms || []).map(String).map(s => s.trim());
+    const pubList = publishedPrograms.map(String).map(s => s.trim());
     return candidates.some(c => pubList.includes(c));
   };
 
@@ -887,9 +890,15 @@ function App() {
     const shouldPublish = forceState !== null ? forceState : !currentlyPublished;
 
     if (shouldPublish) {
-      updated = Array.from(new Set([...(publishedPrograms || []).map(String), pIdStr]));
+      const toAdd = [pIdStr];
+      if (progObj?.id) toAdd.push(String(progObj.id));
+      if (progObj?.code) toAdd.push(String(progObj.code));
+      updated = Array.from(new Set([...(publishedPrograms || []).map(String), ...toAdd]));
     } else {
-      updated = (publishedPrograms || []).map(String).filter(id => id !== pIdStr);
+      const toRemove = new Set([pIdStr]);
+      if (progObj?.id) toRemove.add(String(progObj.id));
+      if (progObj?.code) toRemove.add(String(progObj.code));
+      updated = (publishedPrograms || []).map(String).filter(id => !toRemove.has(id));
     }
 
     setPublishedPrograms(updated);
@@ -948,7 +957,11 @@ function App() {
     const rNum = loggedInMadrasa?.regNumber;
     let updated = [];
     if (publish) {
-      const progsWithResults = Array.from(new Set(resultsList.map(r => String(r.progid)))).filter(Boolean);
+      const progsWithResults = Array.from(new Set([
+        ...resultsList.map(r => String(r.progid || '')),
+        ...programs.map(p => String(p.id || '')),
+        ...programs.map(p => String(p.code || ''))
+      ])).filter(Boolean);
       updated = progsWithResults;
     }
     setPublishedPrograms(updated);
@@ -1747,16 +1760,14 @@ function App() {
           if (fetchedVisibility) {
             const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
             setVisibilityControls(normalizedVis);
-            // ⚠️ FIX: Always sync published_programs for VIEW role — even if empty array.
-            // This ensures unpublish actions also propagate to all view phones.
-            const freshPublished = Array.isArray(fetchedVisibility.published_programs) && fetchedVisibility.published_programs.length > 0
-              ? fetchedVisibility.published_programs
-              : null;
-            setPublishedPrograms(freshPublished ? freshPublished.map(String) : null);
+            const freshPublished = Array.isArray(fetchedVisibility.published_programs)
+              ? fetchedVisibility.published_programs.map(String)
+              : [];
+            setPublishedPrograms(freshPublished);
           } else {
-            // DB had no value — fall back to DEFAULT (all ON) so view user is not locked out
+            // DB had no value — fall back to DEFAULT
             setVisibilityControls({ ...DEFAULT_VISIBILITY_CONTROLS });
-            setPublishedPrograms(null);
+            setPublishedPrograms([]);
           }
         }
       } catch (e) {}
