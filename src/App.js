@@ -862,32 +862,7 @@ function App() {
   });
 
   const isProgPublished = (progId) => {
-    if (!progId) return false;
-
-    // If publishedPrograms is not yet loaded from DB: default to false (Draft)
-    if (publishedPrograms === null || publishedPrograms === undefined) {
-      return false;
-    }
-
-    // Empty array = Admin has not published anything yet / all in Draft
-    if (Array.isArray(publishedPrograms) && publishedPrograms.length === 0) {
-      return false;
-    }
-
-    const pIdStr = String(progId).trim();
-    const progObj = programs.find(p =>
-      String(p.id).trim() === pIdStr ||
-      String(p.code).trim() === pIdStr ||
-      String(p.name).trim().toLowerCase() === pIdStr.toLowerCase()
-    );
-    const candidates = [pIdStr];
-    if (progObj) {
-      if (progObj.id) candidates.push(String(progObj.id).trim());
-      if (progObj.code) candidates.push(String(progObj.code).trim());
-      if (progObj.name) candidates.push(String(progObj.name).trim());
-    }
-    const pubList = publishedPrograms.map(String).map(s => s.trim());
-    return candidates.some(c => pubList.includes(c));
+    return true; // All saved marks are immediately published & visible everywhere
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
@@ -4494,29 +4469,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         else if (selectedPlace === '2') setSelectedPlace('3');
         else if (selectedPlace === '3') setSelectedPlace('0');
 
-        if (andPublish && progObj) {
-          await handleTogglePublishProgram(progObj.id, true);
-        } else {
-          // Explicitly ensure this newly entered program is in Draft (isPub = false)
-          // so it ALWAYS shows the Green Publish button in Results History!
-          const pIdStr = String(progObj?.id || '').trim();
-          const pCodeStr = String(progObj?.code || '').trim();
-          const pNameStr = String(progObj?.name || '').trim().toLowerCase();
-
-          setPublishedPrograms(prev => {
-            if (!Array.isArray(prev)) return [];
-            return prev.filter(id => {
-              const s = String(id).trim();
-              return s !== pIdStr && s !== pCodeStr && s.toLowerCase() !== pNameStr;
-            });
-          });
-
-          alert(
-            lang === 'EN'
-              ? `✅ Result saved successfully for ${computedStudentName} (Draft mode)! Go to Results -> Results History and click the green 'Publish' button to make it live.`
-              : `✅ ${computedStudentName} - ഫലം സേവ് ചെയ്തു (Draft മോഡിൽ)! Results -> Results History-ൽ പോയി പച്ച 'Publish' ബട്ടൺ ക്ലിക്ക് ചെയ്യുമ്പോൾ മാത്രമേ ഇത് വ്യൂ മോഡിൽ ലൈവാകൂ.`
-          );
-        }
+        alert(
+          lang === 'EN'
+            ? `✅ Result saved successfully for ${computedStudentName}!`
+            : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു!`
+        );
       }
     } catch (err) {
       alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
@@ -6716,15 +6673,7 @@ ${pagesHtml}
                   </div>
                 </div>
                 <div style={{ marginTop: '20px' }}>
-                  {/* VIEW role: show loading spinner while published_programs loads from DB */}
-                  {loginRole === 'VIEW' && publishedPrograms === null ? (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
-                      <div style={{ fontSize: '36px', marginBottom: '12px' }}>⏳</div>
-                      <p style={{ fontSize: '14px', fontWeight: '700' }}>
-                        {lang === 'EN' ? 'Loading scoreboard...' : 'സ്കോർബോർഡ് ലോഡ് ചെയ്യുന്നു...'}
-                      </p>
-                    </div>
-                  ) : teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
+                  {teams.length === 0 ? <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t('noTeamsMsg')}</p> :
                     <div className="live-leaderboard">
                       {(() => {
                         const sortedTeams = [...teams].sort((a, b) => getTeamTotalPoints(b.id) - getTeamTotalPoints(a.id));
@@ -7046,81 +6995,10 @@ ${pagesHtml}
                           );
                         };
 
-                        // In View Mode: If program results are not published yet, show friendly pending banner
-                        if (loginRole !== 'ADMIN' && !isPublished) {
-                          return (
-                            <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fffbeb', borderRadius: '16px', border: '1.5px solid #fde68a', marginTop: '20px', boxShadow: '0 4px 15px rgba(217,119,6,0.06)' }}>
-                              <div style={{ fontSize: '48px', marginBottom: '10px' }}>⏳</div>
-                              <h3 style={{ color: '#92400e', fontSize: '18px', fontWeight: '900', margin: '0 0 8px' }}>
-                                {lang === 'EN' ? 'Results Not Yet Announced' : 'ഫലം ഇതുവരെ പ്രഖ്യാപിച്ചിട്ടില്ല'}
-                              </h3>
-                              <p style={{ color: '#b45309', fontSize: '13px', maxWidth: '460px', margin: '0 auto' }}>
-                                {lang === 'EN'
-                                  ? `The official results for "${progObj?.name}" are awaiting final announcement.`
-                                  : `"${progObj?.name}" മത്സരത്തിന്റെ ഔദ്യോഗിക ഫലപ്രഖ്യാപനം ഉടൻ നടക്കുന്നതാണ്.`}
-                              </p>
-                            </div>
-                          );
-                        }
-
                         return (
                           <div style={{ marginTop: '20px' }}>
 
-                            {/* ── Admin Program-wise Publish Quick Control ── */}
-                            {loginRole === 'ADMIN' && (
-                              <div style={{
-                                background: isPublished ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)' : 'linear-gradient(135deg, #fffbeb, #fef3c7)',
-                                border: `1.5px solid ${isPublished ? '#86efac' : '#fde68a'}`,
-                                borderRadius: '12px',
-                                padding: '12px 18px',
-                                marginBottom: '16px',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: '10px',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                  <span style={{ fontSize: '22px' }}>{isPublished ? '📢' : '🔒'}</span>
-                                  <div>
-                                    <div style={{ fontWeight: '800', fontSize: '13.5px', color: isPublished ? '#166534' : '#92400e' }}>
-                                      {isPublished
-                                        ? (lang === 'EN' ? `✅ "${progObj?.name}" is PUBLISHED LIVE (Visible in View Mode)` : `✅ "${progObj?.name}" ലൈവായി പബ്ലിഷ് ചെയ്തിട്ടുണ്ട് (വ്യൂ മോഡിൽ ലഭ്യമാണ്)`)
-                                        : (lang === 'EN' ? `🟡 "${progObj?.name}" is in DRAFT (Hidden from View Mode)` : `🟡 "${progObj?.name}" നിലവിൽ Draft മോഡിലാണ് (വ്യൂ മോഡിൽ കാണില്ല)`)}
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                                      {lang === 'EN' ? `${progResults.length} result entries recorded` : `${progResults.length} ഫലങ്ങൾ രേഖപ്പെടുത്തിയിട്ടുണ്ട്`}
-                                    </div>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleTogglePublishProgram(filterProg, !isPublished)}
-                                  style={{
-                                    background: isPublished ? '#64748b' : 'linear-gradient(135deg, #16a34a, #15803d)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    padding: '8px 18px',
-                                    borderRadius: '8px',
-                                    fontSize: '13px',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: isPublished ? 'none' : '0 3px 10px rgba(22, 163, 74, 0.3)'
-                                  }}
-                                >
-                                  <span>{isPublished ? '🔒' : '🚀'}</span>
-                                  <span>
-                                    {isPublished
-                                      ? (lang === 'EN' ? 'Unpublish (Move to Draft)' : 'ഡ്രാഫ്റ്റ് ആക്കുക (ഹൈഡ് ചെയ്യുക)')
-                                      : (lang === 'EN' ? 'Publish Program Live' : 'ഈ പ്രോഗ്രാം ലൈവായി പബ്ലിഷ് ചെയ്യുക')}
-                                  </span>
-                                </button>
-                              </div>
-                            )}
+                            
 
                             <div style={{ textAlign: 'center', marginBottom: '15px' }}>
                               <span style={{ background: 'linear-gradient(135deg, #1e1b4b, #3730a3)', color: 'white', padding: '8px 20px', borderRadius: '20px', fontWeight: '800', fontSize: '14px' }}>🏆 {progObj ? progObj.name : ''}</span>
@@ -8129,128 +8007,56 @@ ${pagesHtml}
 
                     return (
                       <div>
-                        {loginRole === 'ADMIN' && (
-                          <div style={{
-                            background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
-                            border: '1.5px solid #cbd5e1',
-                            borderRadius: '12px',
-                            padding: '14px 18px',
-                            marginTop: '12px',
-                            marginBottom: '16px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '12px',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                          }}>
-                            <div>
-                              <div style={{ fontWeight: '800', fontSize: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>📢</span>
-                                <span>{lang === 'EN' ? 'Results Publishing Control' : 'റിസൽറ്റ് പബ്ലിഷിംഗ് നിയന്ത്രണം'}</span>
-                              </div>
-                              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '3px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                <span>✅ {lang === 'EN' ? 'Live Published:' : 'ലൈവ് ആയവ:'} <b style={{ color: '#15803d' }}>{publishedProgsCount}</b></span>
-                                <span>🟡 {lang === 'EN' ? 'Drafts (Hidden from View):' : 'ഡ്രാഫ്റ്റ് (വ്യൂവിൽ മറഞ്ഞവ):'} <b style={{ color: '#b45309' }}>{draftProgsCount}</b></span>
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => handlePublishAllPrograms(true)}
-                                style={{
-                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  padding: '9px 18px',
-                                  borderRadius: '8px',
-                                  fontSize: '13px',
-                                  fontWeight: '800',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
-                                }}
-                              >
-                                <span>🚀</span>
-                                <span>{lang === 'EN' ? 'Publish All Live' : 'എല്ലാം ലൈവായി പബ്ലിഷ് ചെയ്യുക'}</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handlePublishAllPrograms(false)}
-                                style={{
-                                  background: '#64748b',
-                                  color: '#fff',
-                                  border: 'none',
-                                  padding: '9px 16px',
-                                  borderRadius: '8px',
-                                  fontSize: '13px',
-                                  fontWeight: '700',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px'
-                                }}
-                              >
-                                <span>🔒</span>
-                                <span>{lang === 'EN' ? 'Move All to Draft' : 'എല്ലാം Draft ആക്കുക'}</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={printResultsHistory}
-                                style={{
-                                  background: '#0284c7',
-                                  color: '#fff',
-                                  border: 'none',
-                                  padding: '9px 16px',
-                                  borderRadius: '8px',
-                                  fontSize: '13px',
-                                  fontWeight: '700',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px'
-                                }}
-                              >
-                                <span>🖨️</span>
-                                <span>{lang === 'EN' ? 'Print / PDF' : 'പ്രിന്റ് / PDF'}</span>
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Search & Program Count Banner */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
-                          <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
+                        {/* Search & Action Bar */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '12px', marginBottom: '16px' }}>
+                          <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>
                             📋 {lang === 'EN' ? 'Program Results List' : 'പ്രോഗ്രാം ഫലങ്ങളുടെ ലിസ്റ്റ്'} ({sortedProgramSections.length} {lang === 'EN' ? 'programs' : 'പ്രോഗ്രാമുകൾ'})
                           </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <input
-                              type="text"
-                              placeholder={lang === 'EN' ? '🔍 Search program / student...' : '🔍 പ്രോഗ്രാം / വിദ്യാർത്ഥി തിരയുക...'}
-                              value={publishProgSearch}
-                              onChange={e => setPublishProgSearch(e.target.value)}
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                placeholder={lang === 'EN' ? '🔍 Search program / student...' : '🔍 പ്രോഗ്രാം / വിദ്യാർത്ഥി തിരയുക...'}
+                                value={publishProgSearch}
+                                onChange={e => setPublishProgSearch(e.target.value)}
+                                style={{
+                                  padding: '8px 14px',
+                                  borderRadius: '8px',
+                                  border: '1.5px solid #cbd5e1',
+                                  fontSize: '13px',
+                                  minWidth: '220px'
+                                }}
+                              />
+                              {publishProgSearch && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPublishProgSearch('')}
+                                  style={{ background: '#e2e8f0', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={printResultsHistory}
                               style={{
-                                padding: '7px 14px',
+                                background: '#0284c7',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '8px 16px',
                                 borderRadius: '8px',
-                                border: '1.5px solid #cbd5e1',
                                 fontSize: '13px',
-                                minWidth: '200px'
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
                               }}
-                            />
-                            {publishProgSearch && (
-                              <button
-                                type="button"
-                                onClick={() => setPublishProgSearch('')}
-                                style={{ background: '#e2e8f0', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
-                              >
-                                ✕
-                              </button>
-                            )}
+                            >
+                              <span>🖨️</span>
+                              <span>{lang === 'EN' ? 'Print / PDF' : 'പ്രിന്റ് / PDF'}</span>
+                            </button>
                           </div>
                         </div>
 
@@ -8269,14 +8075,13 @@ ${pagesHtml}
                               return matchProg || matchStudent;
                             })
                             .map(group => {
-                              const isPub = isProgPublished(group.progId);
                               return (
                                 <div
                                   key={group.groupKey}
                                   style={{
                                     background: '#ffffff',
                                     borderRadius: '14px',
-                                    border: `1.5px solid ${isPub ? '#86efac' : '#fde68a'}`,
+                                    border: '1.5px solid #e2e8f0',
                                     boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
                                     marginBottom: '18px',
                                     overflow: 'hidden'
@@ -8284,9 +8089,9 @@ ${pagesHtml}
                                 >
                                   {/* ── Section Header: Clean title, category, type, entries count ── */}
                                   <div style={{
-                                    background: isPub ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)' : 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+                                    background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
                                     padding: '12px 16px',
-                                    borderBottom: `1.5px solid ${isPub ? '#bbf7d0' : '#fef08a'}`,
+                                    borderBottom: '1.5px solid #e2e8f0',
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
@@ -8313,18 +8118,7 @@ ${pagesHtml}
                                       </div>
                                     </div>
 
-                                    {/* Clean Status Indicator Badge */}
-                                    <div>
-                                      {isPub ? (
-                                        <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '4px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '800' }}>
-                                          ✅ {lang === 'EN' ? 'Published Live' : 'ലൈവായി പബ്ലിഷ് ചെയ്തു'}
-                                        </span>
-                                      ) : (
-                                        <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', padding: '4px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '800' }}>
-                                          🟡 {lang === 'EN' ? 'Draft Mode (Hidden)' : 'Draft (വ്യൂവിൽ മറഞ്ഞിരിക്കുന്നു)'}
-                                        </span>
-                                      )}
-                                    </div>
+
                                   </div>
 
                                   {/* ── Table of Winners for this Program with Publish & Delete in every row ── */}
@@ -8340,7 +8134,7 @@ ${pagesHtml}
                                           <th>Team</th>
                                           <th style={{ textAlign: 'center' }}>Grade</th>
                                           <th style={{ textAlign: 'center' }}>Points</th>
-                                          {loginRole === 'ADMIN' && <th style={{ textAlign: 'center', width: '120px' }}>Publish</th>}
+                                          
                                           {loginRole === 'ADMIN' && <th style={{ textAlign: 'center', width: '70px' }}>Delete</th>}
                                         </tr>
                                       </thead>
@@ -8378,56 +8172,7 @@ ${pagesHtml}
                                                 </span>
                                               </td>
                                               <td style={{ textAlign: 'center' }}><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
-                                              {loginRole === 'ADMIN' && (
-                                                <td style={{ textAlign: 'center' }}>
-                                                  {!isPub ? (
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => handleTogglePublishProgram(group.progId, true)}
-                                                      style={{
-                                                        background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                                        color: '#fff',
-                                                        border: 'none',
-                                                        padding: '5px 12px',
-                                                        borderRadius: '6px',
-                                                        cursor: 'pointer',
-                                                        fontWeight: '800',
-                                                        fontSize: '11px',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        boxShadow: '0 2px 6px rgba(22,163,74,0.35)',
-                                                        whiteSpace: 'nowrap'
-                                                      }}
-                                                      title={lang === 'EN' ? 'Click to publish this entire program live' : 'ഈ പ്രോഗ്രാം മൊത്തത്തിൽ ലൈവായി പബ്ലിഷ് ചെയ്യുക'}
-                                                    >
-                                                      🚀 {lang === 'EN' ? 'Publish' : 'പബ്ലിഷ്'}
-                                                    </button>
-                                                  ) : (
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => handleTogglePublishProgram(group.progId, false)}
-                                                      style={{
-                                                        background: '#64748b',
-                                                        color: '#fff',
-                                                        border: 'none',
-                                                        padding: '5px 10px',
-                                                        borderRadius: '6px',
-                                                        cursor: 'pointer',
-                                                        fontWeight: '700',
-                                                        fontSize: '11px',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        whiteSpace: 'nowrap'
-                                                      }}
-                                                      title={lang === 'EN' ? 'Click to move back to Draft (hide from view mode)' : 'തിരിച്ച് Draft ആക്കുക (വ്യൂ മോഡിൽ മറയ്ക്കുക)'}
-                                                    >
-                                                      🔒 {lang === 'EN' ? 'Draft' : 'ഡ്രാഫ്റ്റ്'}
-                                                    </button>
-                                                  )}
-                                                </td>
-                                              )}
+                                              
                                               {loginRole === 'ADMIN' && (
                                                 <td style={{ textAlign: 'center' }}>
                                                   <button
@@ -15016,54 +14761,7 @@ ${pagesHtml}
                                     <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
                                       {progSavedResults.length} {lang === 'EN' ? 'entries' : 'എൻട്രികൾ'}
                                     </span>
-                                    {isPublished ? (
-                                      <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
-                                        ✅ {lang === 'EN' ? 'Live Published' : 'ലൈവായി പബ്ലിഷ് ചെയ്തിട്ടുണ്ട്'}
-                                      </span>
-                                    ) : (
-                                      <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '20px', padding: '2px 10px', fontSize: '12px', fontWeight: '800' }}>
-                                        🟡 {lang === 'EN' ? 'Draft Mode (Hidden from View)' : 'Draft മോഡിലാണ് (വ്യൂവിൽ മറഞ്ഞിരിക്കുന്നു)'}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                    {isPublished ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleTogglePublishProgram(selectedResultProg, false)}
-                                        style={{
-                                          padding: '7px 14px',
-                                          background: '#64748b',
-                                          color: '#fff',
-                                          border: 'none',
-                                          borderRadius: '8px',
-                                          fontSize: '12px',
-                                          fontWeight: '700',
-                                          cursor: 'pointer'
-                                        }}
-                                      >
-                                        🔒 {lang === 'EN' ? 'Unpublish (Move to Draft)' : 'ഡ്രാഫ്റ്റ് ആക്കുക (ഹൈഡ് ചെയ്യുക)'}
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleTogglePublishProgram(selectedResultProg, true)}
-                                        style={{
-                                          padding: '8px 16px',
-                                          background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                          color: '#fff',
-                                          border: 'none',
-                                          borderRadius: '8px',
-                                          fontSize: '12.5px',
-                                          fontWeight: '800',
-                                          cursor: 'pointer',
-                                          boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
-                                        }}
-                                      >
-                                        🚀 {lang === 'EN' ? 'Publish This Program Live!' : 'ഈ പ്രോഗ്രാം ലൈവായി പബ്ലിഷ് ചെയ്യുക!'}
-                                      </button>
-                                    )}
+                                    
 
                                     <button
                                       type="button"
