@@ -6931,6 +6931,7 @@ ${pagesHtml}
                         const progObj = programs.find(p => String(p.id) === String(filterProg));
                         const isPublished = isProgPublished(filterProg);
                         const progResults = resultsList.filter(r => {
+                          if (!isProgPublished(r.progid)) return false;
                           const matchProg = String(r.progid) === String(filterProg);
                           const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
                           const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
@@ -7050,6 +7051,7 @@ ${pagesHtml}
                     ) : (() => {
                       // 1. Gather all winner results with full resolved metadata
                       const allWinnerResults = resultsList.filter(r => {
+                        if (!isProgPublished(r.progid)) return false;
                         const p = (r.place || '').toString().trim().toLowerCase();
                         return p === 'first' || p === '1' || p === '1st' ||
                                p === 'second' || p === '2' || p === '2nd' ||
@@ -8993,6 +8995,7 @@ ${pagesHtml}
 
                                     const progResult = resultsList.find(r => {
                                       if (!r) return false;
+                                      if (!isProgPublished(r.progid)) return false;
                                       const rPid = String(r.progid || r.program_id || r.program_name || '').trim();
                                       const pMatch = rPid === String(p.id) || rPid === String(p.code) || String(r.progname || '').trim().toLowerCase() === String(p.name || '').trim().toLowerCase();
                                       if (!pMatch) return false;
@@ -16823,6 +16826,7 @@ ${pagesHtml}
 
                       // Filter results by selected category
                       const catFilteredResults = resultsList.filter(r => {
+                        if (!isProgPublished(r.progid)) return false;
                         if (!r.place || r.place === 'No Place') return false;
                         const norm = getNormPlace(r.place);
                         if (!norm) return false;
@@ -17153,6 +17157,7 @@ ${pagesHtml}
                                   });
 
                                   const matchedResults = resultsList.filter(r => {
+                                    if (!isProgPublished(r.progid)) return false;
                                     const rSid = String(r.studentid || '').trim().toLowerCase();
                                     const rSName = String(r.studentname || '').trim().toLowerCase();
                                     if (matchedStudent) {
@@ -17334,7 +17339,7 @@ ${pagesHtml}
                             // Find students who registered in programs but didn't win 1st, 2nd, 3rd
                             const winnerStudentIds = new Set(
                               resultsList
-                                .filter(r => getNormPlace(r.place) !== null)
+                                .filter(r => isProgPublished(r.progid) && getNormPlace(r.place) !== null)
                                 .map(r => String(r.studentid || '').trim())
                             );
 
@@ -18203,16 +18208,22 @@ ${pagesHtml}
             )}
 
             {/* SLIDE 2: RECENT WINNERS - POSTER MODE */}
-            {projectorSlide === 2 && (
-              <div className="projector-slide animate-projector-slide" style={{ padding: 0, overflow: 'hidden' }}>
-                {resultsList.length === 0 ? (
-                  <div className="projector-empty">{t('noResultsAdded')}</div>
-                ) : (
-                  (() => {
+            {projectorSlide === 2 && (() => {
+              const publishedResultsList = resultsList.filter(r => isProgPublished(r.progid));
+              if (publishedResultsList.length === 0) {
+                return (
+                  <div className="projector-slide animate-projector-slide" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div className="projector-empty">{t('noResultsAdded')}</div>
+                  </div>
+                );
+              }
+              return (
+                <div className="projector-slide animate-projector-slide" style={{ padding: 0, overflow: 'hidden' }}>
+                  {(() => {
                     // 1. Group results into distinct declared program runs (by program metadata: progid/name, catname, and program type)
                     const groupsMap = new Map();
 
-                    resultsList.forEach(r => {
+                    publishedResultsList.forEach(r => {
                       const rProgId = String(r.progid || r.progId || '').trim();
                       const rProgName = String(r.progname || r.progName || '').trim();
                       const rCatName = String(r.catname || r.catName || '').trim();
@@ -18536,10 +18547,10 @@ ${pagesHtml}
                         <div className="winner-poster-footer-line" />
                       </div>
                     );
-                  })()
-                )}
-              </div>
-            )}
+                  })()}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
