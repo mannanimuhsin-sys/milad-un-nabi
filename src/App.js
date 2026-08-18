@@ -2539,12 +2539,9 @@ function App() {
         if (rSid && sDbId && rSid === sDbId) return true;
         // 2. Exact numeric ID match
         if (rSid && !isNaN(parseInt(rSid, 10)) && !isNaN(sIdNum) && parseInt(rSid, 10) === sIdNum) return true;
-        // 3. Strict register number match (if result has a regNo prefix, it MUST match)
-        if (rRegPart) {
-          return Boolean(sRegNo && rRegPart.toLowerCase() === sRegNo.toLowerCase());
-        }
-        // 4. Fallback to student name ONLY if result has no regNo prefix
-        if (sName && rNamePart && rNamePart === sName.toLowerCase()) return true;
+        // 3. Strict Register Number match ONLY (NEVER match by student name)
+        if (sRegNo && rRegPart && rRegPart.toLowerCase() === sRegNo.toLowerCase()) return true;
+        if (sRegNo && (rRaw.startsWith(sRegNo + ' ') || rRaw === sRegNo)) return true;
         return false;
       }).map(r => {
         const prog = (localProgs || []).find(p => String(p.id) === String(r.progid) || p.code === String(r.progid) || p.name === String(r.progid));
@@ -4409,10 +4406,11 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       } else if (isGroup) {
         return sNameStr && (rSName === sNameStr || rSName.includes(sNameStr) || sNameStr.includes(rSName));
       } else {
+        const rSid = String(r.studentid || r.student_id || '').trim();
+        if (sDbIdStr && rSid && rSid === sDbIdStr) return true;
         const rRegPart = rSName.includes(' - ') ? rSName.split(' - ')[0].trim() : (rSName.includes('-') ? rSName.split('-')[0].trim() : '');
         if (sRegStr && rRegPart && sRegStr === rRegPart.toLowerCase()) return true;
-        if (sRegStr && (rSName.startsWith(sRegStr + ' ') || rSName.startsWith(sRegStr + '-') || rSName.startsWith(sRegStr + ':'))) return true;
-        if (sNameStr && (rSName.includes(sNameStr) || sNameStr.includes(rSName))) return true;
+        if (sRegStr && (rSName.startsWith(sRegStr + ' ') || rSName.startsWith(sRegStr + '-') || rSName.startsWith(sRegStr + ':') || rSName === sRegStr)) return true;
         return false;
       }
     });
@@ -8345,11 +8343,10 @@ ${pagesHtml}
                             const rStudentId = String(r.student_id || r.studentid || '').trim();
                             if (sIdStr && rStudentId === sIdStr) return true;
                             const chDashIdx = rStudentName.indexOf(' - ');
-                            const chRegPart = chDashIdx !== -1 ? rStudentName.substring(0, chDashIdx).trim() : '';
-                            if (chRegPart) {
-                              return Boolean(sRegNo && chRegPart.toLowerCase() === sRegNo.toLowerCase());
-                            }
-                            if (sNameStr && rStudentName.toLowerCase() === sNameStr) return true;
+                            const chRegPart = chDashIdx !== -1 ? rStudentName.substring(0, chDashIdx).trim() : (rStudentName.indexOf('-') !== -1 ? rStudentName.substring(0, rStudentName.indexOf('-')).trim() : '');
+                            if (sRegNo && chRegPart && chRegPart.toLowerCase() === sRegNo.toLowerCase()) return true;
+                            if (sRegNo && (rStudentName.startsWith(sRegNo + ' ') || rStudentName === sRegNo)) return true;
+                            return false;
                             return false;
                           }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
 
@@ -9066,13 +9063,9 @@ ${pagesHtml}
                                       // 1. Exact DB ID match
                                       if (sDbIdStr && rSid && rSid === sDbIdStr) return true;
 
-                                      // 2. Strict Register Number match (prevents same-name collisions between different students)
-                                      if (rRegPart) {
-                                        return sRegStr && rRegPart.toLowerCase() === sRegStr.toLowerCase();
-                                      }
-
-                                      // 3. Fallback to name ONLY if result has no register number prefix
-                                      if (sNameStr && rNamePart === sNameStr) return true;
+                                      // 2. Strict Register Number match ONLY (NEVER match by student name)
+                                      if (sRegStr && rRegPart && rRegPart.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                      if (sRegStr && (rRaw.startsWith(sRegStr + ' ') || rRaw === sRegStr)) return true;
 
                                       // 4. Group registration check
                                       const isGroup = (p.type || '').toUpperCase().includes('GROUP');
