@@ -862,7 +862,18 @@ function App() {
   });
 
   const isProgPublished = (progId) => {
-    return true; // All saved marks are immediately published & visible everywhere
+    if (!progId) return false;
+    if (!Array.isArray(publishedPrograms) || publishedPrograms === null) return false;
+    const pIdStr = String(progId).trim();
+    const progObj = programs.find(p =>
+      String(p.id) === pIdStr || String(p.code) === pIdStr ||
+      String(p.name).toLowerCase() === pIdStr.toLowerCase()
+    );
+    const checkIds = new Set([pIdStr]);
+    if (progObj?.id) checkIds.add(String(progObj.id).trim());
+    if (progObj?.code) checkIds.add(String(progObj.code).trim());
+    if (progObj?.name) checkIds.add(String(progObj.name).trim());
+    return publishedPrograms.map(String).some(pid => checkIds.has(pid.trim()));
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
@@ -4471,8 +4482,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
         alert(
           lang === 'EN'
-            ? `✅ Result saved successfully for ${computedStudentName}!`
-            : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു!`
+            ? `✅ Result saved (DRAFT) for ${computedStudentName}!\n\n🔒 Go to Master Settings → Result tile to Publish and make it visible.`
+            : `✅ ${computedStudentName} - ഫലം ഡ്രാഫ്റ്റായി സേവ് ചെയ്തു!\n\n🔒 പ്രസിദ്ധീകരിക്കാൻ: Master Settings → Result ബോക്സ് → Publish ക്ലിക്ക് ചെയ്യുക.`
         );
       }
     } catch (err) {
@@ -10880,7 +10891,7 @@ ${pagesHtml}
                       <div className="tile-icon-wrapper">🎁</div>
                       <div className="tile-label">{lang === 'EN' ? 'Prizes' : 'സമ്മാനങ്ങൾ'}</div>
                     </div>
-                    <div className="executive-nav-tile" onClick={() => { setActiveTab('RECENT'); setResultsSubTab('RESULTS_HISTORY'); }}>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'RESULT_PUBLISH' ? 'active' : ''}`} onClick={() => setSettingsSubTab('RESULT_PUBLISH')}>
                       <div className="tile-icon-wrapper">🏆</div>
                       <div className="tile-label">{lang === 'EN' ? 'Result' : 'റിസൾട്ട്'}</div>
                     </div>
@@ -17480,6 +17491,214 @@ ${pagesHtml}
                         </div>
                       );
                     })()}
+
+                  {/* ── RESULT PUBLISH SUB-TAB ── */}
+                  {settingsSubTab === 'RESULT_PUBLISH' && (() => {
+                    // Build grouped program sections from all saved results
+                    const allProgIds = Array.from(new Set(resultsList.map(r => String(r.progid || '').trim()).filter(Boolean)));
+
+                    const progSections = allProgIds.map(pid => {
+                      const progObj = programs.find(p => String(p.id) === pid || String(p.code) === pid || String(p.name).toLowerCase() === pid.toLowerCase());
+                      const progName = progObj?.name || pid;
+                      const catObj = progObj ? categories.find(c => String(c.id) === String(progObj.categoryid)) : null;
+                      const catName = catObj?.name || '';
+                      const progType = progObj?.type || '';
+                      const rows = resultsList.filter(r => String(r.progid || '').trim() === pid || (progObj && (String(r.progid) === String(progObj.id) || String(r.progid) === String(progObj.code))));
+                      return { pid, progObj, progName, catName, progType, rows };
+                    });
+
+                    // Search filter
+                    const rpSearch = (publishProgSearch || '').toLowerCase().trim();
+                    const filteredSections = rpSearch
+                      ? progSections.filter(s =>
+                          s.progName.toLowerCase().includes(rpSearch) ||
+                          (s.progObj?.code || '').toLowerCase().includes(rpSearch) ||
+                          s.rows.some(r => (r.studentname || '').toLowerCase().includes(rpSearch) || (r.teamname || '').toLowerCase().includes(rpSearch))
+                        )
+                      : progSections;
+
+                    const publishedCount = progSections.filter(s => isProgPublished(s.pid)).length;
+                    const draftCount = progSections.length - publishedCount;
+
+                    return (
+                      <div style={{ paddingTop: '6px' }}>
+                        {/* Header bar */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+                          <div>
+                            <div style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>
+                              🏆 {lang === 'EN' ? 'Result Publish Control' : 'റിസൾട്ട് പബ്ലിഷ് കൺട്രോൾ'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: '600' }}>
+                              {lang === 'EN'
+                                ? `${publishedCount} Published · ${draftCount} Draft · ${progSections.length} Total Programs`
+                                : `${publishedCount} പബ്ലിഷ് · ${draftCount} ഡ്രാഫ്റ്റ് · ${progSections.length} പ്രോഗ്രാമുകൾ`}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* Search */}
+                            <input
+                              type="text"
+                              placeholder={lang === 'EN' ? '🔍 Search program / student...' : '🔍 പ്രോഗ്രാം / വിദ്യാർത്ഥി...'}
+                              value={publishProgSearch}
+                              onChange={e => setPublishProgSearch(e.target.value)}
+                              style={{ padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', minWidth: '200px' }}
+                            />
+                            {publishProgSearch && (
+                              <button type="button" onClick={() => setPublishProgSearch('')}
+                                style={{ background: '#e2e8f0', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                                ✕
+                              </button>
+                            )}
+                            {/* Publish All */}
+                            {draftCount > 0 && (
+                              <button type="button"
+                                onClick={() => handlePublishAllPrograms(true)}
+                                style={{ background: 'linear-gradient(135deg,#059669,#047857)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                ✅ {lang === 'EN' ? 'Publish All' : 'എല്ലാം പബ്ലിഷ്'}
+                              </button>
+                            )}
+                            {/* Move All Draft */}
+                            {publishedCount > 0 && (
+                              <button type="button"
+                                onClick={() => handlePublishAllPrograms(false)}
+                                style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                🔒 {lang === 'EN' ? 'Move All to Draft' : 'എല്ലാം ഡ്രാഫ്റ്റ്'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {progSections.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '50px 20px', background: '#f8fafc', borderRadius: '16px', border: '1.5px dashed #cbd5e1', color: '#64748b' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📋</div>
+                            <div style={{ fontSize: '15px', fontWeight: '700' }}>
+                              {lang === 'EN' ? 'No results saved yet. Go to Mark Entry to add results.' : 'ഇതുവരെ ഒരു ഫലവും സേവ് ചെയ്തിട്ടില്ല. മാർക്ക് എൻട്രിയിൽ നിന്ന് ഫലങ്ങൾ ചേർക്കുക.'}
+                            </div>
+                          </div>
+                        ) : filteredSections.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '30px 20px', color: '#64748b', fontStyle: 'italic' }}>
+                            {lang === 'EN' ? 'No programs match your search.' : 'തിരയലുമായി പൊരുത്തപ്പെടുന്ന ഒന്നും കണ്ടെത്തിയില്ല.'}
+                          </div>
+                        ) : filteredSections.map(section => {
+                          const isPub = isProgPublished(section.pid);
+                          return (
+                            <div key={section.pid} style={{
+                              background: '#fff',
+                              borderRadius: '16px',
+                              border: `2px solid ${isPub ? '#86efac' : '#fde68a'}`,
+                              boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+                              marginBottom: '20px',
+                              overflow: 'hidden'
+                            }}>
+                              {/* Card header */}
+                              <div style={{
+                                background: isPub ? 'linear-gradient(135deg,#f0fdf4,#dcfce7)' : 'linear-gradient(135deg,#fffbeb,#fef3c7)',
+                                padding: '14px 18px',
+                                borderBottom: `1.5px solid ${isPub ? '#bbf7d0' : '#fef08a'}`,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '10px'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '24px' }}>{isPub ? '✅' : '🔒'}</span>
+                                  <div>
+                                    <div style={{ fontWeight: '900', fontSize: '15px', color: '#1e1b4b' }}>
+                                      {section.progObj?.code ? `${section.progObj.code} - ` : ''}{section.progName}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                      {section.catName && (
+                                        <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '1px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '800' }}>{section.catName}</span>
+                                      )}
+                                      <span style={{ background: String(section.progType).includes('GROUP') ? '#fee2e2' : '#dcfce7', color: String(section.progType).includes('GROUP') ? '#991b1b' : '#166534', padding: '1px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '800' }}>
+                                        {String(section.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}
+                                      </span>
+                                      <span style={{ color: '#64748b', fontSize: '11px', fontWeight: '700' }}>({section.rows.length} {lang === 'EN' ? 'entries' : 'വിജയികൾ'})</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Status badge + Publish/Draft button */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                  <span style={{
+                                    padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '800',
+                                    background: isPub ? '#166534' : '#92400e',
+                                    color: '#fff'
+                                  }}>
+                                    {isPub ? (lang === 'EN' ? '🟢 PUBLISHED LIVE' : '🟢 ലൈവ്') : (lang === 'EN' ? '🟡 DRAFT' : '🟡 ഡ്രാഫ്റ്റ്')}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePublishProgram(section.pid, !isPub)}
+                                    style={{
+                                      background: isPub
+                                        ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                                        : 'linear-gradient(135deg,#059669,#047857)',
+                                      color: '#fff',
+                                      border: 'none',
+                                      padding: '9px 20px',
+                                      borderRadius: '10px',
+                                      fontSize: '13px',
+                                      fontWeight: '900',
+                                      cursor: 'pointer',
+                                      boxShadow: isPub ? '0 4px 12px rgba(245,158,11,0.35)' : '0 4px 12px rgba(5,150,105,0.35)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    {isPub
+                                      ? (lang === 'EN' ? '🔒 Move to Draft' : '🔒 ഡ്രാഫ്റ്റ്')
+                                      : (lang === 'EN' ? '✅ Publish' : '✅ പബ്ലിഷ്')}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Winners table */}
+                              <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                  <thead>
+                                    <tr style={{ background: '#f1f5f9' }}>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>#</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Student / Team' : 'വിദ്യാർത്ഥി / ടീം'}</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Grade' : 'ഗ്രേഡ്'}</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Rank' : 'റാങ്ക്'}</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Team' : 'ടീം'}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {[...section.rows]
+                                      .sort((a, b) => (Number(a.rank) || 99) - (Number(b.rank) || 99))
+                                      .map((row, idx) => (
+                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                          <td style={{ padding: '9px 12px', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
+                                          <td style={{ padding: '9px 12px', fontWeight: '800', color: '#0f172a' }}>{row.studentname || '—'}</td>
+                                          <td style={{ padding: '9px 12px' }}>
+                                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 10px', borderRadius: '20px', fontWeight: '800', fontSize: '12px' }}>{row.grade || '—'}</span>
+                                          </td>
+                                          <td style={{ padding: '9px 12px' }}>
+                                            {row.rank ? (
+                                              <span style={{
+                                                background: row.rank === 1 || row.rank === '1' ? '#fef3c7' : row.rank === 2 || row.rank === '2' ? '#f1f5f9' : '#fef9c3',
+                                                color: row.rank === 1 || row.rank === '1' ? '#92400e' : '#475569',
+                                                padding: '2px 10px', borderRadius: '20px', fontWeight: '900', fontSize: '12px'
+                                              }}>
+                                                {row.rank === 1 || row.rank === '1' ? '🥇' : row.rank === 2 || row.rank === '2' ? '🥈' : row.rank === 3 || row.rank === '3' ? '🥉' : `#${row.rank}`} {row.rank}
+                                              </span>
+                                            ) : '—'}
+                                          </td>
+                                          <td style={{ padding: '9px 12px', color: '#64748b', fontWeight: '600', fontSize: '12px' }}>{row.teamname || '—'}</td>
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
 
                   </div>
                 </div>
