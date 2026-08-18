@@ -7193,7 +7193,7 @@ ${pagesHtml}
                         setBulkCertExcludedKeys(prev => Array.from(new Set([...prev, ...filteredKeys])));
                       };
 
-                                            // 3. Multi-page Bulk Certificate Generator
+                                                                  // 3. Multi-page Bulk Certificate Generator
                       const generateBulkCertificates = () => {
                         if (selectedWinners.length === 0) {
                           alert(
@@ -7232,18 +7232,18 @@ ${pagesHtml}
   <!-- Outer Gold Border -->
   <div class="cert-outer-border"></div>
 
-  <!-- LEFT SIDE: Dark green + gold geometric diagonal design -->
+  <!-- LEFT SIDE: Dark green + gold diagonal geometric design -->
   <div class="cert-left-banner">
-    <svg width="240" height="740" viewBox="0 0 240 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="320" height="740" viewBox="0 0 320 740" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <pattern id="islamicPat_${certId}" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M20 0 L40 20 L20 40 L0 20 Z" stroke="rgba(255,255,255,0.12)" stroke-width="0.75" fill="none"/>
-          <path d="M0 0 L40 40 M40 0 L0 40" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" fill="none"/>
-          <circle cx="20" cy="20" r="7" stroke="rgba(255,255,255,0.08)" stroke-width="0.75" fill="none"/>
+        <pattern id="islamicPat_${certId}" width="44" height="44" patternUnits="userSpaceOnUse">
+          <path d="M22 0 L44 22 L22 44 L0 22 Z" stroke="rgba(255,255,255,0.12)" stroke-width="0.75" fill="none"/>
+          <path d="M0 0 L44 44 M44 0 L0 44" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" fill="none"/>
+          <circle cx="22" cy="22" r="8" stroke="rgba(255,255,255,0.08)" stroke-width="0.75" fill="none"/>
         </pattern>
         <linearGradient id="goldGrad1_${certId}" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#b38728"/>
-          <stop offset="30%" stop-color="#fbf5b7"/>
+          <stop offset="25%" stop-color="#fbf5b7"/>
           <stop offset="50%" stop-color="#d4af37"/>
           <stop offset="85%" stop-color="#aa771c"/>
         </linearGradient>
@@ -7254,48 +7254,35 @@ ${pagesHtml}
         </linearGradient>
       </defs>
 
-      <!-- Emerald green background with curve -->
-      <path d="M 0,0 L 160,0 C 120,240 120,500 160,740 L 0,740 Z" fill="#043d2e"/>
-      <path d="M 0,0 L 160,0 C 120,240 120,500 160,740 L 0,740 Z" fill="url(#islamicPat_${certId})"/>
+      <!-- Main Green Shape with dynamic curve -->
+      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="#043d2e"/>
+      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="url(#islamicPat_${certId})"/>
 
-      <!-- Gold ribbon along the curve -->
-      <path d="M 160,0 C 120,240 120,500 160,740" stroke="url(#goldGrad1_${certId})" stroke-width="4" fill="none"/>
-      <path d="M 164,0 C 124,240 124,500 164,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
+      <!-- Smooth Gold Ribbon along Curve -->
+      <path d="M 130,0 C 95,220 105,480 250,740" stroke="url(#goldGrad1_${certId})" stroke-width="4.5" fill="none"/>
+      <path d="M 135,0 C 100,220 110,480 255,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
 
-      <!-- Angular Gold Polygons Top Left -->
-      <polygon points="0,0 110,0 0,165" fill="url(#goldGrad1_${certId})"/>
-      <polygon points="0,0 65,0 0,98" fill="url(#goldGrad2_${certId})"/>
-      <polygon points="0,110 170,0 185,0 0,225" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
+      <!-- Top-Left Gold Layered Polygons -->
+      <polygon points="0,0 90,0 0,140" fill="url(#goldGrad1_${certId})"/>
+      <polygon points="0,0 50,0 0,80" fill="url(#goldGrad2_${certId})"/>
+      <polygon points="0,95 145,0 160,0 0,205" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
 
-      <!-- Angular Gold Polygons Bottom Left -->
-      <polygon points="0,575 185,740 170,740 0,630" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
-      <polygon points="0,640 110,740 0,740" fill="url(#goldGrad1_${certId})"/>
+      <!-- Bottom-Left Gold Layered Polygons -->
+      <polygon points="0,520 270,740 250,740 0,590" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
+      <polygon points="0,610 160,740 0,740" fill="url(#goldGrad1_${certId})"/>
+      <polygon points="0,670 90,740 0,740" fill="url(#goldGrad2_${certId})"/>
     </svg>
   </div>
 
   <!-- CERTIFICATE MAIN CONTENT -->
   <div class="cert-content">
 
-    <!-- TOP HEADER ROW -->
+    <!-- TOP HEADER -->
     <div class="cert-header">
-      <!-- Left: Mosque Logo Box + Madrasa Name & Place -->
+      <!-- Left: Logo + Madrasa Details -->
       <div class="cert-logo-section">
-        <div class="cert-logo-box">
-          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-            <path d="M 17 4 C 15 4 13.5 6 13.5 8 C 13.5 10 15 12 17 12 C 19 12 20.5 10 20.5 8 C 20.5 6 19 4 17 4 Z" fill="#064e3b"/>
-            <path d="M 17 2 L 17 4" stroke="#064e3b" stroke-width="1.2"/>
-            <circle cx="17" cy="2" r="0.8" fill="#064e3b"/>
-            <path d="M 11 15 C 11 9 14 7 17 7 C 20 7 23 9 23 15 Z" fill="#064e3b"/>
-            <rect x="9" y="15" width="16" height="10" fill="#064e3b"/>
-            <path d="M 15 25 L 15 19 C 15 17.5 19 17.5 19 19 L 19 25 Z" fill="#ffffff"/>
-            <rect x="5" y="10" width="3" height="15" fill="#064e3b"/>
-            <path d="M 5 10 L 6.5 6 L 8 10 Z" fill="#064e3b"/>
-            <rect x="26" y="10" width="3" height="15" fill="#064e3b"/>
-            <path d="M 26 10 L 27.5 6 L 29 10 Z" fill="#064e3b"/>
-            <path d="M 18 10.5 C 17 10.5 16 11.5 16 12.5 C 16 13.5 17 14.5 18 14.5 C 17.2 14.5 16.5 13.7 16.5 12.5 C 16.5 11.3 17.2 10.5 18 10.5 Z" fill="#ffffff"/>
-          </svg>
-          <div class="cert-logo-label">MILAD FEST</div>
-        </div>
+        <img src="${logoUrl}" alt="Milad Fest" class="cert-app-logo" />
+        <div class="cert-divider-v"></div>
         <div class="cert-org-details">
           <div class="cert-madrasa-name">${madrasaNameText}</div>
           <div class="cert-madrasa-place">${madrasaPlaceText}</div>
@@ -7326,16 +7313,16 @@ ${pagesHtml}
       </div>
     </div>
 
-    <!-- STUDENT NAME + PRIZE BADGE ROW -->
-    <div class="cert-student-row">
+    <!-- MIDDLE BODY: Student Name & Right Prize Medal -->
+    <div class="cert-middle-body">
       <div class="cert-student-area">
         <div class="cert-student-name">${student.name}</div>
         <div class="cert-student-underline"></div>
       </div>
 
-      <!-- Golden Prize Badge Medal -->
-      <div class="cert-prize-badge">
-        <svg width="115" height="135" viewBox="0 0 115 135" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Golden Prize Badge Medal on Right -->
+      <div class="cert-prize-badge-abs">
+        <svg width="125" height="150" viewBox="0 0 125 150" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <radialGradient id="medalGrad_${certId}" cx="45%" cy="35%" r="65%">
               <stop offset="0%" stop-color="#fff6cc"/>
@@ -7344,45 +7331,45 @@ ${pagesHtml}
               <stop offset="100%" stop-color="#8a6310"/>
             </radialGradient>
             <filter id="badgeShadow_${certId}" x="-20%" y="-10%" width="140%" height="130%">
-              <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.25)"/>
+              <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
             </filter>
           </defs>
           <g filter="url(#badgeShadow_${certId})">
             <!-- Hanging Ribbons -->
-            <path d="M 38 88 L 30 130 L 46 118 L 57 132 L 57 88 Z" fill="${prizeRibbonColor}"/>
-            <path d="M 77 88 L 85 130 L 69 118 L 58 132 L 58 88 Z" fill="${prizeRibbonColor}"/>
-            <path d="M 38 88 L 30 130 L 37 127 L 44 88 Z" fill="rgba(255,255,255,0.22)"/>
-            <path d="M 77 88 L 85 130 L 78 127 L 71 88 Z" fill="rgba(255,255,255,0.22)"/>
-            <!-- Laurel leaves -->
-            <path d="M 57 90 C 20 76, 6 48, 19 28 C 26 14, 41 11, 47 20 C 36 26, 29 42, 38 57 C 43 67, 52 74, 57 80 Z" fill="${prizeMedalColor}" opacity="0.9"/>
-            <path d="M 58 90 C 95 76, 109 48, 96 28 C 89 14, 74 11, 68 20 C 79 26, 86 42, 77 57 C 72 67, 63 74, 58 80 Z" fill="${prizeMedalColor}" opacity="0.9"/>
-            <!-- Stars on leaves -->
-            <circle cx="21" cy="27" r="3" fill="#e5b838"/><circle cx="94" cy="27" r="3" fill="#e5b838"/>
-            <circle cx="13" cy="50" r="2.5" fill="#e5b838" opacity="0.8"/><circle cx="102" cy="50" r="2.5" fill="#e5b838" opacity="0.8"/>
-            <!-- Medal circle -->
-            <circle cx="57.5" cy="55" r="38" fill="url(#medalGrad_${certId})" stroke="#8a6310" stroke-width="1.5"/>
-            <circle cx="57.5" cy="55" r="34" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.8"/>
-            <circle cx="57.5" cy="55" r="30" fill="url(#medalGrad_${certId})"/>
+            <path d="M 42 98 L 32 145 L 50 132 L 62 147 L 62 98 Z" fill="${prizeRibbonColor}"/>
+            <path d="M 83 98 L 93 145 L 75 132 L 63 147 L 63 98 Z" fill="${prizeRibbonColor}"/>
+            <path d="M 42 98 L 32 145 L 40 142 L 48 98 Z" fill="rgba(255,255,255,0.22)"/>
+            <path d="M 83 98 L 93 145 L 85 142 L 77 98 Z" fill="rgba(255,255,255,0.22)"/>
+            <!-- Laurel Wreath Leaves -->
+            <path d="M 62.5 100 C 22 84, 7 53, 21 31 C 29 16, 45 12, 52 22 C 40 29, 32 46, 42 63 C 47 74, 57 82, 62.5 89 Z" fill="${prizeMedalColor}" opacity="0.95"/>
+            <path d="M 62.5 100 C 103 84, 118 53, 104 31 C 96 16, 80 12, 73 22 C 85 29, 93 46, 83 63 C 78 74, 68 82, 62.5 89 Z" fill="${prizeMedalColor}" opacity="0.95"/>
+            <!-- Stars on Wreath -->
+            <circle cx="23" cy="30" r="3.2" fill="#e5b838"/><circle cx="102" cy="30" r="3.2" fill="#e5b838"/>
+            <circle cx="14" cy="55" r="2.8" fill="#e5b838" opacity="0.85"/><circle cx="111" cy="55" r="2.8" fill="#e5b838" opacity="0.85"/>
+            <!-- Medal Circle -->
+            <circle cx="62.5" cy="61" r="42" fill="url(#medalGrad_${certId})" stroke="#8a6310" stroke-width="1.5"/>
+            <circle cx="62.5" cy="61" r="37.5" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.85"/>
+            <circle cx="62.5" cy="61" r="33" fill="url(#medalGrad_${certId})"/>
             <!-- 5 Stars at top -->
-            <text x="57.5" y="36" text-anchor="middle" fill="#064e3b" font-size="6" letter-spacing="2.5">★★★★★</text>
+            <text x="62.5" y="40" text-anchor="middle" fill="#064e3b" font-size="7" letter-spacing="2.5">★★★★★</text>
             <!-- Prize Number + Ordinal -->
-            <text x="51" y="59" text-anchor="middle" fill="#064e3b" font-family="'Inter', Georgia, serif" font-weight="900" font-size="28">${prizeNum}</text>
-            <text x="68" y="48" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="11">${prizeOrd}</text>
+            <text x="55" y="65" text-anchor="middle" fill="#064e3b" font-family="'Inter', Georgia, serif" font-weight="900" font-size="30">${prizeNum}</text>
+            <text x="74" y="53" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="12">${prizeOrd}</text>
             <!-- PRIZE text -->
-            <text x="57.5" y="72" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="9" letter-spacing="1.5">PRIZE</text>
+            <text x="62.5" y="79" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="10" letter-spacing="1.5">PRIZE</text>
           </g>
         </svg>
       </div>
+
+      <!-- Description -->
+      <div class="cert-description">
+        in recognition of securing <strong class="cert-highlight-green">${prizeText}</strong> in the
+        <strong class="cert-highlight-dark">${progAndCatText}</strong> competition at the <strong class="cert-highlight-dark">${eventAndYearText}</strong>.<br>
+        Your dedication have earned you this distinguished achievement.
+      </div>
     </div>
 
-    <!-- RECOGNITION DESCRIPTION -->
-    <div class="cert-description">
-      in recognition of securing <strong class="cert-highlight-green">${prizeText}</strong> in the
-      <strong class="cert-highlight-dark">${progAndCatText}</strong> competition at the <strong class="cert-highlight-dark">${eventAndYearText}</strong>.<br>
-      Your dedication have earned you this distinguished achievement.
-    </div>
-
-    <!-- SIGNATURES AND CENTER EMBLEM -->
+    <!-- SIGNATURES -->
     <div class="cert-signatures">
       <div class="cert-sign-col">
         <div class="cert-sign-name">${coordinatorConvener || ''}</div>
@@ -7469,12 +7456,10 @@ ${pagesHtml}
 
   .certificate-wrapper {
     position: relative;
-    background: #ffffff;
-    overflow: hidden;
-    display: flex;
-    flex-direction: row;
     width: 1050px;
     height: 740px;
+    background: #ffffff;
+    overflow: hidden;
   }
 
   /* Outer fine gold border */
@@ -7484,114 +7469,124 @@ ${pagesHtml}
     left: 14px;
     right: 14px;
     bottom: 14px;
-    border: 1.5px solid #d4af37;
+    border: 1.5px solid #c8a038;
     pointer-events: none;
     z-index: 10;
-    border-radius: 2px;
   }
 
+  /* Left Banner SVG Container */
   .cert-left-banner {
-    position: relative;
-    flex-shrink: 0;
-    width: 240px;
-    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 740px;
     pointer-events: none;
     z-index: 1;
   }
-  .cert-left-banner svg { display: block; width: 240px; height: 100%; }
+  .cert-left-banner svg {
+    width: 320px;
+    height: 740px;
+    display: block;
+  }
 
+  /* Main Certificate Content */
   .cert-content {
     position: relative;
     z-index: 2;
-    padding: 34px 44px 30px 20px;
-    flex: 1;
+    width: 100%;
+    height: 100%;
+    padding: 40px 50px 35px 50px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: #ffffff;
   }
 
-  /* HEADER */
-  .cert-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
-  .cert-logo-section { display: flex; align-items: center; gap: 14px; }
-  .cert-logo-box {
-    border: 2px solid #064e3b;
+  /* Header */
+  .cert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-left: 130px;
+  }
+  .cert-logo-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .cert-app-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
     border-radius: 12px;
-    padding: 6px 8px;
+  }
+  .cert-divider-v {
+    width: 2px;
+    height: 56px;
+    background: #064e3b;
+    opacity: 0.8;
+  }
+  .cert-org-details {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 62px;
-    height: 62px;
-    box-sizing: border-box;
-    background: #ffffff;
   }
-  .cert-logo-label {
-    font-size: 6.5px;
-    font-weight: 900;
-    color: #064e3b;
-    letter-spacing: 0.8px;
-    margin-top: 2px;
-    font-family: 'Inter', sans-serif;
-  }
-  .cert-org-details { display: flex; flex-direction: column; }
   .cert-madrasa-name {
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 900;
     color: #064e3b;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     line-height: 1.15;
-    font-family: 'Inter', sans-serif;
   }
   .cert-madrasa-place {
     font-size: 15px;
     font-weight: 800;
     color: #064e3b;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     margin-top: 3px;
-    font-family: 'Inter', sans-serif;
   }
-  .cert-event-section { text-align: center; }
+  .cert-event-section {
+    text-align: center;
+    padding-right: 20px;
+  }
   .cert-event-name {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     color: #064e3b;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 1px;
     line-height: 1.15;
-    font-family: 'Inter', sans-serif;
   }
   .cert-event-sub {
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: #475569;
     letter-spacing: 0.5px;
     margin-top: 3px;
-    font-family: 'Inter', sans-serif;
   }
 
-  /* CERTIFICATE TITLE */
-  .cert-title-area { text-align: center; margin-top: 4px; }
+  /* Center Title */
+  .cert-title-area {
+    text-align: center;
+    margin-top: 6px;
+  }
   .cert-main-title {
-    font-size: 58px;
+    font-size: 64px;
     font-weight: 900;
     color: #064e3b;
-    letter-spacing: 6px;
+    letter-spacing: 8px;
     line-height: 1;
-    font-family: 'Inter', sans-serif;
   }
   .cert-of-excellence {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    margin-top: 6px;
+    gap: 20px;
+    margin-top: 8px;
   }
   .cert-gold-line {
-    width: 70px;
+    width: 90px;
     height: 1.5px;
     background: linear-gradient(90deg, transparent, #c59b27);
   }
@@ -7599,78 +7594,85 @@ ${pagesHtml}
     background: linear-gradient(90deg, #c59b27, transparent);
   }
   .cert-oe-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     color: #c59b27;
-    letter-spacing: 6px;
-    font-family: 'Inter', sans-serif;
+    letter-spacing: 8px;
   }
 
-  /* GREEN PILL BANNER */
-  .cert-pill-banner-container { display: flex; justify-content: center; margin-top: 14px; }
+  /* Green Pill Ribbon */
+  .cert-pill-banner-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+  }
   .cert-pill-badge {
     background: #064e3b;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    padding: 8px 30px;
+    padding: 8px 36px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     clip-path: polygon(14px 0%, calc(100% - 14px) 0%, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0% 50%);
-    box-shadow: 0 3px 10px rgba(6,78,59,0.25);
-    font-family: 'Inter', sans-serif;
+    box-shadow: 0 4px 12px rgba(6,78,59,0.3);
   }
 
-  /* STUDENT ROW */
-  .cert-student-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 10px;
-    padding: 0 10px;
+  /* Middle Body: Student Name & Prize Badge */
+  .cert-middle-body {
+    position: relative;
+    margin-top: 8px;
   }
-  .cert-student-area { flex: 1; text-align: center; padding-left: 90px; }
+  .cert-student-area {
+    text-align: center;
+  }
   .cert-student-name {
-    font-size: 52px;
+    font-size: 56px;
     font-weight: 500;
     color: #064e3b;
     font-family: 'Great Vibes', 'Alex Brush', 'Dancing Script', cursive;
     line-height: 1.15;
   }
   .cert-student-underline {
-    width: 75%;
+    width: 440px;
     height: 1.5px;
     background: linear-gradient(90deg, transparent, #c59b27 20%, #064e3b 50%, #c59b27 80%, transparent);
     margin: 6px auto 0;
   }
-  .cert-prize-badge { flex-shrink: 0; margin-right: 15px; }
 
-  /* DESCRIPTION */
+  /* Prize Badge on right side */
+  .cert-prize-badge-abs {
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* Description */
   .cert-description {
     text-align: center;
-    font-size: 13.5px;
+    font-size: 14px;
     color: #334155;
-    line-height: 1.65;
-    max-width: 640px;
-    margin: 10px auto 0;
-    font-family: 'Inter', sans-serif;
+    line-height: 1.7;
+    max-width: 660px;
+    margin: 14px auto 0;
   }
   .cert-highlight-green { font-weight: 800; color: #064e3b; }
   .cert-highlight-dark { font-weight: 800; color: #0f172a; }
 
-  /* SIGNATURES */
+  /* Signatures */
   .cert-signatures {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 30px;
-    margin-top: 24px;
+    padding: 0 50px;
+    margin-top: 15px;
   }
   .cert-sign-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 180px;
+    min-width: 200px;
     text-align: center;
   }
   .cert-sign-name {
@@ -7682,20 +7684,18 @@ ${pagesHtml}
     align-items: flex-end;
     justify-content: center;
     padding-bottom: 3px;
-    font-family: 'Inter', sans-serif;
   }
   .cert-sign-line {
-    width: 180px;
+    width: 200px;
     height: 1.5px;
     background-color: #334155;
     margin-bottom: 6px;
   }
   .cert-sign-label {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
     color: #475569;
     letter-spacing: 0.3px;
-    font-family: 'Inter', sans-serif;
   }
   .cert-center-emblem { display: flex; align-items: center; justify-content: center; }
 </style>
@@ -18804,7 +18804,7 @@ ${pagesHtml}
         </div>
       )}
 
-            {/* 📜 INLINE CERTIFICATE PREVIEW MODAL */}
+                  {/* 📜 INLINE CERTIFICATE PREVIEW MODAL */}
       {activeCertificate && (() => {
         const { student, result } = activeCertificate;
         const sRegNo = student.regno || student.regNo || '';
@@ -18907,8 +18907,6 @@ ${pagesHtml}
     position: relative;
     background: #ffffff;
     overflow: hidden;
-    display: flex;
-    flex-direction: row;
   }
   .cert-outer-border {
     position: absolute;
@@ -18916,108 +18914,116 @@ ${pagesHtml}
     left: 14px;
     right: 14px;
     bottom: 14px;
-    border: 1.5px solid #d4af37;
+    border: 1.5px solid #c8a038;
     pointer-events: none;
     z-index: 10;
-    border-radius: 2px;
   }
   .cert-left-banner {
-    position: relative;
-    flex-shrink: 0;
-    width: 240px;
-    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 740px;
     pointer-events: none;
     z-index: 1;
   }
-  .cert-left-banner svg { display: block; width: 240px; height: 100%; }
+  .cert-left-banner svg {
+    width: 320px;
+    height: 740px;
+    display: block;
+  }
   .cert-content {
     position: relative;
     z-index: 2;
-    padding: 34px 44px 30px 20px;
-    flex: 1;
+    width: 100%;
+    height: 100%;
+    padding: 40px 50px 35px 50px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: #ffffff;
   }
-  .cert-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
-  .cert-logo-section { display: flex; align-items: center; gap: 14px; }
-  .cert-logo-box {
-    border: 2px solid #064e3b;
+  .cert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-left: 130px;
+  }
+  .cert-logo-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .cert-app-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
     border-radius: 12px;
-    padding: 6px 8px;
+  }
+  .cert-divider-v {
+    width: 2px;
+    height: 56px;
+    background: #064e3b;
+    opacity: 0.8;
+  }
+  .cert-org-details {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 62px;
-    height: 62px;
-    box-sizing: border-box;
-    background: #ffffff;
   }
-  .cert-logo-label {
-    font-size: 6.5px;
-    font-weight: 900;
-    color: #064e3b;
-    letter-spacing: 0.8px;
-    margin-top: 2px;
-    font-family: 'Inter', sans-serif;
-  }
-  .cert-org-details { display: flex; flex-direction: column; }
   .cert-madrasa-name {
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 900;
     color: #064e3b;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     line-height: 1.15;
-    font-family: 'Inter', sans-serif;
   }
   .cert-madrasa-place {
     font-size: 15px;
     font-weight: 800;
     color: #064e3b;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     margin-top: 3px;
-    font-family: 'Inter', sans-serif;
   }
-  .cert-event-section { text-align: center; }
+  .cert-event-section {
+    text-align: center;
+    padding-right: 20px;
+  }
   .cert-event-name {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     color: #064e3b;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 1px;
     line-height: 1.15;
-    font-family: 'Inter', sans-serif;
   }
   .cert-event-sub {
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: #475569;
     letter-spacing: 0.5px;
     margin-top: 3px;
-    font-family: 'Inter', sans-serif;
   }
-  .cert-title-area { text-align: center; margin-top: 4px; }
+  .cert-title-area {
+    text-align: center;
+    margin-top: 6px;
+  }
   .cert-main-title {
-    font-size: 58px;
+    font-size: 64px;
     font-weight: 900;
     color: #064e3b;
-    letter-spacing: 6px;
+    letter-spacing: 8px;
     line-height: 1;
-    font-family: 'Inter', sans-serif;
   }
   .cert-of-excellence {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    margin-top: 6px;
+    gap: 20px;
+    margin-top: 8px;
   }
   .cert-gold-line {
-    width: 70px;
+    width: 90px;
     height: 1.5px;
     background: linear-gradient(90deg, transparent, #c59b27);
   }
@@ -19025,55 +19031,60 @@ ${pagesHtml}
     background: linear-gradient(90deg, #c59b27, transparent);
   }
   .cert-oe-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     color: #c59b27;
-    letter-spacing: 6px;
-    font-family: 'Inter', sans-serif;
+    letter-spacing: 8px;
   }
-  .cert-pill-banner-container { display: flex; justify-content: center; margin-top: 14px; }
+  .cert-pill-banner-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+  }
   .cert-pill-badge {
     background: #064e3b;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    padding: 8px 30px;
+    padding: 8px 36px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     clip-path: polygon(14px 0%, calc(100% - 14px) 0%, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0% 50%);
-    box-shadow: 0 3px 10px rgba(6,78,59,0.25);
-    font-family: 'Inter', sans-serif;
+    box-shadow: 0 4px 12px rgba(6,78,59,0.3);
   }
-  .cert-student-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 10px;
-    padding: 0 10px;
+  .cert-middle-body {
+    position: relative;
+    margin-top: 8px;
   }
-  .cert-student-area { flex: 1; text-align: center; padding-left: 90px; }
+  .cert-student-area {
+    text-align: center;
+  }
   .cert-student-name {
-    font-size: 52px;
+    font-size: 56px;
     font-weight: 500;
     color: #064e3b;
     font-family: 'Great Vibes', 'Alex Brush', 'Dancing Script', cursive;
     line-height: 1.15;
   }
   .cert-student-underline {
-    width: 75%;
+    width: 440px;
     height: 1.5px;
     background: linear-gradient(90deg, transparent, #c59b27 20%, #064e3b 50%, #c59b27 80%, transparent);
     margin: 6px auto 0;
   }
-  .cert-prize-badge { flex-shrink: 0; margin-right: 15px; }
+  .cert-prize-badge-abs {
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
   .cert-description {
     text-align: center;
-    font-size: 13.5px;
+    font-size: 14px;
     color: #334155;
-    line-height: 1.65;
-    max-width: 640px;
-    margin: 10px auto 0;
-    font-family: 'Inter', sans-serif;
+    line-height: 1.7;
+    max-width: 660px;
+    margin: 14px auto 0;
   }
   .cert-highlight-green { font-weight: 800; color: #064e3b; }
   .cert-highlight-dark { font-weight: 800; color: #0f172a; }
@@ -19081,14 +19092,14 @@ ${pagesHtml}
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 30px;
-    margin-top: 24px;
+    padding: 0 50px;
+    margin-top: 15px;
   }
   .cert-sign-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 180px;
+    min-width: 200px;
     text-align: center;
   }
   .cert-sign-name {
@@ -19100,20 +19111,18 @@ ${pagesHtml}
     align-items: flex-end;
     justify-content: center;
     padding-bottom: 3px;
-    font-family: 'Inter', sans-serif;
   }
   .cert-sign-line {
-    width: 180px;
+    width: 200px;
     height: 1.5px;
     background-color: #334155;
     margin-bottom: 6px;
   }
   .cert-sign-label {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
     color: #475569;
     letter-spacing: 0.3px;
-    font-family: 'Inter', sans-serif;
   }
   .cert-center-emblem { display: flex; align-items: center; justify-content: center; }
 </style>
@@ -19122,18 +19131,18 @@ ${pagesHtml}
 <div class="certificate-wrapper" id="certificateArea">
   <div class="cert-outer-border"></div>
 
-  <!-- LEFT SIDE: Dark green + gold geometric diagonal design -->
+  <!-- LEFT SIDE: Dark green + gold diagonal geometric design -->
   <div class="cert-left-banner">
-    <svg width="240" height="740" viewBox="0 0 240 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="320" height="740" viewBox="0 0 320 740" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <pattern id="islamicPat_single" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M20 0 L40 20 L20 40 L0 20 Z" stroke="rgba(255,255,255,0.12)" stroke-width="0.75" fill="none"/>
-          <path d="M0 0 L40 40 M40 0 L0 40" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" fill="none"/>
-          <circle cx="20" cy="20" r="7" stroke="rgba(255,255,255,0.08)" stroke-width="0.75" fill="none"/>
+        <pattern id="islamicPat_single" width="44" height="44" patternUnits="userSpaceOnUse">
+          <path d="M22 0 L44 22 L22 44 L0 22 Z" stroke="rgba(255,255,255,0.12)" stroke-width="0.75" fill="none"/>
+          <path d="M0 0 L44 44 M44 0 L0 44" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" fill="none"/>
+          <circle cx="22" cy="22" r="8" stroke="rgba(255,255,255,0.08)" stroke-width="0.75" fill="none"/>
         </pattern>
         <linearGradient id="goldGrad1_single" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#b38728"/>
-          <stop offset="30%" stop-color="#fbf5b7"/>
+          <stop offset="25%" stop-color="#fbf5b7"/>
           <stop offset="50%" stop-color="#d4af37"/>
           <stop offset="85%" stop-color="#aa771c"/>
         </linearGradient>
@@ -19144,18 +19153,19 @@ ${pagesHtml}
         </linearGradient>
       </defs>
 
-      <path d="M 0,0 L 160,0 C 120,240 120,500 160,740 L 0,740 Z" fill="#043d2e"/>
-      <path d="M 0,0 L 160,0 C 120,240 120,500 160,740 L 0,740 Z" fill="url(#islamicPat_single)"/>
+      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="#043d2e"/>
+      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="url(#islamicPat_single)"/>
 
-      <path d="M 160,0 C 120,240 120,500 160,740" stroke="url(#goldGrad1_single)" stroke-width="4" fill="none"/>
-      <path d="M 164,0 C 124,240 124,500 164,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
+      <path d="M 130,0 C 95,220 105,480 250,740" stroke="url(#goldGrad1_single)" stroke-width="4.5" fill="none"/>
+      <path d="M 135,0 C 100,220 110,480 255,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
 
-      <polygon points="0,0 110,0 0,165" fill="url(#goldGrad1_single)"/>
-      <polygon points="0,0 65,0 0,98" fill="url(#goldGrad2_single)"/>
-      <polygon points="0,110 170,0 185,0 0,225" fill="url(#goldGrad2_single)" opacity="0.85"/>
+      <polygon points="0,0 90,0 0,140" fill="url(#goldGrad1_single)"/>
+      <polygon points="0,0 50,0 0,80" fill="url(#goldGrad2_single)"/>
+      <polygon points="0,95 145,0 160,0 0,205" fill="url(#goldGrad2_single)" opacity="0.85"/>
 
-      <polygon points="0,575 185,740 170,740 0,630" fill="url(#goldGrad2_single)" opacity="0.85"/>
-      <polygon points="0,640 110,740 0,740" fill="url(#goldGrad1_single)"/>
+      <polygon points="0,520 270,740 250,740 0,590" fill="url(#goldGrad2_single)" opacity="0.85"/>
+      <polygon points="0,610 160,740 0,740" fill="url(#goldGrad1_single)"/>
+      <polygon points="0,670 90,740 0,740" fill="url(#goldGrad2_single)"/>
     </svg>
   </div>
 
@@ -19163,22 +19173,8 @@ ${pagesHtml}
   <div class="cert-content">
     <div class="cert-header">
       <div class="cert-logo-section">
-        <div class="cert-logo-box">
-          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-            <path d="M 17 4 C 15 4 13.5 6 13.5 8 C 13.5 10 15 12 17 12 C 19 12 20.5 10 20.5 8 C 20.5 6 19 4 17 4 Z" fill="#064e3b"/>
-            <path d="M 17 2 L 17 4" stroke="#064e3b" stroke-width="1.2"/>
-            <circle cx="17" cy="2" r="0.8" fill="#064e3b"/>
-            <path d="M 11 15 C 11 9 14 7 17 7 C 20 7 23 9 23 15 Z" fill="#064e3b"/>
-            <rect x="9" y="15" width="16" height="10" fill="#064e3b"/>
-            <path d="M 15 25 L 15 19 C 15 17.5 19 17.5 19 19 L 19 25 Z" fill="#ffffff"/>
-            <rect x="5" y="10" width="3" height="15" fill="#064e3b"/>
-            <path d="M 5 10 L 6.5 6 L 8 10 Z" fill="#064e3b"/>
-            <rect x="26" y="10" width="3" height="15" fill="#064e3b"/>
-            <path d="M 26 10 L 27.5 6 L 29 10 Z" fill="#064e3b"/>
-            <path d="M 18 10.5 C 17 10.5 16 11.5 16 12.5 C 16 13.5 17 14.5 18 14.5 C 17.2 14.5 16.5 13.7 16.5 12.5 C 16.5 11.3 17.2 10.5 18 10.5 Z" fill="#ffffff"/>
-          </svg>
-          <div class="cert-logo-label">MILAD FEST</div>
-        </div>
+        <img src="${logoUrl}" alt="Milad Fest" class="cert-app-logo" />
+        <div class="cert-divider-v"></div>
         <div class="cert-org-details">
           <div class="cert-madrasa-name">${madrasaName}</div>
           <div class="cert-madrasa-place">${madrasaPlace}</div>
@@ -19206,14 +19202,14 @@ ${pagesHtml}
       </div>
     </div>
 
-    <div class="cert-student-row">
+    <div class="cert-middle-body">
       <div class="cert-student-area">
         <div class="cert-student-name">${student.name}</div>
         <div class="cert-student-underline"></div>
       </div>
 
-      <div class="cert-prize-badge">
-        <svg width="115" height="135" viewBox="0 0 115 135" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div class="cert-prize-badge-abs">
+        <svg width="125" height="150" viewBox="0 0 125 150" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <radialGradient id="medalGrad_single" cx="45%" cy="35%" r="65%">
               <stop offset="0%" stop-color="#fff6cc"/>
@@ -19222,34 +19218,34 @@ ${pagesHtml}
               <stop offset="100%" stop-color="#8a6310"/>
             </radialGradient>
             <filter id="badgeShadow_single" x="-20%" y="-10%" width="140%" height="130%">
-              <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.25)"/>
+              <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
             </filter>
           </defs>
           <g filter="url(#badgeShadow_single)">
-            <path d="M 38 88 L 30 130 L 46 118 L 57 132 L 57 88 Z" fill="${prizeRibbonColor}"/>
-            <path d="M 77 88 L 85 130 L 69 118 L 58 132 L 58 88 Z" fill="${prizeRibbonColor}"/>
-            <path d="M 38 88 L 30 130 L 37 127 L 44 88 Z" fill="rgba(255,255,255,0.22)"/>
-            <path d="M 77 88 L 85 130 L 78 127 L 71 88 Z" fill="rgba(255,255,255,0.22)"/>
-            <path d="M 57 90 C 20 76, 6 48, 19 28 C 26 14, 41 11, 47 20 C 36 26, 29 42, 38 57 C 43 67, 52 74, 57 80 Z" fill="${prizeMedalColor}" opacity="0.9"/>
-            <path d="M 58 90 C 95 76, 109 48, 96 28 C 89 14, 74 11, 68 20 C 79 26, 86 42, 77 57 C 72 67, 63 74, 58 80 Z" fill="${prizeMedalColor}" opacity="0.9"/>
-            <circle cx="21" cy="27" r="3" fill="#e5b838"/><circle cx="94" cy="27" r="3" fill="#e5b838"/>
-            <circle cx="13" cy="50" r="2.5" fill="#e5b838" opacity="0.8"/><circle cx="102" cy="50" r="2.5" fill="#e5b838" opacity="0.8"/>
-            <circle cx="57.5" cy="55" r="38" fill="url(#medalGrad_single)" stroke="#8a6310" stroke-width="1.5"/>
-            <circle cx="57.5" cy="55" r="34" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.8"/>
-            <circle cx="57.5" cy="55" r="30" fill="url(#medalGrad_single)"/>
-            <text x="57.5" y="36" text-anchor="middle" fill="#064e3b" font-size="6" letter-spacing="2.5">★★★★★</text>
-            <text x="51" y="59" text-anchor="middle" fill="#064e3b" font-family="'Inter', Georgia, serif" font-weight="900" font-size="28">${prizeNum}</text>
-            <text x="68" y="48" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="11">${prizeOrd}</text>
-            <text x="57.5" y="72" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="9" letter-spacing="1.5">PRIZE</text>
+            <path d="M 42 98 L 32 145 L 50 132 L 62 147 L 62 98 Z" fill="${prizeRibbonColor}"/>
+            <path d="M 83 98 L 93 145 L 75 132 L 63 147 L 63 98 Z" fill="${prizeRibbonColor}"/>
+            <path d="M 42 98 L 32 145 L 40 142 L 48 98 Z" fill="rgba(255,255,255,0.22)"/>
+            <path d="M 83 98 L 93 145 L 85 142 L 77 98 Z" fill="rgba(255,255,255,0.22)"/>
+            <path d="M 62.5 100 C 22 84, 7 53, 21 31 C 29 16, 45 12, 52 22 C 40 29, 32 46, 42 63 C 47 74, 57 82, 62.5 89 Z" fill="${prizeMedalColor}" opacity="0.95"/>
+            <path d="M 62.5 100 C 103 84, 118 53, 104 31 C 96 16, 80 12, 73 22 C 85 29, 93 46, 83 63 C 78 74, 68 82, 62.5 89 Z" fill="${prizeMedalColor}" opacity="0.95"/>
+            <circle cx="23" cy="30" r="3.2" fill="#e5b838"/><circle cx="102" cy="30" r="3.2" fill="#e5b838"/>
+            <circle cx="14" cy="55" r="2.8" fill="#e5b838" opacity="0.85"/><circle cx="111" cy="55" r="2.8" fill="#e5b838" opacity="0.85"/>
+            <circle cx="62.5" cy="61" r="42" fill="url(#medalGrad_single)" stroke="#8a6310" stroke-width="1.5"/>
+            <circle cx="62.5" cy="61" r="37.5" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.85"/>
+            <circle cx="62.5" cy="61" r="33" fill="url(#medalGrad_single)"/>
+            <text x="62.5" y="40" text-anchor="middle" fill="#064e3b" font-size="7" letter-spacing="2.5">★★★★★</text>
+            <text x="55" y="65" text-anchor="middle" fill="#064e3b" font-family="'Inter', Georgia, serif" font-weight="900" font-size="30">${prizeNum}</text>
+            <text x="74" y="53" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="12">${prizeOrd}</text>
+            <text x="62.5" y="79" text-anchor="middle" fill="#064e3b" font-family="'Inter', sans-serif" font-weight="900" font-size="10" letter-spacing="1.5">PRIZE</text>
           </g>
         </svg>
       </div>
-    </div>
 
-    <div class="cert-description">
-      in recognition of securing <strong class="cert-highlight-green">${prizeText}</strong> in the
-      <strong class="cert-highlight-dark">${progAndCatText}</strong> competition at the <strong class="cert-highlight-dark">${eventAndYearText}</strong>.<br>
-      Your dedication have earned you this distinguished achievement.
+      <div class="cert-description">
+        in recognition of securing <strong class="cert-highlight-green">${prizeText}</strong> in the
+        <strong class="cert-highlight-dark">${progAndCatText}</strong> competition at the <strong class="cert-highlight-dark">${eventAndYearText}</strong>.<br>
+        Your dedication have earned you this distinguished achievement.
+      </div>
     </div>
 
     <div class="cert-signatures">
@@ -19346,9 +19342,7 @@ ${pagesHtml}
                   overflow: 'hidden',
                   transform: 'scale(calc(min(90vw, 1050px) / 1050))',
                   transformOrigin: 'center center',
-                  fontFamily: "'Inter', sans-serif",
-                  display: 'flex',
-                  flexDirection: 'row'
+                  fontFamily: "'Inter', sans-serif"
                 }}
               >
                 {/* Outer Fine Gold Border */}
@@ -19358,24 +19352,23 @@ ${pagesHtml}
                   left: '14px',
                   right: '14px',
                   bottom: '14px',
-                  border: '1.5px solid #d4af37',
+                  border: '1.5px solid #c8a038',
                   pointerEvents: 'none',
-                  zIndex: 10,
-                  borderRadius: '2px'
+                  zIndex: 10
                 }}></div>
 
                 {/* Left Side: Dark Green + Gold Diagonal Geometric Design */}
-                <div style={{ position: 'relative', flexShrink: 0, width: '240px', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
-                  <svg width="240" height="740" viewBox="0 0 240 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '320px', height: '740px', pointerEvents: 'none', zIndex: 1 }}>
+                  <svg width="320" height="740" viewBox="0 0 320 740" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
-                      <pattern id="islamicPat_modal" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <path d="M20 0 L40 20 L20 40 L0 20 Z" stroke="rgba(255,255,255,0.12)" strokeWidth="0.75" fill="none"/>
-                        <path d="M0 0 L40 40 M40 0 L0 40" stroke="rgba(255,255,255,0.06)" strokeWidth="0.75" fill="none"/>
-                        <circle cx="20" cy="20" r="7" stroke="rgba(255,255,255,0.08)" strokeWidth="0.75" fill="none"/>
+                      <pattern id="islamicPat_modal" width="44" height="44" patternUnits="userSpaceOnUse">
+                        <path d="M22 0 L44 22 L22 44 L0 22 Z" stroke="rgba(255,255,255,0.12)" strokeWidth="0.75" fill="none"/>
+                        <path d="M0 0 L44 44 M44 0 L0 44" stroke="rgba(255,255,255,0.06)" strokeWidth="0.75" fill="none"/>
+                        <circle cx="22" cy="22" r="8" stroke="rgba(255,255,255,0.08)" strokeWidth="0.75" fill="none"/>
                       </pattern>
                       <linearGradient id="goldGrad1_modal" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#b38728"/>
-                        <stop offset="30%" stopColor="#fbf5b7"/>
+                        <stop offset="25%" stopColor="#fbf5b7"/>
                         <stop offset="50%" stopColor="#d4af37"/>
                         <stop offset="85%" stopColor="#aa771c"/>
                       </linearGradient>
@@ -19386,18 +19379,19 @@ ${pagesHtml}
                       </linearGradient>
                     </defs>
 
-                    <path d="M 0,0 L 160,0 C 120,240 120,500 160,740 L 0,740 Z" fill="#043d2e"/>
-                    <path d="M 0,0 L 160,0 C 120,240 120,500 160,740 L 0,740 Z" fill="url(#islamicPat_modal)"/>
+                    <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="#043d2e"/>
+                    <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="url(#islamicPat_modal)"/>
 
-                    <path d="M 160,0 C 120,240 120,500 160,740" stroke="url(#goldGrad1_modal)" strokeWidth="4" fill="none"/>
-                    <path d="M 164,0 C 124,240 124,500 164,740" stroke="#d4af37" strokeWidth="1.5" fill="none" opacity="0.4"/>
+                    <path d="M 130,0 C 95,220 105,480 250,740" stroke="url(#goldGrad1_modal)" strokeWidth="4.5" fill="none"/>
+                    <path d="M 135,0 C 100,220 110,480 255,740" stroke="#d4af37" strokeWidth="1.5" fill="none" opacity="0.4"/>
 
-                    <polygon points="0,0 110,0 0,165" fill="url(#goldGrad1_modal)"/>
-                    <polygon points="0,0 65,0 0,98" fill="url(#goldGrad2_modal)"/>
-                    <polygon points="0,110 170,0 185,0 0,225" fill="url(#goldGrad2_modal)" opacity="0.85"/>
+                    <polygon points="0,0 90,0 0,140" fill="url(#goldGrad1_modal)"/>
+                    <polygon points="0,0 50,0 0,80" fill="url(#goldGrad2_modal)"/>
+                    <polygon points="0,95 145,0 160,0 0,205" fill="url(#goldGrad2_modal)" opacity="0.85"/>
 
-                    <polygon points="0,575 185,740 170,740 0,630" fill="url(#goldGrad2_modal)" opacity="0.85"/>
-                    <polygon points="0,640 110,740 0,740" fill="url(#goldGrad1_modal)"/>
+                    <polygon points="0,520 270,740 250,740 0,590" fill="url(#goldGrad2_modal)" opacity="0.85"/>
+                    <polygon points="0,610 160,740 0,740" fill="url(#goldGrad1_modal)"/>
+                    <polygon points="0,670 90,740 0,740" fill="url(#goldGrad2_modal)"/>
                   </svg>
                 </div>
 
@@ -19405,63 +19399,38 @@ ${pagesHtml}
                 <div style={{
                   position: 'relative',
                   zIndex: 2,
-                  padding: '34px 44px 30px 20px',
-                  flex: 1,
+                  width: '100%',
+                  height: '100%',
+                  padding: '40px 50px 35px 50px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  background: '#ffffff'
+                  boxSizing: 'border-box'
                 }}>
                   {/* Top Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{
-                        border: '2px solid #064e3b',
-                        borderRadius: '12px',
-                        padding: '6px 8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '62px',
-                        height: '62px',
-                        boxSizing: 'border-box',
-                        background: '#ffffff'
-                      }}>
-                        <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-                          <path d="M 17 4 C 15 4 13.5 6 13.5 8 C 13.5 10 15 12 17 12 C 19 12 20.5 10 20.5 8 C 20.5 6 19 4 17 4 Z" fill="#064e3b"/>
-                          <path d="M 17 2 L 17 4" stroke="#064e3b" strokeWidth="1.2"/>
-                          <circle cx="17" cy="2" r="0.8" fill="#064e3b"/>
-                          <path d="M 11 15 C 11 9 14 7 17 7 C 20 7 23 9 23 15 Z" fill="#064e3b"/>
-                          <rect x="9" y="15" width="16" height="10" fill="#064e3b"/>
-                          <path d="M 15 25 L 15 19 C 15 17.5 19 17.5 19 19 L 19 25 Z" fill="#ffffff"/>
-                          <rect x="5" y="10" width="3" height="15" fill="#064e3b"/>
-                          <path d="M 5 10 L 6.5 6 L 8 10 Z" fill="#064e3b"/>
-                          <rect x="26" y="10" width="3" height="15" fill="#064e3b"/>
-                          <path d="M 26 10 L 27.5 6 L 29 10 Z" fill="#064e3b"/>
-                          <path d="M 18 10.5 C 17 10.5 16 11.5 16 12.5 C 16 13.5 17 14.5 18 14.5 C 17.2 14.5 16.5 13.7 16.5 12.5 C 16.5 11.3 17.2 10.5 18 10.5 Z" fill="#ffffff"/>
-                        </svg>
-                        <div style={{ fontSize: '6.5px', fontWeight: 900, color: '#064e3b', letterSpacing: '0.8px', marginTop: '2px', fontFamily: "'Inter', sans-serif" }}>MILAD FEST</div>
-                      </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: '130px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <img src={logoUrl} alt="Milad Fest" style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '12px' }} />
+                      <div style={{ width: '2px', height: '56px', background: '#064e3b', opacity: 0.8 }}></div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontSize: '19px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.6px', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>{madrasaName}</div>
-                        <div style={{ fontSize: '15px', fontWeight: 800, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: '3px', fontFamily: "'Inter', sans-serif" }}>{madrasaPlace}</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.8px', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>{madrasaName}</div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.8px', marginTop: '3px', fontFamily: "'Inter', sans-serif" }}>{madrasaPlace}</div>
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '24px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.8px', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>{eventNameText}</div>
-                      <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#475569', letterSpacing: '0.5px', marginTop: '3px', fontFamily: "'Inter', sans-serif" }}>Milad_fest {eventYearText}</div>
+                    <div style={{ textAlign: 'center', paddingRight: '20px' }}>
+                      <div style={{ fontSize: '26px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '1px', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>{eventNameText}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#475569', letterSpacing: '0.5px', marginTop: '3px', fontFamily: "'Inter', sans-serif" }}>Milad_fest {eventYearText}</div>
                     </div>
                   </div>
 
                   {/* Main Title */}
-                  <div style={{ textAlign: 'center', marginTop: '4px' }}>
-                    <div style={{ fontSize: '58px', fontWeight: 900, color: '#064e3b', letterSpacing: '6px', lineHeight: 1, fontFamily: "'Inter', sans-serif" }}>CERTIFICATE</div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '6px' }}>
-                      <div style={{ width: '70px', height: '1.5px', background: 'linear-gradient(90deg, transparent, #c59b27)' }}></div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, color: '#c59b27', letterSpacing: '6px', fontFamily: "'Inter', sans-serif" }}>OF EXCELLENCE</div>
-                      <div style={{ width: '70px', height: '1.5px', background: 'linear-gradient(90deg, #c59b27, transparent)' }}></div>
+                  <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                    <div style={{ fontSize: '64px', fontWeight: 900, color: '#064e3b', letterSpacing: '8px', lineHeight: 1, fontFamily: "'Inter', sans-serif" }}>CERTIFICATE</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', marginTop: '8px' }}>
+                      <div style={{ width: '90px', height: '1.5px', background: 'linear-gradient(90deg, transparent, #c59b27)' }}></div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#c59b27', letterSpacing: '8px', fontFamily: "'Inter', sans-serif" }}>OF EXCELLENCE</div>
+                      <div style={{ width: '90px', height: '1.5px', background: 'linear-gradient(90deg, #c59b27, transparent)' }}></div>
                     </div>
                   </div>
 
@@ -19470,24 +19439,24 @@ ${pagesHtml}
                     <div style={{
                       background: '#064e3b',
                       color: '#ffffff',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       fontWeight: 700,
-                      padding: '8px 30px',
+                      padding: '8px 36px',
                       letterSpacing: '1.5px',
                       textTransform: 'uppercase',
                       clipPath: 'polygon(14px 0%, calc(100% - 14px) 0%, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0% 50%)',
-                      boxShadow: '0 3px 10px rgba(6,78,59,0.25)',
+                      boxShadow: '0 4px 12px rgba(6,78,59,0.3)',
                       fontFamily: "'Inter', sans-serif"
                     }}>
                       THIS CERTIFICATE IS PROUDLY PRESENTED TO
                     </div>
                   </div>
 
-                  {/* Student Name + Prize Badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', padding: '0 10px' }}>
-                    <div style={{ flex: 1, textAlign: 'center', paddingLeft: '90px' }}>
+                  {/* Middle Body: Student Name & Right Prize Medal */}
+                  <div style={{ position: 'relative', marginTop: '8px' }}>
+                    <div style={{ textAlign: 'center' }}>
                       <div style={{
-                        fontSize: '52px',
+                        fontSize: '56px',
                         fontWeight: 500,
                         color: '#064e3b',
                         fontFamily: "'Great Vibes', 'Alex Brush', 'Dancing Script', cursive",
@@ -19496,15 +19465,16 @@ ${pagesHtml}
                         {student.name}
                       </div>
                       <div style={{
-                        width: '75%',
+                        width: '440px',
                         height: '1.5px',
                         background: 'linear-gradient(90deg, transparent, #c59b27 20%, #064e3b 50%, #c59b27 80%, transparent)',
                         margin: '6px auto 0'
                       }}></div>
                     </div>
 
-                    <div style={{ flexShrink: 0, marginRight: '15px' }}>
-                      <svg width="115" height="135" viewBox="0 0 115 135" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Prize Badge Medal on Right */}
+                    <div style={{ position: 'absolute', right: '25px', top: '50%', transform: 'translateY(-50%)' }}>
+                      <svg width="125" height="150" viewBox="0 0 125 150" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                           <radialGradient id="medalGrad_modal" cx="45%" cy="35%" r="65%">
                             <stop offset="0%" stopColor="#fff6cc"/>
@@ -19513,42 +19483,41 @@ ${pagesHtml}
                             <stop offset="100%" stopColor="#8a6310"/>
                           </radialGradient>
                           <filter id="badgeShadow_modal" x="-20%" y="-10%" width="140%" height="130%">
-                            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="rgba(0,0,0,0.25)"/>
+                            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="rgba(0,0,0,0.3)"/>
                           </filter>
                         </defs>
                         <g filter="url(#badgeShadow_modal)">
-                          <path d="M 38 88 L 30 130 L 46 118 L 57 132 L 57 88 Z" fill={prizeRibbonColor}/>
-                          <path d="M 77 88 L 85 130 L 69 118 L 58 132 L 58 88 Z" fill={prizeRibbonColor}/>
-                          <path d="M 38 88 L 30 130 L 37 127 L 44 88 Z" fill="rgba(255,255,255,0.22)"/>
-                          <path d="M 77 88 L 85 130 L 78 127 L 71 88 Z" fill="rgba(255,255,255,0.22)"/>
-                          <path d="M 57 90 C 20 76, 6 48, 19 28 C 26 14, 41 11, 47 20 C 36 26, 29 42, 38 57 C 43 67, 52 74, 57 80 Z" fill={prizeMedalColor} opacity="0.9"/>
-                          <path d="M 58 90 C 95 76, 109 48, 96 28 C 89 14, 74 11, 68 20 C 79 26, 86 42, 77 57 C 72 67, 63 74, 58 80 Z" fill={prizeMedalColor} opacity="0.9"/>
-                          <circle cx="21" cy="27" r="3" fill="#e5b838"/><circle cx="94" cy="27" r="3" fill="#e5b838"/>
-                          <circle cx="13" cy="50" r="2.5" fill="#e5b838" opacity="0.8"/><circle cx="102" cy="50" r="2.5" fill="#e5b838" opacity="0.8"/>
-                          <circle cx="57.5" cy="55" r="38" fill="url(#medalGrad_modal)" stroke="#8a6310" strokeWidth="1.5"/>
-                          <circle cx="57.5" cy="55" r="34" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8"/>
-                          <circle cx="57.5" cy="55" r="30" fill="url(#medalGrad_modal)"/>
-                          <text x="57.5" y="36" textAnchor="middle" fill="#064e3b" fontSize="6" letterSpacing="2.5">★★★★★</text>
-                          <text x="51" y="59" textAnchor="middle" fill="#064e3b" fontFamily="'Inter', Georgia, serif" fontWeight="900" fontSize="28">{prizeNum}</text>
-                          <text x="68" y="48" textAnchor="middle" fill="#064e3b" fontFamily="'Inter', sans-serif" fontWeight="900" fontSize="11">{prizeOrd}</text>
-                          <text x="57.5" y="72" textAnchor="middle" fill="#064e3b" fontFamily="'Inter', sans-serif" fontWeight="900" fontSize="9" letterSpacing="1.5">PRIZE</text>
+                          <path d="M 42 98 L 32 145 L 50 132 L 62 147 L 62 98 Z" fill={prizeRibbonColor}/>
+                          <path d="M 83 98 L 93 145 L 75 132 L 63 147 L 63 98 Z" fill={prizeRibbonColor}/>
+                          <path d="M 42 98 L 32 145 L 40 142 L 48 98 Z" fill="rgba(255,255,255,0.22)"/>
+                          <path d="M 83 98 L 93 145 L 85 142 L 77 98 Z" fill="rgba(255,255,255,0.22)"/>
+                          <path d="M 62.5 100 C 22 84, 7 53, 21 31 C 29 16, 45 12, 52 22 C 40 29, 32 46, 42 63 C 47 74, 57 82, 62.5 89 Z" fill={prizeMedalColor} opacity="0.95"/>
+                          <path d="M 62.5 100 C 103 84, 118 53, 104 31 C 96 16, 80 12, 73 22 C 85 29, 93 46, 83 63 C 78 74, 68 82, 62.5 89 Z" fill={prizeMedalColor} opacity="0.95"/>
+                          <circle cx="23" cy="30" r="3.2" fill="#e5b838"/><circle cx="102" cy="30" r="3.2" fill="#e5b838"/>
+                          <circle cx="14" cy="55" r="2.8" fill="#e5b838" opacity="0.85"/><circle cx="111" cy="55" r="2.8" fill="#e5b838" opacity="0.85"/>
+                          <circle cx="62.5" cy="61" r="42" fill="url(#medalGrad_modal)" stroke="#8a6310" strokeWidth="1.5"/>
+                          <circle cx="62.5" cy="61" r="37.5" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.85"/>
+                          <circle cx="62.5" cy="61" r="33" fill="url(#medalGrad_modal)"/>
+                          <text x="62.5" y="40" textAnchor="middle" fill="#064e3b" fontSize="7" letterSpacing="2.5">★★★★★</text>
+                          <text x="55" y="65" textAnchor="middle" fill="#064e3b" fontFamily="'Inter', Georgia, serif" fontWeight="900" fontSize="30">{prizeNum}</text>
+                          <text x="74" y="53" textAnchor="middle" fill="#064e3b" fontFamily="'Inter', sans-serif" fontWeight="900" fontSize="12">{prizeOrd}</text>
+                          <text x="62.5" y="79" textAnchor="middle" fill="#064e3b" fontFamily="'Inter', sans-serif" fontWeight="900" fontSize="10" letterSpacing="1.5">PRIZE</text>
                         </g>
                       </svg>
                     </div>
-                  </div>
 
-                  {/* Recognition Text */}
-                  <div style={{
-                    textAlign: 'center',
-                    fontSize: '13.5px',
-                    color: '#334155',
-                    lineHeight: 1.65,
-                    maxWidth: '640px',
-                    margin: '10px auto 0',
-                    fontFamily: "'Inter', sans-serif"
-                  }}>
-                    in recognition of securing <strong style={{ fontWeight: 800, color: '#064e3b' }}>{prizeText}</strong> in the <strong style={{ fontWeight: 800, color: '#0f172a' }}>{progAndCatText}</strong> competition at the <strong style={{ fontWeight: 800, color: '#0f172a' }}>{eventAndYearText}</strong>.<br />
-                    Your dedication have earned you this distinguished achievement.
+                    <div style={{
+                      textAlign: 'center',
+                      fontSize: '14px',
+                      color: '#334155',
+                      lineHeight: 1.7,
+                      maxWidth: '660px',
+                      margin: '14px auto 0',
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      in recognition of securing <strong style={{ fontWeight: 800, color: '#064e3b' }}>{prizeText}</strong> in the <strong style={{ fontWeight: 800, color: '#0f172a' }}>{progAndCatText}</strong> competition at the <strong style={{ fontWeight: 800, color: '#0f172a' }}>{eventAndYearText}</strong>.<br />
+                      Your dedication have earned you this distinguished achievement.
+                    </div>
                   </div>
 
                   {/* Signatures */}
@@ -19556,13 +19525,13 @@ ${pagesHtml}
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-end',
-                    padding: '0 30px',
-                    marginTop: '24px'
+                    padding: '0 50px',
+                    marginTop: '15px'
                   }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '180px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '200px', textAlign: 'center' }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', minHeight: '22px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '3px', fontFamily: "'Inter', sans-serif" }}>{coordinatorConvener || ''}</div>
-                      <div style={{ width: '180px', height: '1.5px', backgroundColor: '#334155', marginBottom: '6px' }}></div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', letterSpacing: '0.3px', fontFamily: "'Inter', sans-serif" }}>Coordinator / Convener</div>
+                      <div style={{ width: '200px', height: '1.5px', backgroundColor: '#334155', marginBottom: '6px' }}></div>
+                      <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#475569', letterSpacing: '0.3px', fontFamily: "'Inter', sans-serif" }}>Coordinator / Convener</div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -19574,10 +19543,10 @@ ${pagesHtml}
                       </svg>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '180px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '200px', textAlign: 'center' }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', minHeight: '22px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '3px', fontFamily: "'Inter', sans-serif" }}>{convenerSadar || ''}</div>
-                      <div style={{ width: '180px', height: '1.5px', backgroundColor: '#334155', marginBottom: '6px' }}></div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', letterSpacing: '0.3px', fontFamily: "'Inter', sans-serif" }}>Sadar Muallim</div>
+                      <div style={{ width: '200px', height: '1.5px', backgroundColor: '#334155', marginBottom: '6px' }}></div>
+                      <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#475569', letterSpacing: '0.3px', fontFamily: "'Inter', sans-serif" }}>Sadar Muallim</div>
                     </div>
                   </div>
                 </div>
