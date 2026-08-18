@@ -7254,13 +7254,13 @@ ${pagesHtml}
         </linearGradient>
       </defs>
 
-      <!-- Main Green Shape with dynamic curve -->
-      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="#043d2e"/>
-      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="url(#islamicPat_${certId})"/>
+      <!-- Main Green Shape with dynamic curve (compact bottom width) -->
+      <path d="M 0,0 L 130,0 C 80,220 80,500 130,740 L 0,740 Z" fill="#043d2e"/>
+      <path d="M 0,0 L 130,0 C 80,220 80,500 130,740 L 0,740 Z" fill="url(#islamicPat_${certId})"/>
 
       <!-- Smooth Gold Ribbon along Curve -->
-      <path d="M 130,0 C 95,220 105,480 250,740" stroke="url(#goldGrad1_${certId})" stroke-width="4.5" fill="none"/>
-      <path d="M 135,0 C 100,220 110,480 255,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
+      <path d="M 130,0 C 80,220 80,500 130,740" stroke="url(#goldGrad1_${certId})" stroke-width="4.5" fill="none"/>
+      <path d="M 135,0 C 85,220 85,500 135,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
 
       <!-- Top-Left Gold Layered Polygons -->
       <polygon points="0,0 90,0 0,140" fill="url(#goldGrad1_${certId})"/>
@@ -7268,9 +7268,9 @@ ${pagesHtml}
       <polygon points="0,95 145,0 160,0 0,205" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
 
       <!-- Bottom-Left Gold Layered Polygons -->
-      <polygon points="0,520 270,740 250,740 0,590" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
-      <polygon points="0,610 160,740 0,740" fill="url(#goldGrad1_${certId})"/>
-      <polygon points="0,670 90,740 0,740" fill="url(#goldGrad2_${certId})"/>
+      <polygon points="0,560 145,740 130,740 0,610" fill="url(#goldGrad2_${certId})" opacity="0.85"/>
+      <polygon points="0,630 100,740 0,740" fill="url(#goldGrad1_${certId})"/>
+      <polygon points="0,680 50,740 0,740" fill="url(#goldGrad2_${certId})"/>
     </svg>
   </div>
 
@@ -7664,11 +7664,21 @@ ${pagesHtml}
 
   /* Signatures */
   .cert-signatures {
+    position: relative;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 50px;
+    padding: 0 60px 0 160px;
     margin-top: 15px;
+  }
+  .cert-center-emblem {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .cert-sign-col {
     display: flex;
@@ -19093,11 +19103,21 @@ ${pagesHtml}
   .cert-highlight-green { font-weight: 800; color: #064e3b; }
   .cert-highlight-dark { font-weight: 800; color: #0f172a; }
   .cert-signatures {
+    position: relative;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 50px;
+    padding: 0 60px 0 160px;
     margin-top: 15px;
+  }
+  .cert-center-emblem {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .cert-sign-col {
     display: flex;
@@ -19157,19 +19177,19 @@ ${pagesHtml}
         </linearGradient>
       </defs>
 
-      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="#043d2e"/>
-      <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="url(#islamicPat_single)"/>
+      <path d="M 0,0 L 130,0 C 80,220 80,500 130,740 L 0,740 Z" fill="#043d2e"/>
+      <path d="M 0,0 L 130,0 C 80,220 80,500 130,740 L 0,740 Z" fill="url(#islamicPat_single)"/>
 
-      <path d="M 130,0 C 95,220 105,480 250,740" stroke="url(#goldGrad1_single)" stroke-width="4.5" fill="none"/>
-      <path d="M 135,0 C 100,220 110,480 255,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
+      <path d="M 130,0 C 80,220 80,500 130,740" stroke="url(#goldGrad1_single)" stroke-width="4.5" fill="none"/>
+      <path d="M 135,0 C 85,220 85,500 135,740" stroke="#d4af37" stroke-width="1.5" fill="none" opacity="0.4"/>
 
       <polygon points="0,0 90,0 0,140" fill="url(#goldGrad1_single)"/>
       <polygon points="0,0 50,0 0,80" fill="url(#goldGrad2_single)"/>
       <polygon points="0,95 145,0 160,0 0,205" fill="url(#goldGrad2_single)" opacity="0.85"/>
 
-      <polygon points="0,520 270,740 250,740 0,590" fill="url(#goldGrad2_single)" opacity="0.85"/>
-      <polygon points="0,610 160,740 0,740" fill="url(#goldGrad1_single)"/>
-      <polygon points="0,670 90,740 0,740" fill="url(#goldGrad2_single)"/>
+      <polygon points="0,560 145,740 130,740 0,610" fill="url(#goldGrad2_single)" opacity="0.85"/>
+      <polygon points="0,630 100,740 0,740" fill="url(#goldGrad1_single)"/>
+      <polygon points="0,680 50,740 0,740" fill="url(#goldGrad2_single)"/>
     </svg>
   </div>
 
@@ -19383,19 +19403,19 @@ ${pagesHtml}
                       </linearGradient>
                     </defs>
 
-                    <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="#043d2e"/>
-                    <path d="M 0,0 L 130,0 C 95,220 105,480 250,740 L 0,740 Z" fill="url(#islamicPat_modal)"/>
+                    <path d="M 0,0 L 130,0 C 80,220 80,500 130,740 L 0,740 Z" fill="#043d2e"/>
+                    <path d="M 0,0 L 130,0 C 80,220 80,500 130,740 L 0,740 Z" fill="url(#islamicPat_modal)"/>
 
-                    <path d="M 130,0 C 95,220 105,480 250,740" stroke="url(#goldGrad1_modal)" strokeWidth="4.5" fill="none"/>
-                    <path d="M 135,0 C 100,220 110,480 255,740" stroke="#d4af37" strokeWidth="1.5" fill="none" opacity="0.4"/>
+                    <path d="M 130,0 C 80,220 80,500 130,740" stroke="url(#goldGrad1_modal)" strokeWidth="4.5" fill="none"/>
+                    <path d="M 135,0 C 85,220 85,500 135,740" stroke="#d4af37" strokeWidth="1.5" fill="none" opacity="0.4"/>
 
                     <polygon points="0,0 90,0 0,140" fill="url(#goldGrad1_modal)"/>
                     <polygon points="0,0 50,0 0,80" fill="url(#goldGrad2_modal)"/>
                     <polygon points="0,95 145,0 160,0 0,205" fill="url(#goldGrad2_modal)" opacity="0.85"/>
 
-                    <polygon points="0,520 270,740 250,740 0,590" fill="url(#goldGrad2_modal)" opacity="0.85"/>
-                    <polygon points="0,610 160,740 0,740" fill="url(#goldGrad1_modal)"/>
-                    <polygon points="0,670 90,740 0,740" fill="url(#goldGrad2_modal)"/>
+                    <polygon points="0,560 145,740 130,740 0,610" fill="url(#goldGrad2_modal)" opacity="0.85"/>
+                    <polygon points="0,630 100,740 0,740" fill="url(#goldGrad1_modal)"/>
+                    <polygon points="0,680 50,740 0,740" fill="url(#goldGrad2_modal)"/>
                   </svg>
                 </div>
 
@@ -19528,10 +19548,11 @@ ${pagesHtml}
 
                   {/* Signatures */}
                   <div style={{
+                    position: 'relative',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-end',
-                    padding: '0 50px',
+                    padding: '0 60px 0 160px',
                     marginTop: '15px'
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '200px', textAlign: 'center' }}>
@@ -19540,7 +19561,15 @@ ${pagesHtml}
                       <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#475569', letterSpacing: '0.3px', fontFamily: "'Inter', sans-serif" }}>Coordinator / Convener</div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{
+                      position: 'absolute',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      bottom: '0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
                       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
                         <path d="M 28 48 C 14 44 8 30 11 18 C 12 14 15 11 17 14 C 13 22 17 36 28 42 Z" fill="#064e3b" opacity="0.85"/>
                         <path d="M 28 48 C 42 44 48 30 45 18 C 44 14 41 11 39 14 C 43 22 39 36 28 42 Z" fill="#064e3b" opacity="0.85"/>
