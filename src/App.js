@@ -4497,13 +4497,24 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         if (andPublish && progObj) {
           await handleTogglePublishProgram(progObj.id, true);
         } else {
-          if (publishedPrograms === null) {
-            setPublishedPrograms([]);
-          }
+          // Explicitly ensure this newly entered program is in Draft (isPub = false)
+          // so it ALWAYS shows the Green Publish button in Results History!
+          const pIdStr = String(progObj?.id || '').trim();
+          const pCodeStr = String(progObj?.code || '').trim();
+          const pNameStr = String(progObj?.name || '').trim().toLowerCase();
+
+          setPublishedPrograms(prev => {
+            if (!Array.isArray(prev)) return [];
+            return prev.filter(id => {
+              const s = String(id).trim();
+              return s !== pIdStr && s !== pCodeStr && s.toLowerCase() !== pNameStr;
+            });
+          });
+
           alert(
             lang === 'EN'
-              ? `✅ Result saved successfully for ${computedStudentName} (Draft mode)! Go to Results -> Results History and click 'Publish' to make it live in View mode.`
-              : `✅ ${computedStudentName} - ഫലം വിജയകരമായി സേവ് ചെയ്തു (Draft മോഡിൽ)! Results -> Results History-ൽ പോയി 'Publish' ക്ലിക്ക് ചെയ്താൽ ഇത് വ്യൂ മോഡിൽ ലൈവാകും.`
+              ? `✅ Result saved successfully for ${computedStudentName} (Draft mode)! Go to Results -> Results History and click the green 'Publish' button to make it live.`
+              : `✅ ${computedStudentName} - ഫലം സേവ് ചെയ്തു (Draft മോഡിൽ)! Results -> Results History-ൽ പോയി പച്ച 'Publish' ബട്ടൺ ക്ലിക്ക് ചെയ്യുമ്പോൾ മാത്രമേ ഇത് വ്യൂ മോഡിൽ ലൈവാകൂ.`
           );
         }
       }
