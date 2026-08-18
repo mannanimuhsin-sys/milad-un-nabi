@@ -8271,7 +8271,7 @@ ${pagesHtml}
                                     overflow: 'hidden'
                                   }}
                                 >
-                                  {/* ── Section Header with Single Program Publish Button ── */}
+                                  {/* ── Section Header: Clean title, category, type, entries count ── */}
                                   <div style={{
                                     background: isPub ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)' : 'linear-gradient(135deg, #fffbeb, #fef3c7)',
                                     padding: '12px 16px',
@@ -8302,77 +8302,21 @@ ${pagesHtml}
                                       </div>
                                     </div>
 
-                                    {/* Per-Program Publish/Draft Controls: Both buttons always visible */}
-                                    {loginRole === 'ADMIN' ? (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        {/* Status badge */}
-                                        <span style={{
-                                          background: isPub ? '#dcfce7' : '#fef3c7',
-                                          color: isPub ? '#15803d' : '#92400e',
-                                          border: `1px solid ${isPub ? '#86efac' : '#fcd34d'}`,
-                                          padding: '4px 10px',
-                                          borderRadius: '20px',
-                                          fontSize: '11.5px',
-                                          fontWeight: '800'
-                                        }}>
-                                          {isPub ? '✅ Published' : '🟡 Draft'}
+                                    {/* Clean Status Indicator Badge */}
+                                    <div>
+                                      {isPub ? (
+                                        <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '4px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '800' }}>
+                                          ✅ {lang === 'EN' ? 'Published Live' : 'ലൈവായി പബ്ലിഷ് ചെയ്തു'}
                                         </span>
-                                        {/* Green Publish button - dimmed when already published */}
-                                        <button
-                                          type="button"
-                                          onClick={() => !isPub && handleTogglePublishProgram(group.progId, true)}
-                                          style={{
-                                            background: isPub ? '#bbf7d0' : 'linear-gradient(135deg, #16a34a, #15803d)',
-                                            color: isPub ? '#6b7280' : '#fff',
-                                            border: isPub ? '1px solid #86efac' : 'none',
-                                            padding: '6px 13px',
-                                            borderRadius: '7px',
-                                            fontSize: '12px',
-                                            fontWeight: '800',
-                                            cursor: isPub ? 'default' : 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            boxShadow: isPub ? 'none' : '0 2px 8px rgba(22,163,74,0.35)',
-                                            opacity: isPub ? 0.55 : 1,
-                                            transition: 'all 0.2s'
-                                          }}
-                                          title={lang === 'EN' ? 'Publish this program live' : 'ഈ പ്രോഗ്രാം ലൈവ് ആക്കുക'}
-                                        >
-                                          🚀 {lang === 'EN' ? 'Publish' : 'പബ്ലിഷ്'}
-                                        </button>
-                                        {/* Grey Move to Draft button - dimmed when already draft */}
-                                        <button
-                                          type="button"
-                                          onClick={() => isPub && handleTogglePublishProgram(group.progId, false)}
-                                          style={{
-                                            background: !isPub ? '#f1f5f9' : '#64748b',
-                                            color: !isPub ? '#94a3b8' : '#fff',
-                                            border: !isPub ? '1px solid #cbd5e1' : 'none',
-                                            padding: '6px 13px',
-                                            borderRadius: '7px',
-                                            fontSize: '12px',
-                                            fontWeight: '800',
-                                            cursor: !isPub ? 'default' : 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            opacity: !isPub ? 0.5 : 1,
-                                            transition: 'all 0.2s'
-                                          }}
-                                          title={lang === 'EN' ? 'Move to Draft (hide from view phones)' : 'ഡ്രാഫ്റ്റ് ആക്കുക (വ്യൂ ഫോണിൽ മറയ്ക്കുക)'}
-                                        >
-                                          🔒 {lang === 'EN' ? 'Move to Draft' : 'ഡ്രാഫ്റ്റ് ആക്കുക'}
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800' }}>
-                                        ✅ Official Result
-                                      </span>
-                                    )}
+                                      ) : (
+                                        <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', padding: '4px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '800' }}>
+                                          🟡 {lang === 'EN' ? 'Draft Mode (Hidden)' : 'Draft (വ്യൂവിൽ മറഞ്ഞിരിക്കുന്നു)'}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
 
-                                  {/* ── Table of Winners for this Program (No redundant publish column on every row) ── */}
+                                  {/* ── Table of Winners for this Program with Publish & Delete in every row ── */}
                                   <div className="table-responsive-wrapper" style={{ margin: 0 }}>
                                     <table style={{ margin: 0, width: '100%' }}>
                                       <thead>
@@ -8385,6 +8329,7 @@ ${pagesHtml}
                                           <th>Team</th>
                                           <th style={{ textAlign: 'center' }}>Grade</th>
                                           <th style={{ textAlign: 'center' }}>Points</th>
+                                          {loginRole === 'ADMIN' && <th style={{ textAlign: 'center', width: '120px' }}>Publish</th>}
                                           {loginRole === 'ADMIN' && <th style={{ textAlign: 'center', width: '70px' }}>Delete</th>}
                                         </tr>
                                       </thead>
@@ -8424,9 +8369,59 @@ ${pagesHtml}
                                               <td style={{ textAlign: 'center' }}><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
                                               {loginRole === 'ADMIN' && (
                                                 <td style={{ textAlign: 'center' }}>
+                                                  {!isPub ? (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleTogglePublishProgram(group.progId, true)}
+                                                      style={{
+                                                        background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        padding: '5px 12px',
+                                                        borderRadius: '6px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '800',
+                                                        fontSize: '11px',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        boxShadow: '0 2px 6px rgba(22,163,74,0.35)',
+                                                        whiteSpace: 'nowrap'
+                                                      }}
+                                                      title={lang === 'EN' ? 'Click to publish this entire program live' : 'ഈ പ്രോഗ്രാം മൊത്തത്തിൽ ലൈവായി പബ്ലിഷ് ചെയ്യുക'}
+                                                    >
+                                                      🚀 {lang === 'EN' ? 'Publish' : 'പബ്ലിഷ്'}
+                                                    </button>
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleTogglePublishProgram(group.progId, false)}
+                                                      style={{
+                                                        background: '#64748b',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        padding: '5px 10px',
+                                                        borderRadius: '6px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '700',
+                                                        fontSize: '11px',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        whiteSpace: 'nowrap'
+                                                      }}
+                                                      title={lang === 'EN' ? 'Click to move back to Draft (hide from view mode)' : 'തിരിച്ച് Draft ആക്കുക (വ്യൂ മോഡിൽ മറയ്ക്കുക)'}
+                                                    >
+                                                      🔒 {lang === 'EN' ? 'Draft' : 'ഡ്രാഫ്റ്റ്'}
+                                                    </button>
+                                                  )}
+                                                </td>
+                                              )}
+                                              {loginRole === 'ADMIN' && (
+                                                <td style={{ textAlign: 'center' }}>
                                                   <button
                                                     onClick={() => handleDeleteResult(r.id)}
-                                                    style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '5px', cursor: 'pointer', fontWeight: '700', fontSize: '11px' }}
+                                                    style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '11px' }}
                                                   >
                                                     Delete
                                                   </button>
