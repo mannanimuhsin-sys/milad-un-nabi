@@ -1752,11 +1752,17 @@ function App() {
         if (fetchedVisibility) {
           const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
           setVisibilityControls(normalizedVis);
-          // Always set publishedPrograms from DB — even empty array means "all draft"
-          // NEVER leave it as null after DB load (null = loading state only)
-          const freshPublished = Array.isArray(fetchedVisibility.published_programs)
-            ? fetchedVisibility.published_programs.map(String)
-            : []; // No published_programs key in DB = all programs are in Draft
+          // Set publishedPrograms from DB, or fallback to saved localStorage so manual state is never lost
+          let freshPublished = null;
+          if (Array.isArray(fetchedVisibility?.published_programs)) {
+            freshPublished = fetchedVisibility.published_programs.map(String);
+          } else if (rNum) {
+            try {
+              const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
+              if (stored) freshPublished = JSON.parse(stored);
+            } catch (e) {}
+          }
+          if (!Array.isArray(freshPublished)) freshPublished = [];
           setPublishedPrograms(freshPublished);
           if (rNum) {
             try {
@@ -1765,12 +1771,25 @@ function App() {
             } catch (e) {}
           }
         } else {
-          // DB returned no visibility data at all → all programs are Draft
-          setPublishedPrograms([]);
+          // DB returned no visibility data at all → try local storage or default to []
+          let localPub = [];
+          if (rNum) {
+            try {
+              const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
+              if (stored) localPub = JSON.parse(stored);
+            } catch (e) {}
+          }
+          setPublishedPrograms(Array.isArray(localPub) ? localPub : []);
         }
       } catch (e) {
-        // On error, default to empty (all draft) — never auto-publish
-        setPublishedPrograms([]);
+        let localPub = [];
+        if (rNum) {
+          try {
+            const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
+            if (stored) localPub = JSON.parse(stored);
+          } catch (err) {}
+        }
+        setPublishedPrograms(Array.isArray(localPub) ? localPub : []);
       }
 
       let parsedStudents = [];
@@ -18220,7 +18239,7 @@ ${pagesHtml}
               return (
                 <div className="projector-slide animate-projector-slide" style={{ padding: 0, overflow: 'hidden' }}>
                   {(() => {
-                    // 1. Group results into distinct declared program runs (by program metadata: progid/name, catname, and program type)
+                    // 1. Group results into distinct declared program runs (by exact resolved program, category, and gender)
                     const groupsMap = new Map();
 
                     publishedResultsList.forEach(r => {
@@ -18228,30 +18247,40 @@ ${pagesHtml}
                       const rProgName = String(r.progname || r.progName || '').trim();
                       const rCatName = String(r.catname || r.catName || '').trim();
 
-                      // Look up matching program metadata first to determine official PROGRAM gender type
-                      const progObj = programs.find(p => {
-                        const pId = String(p.id || '');
-                        const pCode = String(p.code || '');
-                        const pName = String(p.name || '').trim().toLowerCase();
-                        return (rProgId && (pId === rProgId || pCode === rProgId)) || (rProgName && pName === rProgName.toLowerCase());
-                      });
+                      // 1. Resolve exact program object: match strictly by ID/code first, then by (name + category), then by name
+                      const progObj = (rProgId ? programs.find(p => String(p.id).trim() === rProgId || (p.code && String(p.code).trim() === rProgId)) : null)
+                        || (rCatName ? programs.find(p => p.name.trim().toLowerCase() === rProgName.toLowerCase() && categories.find(c => String(c.id) === String(p.catid || p.catId))?.name.trim().toLowerCase() === rCatName.toLowerCase()) : null)
+                        || programs.find(p => p.name.trim().toLowerCase() === rProgName.toLowerCase());
 
-                      const pType = String(progObj?.type || r.progtype || r.progType || '').toUpperCase();
-                      const genderKey = (pType.includes('BOY') && !pType.includes('GIRL'))
-                        ? 'BOY'
-                        : (pType.includes('GIRL') && !pType.includes('BOY'))
-                          ? 'GIRL'
-                          : 'COMMON';
+                      const catObj = progObj ? categories.find(c => String(c.id) === String(progObj.catid || progObj.catId)) : categories.find(c => c.name.toLowerCase() === rCatName.toLowerCase());
+                      const finalCatName = catObj?.name || rCatName || progObj?.catname || '';
+                      const finalProgCode = progObj?.code || r.progcode || r.progCode || '';
+                      const finalProgName = progObj?.name || rProgName || 'Program';
 
-                      const groupKey = `${rProgId || rProgName}_${rCatName}_${genderKey}`;
+                      // Determine exact gender/type
+                      const rawType = String(progObj?.type || r.progtype || r.progType || '').toUpperCase();
+                      const isBoy = rawType.includes('BOY') && !rawType.includes('GIRL') && !rawType.includes('COMMON');
+                      const isGirl = rawType.includes('GIRL') && !rawType.includes('BOY') && !rawType.includes('COMMON');
+                      const isCommon = !isBoy && !isGirl;
+                      const genderKey = isBoy ? 'BOY' : isGirl ? 'GIRL' : 'COMMON';
+                      const genderText = isBoy ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്') : isGirl ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്') : (lang === 'EN' ? 'Common' : 'കോമൺ');
+                      const genderColor = isBoy ? '#60a5fa' : isGirl ? '#f472b6' : '#34d399';
+
+                      const groupKey = progObj?.id ? `prog_${progObj.id}` : `${finalProgName}___${finalCatName}___${genderKey}`;
 
                       if (!groupsMap.has(groupKey)) {
                         groupsMap.set(groupKey, {
                           groupKey,
-                          progId: rProgId,
-                          progName: rProgName,
-                          catName: rCatName,
+                          progId: progObj?.id || rProgId,
+                          progCode: finalProgCode,
+                          progName: finalProgName,
+                          catName: finalCatName,
                           genderKey,
+                          genderText,
+                          genderColor,
+                          isBoy,
+                          isGirl,
+                          isCommon,
                           results: [],
                           latestTime: 0,
                           latestId: 0
@@ -18284,40 +18313,6 @@ ${pagesHtml}
                     // Ensure active index is within bounds
                     const activeIdx = Math.min(Math.max(0, selectedRecentProgIndex || 0), sortedGroups.length - 1);
                     const activeGroup = sortedGroups[activeIdx];
-
-                    // 3. Find matching program object metadata
-                    const prog = programs.find(p => {
-                      const pId = String(p.id || '');
-                      const pCode = String(p.code || '');
-                      const pCatObj = categories.find(c => String(c.id) === String(p.catid || p.catId));
-                      const pCatName = pCatObj ? pCatObj.name : (p.catname || p.catName || '');
-                      const pType = String(p.type || '').toUpperCase();
-                      const pGender = pType.includes('BOY') && !pType.includes('GIRL') ? 'BOY' : pType.includes('GIRL') && !pType.includes('BOY') ? 'GIRL' : 'COMMON';
-
-                      const idMatch = (pId && pId === activeGroup.progId) || (pCode && pCode === activeGroup.progId);
-                      const catMatch = !pCatName || !activeGroup.catName || pCatName.toLowerCase() === activeGroup.catName.toLowerCase();
-                      const genderMatch = pGender === activeGroup.genderKey;
-
-                      return idMatch && catMatch && genderMatch;
-                    }) || programs.find(p => String(p.name || '').trim().toLowerCase() === activeGroup.progName.toLowerCase()) || {
-                      code: activeGroup.progId || 'RES',
-                      name: activeGroup.progName || 'Program',
-                      type: activeGroup.genderKey,
-                      catname: activeGroup.catName
-                    };
-
-                    const catObj = categories.find(c => String(c.id) === String(prog.catid || prog.catId));
-                    const catName = catObj ? catObj.name : (prog.catname || prog.catName || activeGroup.catName || '');
-
-                    const pType = String(prog.type || activeGroup.genderKey || '').toUpperCase();
-                    const isBoyProg = pType.includes('BOY') && !pType.includes('GIRL');
-                    const isGirlProg = pType.includes('GIRL') && !pType.includes('BOY');
-                    const genderText = isBoyProg
-                      ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്')
-                      : isGirlProg
-                        ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്')
-                        : (lang === 'EN' ? 'Common' : 'കോമൺ');
-                    const genderColor = isBoyProg ? '#60a5fa' : isGirlProg ? '#f472b6' : '#fbbf24';
 
                     // Filter results for ONLY this single active program group!
                     const progResults = activeGroup.results;
@@ -18390,8 +18385,8 @@ ${pagesHtml}
                             {teamName && (
                               <div className="winner-poster-team">🏫 {teamName}</div>
                             )}
-                            {catName && (
-                              <div className="winner-poster-cat">📁 {catName}</div>
+                            {activeGroup.catName && (
+                              <div className="winner-poster-cat">📁 {activeGroup.catName}</div>
                             )}
                             {grade && (
                               <div className="winner-poster-grade">{grade}</div>
@@ -18450,7 +18445,7 @@ ${pagesHtml}
                             >
                               {sortedGroups.map((grp, idx) => (
                                 <option key={grp.groupKey} value={idx}>
-                                  {idx === 0 ? '🔥 ' : ''}{grp.progName} ({grp.catName} - {grp.genderKey})
+                                  {idx === 0 ? '🔥 ' : ''}{grp.progName} ({grp.catName ? `${grp.catName} - ` : ''}{grp.genderText})
                                 </option>
                               ))}
                             </select>
@@ -18478,15 +18473,15 @@ ${pagesHtml}
                         <div className="winner-poster-header">
                           <div className="winner-poster-header-top">
                             <span className="winner-poster-trophy-icon">🏆</span>
-                            <span className="winner-poster-prog-code">{prog.code || activeGroup.progId || 'RES'}</span>
-                            <span className="winner-poster-cat-badge" style={{ color: genderColor, borderColor: genderColor }}>
-                              {isBoyProg ? '👦' : isGirlProg ? '👧' : '🌐'} {genderText}
+                            <span className="winner-poster-prog-code">{activeGroup.progCode || 'RES'}</span>
+                            <span className="winner-poster-cat-badge" style={{ color: activeGroup.genderColor, borderColor: activeGroup.genderColor }}>
+                              {activeGroup.isBoy ? '👦' : activeGroup.isGirl ? '👧' : '👥'} {activeGroup.genderText}
                             </span>
-                            {catName && (
-                              <span className="winner-poster-catname-badge">📁 {catName}</span>
+                            {activeGroup.catName && (
+                              <span className="winner-poster-catname-badge">📁 {activeGroup.catName}</span>
                             )}
                           </div>
-                          <h2 className="winner-poster-prog-title">{prog.name || activeGroup.progName}</h2>
+                          <h2 className="winner-poster-prog-title">{activeGroup.progName}</h2>
                           <div className="winner-poster-subtitle">
                             {lang === 'EN' ? 'RESULT ANNOUNCED' : 'ഫലം പ്രഖ്യാപിച്ചു'}
                           </div>
