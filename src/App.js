@@ -7405,7 +7405,7 @@ ${pagesHtml}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bulk Certificates (${selectedWinners.length} Selected Winners)</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Great+Vibes&family=Alex+Brush&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,600;1,700;1,800&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Cinzel:wght@700;800;900&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <script>
   window.onload = function() {
     setTimeout(function() {
@@ -7627,11 +7627,13 @@ ${pagesHtml}
     text-align: center;
   }
   .cert-student-name {
-    font-size: 56px;
-    font-weight: 500;
+    font-size: 46px;
+    font-weight: 700;
+    font-style: italic;
     color: #064e3b;
-    font-family: 'Great Vibes', 'Alex Brush', 'Dancing Script', cursive;
-    line-height: 1.15;
+    font-family: 'Playfair Display', 'Cormorant Garamond', 'Cinzel', 'Georgia', serif;
+    letter-spacing: 1.5px;
+    line-height: 1.2;
   }
   .cert-student-underline {
     width: 440px;
@@ -18896,7 +18898,7 @@ ${pagesHtml}
 <html>
 <head>
 <title>Certificate - ${student.name}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Great+Vibes&family=Alex+Brush&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,600;1,700;1,800&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Cinzel:wght@700;800;900&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19060,11 +19062,13 @@ ${pagesHtml}
     text-align: center;
   }
   .cert-student-name {
-    font-size: 56px;
-    font-weight: 500;
+    font-size: 46px;
+    font-weight: 700;
+    font-style: italic;
     color: #064e3b;
-    font-family: 'Great Vibes', 'Alex Brush', 'Dancing Script', cursive;
-    line-height: 1.15;
+    font-family: 'Playfair Display', 'Cormorant Garamond', 'Cinzel', 'Georgia', serif;
+    letter-spacing: 1.5px;
+    line-height: 1.2;
   }
   .cert-student-underline {
     width: 440px;
@@ -19456,11 +19460,13 @@ ${pagesHtml}
                   <div style={{ position: 'relative', marginTop: '8px' }}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{
-                        fontSize: '56px',
-                        fontWeight: 500,
+                        fontSize: '46px',
+                        fontWeight: 700,
+                        fontStyle: 'italic',
                         color: '#064e3b',
-                        fontFamily: "'Great Vibes', 'Alex Brush', 'Dancing Script', cursive",
-                        lineHeight: 1.15
+                        fontFamily: "'Playfair Display', 'Cormorant Garamond', 'Cinzel', 'Georgia', serif",
+                        letterSpacing: '1.5px',
+                        lineHeight: 1.2
                       }}>
                         {student.name}
                       </div>
