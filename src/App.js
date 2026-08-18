@@ -2530,12 +2530,19 @@ function App() {
         if (!r) return false;
         // In View Mode, do not reveal results for unpublished/draft programs via QR scan
         if (!isProgPublished(r.progid)) return false;
-        const rName = String(r.studentname || r.studentName || '').trim();
+        const rRaw = String(r.studentname || r.studentName || '').trim();
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
-        if (rSid && (rSid === sDbId || (sRegNo && rSid === sRegNo))) return true;
-        if (!isNaN(parseInt(rSid, 10)) && ((!isNaN(sIdNum) && parseInt(rSid, 10) === sIdNum) || (!isNaN(sRegNum) && parseInt(rSid, 10) === sRegNum))) return true;
-        if (sRegNo && (rName.startsWith(sRegNo + ' -') || rName.startsWith(sRegNo + '-') || rName.startsWith(sRegNo + ' ') || rName === sRegNo)) return true;
-        if (sName && rName.toLowerCase().includes(sName.toLowerCase())) return true;
+        const dashIdx = rRaw.indexOf(' - ');
+        const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
+        const rNamePart = dashIdx !== -1 ? rRaw.substring(dashIdx + 3).trim().toLowerCase() : rRaw.toLowerCase();
+        // 1. Exact DB ID match
+        if (rSid && sDbId && rSid === sDbId) return true;
+        // 2. Exact numeric ID match
+        if (rSid && !isNaN(parseInt(rSid, 10)) && !isNaN(sIdNum) && parseInt(rSid, 10) === sIdNum) return true;
+        // 3. Exact register number prefix match ("445" matches "445 - NAME" only, not "1445 - ...")
+        if (sRegNo && rRegPart && rRegPart === sRegNo) return true;
+        // 4. Exact student name match
+        if (sName && rNamePart && rNamePart === sName.toLowerCase()) return true;
         return false;
       }).map(r => {
         const prog = (localProgs || []).find(p => String(p.id) === String(r.progid) || p.code === String(r.progid) || p.name === String(r.progid));
@@ -7812,8 +7819,15 @@ ${pagesHtml}
                           const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
                           const sResults = resultsList.filter(r => {
                             if (!isProgPublished(r.progid)) return false;
-                            const sName = r.studentname || r.studentName || '';
-                            return sName.startsWith(sRegNo + ' - ');
+                            const rRaw = String(r.studentname || r.studentName || '').trim();
+                            const rSid = String(r.studentid || r.student_id || '').trim();
+                            const dashIdx = rRaw.indexOf(' - ');
+                            const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
+                            const sIdStr = String(matchedStudent.id || '').trim();
+                            const sRegStr = String(sRegNo || '').trim();
+                            if (sIdStr && rSid && rSid === sIdStr) return true;
+                            if (sRegStr && rRegPart && rRegPart === sRegStr) return true;
+                            return false;
                           });
 
                           const printReport = () => {
@@ -8328,7 +8342,9 @@ ${pagesHtml}
                             const rStudentName = String(r.studentname || r.student_name || '').trim();
                             const rStudentId = String(r.student_id || r.studentid || '').trim();
                             if (sIdStr && rStudentId === sIdStr) return true;
-                            if (sRegNo && (rStudentName.startsWith(sRegNo + ' -') || rStudentName.startsWith(sRegNo + '-') || rStudentName.startsWith(sRegNo + ' ') || rStudentName === sRegNo)) return true;
+                            const chDashIdx = rStudentName.indexOf(' - ');
+                            const chRegPart = chDashIdx !== -1 ? rStudentName.substring(0, chDashIdx).trim() : '';
+                            if (sRegNo && chRegPart && chRegPart === sRegNo) return true;
                             if (sNameStr && rStudentName.toLowerCase() === sNameStr) return true;
                             return false;
                           }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
@@ -8845,6 +8861,10 @@ ${pagesHtml}
                       {(() => {
                         const s = profileStudent;
                         const sRegNo = s.regno || s.regNo || '';
+                        const sDbIdStr = String(s.id || '').trim();
+                        const sRegStr = String(sRegNo || '').trim();
+                        const sNameStr = String(s.name || '').trim().toLowerCase();
+
                         const sCatRef = String(s.catid ?? s.catId ?? s.category ?? s.catname ?? s.catName ?? '').trim();
                         const catObj = categories.find(c =>
                           String(c.id).trim() === sCatRef ||
@@ -9020,15 +9040,16 @@ ${pagesHtml}
                                       if (!pMatch) return false;
 
                                       const rSid = String(r.student_id || r.studentid || '').trim();
-                                      const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
-                                      if (sDbIdStr && rSid === sDbIdStr) return true;
-                                      if (sRegStr && (rName.includes(sRegStr) || rName.startsWith(sRegStr))) return true;
-                                      if (sNameStr && rName.includes(sNameStr)) return true;
-
-                                      // Check group result
-                                      if (groupInfo && (rName === groupInfo.groupName.toLowerCase() || (r.team && String(r.team) === String(groupInfo.teamName)))) {
-                                        return true;
-                                      }
+                                      const rRaw = String(r.studentname || r.student_name || '').trim();
+                                      const dashIdx = rRaw.indexOf(' - ');
+                                      const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
+                                      const rNamePart = dashIdx !== -1 ? rRaw.substring(dashIdx + 3).trim().toLowerCase() : rRaw.toLowerCase();
+                                      // 1. Exact DB ID match
+                                      if (sDbIdStr && rSid && rSid === sDbIdStr) return true;
+                                      // 2. Exact register number prefix match only (e.g. '445' matches '445 - NAME' but not '1445 - NAME')
+                                      if (sRegStr && rRegPart && rRegPart === sRegStr) return true;
+                                      // 3. Exact student name match
+                                      if (sNameStr && rNamePart && rNamePart === sNameStr) return true;
 
                                       const isGroup = (p.type || '').toUpperCase().includes('GROUP');
                                       if (isGroup) {
