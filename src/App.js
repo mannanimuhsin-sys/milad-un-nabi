@@ -2510,7 +2510,7 @@ function App() {
       const matchedResults = (localResults || []).filter(r => {
         if (!r) return false;
         // In View Mode, do not reveal results for unpublished/draft programs via QR scan
-        if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+        if (!isProgPublished(r.progid)) return false;
         const rName = String(r.studentname || r.studentName || '').trim();
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
         if (rSid && (rSid === sDbId || (sRegNo && rSid === sRegNo))) return true;
@@ -4909,7 +4909,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     return list.filter(r => {
       if (!r) return false;
       // In View Mode, only results from published programs are counted for points/scoreboard
-      if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+      if (!isProgPublished(r.progid)) return false;
       const pKey = String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase();
       const sKey = String(r.studentname || r.student_name || '').trim().toLowerCase();
       const uniqueKey = `${pKey}___${sKey}`;
@@ -6752,7 +6752,7 @@ ${pagesHtml}
                                 {categories.map(c => {
                                   // Calculate points for this category and team (gate by published programs in View Mode)
                                   const catResults = resultsList.filter(r => {
-                                    if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                                    if (!isProgPublished(r.progid)) return false;
                                     return (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name;
                                   });
                                   if (catResults.length === 0) return null;
@@ -7790,7 +7790,7 @@ ${pagesHtml}
                           const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
                           const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
                           const sResults = resultsList.filter(r => {
-                            if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                            if (!isProgPublished(r.progid)) return false;
                             const sName = r.studentname || r.studentName || '';
                             return sName.startsWith(sRegNo + ' - ');
                           });
@@ -7926,7 +7926,7 @@ ${pagesHtml}
                       return 4;
                     };
 
-                    const displayHistoryResults = loginRole === 'ADMIN' ? resultsList : resultsList.filter(r => isProgPublished(r.progid));
+                    const displayHistoryResults = resultsList.filter(r => isProgPublished(r.progid));
                     const groupMap = new Map();
                     displayHistoryResults.forEach(r => {
                       const pKey = String(r.progid || r.progId || r.progname || '').trim();
@@ -8141,7 +8141,6 @@ ${pagesHtml}
                                           <th style={{ width: '50px', textAlign: 'center' }}>Photo</th>
                                           <th>Register Number</th>
                                           <th>Student</th>
-                                          <th>Gender</th>
                                           <th>Team</th>
                                           <th style={{ textAlign: 'center' }}>Grade</th>
                                           <th style={{ textAlign: 'center' }}>Points</th>
@@ -8301,7 +8300,7 @@ ${pagesHtml}
                           const totalPts = resultsList.filter(r => {
                             if (!r) return false;
                             // Gate by published programs in View mode
-                            if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                            if (!isProgPublished(r.progid)) return false;
                             // Exclude group events from individual championship total
                             if ((r.progtype || '').includes('GROUP')) return false;
 
@@ -17504,8 +17503,12 @@ ${pagesHtml}
                       const catName = catObj?.name || '';
                       const progType = progObj?.type || '';
                       const rows = resultsList.filter(r => String(r.progid || '').trim() === pid || (progObj && (String(r.progid) === String(progObj.id) || String(r.progid) === String(progObj.code))));
-                      return { pid, progObj, progName, catName, progType, rows };
+                      const latestId = Math.max(...rows.map(r => Number(r.id) || 0), 0);
+                      return { pid, progObj, progName, catName, progType, rows, latestId };
                     });
+
+                    // ⚡ Sort program sections so the most recently saved result is at the VERY TOP!
+                    progSections.sort((a, b) => b.latestId - a.latestId);
 
                     // Search filter
                     const rpSearch = (publishProgSearch || '').toLowerCase().trim();
@@ -17662,34 +17665,44 @@ ${pagesHtml}
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>#</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Student / Team' : 'വിദ്യാർത്ഥി / ടീം'}</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Grade' : 'ഗ്രേഡ്'}</th>
-                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Rank' : 'റാങ്ക്'}</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Rank / Place' : 'റാങ്ക്'}</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '800', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{lang === 'EN' ? 'Team' : 'ടീം'}</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {[...section.rows]
-                                      .sort((a, b) => (Number(a.rank) || 99) - (Number(b.rank) || 99))
-                                      .map((row, idx) => (
-                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                          <td style={{ padding: '9px 12px', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
-                                          <td style={{ padding: '9px 12px', fontWeight: '800', color: '#0f172a' }}>{row.studentname || '—'}</td>
-                                          <td style={{ padding: '9px 12px' }}>
-                                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 10px', borderRadius: '20px', fontWeight: '800', fontSize: '12px' }}>{row.grade || '—'}</span>
-                                          </td>
-                                          <td style={{ padding: '9px 12px' }}>
-                                            {row.rank ? (
-                                              <span style={{
-                                                background: row.rank === 1 || row.rank === '1' ? '#fef3c7' : row.rank === 2 || row.rank === '2' ? '#f1f5f9' : '#fef9c3',
-                                                color: row.rank === 1 || row.rank === '1' ? '#92400e' : '#475569',
-                                                padding: '2px 10px', borderRadius: '20px', fontWeight: '900', fontSize: '12px'
-                                              }}>
-                                                {row.rank === 1 || row.rank === '1' ? '🥇' : row.rank === 2 || row.rank === '2' ? '🥈' : row.rank === 3 || row.rank === '3' ? '🥉' : `#${row.rank}`} {row.rank}
-                                              </span>
-                                            ) : '—'}
-                                          </td>
-                                          <td style={{ padding: '9px 12px', color: '#64748b', fontWeight: '600', fontSize: '12px' }}>{row.teamname || '—'}</td>
-                                        </tr>
-                                      ))}
+                                      .sort((a, b) => {
+                                        const pA = a.place === 'First' || a.place === '1' ? 1 : a.place === 'Second' || a.place === '2' ? 2 : a.place === 'Third' || a.place === '3' ? 3 : (Number(a.rank) || 99);
+                                        const pB = b.place === 'First' || b.place === '1' ? 1 : b.place === 'Second' || b.place === '2' ? 2 : b.place === 'Third' || b.place === '3' ? 3 : (Number(b.rank) || 99);
+                                        return pA - pB;
+                                      })
+                                      .map((row, idx) => {
+                                        const pStr = String(row.place || row.rank || '').trim();
+                                        const is1 = pStr === 'First' || pStr === '1';
+                                        const is2 = pStr === 'Second' || pStr === '2';
+                                        const is3 = pStr === 'Third' || pStr === '3';
+                                        return (
+                                          <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                            <td style={{ padding: '9px 12px', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
+                                            <td style={{ padding: '9px 12px', fontWeight: '800', color: '#0f172a' }}>{row.studentname || '—'}</td>
+                                            <td style={{ padding: '9px 12px' }}>
+                                              <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 10px', borderRadius: '20px', fontWeight: '800', fontSize: '12px' }}>{row.grade || '—'}</span>
+                                            </td>
+                                            <td style={{ padding: '9px 12px' }}>
+                                              {is1 ? (
+                                                <span style={{ background: '#fef3c7', color: '#92400e', padding: '3px 10px', borderRadius: '20px', fontWeight: '900', fontSize: '12px' }}>🥇 1st Place</span>
+                                              ) : is2 ? (
+                                                <span style={{ background: '#f1f5f9', color: '#475569', padding: '3px 10px', borderRadius: '20px', fontWeight: '900', fontSize: '12px' }}>🥈 2nd Place</span>
+                                              ) : is3 ? (
+                                                <span style={{ background: '#fef9c3', color: '#854d0e', padding: '3px 10px', borderRadius: '20px', fontWeight: '900', fontSize: '12px' }}>🥉 3rd Place</span>
+                                              ) : (
+                                                <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600' }}>{row.place && row.place !== 'No Place' ? row.place : '—'}</span>
+                                              )}
+                                            </td>
+                                            <td style={{ padding: '9px 12px', color: '#64748b', fontWeight: '600', fontSize: '12px' }}>{row.teamname || '—'}</td>
+                                          </tr>
+                                        );
+                                      })}
                                   </tbody>
                                 </table>
                               </div>
@@ -18113,7 +18126,7 @@ ${pagesHtml}
                       // Get team points breakdown for this category (including boys/girls split)
                       const teamPointsList = teams.map(t => {
                         const catResults = resultsList.filter(r => {
-                          if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                          if (!isProgPublished(r.progid)) return false;
                           const teamMatch = String(r.teamId || r.teamid || '') === String(t.id);
                           if (!teamMatch) return false;
 
