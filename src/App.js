@@ -10880,6 +10880,10 @@ ${pagesHtml}
                       <div className="tile-icon-wrapper">🎁</div>
                       <div className="tile-label">{lang === 'EN' ? 'Prizes' : 'സമ്മാനങ്ങൾ'}</div>
                     </div>
+                    <div className="executive-nav-tile" onClick={() => { setActiveTab('RECENT'); setResultsSubTab('RESULTS_HISTORY'); }}>
+                      <div className="tile-icon-wrapper">🏆</div>
+                      <div className="tile-label">{lang === 'EN' ? 'Result' : 'റിസൾട്ട്'}</div>
+                    </div>
                   </div>
 
                   <div className="settings-content">
