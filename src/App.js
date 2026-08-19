@@ -865,28 +865,29 @@ function App() {
     if (!progId) return false;
     if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) return false;
     const pIdStr = String(progId).trim();
-    const progObj = programs.find(p =>
-      String(p.id).trim() === pIdStr ||
-      (p.code && String(p.code).trim().toLowerCase() === pIdStr.toLowerCase()) ||
-      (p.name && String(p.name).trim().toLowerCase() === pIdStr.toLowerCase())
-    );
-    const checkIds = new Set([pIdStr, pIdStr.toLowerCase()]);
-    if (progObj?.id) {
-      checkIds.add(String(progObj.id).trim());
-      checkIds.add(String(progObj.id).trim().toLowerCase());
-    }
-    if (progObj?.code) {
-      checkIds.add(String(progObj.code).trim());
-      checkIds.add(String(progObj.code).trim().toLowerCase());
-    }
-    if (progObj?.name) {
-      checkIds.add(String(progObj.name).trim());
-      checkIds.add(String(progObj.name).trim().toLowerCase());
-    }
-    return publishedPrograms.map(String).some(pid => {
-      const p = pid.trim();
-      return checkIds.has(p) || checkIds.has(p.toLowerCase());
+    const pIdLower = pIdStr.toLowerCase();
+
+    // 1. Direct match in published list
+    const pubLowerSet = new Set(publishedPrograms.map(p => String(p).trim().toLowerCase()));
+    if (pubLowerSet.has(pIdLower)) return true;
+
+    // 2. Resolve program object by id, code, name, or composite code/name
+    const progObj = programs.find(p => {
+      const pId = String(p.id || '').trim().toLowerCase();
+      const pCode = String(p.code || '').trim().toLowerCase();
+      const pName = String(p.name || '').trim().toLowerCase();
+      if (pId && pId === pIdLower) return true;
+      if (pCode && (pCode === pIdLower || pIdLower.startsWith(pCode + ' -') || pIdLower.startsWith(pCode + '-'))) return true;
+      if (pName && (pName === pIdLower || pIdLower.includes(pName))) return true;
+      return false;
     });
+
+    const checkIds = [pIdLower];
+    if (progObj?.id) checkIds.push(String(progObj.id).trim().toLowerCase());
+    if (progObj?.code) checkIds.push(String(progObj.code).trim().toLowerCase());
+    if (progObj?.name) checkIds.push(String(progObj.name).trim().toLowerCase());
+
+    return checkIds.some(id => pubLowerSet.has(id));
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
@@ -912,13 +913,12 @@ function App() {
     const toRemoveOrAdd = new Set([pIdStr]);
     if (progObj?.id) toRemoveOrAdd.add(String(progObj.id).trim());
     if (progObj?.code) toRemoveOrAdd.add(String(progObj.code).trim());
-    if (progObj?.name) toRemoveOrAdd.add(String(progObj.name).trim());
 
     let updated;
     if (shouldPublish) {
       updated = Array.from(new Set([...baseList.map(String), ...Array.from(toRemoveOrAdd)]));
     } else {
-      updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()) && !toRemoveOrAdd.has(id.trim().toLowerCase()));
+      updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
     }
 
     // 1. Update React state immediately (optimistic UI)
@@ -956,11 +956,10 @@ function App() {
           visibilityControls: encodeURIComponent(JSON.stringify(newVis))
         });
 
-        // Update BOTH place and visibility_controls columns in Supabase so they stay 100% synchronized
         if (mId) {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('id', mId));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
         } else {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum)));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
         }
         // Verify: re-save localStorage after successful DB write (belt-and-suspenders)
         if (rNum) {
@@ -1022,11 +1021,10 @@ function App() {
           visibilityControls: encodeURIComponent(JSON.stringify(newVis))
         });
 
-        // Update BOTH place and visibility_controls in Supabase
         if (mId) {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('id', mId));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
         } else {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum)));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
         }
       } catch (err) {
         console.warn("Error in handlePublishAllPrograms:", err);
@@ -1769,15 +1767,15 @@ function App() {
               : madrasaData.visibility_controls;
           } catch (e) {}
         }
-        const placePub = Array.isArray(visFromPlace?.published_programs) ? visFromPlace.published_programs.map(String) : [];
-        const colPub = Array.isArray(visFromCol?.published_programs) ? visFromCol.published_programs.map(String) : [];
-        const mergedDbPublished = Array.from(new Set([...placePub, ...colPub]));
-
         fetchedVisibility = {
           ...(visFromPlace && typeof visFromPlace === 'object' ? visFromPlace : {}),
-          ...(visFromCol && typeof visFromCol === 'object' ? visFromCol : {}),
-          published_programs: mergedDbPublished
+          ...(visFromCol && typeof visFromCol === 'object' ? visFromCol : {})
         };
+        if (Array.isArray(visFromCol?.published_programs)) {
+          fetchedVisibility.published_programs = visFromCol.published_programs;
+        } else if (Array.isArray(visFromPlace?.published_programs)) {
+          fetchedVisibility.published_programs = visFromPlace.published_programs;
+        }
       }
 
       try {
@@ -4965,8 +4963,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     const seen = new Set();
     return list.filter(r => {
       if (!r) return false;
-      // In View Mode, only results from published programs are counted for points/scoreboard
-      if (!isProgPublished(r.progid)) return false;
+      // In View Mode only, filter by published programs (Admin always sees all entered results)
+      if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
       // Deduplicate identical duplicate DB rows safely by ID or unique composite key
       const uniqueKey = r.id ? `id_${r.id}` : `${String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase()}___${String(r.studentname || r.student_name || '').trim().toLowerCase()}___${String(r.place || '')}___${String(r.grade || '')}___${String(r.points || 0)}`;
       if (seen.has(uniqueKey)) return false;
@@ -4984,10 +4982,44 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         const rTid = String(r.teamId || r.teamid || '').trim();
         if (rTid && rTid === String(teamId).trim()) return true;
         const rTName = String(r.teamname || r.teamName || '').trim().toLowerCase();
-        if (targetName && rTName && rTName === targetName) return true;
+        if (targetName && rTName && (rTName === targetName || rTName.includes(targetName) || targetName.includes(rTName))) return true;
         return false;
       })
-      .reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+      .reduce((sum, r) => {
+        let pts = Number(r.points);
+        if (isNaN(pts) || pts === 0) {
+          // Dynamic fallback point calculation if r.points is 0 or null
+          const p = (r.place || '').toString().toLowerCase();
+          const g = (r.grade || '').toString().toUpperCase();
+          const isGrp = String(r.progtype || '').includes('GROUP');
+          const isTm = String(r.progtype || '').includes('TEAM');
+          let calcPts = 0;
+          if (isTm) {
+            if (p === 'first' || p === '1') calcPts += Number(pointSystem.tp1 || 15);
+            else if (p === 'second' || p === '2') calcPts += Number(pointSystem.tp2 || 10);
+            else if (p === 'third' || p === '3') calcPts += Number(pointSystem.tp3 || 5);
+            if (g === 'A') calcPts += Number(pointSystem.tpA || 5);
+            else if (g === 'B') calcPts += Number(pointSystem.tpB || 3);
+            else if (g === 'C') calcPts += Number(pointSystem.tpC || 1);
+          } else if (isGrp) {
+            if (p === 'first' || p === '1') calcPts += Number(pointSystem.gp1 || 10);
+            else if (p === 'second' || p === '2') calcPts += Number(pointSystem.gp2 || 6);
+            else if (p === 'third' || p === '3') calcPts += Number(pointSystem.gp3 || 2);
+            if (g === 'A') calcPts += Number(pointSystem.gpA || 5);
+            else if (g === 'B') calcPts += Number(pointSystem.gpB || 3);
+            else if (g === 'C') calcPts += Number(pointSystem.gpC || 1);
+          } else {
+            if (p === 'first' || p === '1') calcPts += Number(pointSystem.p1 || 5);
+            else if (p === 'second' || p === '2') calcPts += Number(pointSystem.p2 || 3);
+            else if (p === 'third' || p === '3') calcPts += Number(pointSystem.p3 || 1);
+            if (g === 'A') calcPts += Number(pointSystem.gA || 5);
+            else if (g === 'B') calcPts += Number(pointSystem.gB || 3);
+            else if (g === 'C') calcPts += Number(pointSystem.gC || 1);
+          }
+          pts = calcPts;
+        }
+        return sum + (pts || 0);
+      }, 0);
   };
 
   // ══════════════════════════════════════════════════════════════════════
@@ -6808,13 +6840,14 @@ ${pagesHtml}
                                 {categories.map(c => {
                                   // Calculate points for this category and team (gate by published programs in View Mode)
                                   const catResults = resultsList.filter(r => {
-                                    if (!isProgPublished(r.progid)) return false;
-                                    return (String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id)) && r.catname === c.name;
+                                    if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                                    const teamMatch = String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id) || (String(r.teamname || '').toLowerCase() === String(team.name || '').toLowerCase());
+                                    return teamMatch && r.catname === c.name;
                                   });
                                   if (catResults.length === 0) return null;
 
-                                  const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + r.points, 0);
-                                  const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + r.points, 0);
+                                  const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                                  const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + (Number(r.points) || 0), 0);
 
                                   return (
                                     <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', minWidth: '110px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -6987,8 +7020,8 @@ ${pagesHtml}
                         const progObj = programs.find(p => String(p.id) === String(filterProg));
                         const isPublished = isProgPublished(filterProg);
                         const progResults = resultsList.filter(r => {
-                          if (!isProgPublished(r.progid)) return false;
-                          const matchProg = String(r.progid) === String(filterProg);
+                          if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                          const matchProg = String(r.progid) === String(filterProg) || (progObj && (String(r.progid) === String(progObj.id) || String(r.progid) === String(progObj.code) || String(r.progid) === String(progObj.name)));
                           const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
                           const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
                           return matchProg && matchGender;
@@ -7107,7 +7140,7 @@ ${pagesHtml}
                     ) : (() => {
                       // 1. Gather all winner results with full resolved metadata
                       const allWinnerResults = resultsList.filter(r => {
-                        if (!isProgPublished(r.progid)) return false;
+                        if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
                         const p = (r.place || '').toString().trim().toLowerCase();
                         return p === 'first' || p === '1' || p === '1st' ||
                                p === 'second' || p === '2' || p === '2nd' ||
@@ -8076,7 +8109,7 @@ ${pagesHtml}
                           const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
                           const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
                           const sResults = resultsList.filter(r => {
-                            if (!isProgPublished(r.progid)) return false;
+                            if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
                             const rRaw = String(r.studentname || r.studentName || '').trim();
                             const rSid = String(r.studentid || r.student_id || '').trim();
                             const dashIdx = rRaw.indexOf(' - ');
@@ -8593,8 +8626,7 @@ ${pagesHtml}
 
                           const totalPts = resultsList.filter(r => {
                             if (!r) return false;
-                            // Gate by published programs in View mode
-                            if (!isProgPublished(r.progid)) return false;
+                            if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
                             // Exclude group events from individual championship total
                             if ((r.progtype || '').includes('GROUP')) return false;
 
@@ -9294,7 +9326,7 @@ ${pagesHtml}
 
                                     const progResult = resultsList.find(r => {
                                       if (!r) return false;
-                                      if (!isProgPublished(r.progid)) return false;
+                                      if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
 
                                       // Exact program match by ID or Code
                                       const rPid = String(r.progid || r.program_id || '').trim();
