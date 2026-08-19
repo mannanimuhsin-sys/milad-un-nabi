@@ -2314,9 +2314,9 @@ function App() {
       }
 
       // 🔄 Realtime auto-refresh interval
-      // VIEW role: every 5s for near-instant result sync
+      // VIEW role: every 3.5s for seamless instant background sync
       // ADMIN role: every 30s is fine (they set data themselves)
-      const pollMs = loginRole === 'VIEW' ? 5000 : 30000;
+      const pollMs = loginRole === 'VIEW' ? 3500 : 30000;
       const intervalId = setInterval(() => {
         if (navigator.onLine && !isFetchingRef.current) {
           fetchSupabaseData(rNum);
@@ -2324,48 +2324,33 @@ function App() {
       }, pollMs);
 
       // ⚡ Supabase Realtime subscription for VIEW role:
-      // When admin updates visibility_controls / published_programs or results in cloud,
-      // VIEW phones get an instant push — no waiting for the poll timer.
+      // When admin updates anything in cloud (results, visibility, published programs, programs, students, teams),
+      // VIEW phones get an instant automatic push with zero manual reload needed.
       let realtimeChannel = null;
       if (loginRole === 'VIEW') {
+        const handleDbChange = () => {
+          if (navigator.onLine && !isFetchingRef.current) {
+            fetchSupabaseData(rNum);
+          }
+        };
+
         realtimeChannel = supabase
-          .channel(`madrasas_vis_${rNum}_${Date.now()}`)
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'madrasas',
-            },
-            () => {
-              // Admin changed something (visibility, published programs, place, etc.)
-              if (navigator.onLine && !isFetchingRef.current) {
-                fetchSupabaseData(rNum);
-              }
-            }
-          )
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'results',
-            },
-            () => {
-              // Admin entered new marks or updated results
-              if (navigator.onLine && !isFetchingRef.current) {
-                fetchSupabaseData(rNum);
-              }
-            }
-          )
+          .channel(`view_mode_live_${rNum}_${Date.now()}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'madrasas' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'programs' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'group_registrations' }, handleDbChange)
           .subscribe();
       }
 
-      // 🔄 Sync when user switches back to this browser tab (with 5s cooldown for VIEW, 15s for ADMIN)
+      // 🔄 Sync when user switches back to this browser tab (with 1s cooldown for VIEW, 15s for ADMIN)
       let lastFocusTime = 0;
       const handleFocus = () => {
         const now = Date.now();
-        const focusCooldown = loginRole === 'VIEW' ? 5000 : 15000;
+        const focusCooldown = loginRole === 'VIEW' ? 1000 : 15000;
         if (navigator.onLine && !isFetchingRef.current && now - lastFocusTime > focusCooldown) {
           lastFocusTime = now;
           fetchSupabaseData(rNum);
