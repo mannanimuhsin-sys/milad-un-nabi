@@ -4440,7 +4440,6 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       progid: progObj.id,
       progname: progObj.name,
       progtype: progObj.type,
-      catid: progObj.catid || '',
       catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
       studentname: computedStudentName,
       studentgender: isTeam ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : (studentObj.gender || 'BOY'),
