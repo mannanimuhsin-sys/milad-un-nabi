@@ -18592,9 +18592,10 @@ ${pagesHtml}
                       if (!w) return null;
                       const rawName = w.studentname || '';
                       const regNoPart = rawName.includes(' - ') ? rawName.split(' - ')[0].trim() : '';
-                      const namePart = rawName.includes(' - ') ? rawName.split(' - ').slice(1).join(' - ').trim() : rawName;
+                      const afterDash = rawName.includes(' - ') ? rawName.split(' - ').slice(1).join(' - ').trim() : rawName;
+                      const cleanName = afterDash.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*\[.*?\]\s*/g, ' ').trim();
 
-                      // Robust multi-factor student photo lookup
+                      // Robust multi-factor student lookup
                       const studentObj = students.find(s => {
                         const sReg = String(s.regno || s.regNo || '').trim();
                         const sId = String(s.id || '').trim();
@@ -18602,27 +18603,29 @@ ${pagesHtml}
 
                         if (regNoPart && sReg === regNoPart) return true;
                         if (w.studentid && sId === String(w.studentid).trim()) return true;
-                        if (namePart && sName === namePart.toLowerCase()) return true;
-                        if (rawName && sName === rawName.toLowerCase()) return true;
+                        if (cleanName && sName === cleanName.toLowerCase()) return true;
                         return false;
                       });
 
                       const targetRegNo = studentObj ? (studentObj.regno || studentObj.regNo || regNoPart) : regNoPart;
+                      const studentCatObj = studentObj ? categories.find(c => String(c.id) === String(studentObj.catid || studentObj.catId)) : null;
+                      const displayCatName = studentCatObj?.name || w.catname || activeGroup.catName || '';
                       const targetGender = studentObj?.gender || w.studentgender || activeGroup.genderKey;
-                      const teamName = w.teamname || teams.find(t => String(t.id) === String(w.teamId || w.teamid))?.name || '';
+                      const teamName = w.teamname || (studentObj?.teamid ? (teams.find(t => String(t.id) === String(studentObj.teamid))?.name || '') : '');
                       const grade = (w.grade && w.grade !== '-' && w.grade !== 'No') ? w.grade : '';
 
                       const hasPhoto = studentObj && studentObj.photo_url && studentObj.photo_status && studentObj.photo_status !== 'none';
                       const isBoyCard = String(targetGender).toUpperCase().includes('BOY');
+                      const finalDisplayName = studentObj?.name || cleanName || rawName;
 
                       return (
-                        <div key={w.id || `${placeClass}-${regNoPart || namePart}`} className={`winner-poster-card ${placeClass}`}>
+                        <div key={w.id || `${placeClass}-${regNoPart || cleanName}`} className={`winner-poster-card ${placeClass}`}>
                           <div className="winner-poster-medal-ring">
                             <span className="winner-poster-medal-emoji">{medalEmoji}</span>
                           </div>
                           <div className="winner-poster-photo-wrap">
                             {hasPhoto ? (
-                              <img src={studentObj.photo_url} alt={namePart} className="winner-poster-photo" />
+                              <img src={studentObj.photo_url} alt={finalDisplayName} className="winner-poster-photo" />
                             ) : (
                               <div className={`winner-poster-photo-placeholder ${isBoyCard ? 'boy' : 'girl'}`}>
                                 <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -18634,15 +18637,15 @@ ${pagesHtml}
                           </div>
                           <div className="winner-poster-place-label">{placeLabel}</div>
                           <div className="winner-poster-info">
-                            <div className="winner-poster-name">{namePart || rawName}</div>
+                            <div className="winner-poster-name">{finalDisplayName}</div>
                             {targetRegNo && (
                               <div className="winner-poster-reg">🔖 {targetRegNo}</div>
                             )}
                             {teamName && (
                               <div className="winner-poster-team">🏫 {teamName}</div>
                             )}
-                            {(studentObj ? (categories.find(c => String(c.id) === String(studentObj.catid || studentObj.catId))?.name || activeGroup.catName) : activeGroup.catName) && (
-                              <div className="winner-poster-cat">📁 {studentObj ? (categories.find(c => String(c.id) === String(studentObj.catid || studentObj.catId))?.name || activeGroup.catName) : activeGroup.catName}</div>
+                            {displayCatName && (
+                              <div className="winner-poster-cat">📁 {displayCatName}</div>
                             )}
                             {grade && (
                               <div className="winner-poster-grade">{grade}</div>
