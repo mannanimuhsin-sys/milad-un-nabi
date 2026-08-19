@@ -863,23 +863,21 @@ function App() {
 
   const isProgPublished = (progId) => {
     if (!progId) return false;
-    if (!Array.isArray(publishedPrograms) || publishedPrograms === null) return false;
+    if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) return false;
     const pIdStr = String(progId).trim();
     const progObj = programs.find(p =>
-      String(p.id) === pIdStr || String(p.code) === pIdStr ||
-      String(p.name).toLowerCase() === pIdStr.toLowerCase()
+      String(p.id).trim() === pIdStr || (p.code && String(p.code).trim() === pIdStr)
     );
     const checkIds = new Set([pIdStr]);
     if (progObj?.id) checkIds.add(String(progObj.id).trim());
     if (progObj?.code) checkIds.add(String(progObj.code).trim());
-    if (progObj?.name) checkIds.add(String(progObj.name).trim());
     return publishedPrograms.map(String).some(pid => checkIds.has(pid.trim()));
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
     if (!progId) return;
     const pIdStr = String(progId).trim();
-    const progObj = programs.find(p => String(p.id) === pIdStr || String(p.code) === pIdStr || String(p.name).toLowerCase() === pIdStr.toLowerCase());
+    const progObj = programs.find(p => String(p.id).trim() === pIdStr || (p.code && String(p.code).trim() === pIdStr));
     const progName = progObj ? progObj.name : 'Program';
     
     // Get latest published list from state, falling back to localStorage
@@ -899,7 +897,6 @@ function App() {
     const toRemoveOrAdd = new Set([pIdStr]);
     if (progObj?.id) toRemoveOrAdd.add(String(progObj.id).trim());
     if (progObj?.code) toRemoveOrAdd.add(String(progObj.code).trim());
-    if (progObj?.name) toRemoveOrAdd.add(String(progObj.name).trim());
 
     let updated;
     if (shouldPublish) {
@@ -4458,6 +4455,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       progid: progObj.id,
       progname: progObj.name,
       progtype: progObj.type,
+      catid: progObj.catid || '',
       catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
       studentname: computedStudentName,
       studentgender: isTeam ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : (studentObj.gender || 'BOY'),
@@ -18514,13 +18512,17 @@ ${pagesHtml}
                       const rProgName = String(r.progname || r.progName || '').trim();
                       const rCatName = String(r.catname || r.catName || '').trim();
 
-                      // 1. Resolve exact program object: match strictly by ID/code first, then by (name + category), then by name
+                      // 1. Resolve exact program object: match strictly by ID first (most reliable)
                       const progObj = (rProgId ? programs.find(p => String(p.id).trim() === rProgId || (p.code && String(p.code).trim() === rProgId)) : null)
-                        || (rCatName ? programs.find(p => p.name.trim().toLowerCase() === rProgName.toLowerCase() && categories.find(c => String(c.id) === String(p.catid || p.catId))?.name.trim().toLowerCase() === rCatName.toLowerCase()) : null)
-                        || programs.find(p => p.name.trim().toLowerCase() === rProgName.toLowerCase());
+                        || null; // Do NOT fallback to name-only: prevents wrong category mixing
 
-                      const catObj = progObj ? categories.find(c => String(c.id) === String(progObj.catid || progObj.catId)) : categories.find(c => c.name.toLowerCase() === rCatName.toLowerCase());
-                      const finalCatName = catObj?.name || rCatName || progObj?.catname || '';
+                      // Resolve category: prefer catid stored on the result, then from progObj
+                      const rCatId = String(r.catid || r.catId || progObj?.catid || progObj?.catId || '').trim();
+                      const catObj = rCatId
+                        ? categories.find(c => String(c.id).trim() === rCatId)
+                        : (rCatName ? categories.find(c => c.name.toLowerCase() === rCatName.toLowerCase()) : null);
+                      const finalCatName = catObj?.name || rCatName || '';
+                      const finalCatId = catObj?.id || rCatId || '';
                       const finalProgCode = progObj?.code || r.progcode || r.progCode || '';
                       const finalProgName = progObj?.name || rProgName || 'Program';
 
@@ -18533,7 +18535,10 @@ ${pagesHtml}
                       const genderText = isBoy ? (lang === 'EN' ? 'Boys' : 'ബോയ്സ്') : isGirl ? (lang === 'EN' ? 'Girls' : 'ഗേൾസ്') : (lang === 'EN' ? 'Common' : 'കോമൺ');
                       const genderColor = isBoy ? '#60a5fa' : isGirl ? '#f472b6' : '#34d399';
 
-                      const groupKey = progObj?.id ? `prog_${progObj.id}` : `${finalProgName}___${finalCatName}___${genderKey}`;
+                      // GroupKey: ALWAYS use progid + catid + genderKey for uniqueness — never name-only
+                      const groupKey = rProgId
+                        ? `prog_${rProgId}__cat_${finalCatId}__g_${genderKey}`
+                        : `${finalProgName}___${finalCatId || finalCatName}___${genderKey}`;
 
                       if (!groupsMap.has(groupKey)) {
                         groupsMap.set(groupKey, {
@@ -18652,8 +18657,8 @@ ${pagesHtml}
                             {teamName && (
                               <div className="winner-poster-team">🏫 {teamName}</div>
                             )}
-                            {activeGroup.catName && (
-                              <div className="winner-poster-cat">📁 {activeGroup.catName}</div>
+                            {(studentObj ? (categories.find(c => String(c.id) === String(studentObj.catid || studentObj.catId))?.name || activeGroup.catName) : activeGroup.catName) && (
+                              <div className="winner-poster-cat">📁 {studentObj ? (categories.find(c => String(c.id) === String(studentObj.catid || studentObj.catId))?.name || activeGroup.catName) : activeGroup.catName}</div>
                             )}
                             {grade && (
                               <div className="winner-poster-grade">{grade}</div>
