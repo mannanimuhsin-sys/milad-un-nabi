@@ -8404,6 +8404,7 @@ ${pagesHtml}
                                           <th style={{ width: '50px', textAlign: 'center' }}>Photo</th>
                                           <th>Register Number</th>
                                           <th>Student</th>
+                                          <th style={{ textAlign: 'center' }}>Gender</th>
                                           <th>Team</th>
                                           <th style={{ textAlign: 'center' }}>Grade</th>
                                           <th style={{ textAlign: 'center' }}>Points</th>
