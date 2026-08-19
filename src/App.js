@@ -866,12 +866,27 @@ function App() {
     if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) return false;
     const pIdStr = String(progId).trim();
     const progObj = programs.find(p =>
-      String(p.id).trim() === pIdStr || (p.code && String(p.code).trim() === pIdStr)
+      String(p.id).trim() === pIdStr ||
+      (p.code && String(p.code).trim().toLowerCase() === pIdStr.toLowerCase()) ||
+      (p.name && String(p.name).trim().toLowerCase() === pIdStr.toLowerCase())
     );
-    const checkIds = new Set([pIdStr]);
-    if (progObj?.id) checkIds.add(String(progObj.id).trim());
-    if (progObj?.code) checkIds.add(String(progObj.code).trim());
-    return publishedPrograms.map(String).some(pid => checkIds.has(pid.trim()));
+    const checkIds = new Set([pIdStr, pIdStr.toLowerCase()]);
+    if (progObj?.id) {
+      checkIds.add(String(progObj.id).trim());
+      checkIds.add(String(progObj.id).trim().toLowerCase());
+    }
+    if (progObj?.code) {
+      checkIds.add(String(progObj.code).trim());
+      checkIds.add(String(progObj.code).trim().toLowerCase());
+    }
+    if (progObj?.name) {
+      checkIds.add(String(progObj.name).trim());
+      checkIds.add(String(progObj.name).trim().toLowerCase());
+    }
+    return publishedPrograms.map(String).some(pid => {
+      const p = pid.trim();
+      return checkIds.has(p) || checkIds.has(p.toLowerCase());
+    });
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
@@ -897,12 +912,13 @@ function App() {
     const toRemoveOrAdd = new Set([pIdStr]);
     if (progObj?.id) toRemoveOrAdd.add(String(progObj.id).trim());
     if (progObj?.code) toRemoveOrAdd.add(String(progObj.code).trim());
+    if (progObj?.name) toRemoveOrAdd.add(String(progObj.name).trim());
 
     let updated;
     if (shouldPublish) {
       updated = Array.from(new Set([...baseList.map(String), ...Array.from(toRemoveOrAdd)]));
     } else {
-      updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
+      updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()) && !toRemoveOrAdd.has(id.trim().toLowerCase()));
     }
 
     // 1. Update React state immediately (optimistic UI)
@@ -940,10 +956,11 @@ function App() {
           visibilityControls: encodeURIComponent(JSON.stringify(newVis))
         });
 
+        // Update BOTH place and visibility_controls columns in Supabase so they stay 100% synchronized
         if (mId) {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('id', mId));
         } else {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum)));
         }
         // Verify: re-save localStorage after successful DB write (belt-and-suspenders)
         if (rNum) {
@@ -1005,10 +1022,11 @@ function App() {
           visibilityControls: encodeURIComponent(JSON.stringify(newVis))
         });
 
+        // Update BOTH place and visibility_controls in Supabase
         if (mId) {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('id', mId));
         } else {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace, visibility_controls: JSON.stringify(newVis) }).eq('regNumber', String(rNum)));
         }
       } catch (err) {
         console.warn("Error in handlePublishAllPrograms:", err);
@@ -1751,15 +1769,15 @@ function App() {
               : madrasaData.visibility_controls;
           } catch (e) {}
         }
+        const placePub = Array.isArray(visFromPlace?.published_programs) ? visFromPlace.published_programs.map(String) : [];
+        const colPub = Array.isArray(visFromCol?.published_programs) ? visFromCol.published_programs.map(String) : [];
+        const mergedDbPublished = Array.from(new Set([...placePub, ...colPub]));
+
         fetchedVisibility = {
           ...(visFromPlace && typeof visFromPlace === 'object' ? visFromPlace : {}),
-          ...(visFromCol && typeof visFromCol === 'object' ? visFromCol : {})
+          ...(visFromCol && typeof visFromCol === 'object' ? visFromCol : {}),
+          published_programs: mergedDbPublished
         };
-        if (Array.isArray(visFromCol?.published_programs)) {
-          fetchedVisibility.published_programs = visFromCol.published_programs;
-        } else if (Array.isArray(visFromPlace?.published_programs)) {
-          fetchedVisibility.published_programs = visFromPlace.published_programs;
-        }
       }
 
       try {
@@ -4949,9 +4967,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       if (!r) return false;
       // In View Mode, only results from published programs are counted for points/scoreboard
       if (!isProgPublished(r.progid)) return false;
-      const pKey = String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase();
-      const sKey = String(r.studentname || r.student_name || '').trim().toLowerCase();
-      const uniqueKey = `${pKey}___${sKey}`;
+      // Deduplicate identical duplicate DB rows safely by ID or unique composite key
+      const uniqueKey = r.id ? `id_${r.id}` : `${String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase()}___${String(r.studentname || r.student_name || '').trim().toLowerCase()}___${String(r.place || '')}___${String(r.grade || '')}___${String(r.points || 0)}`;
       if (seen.has(uniqueKey)) return false;
       seen.add(uniqueKey);
       return true;
