@@ -18590,22 +18590,62 @@ ${pagesHtml}
 
                     const renderPosterWinnerCard = (w, placeLabel, medalEmoji, placeClass) => {
                       if (!w) return null;
-                      const rawName = w.studentname || '';
-                      const regNoPart = rawName.includes(' - ') ? rawName.split(' - ')[0].trim() : '';
-                      const afterDash = rawName.includes(' - ') ? rawName.split(' - ').slice(1).join(' - ').trim() : rawName;
-                      const cleanName = afterDash.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*\[.*?\]\s*/g, ' ').trim();
+                      const rawName = String(w.studentname || w.studentName || '').trim();
 
-                      // Robust multi-factor student lookup
-                      const studentObj = students.find(s => {
-                        const sReg = String(s.regno || s.regNo || '').trim();
-                        const sId = String(s.id || '').trim();
-                        const sName = String(s.name || '').trim().toLowerCase();
+                      // 1. Extract Register Number (Chest Number) using regex & delimiters
+                      let regNoPart = '';
+                      const regMatch = rawName.match(/^(\d+)/);
+                      if (regMatch) {
+                        regNoPart = regMatch[1];
+                      } else if (rawName.includes(' - ')) {
+                        regNoPart = rawName.split(' - ')[0].trim();
+                      } else if (rawName.includes('-')) {
+                        regNoPart = rawName.split('-')[0].trim();
+                      }
 
-                        if (regNoPart && sReg === regNoPart) return true;
-                        if (w.studentid && sId === String(w.studentid).trim()) return true;
-                        if (cleanName && sName === cleanName.toLowerCase()) return true;
-                        return false;
-                      });
+                      // 2. Extract clean student name
+                      let cleanName = rawName;
+                      if (regNoPart && cleanName.startsWith(regNoPart)) {
+                        cleanName = cleanName.substring(regNoPart.length).replace(/^[\s\-:]+/, '');
+                      }
+                      cleanName = cleanName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*\[.*?\]\s*/g, ' ').trim();
+
+                      // 3. Strict Student Lookup: prioritize Register Number & DB ID, NEVER match wrong category by name
+                      let studentObj = null;
+
+                      // A. Match by Register Number (Chest Number) - 100% accurate
+                      if (regNoPart) {
+                        studentObj = students.find(s => {
+                          const sReg = String(s.regno || s.regNo || '').trim();
+                          return sReg === regNoPart || (parseInt(sReg, 10) === parseInt(regNoPart, 10) && !isNaN(parseInt(regNoPart, 10)));
+                        });
+                      }
+
+                      // B. Match by Student Database ID
+                      if (!studentObj && (w.studentid || w.student_id)) {
+                        const sDbId = String(w.studentid || w.student_id).trim();
+                        studentObj = students.find(s => String(s.id).trim() === sDbId);
+                      }
+
+                      // C. Match by Name ONLY within the EXACT SAME CATEGORY (never cross categories!)
+                      if (!studentObj && cleanName) {
+                        const targetCatId = String(activeGroup.catId || activeGroup.catObj?.id || '').trim();
+                        const targetCatName = String(activeGroup.catName || '').trim().toLowerCase();
+
+                        studentObj = students.find(s => {
+                          const sName = String(s.name || '').trim().toLowerCase();
+                          if (sName !== cleanName.toLowerCase()) return false;
+
+                          // Strict category check
+                          const sCatId = String(s.catid || s.catId || '').trim();
+                          const sCatObj = categories.find(c => String(c.id).trim() === sCatId);
+                          const sCatName = sCatObj ? sCatObj.name.trim().toLowerCase() : '';
+
+                          if (targetCatId && sCatId && sCatId === targetCatId) return true;
+                          if (targetCatName && sCatName && sCatName === targetCatName) return true;
+                          return false;
+                        });
+                      }
 
                       const targetRegNo = studentObj ? (studentObj.regno || studentObj.regNo || regNoPart) : regNoPart;
                       const studentCatObj = studentObj ? categories.find(c => String(c.id) === String(studentObj.catid || studentObj.catId)) : null;
