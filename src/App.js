@@ -4963,8 +4963,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     const seen = new Set();
     return list.filter(r => {
       if (!r) return false;
-      // In View Mode only, filter by published programs (Admin always sees all entered results)
-      if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+      // Only results from manually published programs are counted for points/scoreboard (Draft items remain hidden)
+      if (!isProgPublished(r.progid)) return false;
       // Deduplicate identical duplicate DB rows safely by ID or unique composite key
       const uniqueKey = r.id ? `id_${r.id}` : `${String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase()}___${String(r.studentname || r.student_name || '').trim().toLowerCase()}___${String(r.place || '')}___${String(r.grade || '')}___${String(r.points || 0)}`;
       if (seen.has(uniqueKey)) return false;
@@ -6840,7 +6840,7 @@ ${pagesHtml}
                                 {categories.map(c => {
                                   // Calculate points for this category and team (gate by published programs in View Mode)
                                   const catResults = resultsList.filter(r => {
-                                    if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                                    if (!isProgPublished(r.progid)) return false;
                                     const teamMatch = String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id) || (String(r.teamname || '').toLowerCase() === String(team.name || '').toLowerCase());
                                     return teamMatch && r.catname === c.name;
                                   });
@@ -7020,7 +7020,7 @@ ${pagesHtml}
                         const progObj = programs.find(p => String(p.id) === String(filterProg));
                         const isPublished = isProgPublished(filterProg);
                         const progResults = resultsList.filter(r => {
-                          if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                          if (!isProgPublished(r.progid)) return false;
                           const matchProg = String(r.progid) === String(filterProg) || (progObj && (String(r.progid) === String(progObj.id) || String(r.progid) === String(progObj.code) || String(r.progid) === String(progObj.name)));
                           const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
                           const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
@@ -7140,7 +7140,7 @@ ${pagesHtml}
                     ) : (() => {
                       // 1. Gather all winner results with full resolved metadata
                       const allWinnerResults = resultsList.filter(r => {
-                        if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                        if (!isProgPublished(r.progid)) return false;
                         const p = (r.place || '').toString().trim().toLowerCase();
                         return p === 'first' || p === '1' || p === '1st' ||
                                p === 'second' || p === '2' || p === '2nd' ||
@@ -8109,7 +8109,7 @@ ${pagesHtml}
                           const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
                           const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
                           const sResults = resultsList.filter(r => {
-                            if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                            if (!isProgPublished(r.progid)) return false;
                             const rRaw = String(r.studentname || r.studentName || '').trim();
                             const rSid = String(r.studentid || r.student_id || '').trim();
                             const dashIdx = rRaw.indexOf(' - ');
@@ -8626,7 +8626,7 @@ ${pagesHtml}
 
                           const totalPts = resultsList.filter(r => {
                             if (!r) return false;
-                            if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                            if (!isProgPublished(r.progid)) return false;
                             // Exclude group events from individual championship total
                             if ((r.progtype || '').includes('GROUP')) return false;
 
@@ -9326,7 +9326,7 @@ ${pagesHtml}
 
                                     const progResult = resultsList.find(r => {
                                       if (!r) return false;
-                                      if (loginRole === 'VIEW' && !isProgPublished(r.progid)) return false;
+                                      if (!isProgPublished(r.progid)) return false;
 
                                       // Exact program match by ID or Code
                                       const rPid = String(r.progid || r.program_id || '').trim();
