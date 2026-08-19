@@ -3,7 +3,7 @@ import React from 'react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, isAutoReloading: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -13,20 +13,17 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('[ErrorBoundary caught component error]:', error, errorInfo);
     
-    // Auto-recovery attempt: if it's the first crash within 15 seconds, clear caches and auto-reload
+    // Auto-recovery: immediately clear cache and reload automatically
+    this.setState({ isAutoReloading: true });
     try {
-      const lastAutoReload = parseInt(sessionStorage.getItem('eb_last_auto_reload') || '0', 10);
-      const now = Date.now();
-      if (now - lastAutoReload > 15000) {
-        sessionStorage.setItem('eb_last_auto_reload', String(now));
-        if ('caches' in window) {
-          caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
-        }
-        setTimeout(() => {
-          window.location.reload();
-        }, 300);
+      if ('caches' in window) {
+        caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
       }
     } catch (e) {}
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 600);
   }
 
   handleReload = () => {
@@ -93,39 +90,40 @@ class ErrorBoundary extends React.Component {
             </div>
             
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '800', color: '#fff' }}>
-              ആപ്പ് അപ്‌ഡേറ്റ് ചെയ്യുന്നു
+              ഓട്ടോമാറ്റിക് അപ്‌ഡേറ്റ് ചെയ്യുന്നു...
             </h3>
-            <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#a7f3d0', fontWeight: '600' }}>
-              Updating Milad Fest...
+            <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#a7f3d0', fontWeight: '600' }}>
+              Updating Milad Fest Automatically...
             </p>
             
-            <p style={{ margin: '16px 0 24px 0', fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
-              പുതിയ മാറ്റങ്ങൾ ഉൾക്കൊള്ളാൻ ദയവായി താഴെ കാണുന്ന ബട്ടൺ അമർത്തി പേജ് റീലോഡ് ചെയ്യുക.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#cbd5e1', fontSize: '13px', marginBottom: '20px' }}>
+              <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#10b981', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <span>ഏറ്റവും പുതിയ വിവരങ്ങൾ ലോഡ് ചെയ്യുന്നു...</span>
+            </div>
 
             <button
               type="button"
               onClick={this.handleReload}
               style={{
                 width: '100%',
-                padding: '14px 20px',
+                padding: '12px 20px',
                 borderRadius: '12px',
                 border: 'none',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: '#ffffff',
                 fontWeight: '800',
-                fontSize: '15px',
+                fontSize: '14px',
                 cursor: 'pointer',
                 boxShadow: '0 8px 20px rgba(16, 185, 129, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginBottom: '12px'
+                marginBottom: '10px'
               }}
             >
               <span>🔄</span>
-              <span>റീലോഡ് ചെയ്യുക (Reload App)</span>
+              <span>ഇപ്പോൾ തന്നെ റീലോഡ് ചെയ്യുക</span>
             </button>
 
             <button

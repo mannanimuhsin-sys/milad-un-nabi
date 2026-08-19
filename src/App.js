@@ -905,15 +905,22 @@ function App() {
       updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
     }
 
+    // 1. Update React state immediately (optimistic UI)
     setPublishedPrograms(updated);
 
-    if (rNum || mId) {
+    // 2. Always save to localStorage FIRST — this is the source of truth for ADMIN
+    //    Even if DB write fails, localStorage preserves the manual publish action.
+    if (rNum) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
       } catch {}
-      
+    }
+
+    // 3. Sync to DB — build newVis with the UPDATED published_programs (not stale state)
+    if (rNum || mId) {
       try {
+        // Use 'updated' directly — do NOT rely on visibilityControls state which may be stale
         const newVis = { ...(visibilityControls || {}), published_programs: updated };
         setVisibilityControls(newVis);
 
@@ -928,6 +935,7 @@ function App() {
           if (mData && mData.place) currentPlace = mData.place;
         } catch (e) {}
 
+        // Build place string using the fresh newVis (not the stale visibilityControls state)
         const updatedPlace = makePlaceString(currentPlace, {
           visibilityControls: encodeURIComponent(JSON.stringify(newVis))
         });
@@ -937,8 +945,17 @@ function App() {
         } else {
           await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
         }
+        // Verify: re-save localStorage after successful DB write (belt-and-suspenders)
+        if (rNum) {
+          try {
+            localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
+            localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
+          } catch {}
+        }
       } catch (err) {
         console.warn("Error syncing published_programs to cloud:", err);
+        // DB write failed — localStorage already saved, so manual publish is safe locally.
+        // The next successful DB write will persist it.
       }
     }
 
@@ -1746,39 +1763,53 @@ function App() {
       }
 
       try {
+        // 🔒 PUBLISH PROTECTION: For ADMIN role, localStorage is the master source of published programs.
+        // DB data is merged (union) with localStorage — a DB empty/missing list NEVER overrides a non-empty localStorage.
+        // This prevents automatic Draft reversion when the DB returns stale/empty published_programs on polling.
+        const isAdminRole = (loggedInMadrasaRef.current?.role || loginRole || '') === 'ADMIN';
+
+        // Always load localStorage list first (ADMIN's manual publish actions are saved here immediately)
+        let localPubList = [];
+        if (rNum) {
+          try {
+            const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
+            if (stored) localPubList = JSON.parse(stored);
+          } catch (e) {}
+        }
+        if (!Array.isArray(localPubList)) localPubList = [];
+
         if (fetchedVisibility) {
           const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
           setVisibilityControls(normalizedVis);
-          // Set publishedPrograms from DB, or fallback to saved localStorage so manual state is never lost
-          let freshPublished = null;
+
+          let dbPublished = [];
           if (Array.isArray(fetchedVisibility?.published_programs)) {
-            freshPublished = fetchedVisibility.published_programs.map(String);
-          } else if (rNum) {
-            try {
-              const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
-              if (stored) freshPublished = JSON.parse(stored);
-            } catch (e) {}
+            dbPublished = fetchedVisibility.published_programs.map(String);
           }
-          if (!Array.isArray(freshPublished)) freshPublished = [];
-          setPublishedPrograms(freshPublished);
+
+          let finalPublished;
+          if (isAdminRole) {
+            // ADMIN: UNION of DB and localStorage — published items are NEVER silently removed by a poll.
+            // Only a manual "Move to Draft" action (handleTogglePublishProgram) can remove items.
+            finalPublished = Array.from(new Set([...dbPublished, ...localPubList]));
+          } else {
+            // VIEW role: DB is the sole source of truth (admin controls what VIEW users see)
+            finalPublished = dbPublished;
+          }
+
+          setPublishedPrograms(finalPublished);
           if (rNum) {
             try {
-              localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(freshPublished));
-              localStorage.setItem('milad_published_programs_latest', JSON.stringify(freshPublished));
+              localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(finalPublished));
+              localStorage.setItem('milad_published_programs_latest', JSON.stringify(finalPublished));
             } catch (e) {}
           }
         } else {
-          // DB returned no visibility data at all → try local storage or default to []
-          let localPub = [];
-          if (rNum) {
-            try {
-              const stored = localStorage.getItem(`milad_published_programs_${rNum}`);
-              if (stored) localPub = JSON.parse(stored);
-            } catch (e) {}
-          }
-          setPublishedPrograms(Array.isArray(localPub) ? localPub : []);
+          // DB returned no visibility data at all → use localStorage (do NOT reset to [])
+          setPublishedPrograms(localPubList);
         }
       } catch (e) {
+        // On any error, always fall back to localStorage (never reset to [])
         let localPub = [];
         if (rNum) {
           try {
@@ -13109,6 +13140,7 @@ ${pagesHtml}
                                               }}>
                                                 <option value="SINGLE">SINGLE</option>
                                                 <option value="GROUP">GROUP</option>
+                                                <option value="TEAM">TEAM</option>
                                               </select>
 
                                               <div className="action-buttons-group">
@@ -13128,7 +13160,7 @@ ${pagesHtml}
                                                 <div>
                                                   <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{p.name}</span>
                                                   <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: '600' }}>
-                                                    Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
+                                                    Gender: {(p.type || '').includes('BOY') ? 'Boys 👦' : (p.type || '').includes('GIRL') ? 'Girls 👧' : 'Common 🚻'} | Type: {(p.type || '').includes('TEAM') ? 'Team 🏅' : (p.type || '').includes('GROUP') ? 'Group 👥' : 'Single 👤'}
                                                   </div>
                                                 </div>
                                               </div>
