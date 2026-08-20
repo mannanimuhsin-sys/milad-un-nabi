@@ -11242,8 +11242,8 @@ ${pagesHtml}
                       <div className="tile-label">{lang === 'EN' ? 'Prizes' : 'സമ്മാനങ്ങൾ'}</div>
                     </div>
                     <div className={`executive-nav-tile ${settingsSubTab === 'RESULT_PUBLISH' ? 'active' : ''}`} onClick={() => setSettingsSubTab('RESULT_PUBLISH')}>
-                      <div className="tile-icon-wrapper">🏆</div>
-                      <div className="tile-label">{lang === 'EN' ? 'Result' : 'റിസൾട്ട്'}</div>
+                      <div className="tile-icon-wrapper">📢</div>
+                      <div className="tile-label">{lang === 'EN' ? 'Publish' : 'പബ്ലിഷ്'}</div>
                     </div>
                   </div>
 
