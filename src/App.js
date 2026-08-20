@@ -19975,26 +19975,36 @@ ${pagesHtml}
         const hasPhoto = pm_student && pm_student.photo_url && pm_student.photo_status && pm_student.photo_status !== 'none';
         const teamName = result.teamname || result.teamName || '-';
 
-        // Malayalam text helpers
-        const placeML = result.place === 'First' ? 'ഒന്നാം സ്ഥാനം' : result.place === 'Second' ? 'രണ്ടാം സ്ഥാനം' : 'മൂന്നാം സ്ഥാനം';
-        const placeEN = result.place === 'First' ? '1st Place' : result.place === 'Second' ? '2nd Place' : '3rd Place';
-        const placeShortML = result.place === 'First' ? '1-ാം' : result.place === 'Second' ? '2-ാം' : '3-ാം';
+        // Rank number & suffix calculation
+        const isFirst = result.place === 'First' || result.place === '1';
+        const isSecond = result.place === 'Second' || result.place === '2';
+        const rankNum = isFirst ? '1' : isSecond ? '2' : '3';
+        const rankSuffix = isFirst ? 'st' : isSecond ? 'nd' : 'rd';
+
+        // Malayalam & English text helpers
+        const placeFormattedML = `${rankNum}${rankSuffix} സ്ഥാനം`;
+        const placeFormattedEN = `${rankNum}${rankSuffix} Place`;
         const genderML = isBoy ? 'ബോയ്സ്' : 'ഗേൾസ്';
         const genderEN = isBoy ? 'Boys' : 'Girls';
         const catNameML = pm_cat ? pm_cat.name : '';
         const catNameEN = pm_cat ? pm_cat.name : '';
         const progNameML = pm_prog ? pm_prog.name : '';
         const progNameEN = pm_prog ? pm_prog.name : '';
-        const eventTitle = eventName || 'മിലാദ് ഫെസ്റ്റ്';
+        const eventTitle = eventName || 'മധുര മദീന';
         const congratsML = 'അഭിനന്ദനങ്ങൾ';
         const congratsEN = 'Congratulations';
-        const medalEmoji = result.place === 'First' ? '🥇' : result.place === 'Second' ? '🥈' : '🥉';
-        const rankBg = result.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #b45309)' :
-          result.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #475569)' :
+        const medalEmoji = isFirst ? '🥇' : isSecond ? '🥈' : '🥉';
+        const rankBg = isFirst ? 'linear-gradient(135deg, #f59e0b, #b45309)' :
+          isSecond ? 'linear-gradient(135deg, #94a3b8, #475569)' :
             'linear-gradient(135deg, #f97316, #9a3412)';
 
-        const bodyTextML = `${genderML} ${catNameML} വിഭാഗം ${progNameML} മത്സരത്തിൽ ${placeML} കരസ്ഥമാക്കി`;
-        const bodyTextEN = `Secured ${placeEN} in ${genderEN} ${catNameEN} – ${progNameEN}`;
+        // Madrasa Info for Poster Footer
+        const madrasaName = loggedInMadrasa?.name || 'MADRASA';
+        const [actualPlace] = (loggedInMadrasa?.place || '').split('|');
+        const madrasaPlace = actualPlace || '';
+
+        const bodyTextML = `${genderML} ${catNameML} വിഭാഗം ${progNameML} മത്സരത്തിൽ ${placeFormattedML} കരസ്ഥമാക്കി`;
+        const bodyTextEN = `Secured ${placeFormattedEN} in ${genderEN} ${catNameEN} – ${progNameEN}`;
 
         const handleDownloadPoster = async () => {
           if (!posterRef.current) return;
@@ -20070,7 +20080,7 @@ ${pagesHtml}
                 }}>{isML ? congratsML : congratsEN}</div>
 
                 <div style={{ marginLeft: '30px' }}>
-                  {/* Event Name in Malayalam */}
+                  {/* Event Name in Malayalam / English */}
                   <div style={{ fontSize: isML ? '17px' : '15px', fontWeight: '900', color: '#fef08a', textAlign: 'center', lineHeight: 1.3, textShadow: '0 2px 8px rgba(0,0,0,0.5)', letterSpacing: isML ? '0.5px' : '1px' }}>{eventTitle}</div>
                   <div style={{ fontSize: '12px', fontWeight: '700', color: '#86efac', textAlign: 'center', letterSpacing: '2px', marginTop: '3px' }}>MILAD FEST 2026</div>
                 </div>
@@ -20094,7 +20104,7 @@ ${pagesHtml}
                     boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
                   }
                 }>
-                  {/* Rank circle */}
+                  {/* Rank circle with 1st, 2nd, 3rd superscript styling */}
                   <div style={{
                     width: '64px', height: '64px', borderRadius: '50%',
                     background: rankBg,
@@ -20104,8 +20114,13 @@ ${pagesHtml}
                     marginBottom: '10px',
                     flexShrink: 0
                   }}>
-                    <div style={{ fontSize: '20px', fontWeight: '900', color: 'white', lineHeight: 1 }}>{placeShortML}</div>
-                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.85)', fontWeight: '700', letterSpacing: '1px' }}>Rank</div>
+                    <div style={{ fontSize: '22px', fontWeight: '900', color: 'white', lineHeight: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+                      <span>{rankNum}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '800', marginLeft: '1px', textTransform: 'lowercase', lineHeight: 1.2 }}>{rankSuffix}</span>
+                    </div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.9)', fontWeight: '800', letterSpacing: '0.8px', marginTop: '1px' }}>
+                      {isML ? 'റാങ്ക്' : 'RANK'}
+                    </div>
                   </div>
 
                   {/* Body text */}
@@ -20156,7 +20171,7 @@ ${pagesHtml}
               {/* Dark info strip */}
               <div style={{
                 background: 'linear-gradient(135deg, #064e3b, #065f46)',
-                margin: '0 16px 16px',
+                margin: '0 16px 12px',
                 borderRadius: '16px',
                 padding: '14px 16px',
                 zIndex: 2,
@@ -20178,14 +20193,52 @@ ${pagesHtml}
                 </div>
                 {/* Place badge */}
                 <div style={{ textAlign: 'center', marginTop: '4px' }}>
-                  <span style={{ background: rankBg, borderRadius: '20px', padding: '4px 16px', fontSize: '12px', fontWeight: '900', color: 'white', letterSpacing: '1px' }}>
-                    {medalEmoji} {isML ? placeML : placeEN}
+                  <span style={{ background: rankBg, borderRadius: '20px', padding: '5px 18px', fontSize: '12px', fontWeight: '900', color: 'white', letterSpacing: '0.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <span>{medalEmoji}</span>
+                    <span>{rankNum}</span>
+                    <sup style={{ fontSize: '9px', marginLeft: '-2px', fontWeight: '800' }}>{rankSuffix}</sup>
+                    <span>{isML ? 'സ്ഥാനം' : 'Place'}</span>
                   </span>
                 </div>
               </div>
 
               {/* Bottom sparkle strip */}
-              <div style={{ height: '6px', background: 'linear-gradient(90deg, #15803d, #4ade80, #fbbf24, #4ade80, #15803d)', flexShrink: 0 }} />
+              <div style={{ height: '5px', background: 'linear-gradient(90deg, #15803d, #4ade80, #fbbf24, #4ade80, #15803d)', flexShrink: 0 }} />
+
+              {/* Madrasa Name & Place Footer */}
+              <div style={{
+                padding: '10px 16px 14px',
+                textAlign: 'center',
+                background: 'linear-gradient(180deg, rgba(6, 40, 20, 0.96), rgba(4, 25, 12, 0.99))',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                borderTop: '1px solid rgba(74, 222, 128, 0.25)'
+              }}>
+                <div style={{
+                  fontSize: '13px',
+                  fontWeight: '900',
+                  color: '#fef08a',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  lineHeight: 1.2
+                }}>
+                  {madrasaName}
+                </div>
+                {madrasaPlace && (
+                  <div style={{
+                    fontSize: '10.5px',
+                    fontWeight: '700',
+                    color: '#86efac',
+                    letterSpacing: '0.5px',
+                    marginTop: '1px'
+                  }}>
+                    {madrasaPlace}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Download button */}
@@ -20207,3 +20260,4 @@ ${pagesHtml}
 }
 
 export default App;
+
