@@ -2529,13 +2529,42 @@ function App() {
 
     setQrModalOpen(true);
 
+    // Helper: Check if a program is published given a pubList and programs list
+    const isProgramPublishedInList = (pId, pList, pCollection) => {
+      if (!pId) return false;
+      if (!Array.isArray(pList) || pList.length === 0) return false;
+      const pIdStr = String(pId).trim().toLowerCase();
+      const pubSet = new Set(pList.map(p => String(p).trim().toLowerCase()));
+      if (pubSet.has(pIdStr)) return true;
+      const progObj = (pCollection || []).find(p => {
+        const id = String(p.id || '').trim().toLowerCase();
+        const code = String(p.code || '').trim().toLowerCase();
+        const name = String(p.name || '').trim().toLowerCase();
+        return id === pIdStr || code === pIdStr || name === pIdStr || (code && pIdStr.startsWith(code));
+      });
+      if (progObj) {
+        if (progObj.id && pubSet.has(String(progObj.id).trim().toLowerCase())) return true;
+        if (progObj.code && pubSet.has(String(progObj.code).trim().toLowerCase())) return true;
+        if (progObj.name && pubSet.has(String(progObj.name).trim().toLowerCase())) return true;
+      }
+      return false;
+    };
+
     // 1. Synchronous helper to build QR data object from local collections
-    const buildQrDataFromLocal = (localMadrasa, localStudents, localTeams, localCats, localProgs, localResults, localProgRegs, localGroupRegs) => {
-      const studentObj = (localStudents || []).find(s =>
-        String(s.id).trim() === studentId ||
-        String(s.regno || s.regNo || '').trim() === studentId ||
-        (!isNaN(parseInt(studentId, 10)) && (parseInt(s.id, 10) === parseInt(studentId, 10) || parseInt(s.regno || s.regNo, 10) === parseInt(studentId, 10)))
-      );
+    const buildQrDataFromLocal = (localMadrasa, localStudents, localTeams, localCats, localProgs, localResults, localProgRegs, localGroupRegs, localPubList = []) => {
+      const studentObj = (localStudents || []).find(s => {
+        if (!s) return false;
+        const sId = String(s.id || '').trim();
+        const sReg = String(s.regno || s.regNo || '').trim();
+        if (sId && sId === studentId) return true;
+        if (sReg && sReg === studentId) return true;
+        const targetNum = parseInt(studentId, 10);
+        if (!isNaN(targetNum)) {
+          if (parseInt(sId, 10) === targetNum) return true;
+          if (parseInt(sReg, 10) === targetNum) return true;
+        }
+        return false;
+      });
       if (!studentObj) return null;
 
       const [actualPlace] = (localMadrasa?.place || '').split('|');
@@ -2552,60 +2581,144 @@ function App() {
       const sIdNum = parseInt(sDbId, 10);
       const sRegNum = parseInt(sRegNo, 10);
 
-      // Individual program registrations using canonical getStudentRegisteredPrograms
-      const sSingleProgs = getStudentRegisteredPrograms(sDbId, localProgRegs);
-
-      const matchedResults = (localResults || []).filter(r => {
+      // A. Match all Single Event Registrations for this student in localProgRegs
+      const sRegs = (localProgRegs || []).filter(r => {
         if (!r) return false;
-        // In View Mode, do not reveal results for unpublished/draft programs via QR scan
-        if (!isProgPublished(r.progid)) return false;
+        const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
+        if (!rSid) return false;
+        if (sDbId && rSid === sDbId) return true;
+        if (sRegNo && rSid === sRegNo) return true;
+        const rSidNum = parseInt(rSid, 10);
+        if (!isNaN(rSidNum)) {
+          if (!isNaN(sIdNum) && rSidNum === sIdNum) return true;
+          if (!isNaN(sRegNum) && rSidNum === sRegNum) return true;
+        }
+        if (sRegNo && (rSid.startsWith(sRegNo + ' -') || rSid.startsWith(sRegNo + '-'))) return true;
+        if (sName && rSid.toLowerCase() === sName.toLowerCase()) return true;
+        return false;
+      });
+
+      // Resolve each single registration record to a program object
+      const resolvedSingleProgs = [];
+      sRegs.forEach(r => {
+        const rProgName = String(r.program_name || r.programName || r.progname || r.progName || '').trim();
+        const rProgId = String(r.program_id || r.programId || r.progid || r.progId || '').trim();
+
+        const matchedProg = (localProgs || []).find(p => {
+          if (!p) return false;
+          const pId = String(p.id || '').trim();
+          const pCode = String(p.code || '').trim();
+          const pName = String(p.name || '').trim().toLowerCase();
+          if (pId && (rProgId === pId || rProgName === pId)) return true;
+          if (pCode && (rProgId.toLowerCase() === pCode.toLowerCase() || rProgName.toLowerCase() === pCode.toLowerCase())) return true;
+          if (pName && (rProgName.toLowerCase() === pName || rProgId.toLowerCase() === pName)) return true;
+          if (pCode && (rProgName.startsWith(pCode + ' -') || rProgName.startsWith(pCode + '-'))) return true;
+          return false;
+        });
+
+        if (matchedProg) {
+          resolvedSingleProgs.push(matchedProg);
+        } else if (rProgName || rProgId) {
+          resolvedSingleProgs.push({
+            id: rProgId || rProgName,
+            code: r.program_code || rProgId || '',
+            name: rProgName || `Program ${rProgId}`,
+            type: 'SINGLE'
+          });
+        }
+      });
+
+      // Deduplicate single registered programs
+      const singleProgMap = new Map();
+      resolvedSingleProgs.forEach(p => {
+        const key = String(p.id || p.code || p.name).trim().toLowerCase();
+        if (!singleProgMap.has(key)) singleProgMap.set(key, p);
+      });
+      const uniqueSingleProgs = Array.from(singleProgMap.values());
+
+      // B. Match all Individual Results for this student in localResults
+      const studentMatchedResults = (localResults || []).filter(r => {
+        if (!r) return false;
         const rRaw = String(r.studentname || r.studentName || '').trim();
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
         const dashIdx = rRaw.indexOf(' - ');
         const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
-        const rNamePart = dashIdx !== -1 ? rRaw.substring(dashIdx + 3).trim().toLowerCase() : rRaw.toLowerCase();
-        // 1. Exact DB ID match
+
         if (rSid && sDbId && rSid === sDbId) return true;
-        // 2. Exact numeric ID match
-        if (rSid && !isNaN(parseInt(rSid, 10)) && !isNaN(sIdNum) && parseInt(rSid, 10) === sIdNum) return true;
-        // 3. Strict Register Number match ONLY (NEVER match by student name)
+        if (rSid && sRegNo && rSid === sRegNo) return true;
+        const rSidNum = parseInt(rSid, 10);
+        if (!isNaN(rSidNum)) {
+          if (!isNaN(sIdNum) && rSidNum === sIdNum) return true;
+          if (!isNaN(sRegNum) && rSidNum === sRegNum) return true;
+        }
         if (sRegNo && rRegPart && rRegPart.toLowerCase() === sRegNo.toLowerCase()) return true;
         if (sRegNo && (rRaw.startsWith(sRegNo + ' ') || rRaw === sRegNo)) return true;
+        if (sName && rRaw.toLowerCase() === sName.toLowerCase()) return true;
         return false;
-      }).map(r => {
-        const prog = (localProgs || []).find(p => String(p.id) === String(r.progid) || p.code === String(r.progid) || p.name === String(r.progid));
-        return {
-          ...r,
-          progname: r.progname || (prog ? `${prog.code ? prog.code + ' – ' : ''}${prog.name}` : (r.prog_name || r.program_name || 'Program')),
-        };
       });
 
-      const resultMap = new Map();
-      matchedResults.forEach(r => {
-        const pKey = String(r.progid || r.program_id || r.progname);
-        if (!resultMap.has(pKey)) resultMap.set(pKey, r);
-        else {
-          const existing = resultMap.get(pKey);
-          if ((!existing.place || existing.place === 'No Place') && r.place && r.place !== 'No Place') {
-            resultMap.set(pKey, r);
-          }
-        }
-      });
-      const studentResults = Array.from(resultMap.values());
+      const individualEvents = [];
+      const processedProgKeys = new Set();
 
-      const resultProgIds = studentResults.map(r => String(r.progid || r.program_id || ''));
-      const registeredWithNoResult = sSingleProgs
-        .filter(p => p && !resultProgIds.includes(String(p.id)) && !resultProgIds.includes(String(p.code)))
-        .map(p => ({
+      // 1. Process all unique registered single programs
+      uniqueSingleProgs.forEach(p => {
+        const pKey = String(p.id || p.code || p.name).trim().toLowerCase();
+        processedProgKeys.add(pKey);
+        if (p.id) processedProgKeys.add(String(p.id).trim().toLowerCase());
+        if (p.code) processedProgKeys.add(String(p.code).trim().toLowerCase());
+
+        const res = studentMatchedResults.find(r => {
+          const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
+          const rPname = String(r.progname || r.program_name || '').trim().toLowerCase();
+          return (p.id && rPid === String(p.id).toLowerCase()) ||
+                 (p.code && rPid === String(p.code).toLowerCase()) ||
+                 (p.name && rPname === String(p.name).toLowerCase()) ||
+                 (p.code && rPname.startsWith(String(p.code).toLowerCase()));
+        });
+
+        const isPub = res ? isProgramPublishedInList(res.progid || p.id, localPubList, localProgs) : false;
+
+        individualEvents.push({
           progid: p.id,
           progname: `${p.code ? p.code + ' – ' : ''}${p.name}`,
-          place: null,
-          grade: null,
-          points: null,
-          pending: true
-        }));
+          place: (res && isPub) ? res.place : null,
+          grade: (res && isPub) ? res.grade : null,
+          points: (res && isPub) ? res.points : null,
+          isPublished: isPub,
+          hasResult: !!res,
+          pending: !res || !isPub
+        });
+      });
 
-      const allIndividualResults = [...studentResults, ...registeredWithNoResult].sort((a, b) => {
+      // 2. Include any results that were not already in uniqueSingleProgs
+      studentMatchedResults.forEach(r => {
+        const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
+        const rPname = String(r.progname || r.program_name || '').trim().toLowerCase();
+        if (processedProgKeys.has(rPid) || processedProgKeys.has(rPname)) return;
+        processedProgKeys.add(rPid);
+
+        const prog = (localProgs || []).find(p =>
+          (p.id && String(p.id).toLowerCase() === rPid) ||
+          (p.code && String(p.code).toLowerCase() === rPid) ||
+          (p.name && String(p.name).toLowerCase() === rPname)
+        );
+
+        const isPub = isProgramPublishedInList(r.progid, localPubList, localProgs);
+
+        individualEvents.push({
+          progid: r.progid,
+          progname: r.progname || (prog ? `${prog.code ? prog.code + ' – ' : ''}${prog.name}` : (r.program_name || 'Program')),
+          place: isPub ? r.place : null,
+          grade: isPub ? r.grade : null,
+          points: isPub ? r.points : null,
+          isPublished: isPub,
+          hasResult: true,
+          pending: !isPub
+        });
+      });
+
+      // Sort individual events alphabetically by program code
+      individualEvents.sort((a, b) => {
         const progA = (localProgs || []).find(p => String(p.id) === String(a.progid));
         const progB = (localProgs || []).find(p => String(p.id) === String(b.progid));
         const codeA = progA ? String(progA.code || '') : '';
@@ -2613,15 +2726,23 @@ function App() {
         return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
       });
 
-      // Group registrations where student is a member or leader
+      // C. Match all Group Registrations where this student is a member or leader
       const studentGroups = (localGroupRegs || []).filter(g => {
         if (!g) return false;
+        // Leader match
         if (g.leader_id) {
           const lId = String(g.leader_id).trim();
           if (lId === sDbId || (sRegNo && lId === sRegNo)) return true;
           const lNum = parseInt(lId, 10);
-          if (!isNaN(lNum) && ((!isNaN(sIdNum) && lNum === sIdNum) || (!isNaN(sRegNum) && lNum === sRegNum))) return true;
+          if (!isNaN(lNum)) {
+            if (!isNaN(sIdNum) && lNum === sIdNum) return true;
+            if (!isNaN(sRegNum) && lNum === sRegNum) return true;
+          }
+          if (sRegNo && (lId.startsWith(sRegNo + ' -') || lId.startsWith(sRegNo + '-'))) return true;
+          if (sName && lId.toLowerCase() === sName.toLowerCase()) return true;
         }
+
+        // Member match
         let memberIds = [];
         if (Array.isArray(g.student_ids)) memberIds = g.student_ids;
         else if (typeof g.student_ids === 'string') {
@@ -2633,12 +2754,25 @@ function App() {
           if (!item) return false;
           if (typeof item === 'object') {
             const mId = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
-            return mId === sDbId || (sRegNo && mId === sRegNo);
+            const mName = String(item.name || item.studentname || '').trim().toLowerCase();
+            if (mId && (mId === sDbId || (sRegNo && mId === sRegNo))) return true;
+            if (sName && mName && mName === sName.toLowerCase()) return true;
+            const mNum = parseInt(mId, 10);
+            if (!isNaN(mNum)) {
+              if (!isNaN(sIdNum) && mNum === sIdNum) return true;
+              if (!isNaN(sRegNum) && mNum === sRegNum) return true;
+            }
+            return false;
           }
           const idStr = String(item).trim();
           if (idStr === sDbId || (sRegNo && idStr === sRegNo)) return true;
           const idNum = parseInt(idStr, 10);
-          if (!isNaN(idNum) && ((!isNaN(sIdNum) && idNum === sIdNum) || (!isNaN(sRegNum) && idNum === sRegNum))) return true;
+          if (!isNaN(idNum)) {
+            if (!isNaN(sIdNum) && idNum === sIdNum) return true;
+            if (!isNaN(sRegNum) && idNum === sRegNum) return true;
+          }
+          if (sRegNo && (idStr.startsWith(sRegNo + ' -') || idStr.startsWith(sRegNo + '-'))) return true;
+          if (sName && idStr.toLowerCase() === sName.toLowerCase()) return true;
           return false;
         });
       });
@@ -2647,18 +2781,38 @@ function App() {
         const prog = (localProgs || []).find(p =>
           String(p.id) === String(g.program_id) ||
           String(p.code) === String(g.program_id) ||
-          String(p.name).toLowerCase() === String(g.program_id).toLowerCase()
+          String(p.name).toLowerCase() === String(g.program_id).toLowerCase() ||
+          (p.code && String(g.program_id).startsWith(p.code))
         );
-        const result = (localResults || []).find(r =>
-          (String(r.progid) === String(g.program_id) || String(r.program_id) === String(g.program_id) || (prog && String(r.progid) === String(prog.id))) &&
-          (String(r.studentname || r.student_name || '').trim().toLowerCase() === String(g.group_name || '').trim().toLowerCase() ||
-           String(r.team || r.team_id || '').trim() === String(g.team_id || '').trim())
-        );
+
+        const groupTeam = (localTeams || []).find(t => String(t.id) === String(g.team_id));
+        const groupTeamName = groupTeam ? groupTeam.name.toLowerCase() : '';
+
+        // Find result for this group in localResults
+        const result = (localResults || []).find(r => {
+          if (!r) return false;
+          const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
+          const rProgMatch = (prog && (rPid === String(prog.id).toLowerCase() || rPid === String(prog.code).toLowerCase())) ||
+                             rPid === String(g.program_id).toLowerCase();
+          if (!rProgMatch) return false;
+
+          const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
+          const gName = String(g.group_name || '').trim().toLowerCase();
+          const rTeamId = String(r.teamid || r.team_id || r.team || '').trim();
+          const gTeamId = String(g.team_id || '').trim();
+
+          if (gName && (rName === gName || rName.includes(gName) || gName.includes(rName))) return true;
+          if (gTeamId && rTeamId === gTeamId) return true;
+          if (groupTeamName && rName.includes(groupTeamName)) return true;
+          return false;
+        });
+
+        const isPub = result ? isProgramPublishedInList(result.progid || g.program_id, localPubList, localProgs) : false;
 
         let isLeader = false;
         if (g.leader_id) {
           const lId = String(g.leader_id).trim();
-          isLeader = (lId === sDbId || (sRegNo && lId === sRegNo));
+          isLeader = (lId === sDbId || (sRegNo && lId === sRegNo) || (sName && lId.toLowerCase() === sName.toLowerCase()));
         }
 
         return {
@@ -2667,9 +2821,10 @@ function App() {
           progtype: 'GROUP',
           groupName: g.group_name,
           isLeader,
-          place: result ? result.place : null,
-          grade: result ? result.grade : null,
-          points: result ? result.points : null,
+          place: (result && isPub) ? result.place : null,
+          grade: (result && isPub) ? result.grade : null,
+          points: (result && isPub) ? result.points : null,
+          isPublished: isPub,
           isGroup: true
         };
       });
@@ -2679,11 +2834,38 @@ function App() {
         student: studentObj,
         team: teamObj,
         category: catObj,
-        results: allIndividualResults,
+        results: individualEvents,
         groupResults: resolvedGroupResults,
         programs: localProgs || [],
         groupRegistrations: studentGroups
       };
+    };
+
+    // Helper to get published programs list from any available sources
+    const getCombinedPubList = (madrasaObj) => {
+      let list = [];
+      if (madrasaObj) {
+        let visCol = madrasaObj.visibility_controls;
+        if (typeof visCol === 'string') {
+          try { visCol = JSON.parse(visCol); } catch(e) {}
+        }
+        if (Array.isArray(visCol?.published_programs)) list.push(...visCol.published_programs);
+
+        const parts = String(madrasaObj.place || '').split('|');
+        if (parts.length > 8) {
+          try {
+            const decoded = decodeURIComponent(parts[8]);
+            const parsed = JSON.parse(decoded);
+            if (Array.isArray(parsed?.published_programs)) list.push(...parsed.published_programs);
+          } catch(e) {}
+        }
+      }
+      if (Array.isArray(publishedPrograms)) list.push(...publishedPrograms);
+      try {
+        const stored = localStorage.getItem(`milad_published_programs_${madrasaReg}`);
+        if (stored) list.push(...JSON.parse(stored));
+      } catch(e) {}
+      return Array.from(new Set(list.map(p => String(p).trim()))).filter(Boolean);
     };
 
     // 🚀 2. Check LocalStorage cache & state first for INSTANT UI render (<10ms)
@@ -2692,6 +2874,7 @@ function App() {
       const rawCache = localStorage.getItem(`cached_data_${madrasaReg}`);
       if (rawCache) {
         const c = JSON.parse(rawCache);
+        const cachedPubList = getCombinedPubList(c.madrasa || loggedInMadrasa);
         localData = buildQrDataFromLocal(
           c.madrasa || loggedInMadrasa,
           c.students || students,
@@ -2700,12 +2883,14 @@ function App() {
           c.programs || programs,
           c.resultsList || resultsList,
           c.programRegistrations || programRegistrations,
-          c.groupRegistrations || groupRegistrations
+          c.groupRegistrations || groupRegistrations,
+          cachedPubList
         );
       }
     } catch(e) {}
 
     if (!localData && students.length > 0) {
+      const statePubList = getCombinedPubList(loggedInMadrasa);
       localData = buildQrDataFromLocal(
         loggedInMadrasa,
         students,
@@ -2714,7 +2899,8 @@ function App() {
         programs,
         resultsList,
         programRegistrations,
-        groupRegistrations
+        groupRegistrations,
+        statePubList
       );
     }
 
@@ -2727,11 +2913,8 @@ function App() {
 
     // 🌐 3. Background network sync to fetch fresh student data from Supabase
     try {
-      const sIdInt = parseInt(studentId, 10);
-      const isSIdNum = !isNaN(sIdInt) && String(sIdInt) === String(studentId).trim();
       const mRegInt = parseInt(madrasaReg, 10);
       const isMRegNum = !isNaN(mRegInt) && String(mRegInt) === String(madrasaReg).trim();
-
       const mIds = isMRegNum ? [madrasaReg, mRegInt] : [madrasaReg];
       const mIdList = Array.from(new Set(mIds));
 
@@ -2746,7 +2929,7 @@ function App() {
         { data: gRegsData }
       ] = await Promise.all([
         supabase.from('madrasas').select('*').in('regNumber', mIdList).maybeSingle(),
-        isSIdNum ? supabase.from('students').select('*').in('madrasa_id', mIdList).or(`id.eq."${sIdInt}",regno.eq."${studentId}"`) : supabase.from('students').select('*').in('madrasa_id', mIdList).or(`id.eq."${studentId}",regno.eq."${studentId}"`),
+        supabase.from('students').select('*').in('madrasa_id', mIdList),
         supabase.from('results').select('*').in('madrasa_id', mIdList),
         supabase.from('teams').select('*').in('madrasa_id', mIdList),
         supabase.from('categories').select('*').in('madrasa_id', mIdList),
@@ -2755,7 +2938,19 @@ function App() {
         supabase.from('group_registrations').select('*').in('madrasa_id', mIdList)
       ]);
 
-      const fetchedStudent = Array.isArray(studentDataList) ? studentDataList[0] : null;
+      const fetchedStudent = (studentDataList || []).find(s => {
+        if (!s) return false;
+        const sId = String(s.id || '').trim();
+        const sReg = String(s.regno || s.regNo || '').trim();
+        if (sId && sId === studentId) return true;
+        if (sReg && sReg === studentId) return true;
+        const targetNum = parseInt(studentId, 10);
+        if (!isNaN(targetNum)) {
+          if (parseInt(sId, 10) === targetNum) return true;
+          if (parseInt(sReg, 10) === targetNum) return true;
+        }
+        return false;
+      });
 
       if (!fetchedStudent && !localData) {
         setQrModalData({ error: lang === 'EN' ? 'Student not found!' : 'വിദ്യാർത്ഥിയെ കണ്ടെത്താനായില്ല!' });
@@ -2764,15 +2959,17 @@ function App() {
       }
 
       if (fetchedStudent) {
+        const freshPubList = getCombinedPubList(madrasaData || loggedInMadrasa);
         const freshData = buildQrDataFromLocal(
           madrasaData || loggedInMadrasa,
-          [fetchedStudent],
+          studentDataList || [fetchedStudent],
           teamsData || teams,
           catsData || categories,
           progsData || programs,
           resultsData || resultsList,
           regData || programRegistrations,
-          gRegsData || groupRegistrations
+          gRegsData || groupRegistrations,
+          freshPubList
         );
 
         if (freshData) {
@@ -18167,114 +18364,153 @@ ${pagesHtml}
 
                     {/* Events & Results Section */}
                     <div className="poster-events-section">
-                      <h4 className="events-section-title">
-                        🏆 {lang === 'EN' ? 'Registered Programs & Results' : 'രജിസ്റ്റർ ചെയ്ത മത്സരങ്ങളും ഫലങ്ങളും'}
-                      </h4>
                       {(() => {
                         const individualList = qrModalData.results || [];
                         const groupList = qrModalData.groupResults || [];
-                        const hasEvents = individualList.length > 0 || groupList.length > 0;
-
-                        if (!hasEvents) {
-                          return (
-                            <p className="no-events-text">
-                              {lang === 'EN' ? 'No registered programs or results found for this student.' : 'രജിസ്റ്റർ ചെയ്ത പ്രോഗ്രാമുകളൊന്നും കണ്ടെത്തിയില്ല.'}
-                            </p>
-                          );
-                        }
-
-                        const formatPlace = (place) => {
-                          if (!place || place === 'No Place' || place === '-') return null;
-                          if (place === 'First' || place === '1') return { text: '🥇 1st Place', cls: 'gold' };
-                          if (place === 'Second' || place === '2') return { text: '🥈 2nd Place', cls: 'silver' };
-                          if (place === 'Third' || place === '3') return { text: '🥉 3rd Place', cls: 'bronze' };
-                          return { text: `🏆 ${place}`, cls: 'other' };
-                        };
+                        const allEvents = [...individualList, ...groupList];
+                        const totalEventsCount = allEvents.length;
+                        const wonEventsCount = allEvents.filter(e => e.place && e.place !== 'No Place' && e.place !== '-').length;
+                        const totalStudentPoints = allEvents.reduce((sum, e) => sum + (Number(e.points) || 0), 0);
 
                         return (
-                          <div className="poster-events-table">
-                            <div className="events-table-header">
-                              <span>Program</span>
-                              <span style={{ textAlign: 'center' }}>Place / Status</span>
-                              <span style={{ textAlign: 'center' }}>Grade</span>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                              <h4 className="events-section-title" style={{ margin: 0 }}>
+                                🏆 {lang === 'EN' ? 'Registered Programs & Results' : 'രജിസ്റ്റർ ചെയ്ത മത്സരങ്ങളും ഫലങ്ങളും'}
+                              </h4>
+                              {totalEventsCount > 0 && (
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                  <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '800' }}>
+                                    📋 {totalEventsCount} {lang === 'EN' ? 'Events' : 'ഇനങ്ങൾ'}
+                                  </span>
+                                  {wonEventsCount > 0 && (
+                                    <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '800' }}>
+                                      🥇 {wonEventsCount} {lang === 'EN' ? 'Won' : 'വിജയങ്ങൾ'}
+                                    </span>
+                                  )}
+                                  {totalStudentPoints > 0 && (
+                                    <span style={{ background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '800' }}>
+                                      ⭐ {totalStudentPoints} {lang === 'EN' ? 'Pts' : 'പോയിന്റ്'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Individual Events */}
-                            {individualList.map((r, idx) => {
-                              const placeInfo = formatPlace(r.place);
-                              const hasGrade = r.grade && r.grade !== '-' && r.grade !== 'No';
-                              return (
-                                <div key={`ind_${idx}`} className="events-table-row">
-                                  <div className="event-name">
-                                    <b>{r.progname}</b>
-                                    <div style={{ display: 'flex', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
-                                      <span style={{ fontSize: '9.5px', color: '#1d4ed8', background: '#dbeafe', padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>
-                                        👤 Single
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="event-place-col" style={{ textAlign: 'center' }}>
-                                    {placeInfo ? (
-                                      <span className={`event-place-badge ${placeInfo.cls}`}>
-                                        {placeInfo.text}
-                                      </span>
-                                    ) : (
-                                      <span className="event-pending-badge">
-                                        ✓ Registered
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="event-grade" style={{ textAlign: 'center' }}>
-                                    {hasGrade ? (
-                                      <span className="event-grade-badge">{r.grade}</span>
-                                    ) : (
-                                      <span style={{ color: '#94a3b8' }}>—</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                            {totalEventsCount === 0 ? (
+                              <p className="no-events-text">
+                                {lang === 'EN' ? 'No registered programs found for this student.' : 'രജിസ്റ്റർ ചെയ്ത പ്രോഗ്രാമുകളൊന്നും കണ്ടെത്തിയില്ല.'}
+                              </p>
+                            ) : (() => {
+                              const formatPlace = (place) => {
+                                if (!place || place === 'No Place' || place === '-') return null;
+                                if (place === 'First' || place === '1') return { text: '🥇 1st Place', cls: 'gold' };
+                                if (place === 'Second' || place === '2') return { text: '🥈 2nd Place', cls: 'silver' };
+                                if (place === 'Third' || place === '3') return { text: '🥉 3rd Place', cls: 'bronze' };
+                                return { text: `🏆 ${place}`, cls: 'other' };
+                              };
 
-                            {/* Group Events */}
-                            {groupList.map((g, idx) => {
-                              const placeInfo = formatPlace(g.place);
-                              const hasGrade = g.grade && g.grade !== '-' && g.grade !== 'No';
                               return (
-                                <div key={`grp_${idx}`} className="events-table-row">
-                                  <div className="event-name">
-                                    <b>{g.progname}</b>
-                                    <div style={{ display: 'flex', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
-                                      <span style={{ fontSize: '9.5px', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>
-                                        👥 Group: {g.groupName}
-                                      </span>
-                                      {g.isLeader && (
-                                        <span style={{ fontSize: '9.5px', color: '#78350f', background: '#fde68a', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
-                                          👑 Leader
-                                        </span>
-                                      )}
-                                    </div>
+                                <div className="poster-events-table">
+                                  <div className="events-table-header">
+                                    <span>Program</span>
+                                    <span style={{ textAlign: 'center' }}>Place / Status</span>
+                                    <span style={{ textAlign: 'center' }}>Grade & Points</span>
                                   </div>
-                                  <div className="event-place-col" style={{ textAlign: 'center' }}>
-                                    {placeInfo ? (
-                                      <span className={`event-place-badge ${placeInfo.cls}`}>
-                                        {placeInfo.text}
-                                      </span>
-                                    ) : (
-                                      <span className="event-pending-badge">
-                                        ✓ Registered
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="event-grade" style={{ textAlign: 'center' }}>
-                                    {hasGrade ? (
-                                      <span className="event-grade-badge">{g.grade}</span>
-                                    ) : (
-                                      <span style={{ color: '#94a3b8' }}>—</span>
-                                    )}
-                                  </div>
+
+                                  {/* Individual Events */}
+                                  {individualList.map((r, idx) => {
+                                    const placeInfo = formatPlace(r.place);
+                                    const hasGrade = r.grade && r.grade !== '-' && r.grade !== 'No';
+                                    const hasPts = r.points !== null && r.points !== undefined && Number(r.points) > 0;
+                                    return (
+                                      <div key={`ind_${idx}`} className="events-table-row">
+                                        <div className="event-name">
+                                          <b>{r.progname}</b>
+                                          <div style={{ display: 'flex', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '9.5px', color: '#1d4ed8', background: '#dbeafe', padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                                              👤 Single
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="event-place-col" style={{ textAlign: 'center' }}>
+                                          {placeInfo ? (
+                                            <span className={`event-place-badge ${placeInfo.cls}`}>
+                                              {placeInfo.text}
+                                            </span>
+                                          ) : (
+                                            <span className="event-pending-badge">
+                                              ✓ Registered
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="event-grade" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                          {hasGrade && (
+                                            <span className="event-grade-badge">{r.grade}</span>
+                                          )}
+                                          {hasPts && (
+                                            <span style={{ background: '#f0fdf4', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontSize: '9.5px', fontWeight: '800' }}>
+                                              {r.points} pts
+                                            </span>
+                                          )}
+                                          {!hasGrade && !hasPts && (
+                                            <span style={{ color: '#94a3b8', fontSize: '11px' }}>—</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                  {/* Group Events */}
+                                  {groupList.map((g, idx) => {
+                                    const placeInfo = formatPlace(g.place);
+                                    const hasGrade = g.grade && g.grade !== '-' && g.grade !== 'No';
+                                    const hasPts = g.points !== null && g.points !== undefined && Number(g.points) > 0;
+                                    return (
+                                      <div key={`grp_${idx}`} className="events-table-row">
+                                        <div className="event-name">
+                                          <b>{g.progname}</b>
+                                          <div style={{ display: 'flex', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '9.5px', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                                              👥 Group: {g.groupName}
+                                            </span>
+                                            {g.isLeader && (
+                                              <span style={{ fontSize: '9.5px', color: '#78350f', background: '#fde68a', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
+                                                👑 Leader
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="event-place-col" style={{ textAlign: 'center' }}>
+                                          {placeInfo ? (
+                                            <span className={`event-place-badge ${placeInfo.cls}`}>
+                                              {placeInfo.text}
+                                            </span>
+                                          ) : (
+                                            <span className="event-pending-badge">
+                                              ✓ Registered
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="event-grade" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                          {hasGrade && (
+                                            <span className="event-grade-badge">{g.grade}</span>
+                                          )}
+                                          {hasPts && (
+                                            <span style={{ background: '#f0fdf4', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontSize: '9.5px', fontWeight: '800' }}>
+                                              {g.points} pts
+                                            </span>
+                                          )}
+                                          {!hasGrade && !hasPts && (
+                                            <span style={{ color: '#94a3b8', fontSize: '11px' }}>—</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
-                            })}
+                            })()}
                           </div>
                         );
                       })()}
