@@ -15213,8 +15213,10 @@ ${pagesHtml}
                                       );
                                     }
 
+                                    const rowProgId = String(r.progid || '').trim();
+                                    const rowIsPub = isProgPublished(rowProgId);
                                     return (
-                                      <div key={r.id} style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
+                                      <div key={r.id} style={{ background: rowIsPub ? '#f0fdf4' : '#fffbeb', border: `1.5px solid ${rowIsPub ? '#86efac' : '#fde68a'}`, borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
                                         <span style={{ fontSize: '18px', minWidth: '24px', textAlign: 'center' }}>{placeEmoji[r.place] || '—'}</span>
                                         <div style={{ flex: 1, minWidth: '120px' }}>
                                           <div style={{ fontWeight: '800', fontSize: '13px', color: '#1e293b' }}>{r.studentname}</div>
@@ -15223,6 +15225,14 @@ ${pagesHtml}
                                         <span style={{ background: '#fef3c7', color: '#92400e', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800' }}>{r.place}</span>
                                         <span style={{ background: gradeBgColor[r.grade] || '#f1f5f9', color: gradeTextColor[r.grade] || '#94a3b8', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800' }}>{r.grade === '-' ? 'No Grade' : r.grade + ' Grade'}</span>
                                         <span style={{ background: '#f0fdf4', color: '#059669', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: '800' }}>{r.points} pts</span>
+                                        {/* Publish / Draft toggle per program */}
+                                        <button
+                                          type="button"
+                                          title={rowIsPub ? (lang === 'EN' ? 'Move to Draft' : 'ഡ്രാഫ്റ്റ് ആക്കുക') : (lang === 'EN' ? 'Publish this program' : 'പബ്ലിഷ് ചെയ്യുക')}
+                                          onClick={() => handleTogglePublishProgram(rowProgId, !rowIsPub)}
+                                          style={{ padding: '6px 10px', borderRadius: '8px', border: `1.5px solid ${rowIsPub ? '#f59e0b' : '#059669'}`, background: rowIsPub ? '#fef3c7' : '#dcfce7', color: rowIsPub ? '#92400e' : '#166534', fontWeight: '800', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                          {rowIsPub ? (lang === 'EN' ? '🟢 Published' : '🟢 പബ്ലിഷ്ഡ്') : (lang === 'EN' ? '🟡 Draft' : '🟡 ഡ്രാഫ്റ്റ്')}
+                                        </button>
                                         <button type="button" onClick={() => {
                                           setEditingResultId(r.id);
                                           const pMap = { 'First': '1', 'Second': '2', 'Third': '3', 'No Place': '0' };
