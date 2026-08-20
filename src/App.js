@@ -862,32 +862,37 @@ function App() {
   });
 
   const isProgPublished = (progId) => {
-    if (!progId) return false;
-    if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) return false;
-    const pIdStr = String(progId).trim();
-    const pIdLower = pIdStr.toLowerCase();
+    try {
+      if (!progId) return false;
+      if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) return false;
+      const pIdStr = String(progId).trim();
+      const pIdLower = pIdStr.toLowerCase();
 
-    // 1. Direct match in published list
-    const pubLowerSet = new Set(publishedPrograms.map(p => String(p).trim().toLowerCase()));
-    if (pubLowerSet.has(pIdLower)) return true;
+      // 1. Direct match in published list
+      const pubLowerSet = new Set(publishedPrograms.map(p => String(p || '').trim().toLowerCase()));
+      if (pubLowerSet.has(pIdLower)) return true;
 
-    // 2. Resolve program object by id, code, name, or composite code/name
-    const progObj = programs.find(p => {
-      const pId = String(p.id || '').trim().toLowerCase();
-      const pCode = String(p.code || '').trim().toLowerCase();
-      const pName = String(p.name || '').trim().toLowerCase();
-      if (pId && pId === pIdLower) return true;
-      if (pCode && (pCode === pIdLower || pIdLower.startsWith(pCode + ' -') || pIdLower.startsWith(pCode + '-'))) return true;
-      if (pName && (pName === pIdLower || pIdLower.includes(pName))) return true;
+      // 2. Resolve program object by id, code, name, or composite code/name
+      const progObj = Array.isArray(programs) ? programs.find(p => {
+        if (!p) return false;
+        const pId = String(p.id || '').trim().toLowerCase();
+        const pCode = String(p.code || '').trim().toLowerCase();
+        const pName = String(p.name || '').trim().toLowerCase();
+        if (pId && pId === pIdLower) return true;
+        if (pCode && (pCode === pIdLower || pIdLower.startsWith(pCode + ' -') || pIdLower.startsWith(pCode + '-'))) return true;
+        if (pName && (pName === pIdLower || pIdLower.includes(pName))) return true;
+        return false;
+      }) : null;
+
+      const checkIds = [pIdLower];
+      if (progObj?.id) checkIds.push(String(progObj.id).trim().toLowerCase());
+      if (progObj?.code) checkIds.push(String(progObj.code).trim().toLowerCase());
+      if (progObj?.name) checkIds.push(String(progObj.name).trim().toLowerCase());
+
+      return checkIds.some(id => pubLowerSet.has(id));
+    } catch (e) {
       return false;
-    });
-
-    const checkIds = [pIdLower];
-    if (progObj?.id) checkIds.push(String(progObj.id).trim().toLowerCase());
-    if (progObj?.code) checkIds.push(String(progObj.code).trim().toLowerCase());
-    if (progObj?.name) checkIds.push(String(progObj.name).trim().toLowerCase());
-
-    return checkIds.some(id => pubLowerSet.has(id));
+    }
   };
 
   const handleTogglePublishProgram = async (progId, forceState = null) => {
@@ -5156,67 +5161,77 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
 
   const getCleanResultsList = (list) => {
-    if (!Array.isArray(list)) return [];
-    const seen = new Set();
-    return list.filter(r => {
-      if (!r) return false;
-      // Only results from manually published programs are counted for points/scoreboard (Draft items remain hidden)
-      if (!isProgPublished(r.progid)) return false;
-      // Deduplicate identical duplicate DB rows safely by ID or unique composite key
-      const uniqueKey = r.id ? `id_${r.id}` : `${String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase()}___${String(r.studentname || r.student_name || '').trim().toLowerCase()}___${String(r.place || '')}___${String(r.grade || '')}___${String(r.points || 0)}`;
-      if (seen.has(uniqueKey)) return false;
-      seen.add(uniqueKey);
-      return true;
-    });
+    try {
+      if (!Array.isArray(list)) return [];
+      const seen = new Set();
+      return list.filter(r => {
+        if (!r) return false;
+        // Only results from manually published programs are counted for points/scoreboard (Draft items remain hidden)
+        if (!isProgPublished(r.progid)) return false;
+        // Deduplicate identical duplicate DB rows safely by ID or unique composite key
+        const uniqueKey = r.id ? `id_${r.id}` : `${String(r.progid || r.program_id || r.prog_id || r.progname || '').trim().toLowerCase()}___${String(r.studentname || r.student_name || '').trim().toLowerCase()}___${String(r.place || '')}___${String(r.grade || '')}___${String(r.points || 0)}`;
+        if (seen.has(uniqueKey)) return false;
+        seen.add(uniqueKey);
+        return true;
+      });
+    } catch (e) {
+      return [];
+    }
   };
 
   const getTeamTotalPoints = (teamId) => {
-    const cleanList = getCleanResultsList(resultsList);
-    const targetTeam = teams.find(t => String(t.id).trim() === String(teamId).trim());
-    const targetName = targetTeam ? String(targetTeam.name || '').trim().toLowerCase() : '';
-    return cleanList
-      .filter(r => {
-        const rTid = String(r.teamId || r.teamid || '').trim();
-        if (rTid && rTid === String(teamId).trim()) return true;
-        const rTName = String(r.teamname || r.teamName || '').trim().toLowerCase();
-        if (targetName && rTName && (rTName === targetName || rTName.includes(targetName) || targetName.includes(rTName))) return true;
-        return false;
-      })
-      .reduce((sum, r) => {
-        let pts = Number(r.points);
-        if (isNaN(pts) || pts === 0) {
-          // Dynamic fallback point calculation if r.points is 0 or null
-          const p = (r.place || '').toString().toLowerCase();
-          const g = (r.grade || '').toString().toUpperCase();
-          const isGrp = String(r.progtype || '').includes('GROUP');
-          const isTm = String(r.progtype || '').includes('TEAM');
-          let calcPts = 0;
-          if (isTm) {
-            if (p === 'first' || p === '1') calcPts += Number(pointSystem.tp1 || 15);
-            else if (p === 'second' || p === '2') calcPts += Number(pointSystem.tp2 || 10);
-            else if (p === 'third' || p === '3') calcPts += Number(pointSystem.tp3 || 5);
-            if (g === 'A') calcPts += Number(pointSystem.tpA || 5);
-            else if (g === 'B') calcPts += Number(pointSystem.tpB || 3);
-            else if (g === 'C') calcPts += Number(pointSystem.tpC || 1);
-          } else if (isGrp) {
-            if (p === 'first' || p === '1') calcPts += Number(pointSystem.gp1 || 10);
-            else if (p === 'second' || p === '2') calcPts += Number(pointSystem.gp2 || 6);
-            else if (p === 'third' || p === '3') calcPts += Number(pointSystem.gp3 || 2);
-            if (g === 'A') calcPts += Number(pointSystem.gpA || 5);
-            else if (g === 'B') calcPts += Number(pointSystem.gpB || 3);
-            else if (g === 'C') calcPts += Number(pointSystem.gpC || 1);
-          } else {
-            if (p === 'first' || p === '1') calcPts += Number(pointSystem.p1 || 5);
-            else if (p === 'second' || p === '2') calcPts += Number(pointSystem.p2 || 3);
-            else if (p === 'third' || p === '3') calcPts += Number(pointSystem.p3 || 1);
-            if (g === 'A') calcPts += Number(pointSystem.gA || 5);
-            else if (g === 'B') calcPts += Number(pointSystem.gB || 3);
-            else if (g === 'C') calcPts += Number(pointSystem.gC || 1);
+    try {
+      const cleanList = getCleanResultsList(resultsList);
+      const targetTeam = Array.isArray(teams) ? teams.find(t => String(t?.id || '').trim() === String(teamId).trim()) : null;
+      const targetName = targetTeam ? String(targetTeam.name || '').trim().toLowerCase() : '';
+      return cleanList
+        .filter(r => {
+          if (!r) return false;
+          const rTid = String(r.teamId || r.teamid || '').trim();
+          if (rTid && rTid === String(teamId).trim()) return true;
+          const rTName = String(r.teamname || r.teamName || '').trim().toLowerCase();
+          if (targetName && rTName && (rTName === targetName || rTName.includes(targetName) || targetName.includes(rTName))) return true;
+          return false;
+        })
+        .reduce((sum, r) => {
+          let pts = Number(r.points);
+          if (isNaN(pts) || pts === 0) {
+            // Dynamic fallback point calculation if r.points is 0 or null
+            const p = (r.place || '').toString().toLowerCase();
+            const g = (r.grade || '').toString().toUpperCase();
+            const isGrp = String(r.progtype || '').includes('GROUP');
+            const isTm = String(r.progtype || '').includes('TEAM');
+            let calcPts = 0;
+            const ps = pointSystem || {};
+            if (isTm) {
+              if (p === 'first' || p === '1') calcPts += Number(ps.tp1 || 15);
+              else if (p === 'second' || p === '2') calcPts += Number(ps.tp2 || 10);
+              else if (p === 'third' || p === '3') calcPts += Number(ps.tp3 || 5);
+              if (g === 'A') calcPts += Number(ps.tpA || 5);
+              else if (g === 'B') calcPts += Number(ps.tpB || 3);
+              else if (g === 'C') calcPts += Number(ps.tpC || 1);
+            } else if (isGrp) {
+              if (p === 'first' || p === '1') calcPts += Number(ps.gp1 || 10);
+              else if (p === 'second' || p === '2') calcPts += Number(ps.gp2 || 6);
+              else if (p === 'third' || p === '3') calcPts += Number(ps.gp3 || 2);
+              if (g === 'A') calcPts += Number(ps.gpA || 5);
+              else if (g === 'B') calcPts += Number(ps.gpB || 3);
+              else if (g === 'C') calcPts += Number(ps.gpC || 1);
+            } else {
+              if (p === 'first' || p === '1') calcPts += Number(ps.p1 || 5);
+              else if (p === 'second' || p === '2') calcPts += Number(ps.p2 || 3);
+              else if (p === 'third' || p === '3') calcPts += Number(ps.p3 || 1);
+              if (g === 'A') calcPts += Number(ps.gA || 5);
+              else if (g === 'B') calcPts += Number(ps.gB || 3);
+              else if (g === 'C') calcPts += Number(ps.gC || 1);
+            }
+            pts = calcPts;
           }
-          pts = calcPts;
-        }
-        return sum + (pts || 0);
-      }, 0);
+          return sum + (pts || 0);
+        }, 0);
+    } catch (e) {
+      return 0;
+    }
   };
 
   // ══════════════════════════════════════════════════════════════════════
