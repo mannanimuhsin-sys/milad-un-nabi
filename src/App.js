@@ -16545,16 +16545,20 @@ ${pagesHtml}
 
                       const judgePrograms = programs.filter(p => {
                         if (!judgeSheetCat) return false;
+                        const isGen = isGeneralProg(p);
+                        let catMatch = false;
                         if (judgeSheetCat === 'GENERAL') {
-                          if (!isGeneralProg(p)) return false;
+                          catMatch = isGen;
                         } else if (isJudgeGeneral) {
-                          if (!isGeneralProg(p) && String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
+                          catMatch = isGen || String(p.catid || p.catId || '') === String(judgeSheetCat);
                         } else {
-                          if (String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
+                          catMatch = String(p.catid || p.catId || '') === String(judgeSheetCat) || isGen;
                         }
-                        if (!judgeSheetGender) return true;
-                        if ((p.type || '').includes('COMMON')) return true;
-                        return (p.type || '').includes(judgeSheetGender);
+                        if (!catMatch) return false;
+
+                        if (!judgeSheetGender || judgeSheetGender === 'COMMON' || judgeSheetGender === 'ALL') return true;
+                        if ((p.type || '').toUpperCase().includes('COMMON')) return true;
+                        return (p.type || '').toUpperCase().includes(judgeSheetGender.toUpperCase());
                       });
 
                       const selectedProgObj = programs.find(p => String(p.id) === String(judgeSheetProg));
@@ -16565,28 +16569,32 @@ ${pagesHtml}
                       const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
                       const catName = selectedCatObj ? selectedCatObj.name : (judgeSheetCat === 'GENERAL' ? 'GENERAL' : '');
 
-                      // Helper: Resolve participants / teams for ANY program
+                      // Helper: Resolve participants / teams for ANY program with 100% precision
                       const getJudgeItemsForProg = (pObj) => {
                         if (!pObj) return [];
-                        const isGroup = (pObj.type || '').includes('GROUP');
+                        const isGroup = (pObj.type || '').toUpperCase().includes('GROUP');
                         if (isGroup) {
                           const progGroupRegs = groupRegistrations.filter(g =>
                             String(g.program_id) === String(pObj.id) ||
-                            String(g.program_id) === String(pObj.code)
+                            String(g.program_id) === String(pObj.code) ||
+                            (pObj.name && String(g.program_id).trim().toLowerCase() === String(pObj.name).trim().toLowerCase()) ||
+                            (g.program_name && String(g.program_name).trim().toLowerCase() === String(pObj.name).trim().toLowerCase())
                           );
                           if (progGroupRegs.length > 0) {
                             return progGroupRegs.map(g => {
                               const teamObj = teams.find(t => String(t.id) === String(g.team_id));
                               const teamName = g.group_name || (teamObj ? teamObj.name : 'Team');
-                              const studentIds = Array.isArray(g.student_ids)
-                                ? g.student_ids
-                                : (typeof g.student_ids === 'string' ? JSON.parse(g.student_ids || '[]') : []);
-                              const leaderId = g.leader_id || (studentIds.length > 0 ? studentIds[0] : null);
-                              const leaderStudent = students.find(s => String(s.id) === String(leaderId) || String(s.regno || s.regNo || '').trim() === String(leaderId).trim());
-                              const memberStudents = students.filter(s =>
-                                studentIds.map(String).some(id => String(s.id) === String(id) || String(s.regno || s.regNo || '').trim() === String(id).trim()) &&
-                                String(s.id) !== String(leaderId)
-                              );
+                              let studentIds = [];
+                              if (Array.isArray(g.student_ids)) studentIds = g.student_ids;
+                              else if (typeof g.student_ids === 'string') {
+                                try { studentIds = JSON.parse(g.student_ids || '[]'); } catch(e) { studentIds = [g.student_ids]; }
+                              }
+                              const leaderId = g.leader_id || (studentIds.length > 0 ? (typeof studentIds[0] === 'object' ? studentIds[0].id : studentIds[0]) : null);
+                              const leaderStudent = findStudentByRef(leaderId);
+                              const memberStudents = studentIds
+                                .map(item => findStudentByRef(typeof item === 'object' ? (item.id || item.regno || item.regNo) : item))
+                                .filter(s => s && (!leaderStudent || String(s.id) !== String(leaderStudent.id)));
+
                               return {
                                 id: g.id,
                                 isGroup: true,
@@ -16601,20 +16609,8 @@ ${pagesHtml}
                               };
                             });
                           } else {
-                            const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, pObj));
-                            const baseStudents = students.filter(s => {
-                              if (!s) return false;
-                              if (judgeSheetGender && judgeSheetGender !== 'COMMON' && judgeSheetGender !== 'ALL') {
-                                if (String(s.gender || '').toUpperCase() !== String(judgeSheetGender).toUpperCase()) return false;
-                              }
-                              const sCatId = String(s.catid || s.catId || '');
-                              if (judgeSheetCat === 'GENERAL' || isJudgeGeneral) {
-                                if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
-                              } else if (judgeSheetCat) {
-                                if (sCatId !== String(judgeSheetCat)) return false;
-                              }
-                              return matchingRegs.some(r => isStudentMatch(r, s));
-                            });
+                            // Fallback: Check students registered for this group program and cluster by team
+                            const baseStudents = students.filter(s => checkIsStudentRegisteredForProg(s, pObj));
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
                               const tId = String(s.teamid || s.teamId || 'no_team');
@@ -16622,7 +16618,7 @@ ${pagesHtml}
                               teamGroupMap[tId].push(s);
                             });
                             return Object.keys(teamGroupMap).map(tId => {
-                              const teamSts = teamGroupMap[tId].sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0));
+                              const teamSts = teamGroupMap[tId].sort(compareRegNo);
                               const teamObj = teams.find(t => String(t.id) === String(tId));
                               const leaderStudent = teamSts[0];
                               const memberStudents = teamSts.slice(1);
@@ -16641,25 +16637,10 @@ ${pagesHtml}
                             });
                           }
                         } else {
-                          const matchingRegs = programRegistrations.filter(r => isProgramMatch(r, pObj));
-                          const baseStudents = students.filter(s => {
-                            if (!s) return false;
-                            if (judgeSheetGender && judgeSheetGender !== 'COMMON' && judgeSheetGender !== 'ALL') {
-                              if (String(s.gender || '').toUpperCase() !== String(judgeSheetGender).toUpperCase()) return false;
-                            }
-                            const sCatId = String(s.catid || s.catId || '');
-                            if (judgeSheetCat === 'GENERAL' || isJudgeGeneral) {
-                              if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(sCatId)) return false;
-                            } else if (judgeSheetCat) {
-                              if (sCatId !== String(judgeSheetCat)) return false;
-                            }
-                            if (matchingRegs.length > 0) {
-                              return matchingRegs.some(r => isStudentMatch(r, s));
-                            }
-                            return checkIsStudentRegisteredForProg(s, pObj);
-                          });
+                          // Single Program: Return ALL students registered for this program!
+                          const baseStudents = students.filter(s => checkIsStudentRegisteredForProg(s, pObj));
                           return baseStudents
-                            .sort((a, b) => (parseInt(a.regno || a.regNo || '0') || 0) - (parseInt(b.regno || b.regNo || '0') || 0))
+                            .sort(compareRegNo)
                             .map(s => ({
                               id: s.id,
                               isGroup: false,
