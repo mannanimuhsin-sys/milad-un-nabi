@@ -463,7 +463,7 @@ function App() {
   const getFriendlyErrorMessage = useCallback((errorMsg) => {
     if (!errorMsg) return '';
     const m = String(errorMsg).toLowerCase();
-    if (m.includes('schema cache') || m.includes('retrying')) {
+    if ((m.includes('schema cache') && (m.includes('warming') || m.includes('reload') || m.includes('reloading'))) || m.includes('retrying')) {
       return lang === 'EN'
         ? 'Database is warming up. Please try again in a moment.'
         : 'ഡാറ്റാബേസ് കണക്റ്റിവിറ്റി പുതുക്കുകയാണ്. ദയവായി നിമിഷങ്ങൾക്കകം വീണ്ടും ശ്രമിക്കുക.';
@@ -477,7 +477,8 @@ function App() {
   }, [lang]);
 
   // 🔄 Automatic query retry helper for transient Supabase schema cache / network warm-up errors
-  const queryWithRetry = async (queryFn, retries = 4, delayMs = 800) => {
+  // Supabase Free Tier cold-start can take up to 30 seconds — so we retry aggressively
+  const queryWithRetry = async (queryFn, retries = 6, delayMs = 2000, onRetry = null) => {
     let lastResult = null;
     for (let i = 0; i < retries; i++) {
       try {
@@ -501,13 +502,20 @@ function App() {
         msg.includes('connection') ||
         msg.includes('timeout') ||
         msg.includes('503') ||
-        msg.includes('502');
+        msg.includes('502') ||
+        msg.includes('failed to fetch') ||
+        msg.includes('load failed');
 
       if (!isTransient || i === retries - 1) {
         return lastResult; // Non-transient or last attempt — return as-is
       }
-      // Exponential backoff: 800ms, 1600ms, 3200ms...
-      await new Promise(res => setTimeout(res, delayMs * Math.pow(2, i)));
+
+      // Notify caller about retry (so UI can show "please wait" message)
+      if (onRetry) onRetry(i + 1, retries);
+
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s... (max ~62s total for 6 retries)
+      const waitMs = delayMs * Math.pow(2, i);
+      await new Promise(res => setTimeout(res, Math.min(waitMs, 15000))); // cap each wait at 15s
     }
     return lastResult;
   };
@@ -4978,7 +4986,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     }
 
     const resultRecord = {
-      progid: progObj.id,
+      progid: !isNaN(Number(progObj.id)) ? Number(progObj.id) : progObj.id,
       progname: progObj.name,
       progtype: progObj.type,
       catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
@@ -4996,15 +5004,16 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         : ((teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || ''),
       place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
       grade: selectedGrade === 'No' ? '-' : selectedGrade,
-      points: pts,
-      madrasa_id: loggedInMadrasa.regNumber,
-      created_at: new Date().toISOString()
+      points: Number(pts) || 0,
+      madrasa_id: loggedInMadrasa.regNumber
     };
 
     setIsSavingResult(true);
     try {
-      const { data, error } = await queryWithRetry(() =>
-        supabase.from('results').insert([resultRecord]).select()
+      const { data, error } = await queryWithRetry(
+        () => supabase.from('results').insert([resultRecord]).select(),
+        4,
+        800
       );
 
       if (error) {
