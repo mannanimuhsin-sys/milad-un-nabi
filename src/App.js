@@ -477,19 +477,37 @@ function App() {
   }, [lang]);
 
   // 🔄 Automatic query retry helper for transient Supabase schema cache / network warm-up errors
-  const queryWithRetry = async (queryFn, retries = 3, delayMs = 600) => {
+  const queryWithRetry = async (queryFn, retries = 4, delayMs = 800) => {
     let lastResult = null;
     for (let i = 0; i < retries; i++) {
-      lastResult = await queryFn();
-      const err = lastResult ? lastResult.error : null;
-      if (!err) return lastResult; // Success!
-
-      const msg = String(err.message || '').toLowerCase();
-      const isTransient = msg.includes('schema cache') || msg.includes('retrying') || msg.includes('pgrst') || msg.includes('fetch failed') || msg.includes('network');
-      if (!isTransient || i === retries - 1) {
-        return lastResult;
+      try {
+        lastResult = await queryFn();
+      } catch (fetchErr) {
+        // Raw network throw (not Supabase error object) - treat as transient
+        lastResult = { data: null, error: { message: String(fetchErr?.message || 'Network error') } };
       }
-      await new Promise(res => setTimeout(res, delayMs));
+      const err = lastResult ? lastResult.error : null;
+      if (!err) return lastResult; // ✅ Success!
+
+      const msg = String(err.message || err.code || err.hint || '').toLowerCase();
+      const isTransient =
+        msg.includes('schema cache') ||
+        msg.includes('retrying') ||
+        msg.includes('warming') ||
+        msg.includes('pgrst') ||
+        msg.includes('fetch failed') ||
+        msg.includes('network') ||
+        msg.includes('econnreset') ||
+        msg.includes('connection') ||
+        msg.includes('timeout') ||
+        msg.includes('503') ||
+        msg.includes('502');
+
+      if (!isTransient || i === retries - 1) {
+        return lastResult; // Non-transient or last attempt — return as-is
+      }
+      // Exponential backoff: 800ms, 1600ms, 3200ms...
+      await new Promise(res => setTimeout(res, delayMs * Math.pow(2, i)));
     }
     return lastResult;
   };
@@ -4985,10 +5003,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
     setIsSavingResult(true);
     try {
-      const { data, error } = await supabase
-        .from('results')
-        .insert([resultRecord])
-        .select();
+      const { data, error } = await queryWithRetry(() =>
+        supabase.from('results').insert([resultRecord]).select()
+      );
 
       if (error) {
         alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
@@ -5053,7 +5070,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
     try {
       const targetId = !isNaN(Number(id)) ? Number(id) : id;
-      const { error } = await supabase.from('results').delete().eq('id', targetId);
+      const { error } = await queryWithRetry(() =>
+        supabase.from('results').delete().eq('id', targetId)
+      );
       if (error) {
         alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
         setResultsList(originalResults);
@@ -5182,10 +5201,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
     setIsUpdatingResult(true);
     try {
-      const { error } = await supabase
-        .from('results')
-        .update(updatedRecord)
-        .eq('id', targetId);
+      const { error } = await queryWithRetry(() =>
+        supabase.from('results').update(updatedRecord).eq('id', targetId)
+      );
 
       if (error) {
         alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + getFriendlyErrorMessage(error.message));
