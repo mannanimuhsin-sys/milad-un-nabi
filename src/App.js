@@ -2178,20 +2178,8 @@ function App() {
       }
 
 
-      // Fetch timetable
-      let parsedTimetable = [];
-      try {
-        const { data: ttData } = await supabase
-          .from('timetable')
-          .select('*')
-          .eq('madrasa_id', rNum);
-        if (Array.isArray(ttData)) {
-          parsedTimetable = ttData;
-          setTimetable(ttData);
-        }
-      } catch (err) {
-        console.error("Timetable fetch failed: ", err);
-      }
+      // Timetable already fetched in Promise.allSettled above — no duplicate fetch needed
+      let parsedTimetable = Array.isArray(timetableData) ? timetableData : [];
 
       // Save fresh data snapshot to LocalStorage for offline PWA cache
       // CRITICAL: Never overwrite students/programs with empty results from transient failures
@@ -2271,18 +2259,23 @@ function App() {
 
 
   // Code to add default categories to Supabase
+  // Optimized: only select id+name to check existence, avoid full row download
   const checkAndInsertDefaultCategories = async (rNum) => {
-    const { data } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
-    if (data && data.length === 0) {
-      const defaultCats = [
-        { name: 'Kiddies', madrasa_id: rNum }, { name: 'Sub Junior', madrasa_id: rNum },
-        { name: 'Junior', madrasa_id: rNum }, { name: 'Senior', madrasa_id: rNum },
-        { name: 'Super Senior', madrasa_id: rNum }
-      ];
-      await supabase.from('categories').insert(defaultCats);
-      const { data: updatedCats } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
-      if (updatedCats) setCategories(updatedCats);
-    }
+    // Skip if categories already loaded in state — avoids duplicate DB call
+    if (Array.isArray(categories) && categories.length > 0) return;
+    try {
+      const { data } = await supabase.from('categories').select('id').eq('madrasa_id', rNum).limit(1);
+      if (data && data.length === 0) {
+        const defaultCats = [
+          { name: 'Kiddies', madrasa_id: rNum }, { name: 'Sub Junior', madrasa_id: rNum },
+          { name: 'Junior', madrasa_id: rNum }, { name: 'Senior', madrasa_id: rNum },
+          { name: 'Super Senior', madrasa_id: rNum }
+        ];
+        await supabase.from('categories').insert(defaultCats);
+        const { data: updatedCats } = await supabase.from('categories').select('*').eq('madrasa_id', rNum);
+        if (updatedCats) setCategories(updatedCats);
+      }
+    } catch (e) { /* Non-critical — silently skip if check fails */ }
   };
 
   const fetchMadrasas = async () => {
@@ -2322,7 +2315,7 @@ function App() {
       const { data, error } = await queryWithRetry(() =>
         supabase
           .from('madrasas')
-          .select('*')
+          .select('id,regNumber,name,place,adminPassword,viewPassword,approvalStatus,visibility_controls')
           .order('id', { ascending: false }),
         4,
         1000
@@ -2434,9 +2427,17 @@ function App() {
     };
 
     checkAppVersion();
-    const interval = setInterval(checkAppVersion, 15000);
+    const interval = setInterval(checkAppVersion, 300000); // 5 minutes — checks for new deployment, not Supabase
 
-    const handleFocus = () => { checkAppVersion(); };
+    let lastVersionCheckTime = 0;
+    const handleFocus = () => {
+      const now = Date.now();
+      // Only recheck version on focus if at least 5 minutes have passed since last check
+      if (now - lastVersionCheckTime > 300000) {
+        lastVersionCheckTime = now;
+        checkAppVersion();
+      }
+    };
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleFocus);
 
@@ -2514,10 +2515,9 @@ function App() {
         setIsInitialDataLoading(false);
       }
 
-      // 🔄 Realtime auto-refresh interval
-      // VIEW role: every 3.5s for seamless instant background sync
-      // ADMIN role: every 30s is fine (they set data themselves)
-      const pollMs = loginRole === 'VIEW' ? 3500 : 30000;
+      // 🔄 Fallback polling — VIEW uses Realtime subscriptions as primary mechanism.
+      // Polling is a safety net only: 60s for VIEW (Realtime handles instant sync), 120s for ADMIN.
+      const pollMs = loginRole === 'VIEW' ? 60000 : 120000;
       const intervalId = setInterval(() => {
         if (navigator.onLine && !isFetchingRef.current) {
           fetchSupabaseData(rNum);
@@ -2547,11 +2547,12 @@ function App() {
           .subscribe();
       }
 
-      // 🔄 Sync when user switches back to this browser tab (with 1s cooldown for VIEW, 15s for ADMIN)
+      // 🔄 Sync when user switches back to this browser tab (30s cooldown for VIEW, 60s for ADMIN)
+      // Prevents high CPU from users rapidly alt-tabbing or phone screen-on events
       let lastFocusTime = 0;
       const handleFocus = () => {
         const now = Date.now();
-        const focusCooldown = loginRole === 'VIEW' ? 1000 : 15000;
+        const focusCooldown = loginRole === 'VIEW' ? 30000 : 60000;
         if (navigator.onLine && !isFetchingRef.current && now - lastFocusTime > focusCooldown) {
           lastFocusTime = now;
           fetchSupabaseData(rNum);
@@ -2676,12 +2677,21 @@ function App() {
   }, []);
 
   // QR scan data fetcher - INSTANT (<10ms) via LocalStorage/State with background network sync
+  // Debounce key to prevent duplicate requests from repeated scans of same QR code
+  const lastQrScanRef = useRef({ key: '', time: 0 });
   const handleQrScan = async (madrasaRegInput, studentIdInput) => {
     const madrasaReg = String(madrasaRegInput || '').trim();
     const studentId = String(studentIdInput || '').trim();
     if (!madrasaReg || !studentId) return;
 
+    // Debounce: ignore identical scans within 3 seconds to prevent duplicate DB requests
+    const scanKey = `${madrasaReg}_${studentId}`;
+    const now = Date.now();
+    if (lastQrScanRef.current.key === scanKey && now - lastQrScanRef.current.time < 3000) return;
+    lastQrScanRef.current = { key: scanKey, time: now };
+
     setQrModalOpen(true);
+
 
     // Helper: Check if a program is published given a pubList and programs list
     const isProgramPublishedInList = (pId, pList, pCollection) => {
@@ -3065,46 +3075,34 @@ function App() {
       setQrModalLoading(true);
     }
 
-    // 🌐 3. Background network sync to fetch fresh student data from Supabase
+
+    // 🌐 3. Optimized background network sync — fetch ONLY specific student + madrasa settings.
+    // Use cached state for programs/teams/categories/registrations (already loaded at login).
+    // This reduces per-QR-scan DB queries from 8 full-table downloads to 2 targeted queries.
     try {
       const mRegInt = parseInt(madrasaReg, 10);
       const isMRegNum = !isNaN(mRegInt) && String(mRegInt) === String(madrasaReg).trim();
-      const mIds = isMRegNum ? [madrasaReg, mRegInt] : [madrasaReg];
-      const mIdList = Array.from(new Set(mIds));
+      const mIdList = Array.from(new Set(isMRegNum ? [madrasaReg, mRegInt] : [madrasaReg]));
 
-      const [
-        { data: madrasaData },
-        { data: studentDataList },
-        { data: resultsData },
-        { data: teamsData },
-        { data: catsData },
-        { data: progsData },
-        { data: regData },
-        { data: gRegsData }
-      ] = await Promise.all([
-        supabase.from('madrasas').select('*').in('regNumber', mIdList).maybeSingle(),
-        supabase.from('students').select('*').in('madrasa_id', mIdList),
-        supabase.from('results').select('*').in('madrasa_id', mIdList),
-        supabase.from('teams').select('*').in('madrasa_id', mIdList),
-        supabase.from('categories').select('*').in('madrasa_id', mIdList),
-        supabase.from('programs').select('*').in('madrasa_id', mIdList),
-        supabase.from('program_registrations').select('*').in('madrasa_id', mIdList),
-        supabase.from('group_registrations').select('*').in('madrasa_id', mIdList)
+      // Build targeted student query: filter by student ID or regno to avoid full-table scan
+      const studentIdNum = parseInt(studentId, 10);
+      const isStudentIdNum = !isNaN(studentIdNum) && String(studentIdNum) === String(studentId).trim();
+
+      // Only fetch: (1) the specific student record, (2) madrasa settings for published programs
+      // Everything else (programs, teams, categories, registrations) uses in-memory state/cache
+      const [studentResult, madrasaResult] = await Promise.all([
+        // Fetch just this student by ID or regno — NOT the whole students table
+        isStudentIdNum
+          ? supabase.from('students').select('*').in('madrasa_id', mIdList)
+              .or(`id.eq.${studentIdNum},regno.eq.${studentId}`).maybeSingle()
+          : supabase.from('students').select('*').in('madrasa_id', mIdList)
+              .eq('regno', studentId).maybeSingle(),
+        // Only fetch madrasa to get current published_programs / visibility settings
+        supabase.from('madrasas').select('id,regNumber,name,place,visibility_controls').in('regNumber', mIdList).maybeSingle()
       ]);
 
-      const fetchedStudent = (studentDataList || []).find(s => {
-        if (!s) return false;
-        const sId = String(s.id || '').trim();
-        const sReg = String(s.regno || s.regNo || '').trim();
-        if (sId && sId === studentId) return true;
-        if (sReg && sReg === studentId) return true;
-        const targetNum = parseInt(studentId, 10);
-        if (!isNaN(targetNum)) {
-          if (parseInt(sId, 10) === targetNum) return true;
-          if (parseInt(sReg, 10) === targetNum) return true;
-        }
-        return false;
-      });
+      const fetchedStudent = studentResult?.data;
+      const madrasaData = madrasaResult?.data;
 
       if (!fetchedStudent && !localData) {
         setQrModalData({ error: lang === 'EN' ? 'Student not found!' : 'വിദ്യാർത്ഥിയെ കണ്ടെത്താനായില്ല!' });
@@ -3113,16 +3111,17 @@ function App() {
       }
 
       if (fetchedStudent) {
+        // Use state collections for related data — already in memory from login fetch
         const freshPubList = getCombinedPubList(madrasaData || loggedInMadrasa);
         const freshData = buildQrDataFromLocal(
           madrasaData || loggedInMadrasa,
-          studentDataList || [fetchedStudent],
-          teamsData || teams,
-          catsData || categories,
-          progsData || programs,
-          resultsData || resultsList,
-          regData || programRegistrations,
-          gRegsData || groupRegistrations,
+          [fetchedStudent, ...students.filter(s => String(s.id) !== String(fetchedStudent.id))],
+          teams,
+          categories,
+          programs,
+          resultsList,
+          programRegistrations,
+          groupRegistrations,
           freshPubList
         );
 
@@ -3130,6 +3129,8 @@ function App() {
           setQrModalData(freshData);
         }
       }
+
+
     } catch (err) {
       console.warn("QR network fetch warning:", err);
       if (!localData) {
