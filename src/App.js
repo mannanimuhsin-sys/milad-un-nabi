@@ -2524,19 +2524,24 @@ function App() {
         }
       }, pollMs);
 
-      // ⚡ Supabase Realtime subscription for VIEW role:
-      // When admin updates anything in cloud (results, visibility, published programs, programs, students, teams),
-      // VIEW phones get an instant automatic push with zero manual reload needed.
+      // ⚡ Supabase Realtime subscription (for both VIEW and ADMIN roles):
+      // When any admin updates results, published programs, students, etc., all connected
+      // devices get an instant push. Debounced by 1.2s to batch rapid burst writes safely.
       let realtimeChannel = null;
-      if (loginRole === 'VIEW') {
-        const handleDbChange = () => {
+      let dbChangeDebounceTimer = null;
+
+      const handleDbChange = () => {
+        if (dbChangeDebounceTimer) clearTimeout(dbChangeDebounceTimer);
+        dbChangeDebounceTimer = setTimeout(() => {
           if (navigator.onLine && !isFetchingRef.current) {
             fetchSupabaseData(rNum);
           }
-        };
+        }, 1200);
+      };
 
+      try {
         realtimeChannel = supabase
-          .channel(`view_mode_live_${rNum}_${Date.now()}`)
+          .channel(`live_sync_${rNum}_${Date.now()}`)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'madrasas' }, handleDbChange)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, handleDbChange)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'programs' }, handleDbChange)
@@ -2545,6 +2550,8 @@ function App() {
           .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, handleDbChange)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'group_registrations' }, handleDbChange)
           .subscribe();
+      } catch (realtimeErr) {
+        console.warn("Realtime subscription init warning:", realtimeErr);
       }
 
       // 🔄 Sync when user switches back to this browser tab (30s cooldown for VIEW, 60s for ADMIN)
@@ -2601,9 +2608,12 @@ function App() {
       return () => {
         clearInterval(intervalId);
         window.removeEventListener('focus', handleFocus);
+        if (dbChangeDebounceTimer) clearTimeout(dbChangeDebounceTimer);
         // Clean up Realtime subscription if it was created
         if (realtimeChannel) {
-          supabase.removeChannel(realtimeChannel);
+          try {
+            supabase.removeChannel(realtimeChannel);
+          } catch (e) {}
         }
       };
     }
