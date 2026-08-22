@@ -693,6 +693,9 @@ function App() {
   const [programRegistrations, setProgramRegistrations] = useState(() => {
     try { return (_initCache && Array.isArray(_initCache.programRegistrations)) ? _initCache.programRegistrations : []; } catch { return []; }
   });
+  const [groupRegistrations, setGroupRegistrations] = useState(() => {
+    try { return (_initCache && Array.isArray(_initCache.groupRegistrations)) ? _initCache.groupRegistrations : []; } catch { return []; }
+  });
 
   // 📡 Network status tracking (Offline / Weak Network fallback)
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -1334,7 +1337,6 @@ function App() {
   }, [getStudentRegisteredPrograms]);
 
   // ── Group Registration States ──
-  const [groupRegistrations, setGroupRegistrations] = useState([]);
   const [groupRegCat, setGroupRegCat] = useState('');
   const [groupRegGender, setGroupRegGender] = useState('BOY');
   const [groupRegProgram, setGroupRegProgram] = useState('');
