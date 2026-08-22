@@ -1227,6 +1227,7 @@ function App() {
     if (!refId) return null;
     const rStr = String(refId).trim();
     if (!rStr) return null;
+    if (!Array.isArray(students)) return null;
     const byId = students.find(s => String(s.id).trim() === rStr);
     if (byId) return byId;
     return students.find(s => String(s.regno || s.regNo || '').trim() === rStr) || null;
@@ -1234,8 +1235,9 @@ function App() {
 
   const getStudentRegisteredPrograms = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
-    const targetRegs = customRegs || programRegistrations;
+    const targetRegs = Array.isArray(customRegs) ? customRegs : (Array.isArray(programRegistrations) ? programRegistrations : []);
     const studentObj = findStudentByRef(studentId);
+    const progList = Array.isArray(programs) ? programs : [];
 
     const findProgForReg = (r, studentCatId = null, studentGender = null) => {
       const isGenderMatch = (p) => {
@@ -1255,24 +1257,24 @@ function App() {
       };
 
       // Priority 1: Exact ID / Code match WITHIN student's category + Gender match
-      const exactInCat = programs.find(p => isCatEligible(p) && isGenderMatch(p) && isProgramMatch(r, p, true));
+      const exactInCat = progList.find(p => isCatEligible(p) && isGenderMatch(p) && isProgramMatch(r, p, true));
       if (exactInCat) return exactInCat;
 
       // Priority 2: Exact Name match WITHIN student's category + Gender match
-      const nameInCat = programs.find(p => isCatEligible(p) && isGenderMatch(p) && isProgramMatch(r, p, false));
+      const nameInCat = progList.find(p => isCatEligible(p) && isGenderMatch(p) && isProgramMatch(r, p, false));
       if (nameInCat) return nameInCat;
 
       // Priority 3: Fallback match in student's category (any gender)
-      const catFallback = programs.find(p => isCatEligible(p) && isProgramMatch(r, p, false));
+      const catFallback = progList.find(p => isCatEligible(p) && isProgramMatch(r, p, false));
       if (catFallback) return catFallback;
 
       // Priority 4: Exact Program primary key ID match across all programs
       const rId = String(r.program_id || r.program_name || '').trim();
-      const exactIdMatch = programs.find(p => String(p.id) === rId);
+      const exactIdMatch = progList.find(p => String(p.id) === rId);
       if (exactIdMatch) return exactIdMatch;
 
       // Priority 5: Fallback match across all programs (only when no category match was found)
-      const fallback = programs.find(p => isGenderMatch(p) && isProgramMatch(r, p, false));
+      const fallback = progList.find(p => isGenderMatch(p) && isProgramMatch(r, p, false));
       if (fallback) return fallback;
 
       // Priority 6: Synthesize fallback program object from registration record
