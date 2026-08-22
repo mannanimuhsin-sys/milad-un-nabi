@@ -920,10 +920,23 @@ function App() {
     if (progObj?.code) toRemoveOrAdd.add(String(progObj.code).trim());
 
     let updated;
+    const now = Date.now();
+    let currentPublishedAt = { ...(visibilityControls?.published_at || {}) };
+    if (rNum) {
+      try {
+        const storedAt = localStorage.getItem(`milad_published_at_${rNum}`);
+        if (storedAt) currentPublishedAt = { ...JSON.parse(storedAt), ...currentPublishedAt };
+      } catch (e) {}
+    }
+
     if (shouldPublish) {
-      updated = Array.from(new Set([...baseList.map(String), ...Array.from(toRemoveOrAdd)]));
+      // ⚡ Prepend newly published program at index 0 (top) of publishedPrograms so it is recognized as most recently published
+      const existingWithoutNew = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
+      updated = Array.from(new Set([...Array.from(toRemoveOrAdd), ...existingWithoutNew]));
+      toRemoveOrAdd.forEach(id => { currentPublishedAt[id] = now; });
     } else {
       updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
+      toRemoveOrAdd.forEach(id => { delete currentPublishedAt[id]; });
     }
 
     // 1. Update React state immediately (optimistic UI)
@@ -934,15 +947,16 @@ function App() {
     if (rNum) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
+        localStorage.setItem(`milad_published_at_${rNum}`, JSON.stringify(currentPublishedAt));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
       } catch {}
     }
 
-    // 3. Sync to DB — build newVis with the UPDATED published_programs (not stale state)
+    // 3. Sync to DB — build newVis with the UPDATED published_programs and published_at (not stale state)
     if (rNum || mId) {
       try {
         // Use 'updated' directly — do NOT rely on visibilityControls state which may be stale
-        const newVis = { ...(visibilityControls || {}), published_programs: updated };
+        const newVis = { ...(visibilityControls || {}), published_programs: updated, published_at: currentPublishedAt };
         setVisibilityControls(newVis);
 
         // Fetch latest madrasa place to safely update part 8
@@ -970,6 +984,7 @@ function App() {
         if (rNum) {
           try {
             localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
+            localStorage.setItem(`milad_published_at_${rNum}`, JSON.stringify(currentPublishedAt));
             localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
           } catch {}
         }
@@ -991,25 +1006,49 @@ function App() {
     const rNum = loggedInMadrasa?.regNumber;
     const mId = loggedInMadrasa?.id;
     let updated = [];
+    let newPublishedAt = {};
     if (publish) {
-      const progsWithResults = Array.from(new Set([
-        ...resultsList.map(r => String(r.progid || '').trim()),
-        ...resultsList.map(r => {
-          const p = programs.find(pr => String(pr.id) === String(r.progid) || String(pr.code) === String(r.progid) || String(pr.name).toLowerCase() === String(r.progid || '').toLowerCase());
-          return p ? [String(p.id).trim(), String(p.code).trim(), String(p.name).trim()] : [];
-        }).flat(),
-        ...programs.map(p => [String(p.id).trim(), String(p.code).trim(), String(p.name).trim()]).flat()
-      ])).filter(Boolean);
-      updated = progsWithResults;
+      // Sort programs with results by their most recent result timestamp descending
+      const progTimeMap = new Map();
+      resultsList.forEach(r => {
+        const pid = String(r.progid || '').trim();
+        if (!pid) return;
+        const t = new Date(r.created_at || r.createdAt || r.inserted_at || r.savedAt || 0).getTime() || 0;
+        if (!progTimeMap.has(pid) || t > progTimeMap.get(pid)) {
+          progTimeMap.set(pid, t);
+        }
+      });
+
+      const progsWithResults = Array.from(new Set(resultsList.map(r => String(r.progid || '').trim()).filter(Boolean)));
+      progsWithResults.sort((a, b) => (progTimeMap.get(b) || 0) - (progTimeMap.get(a) || 0));
+
+      const now = Date.now();
+      const allIds = [];
+      progsWithResults.forEach((pid, idx) => {
+        const p = programs.find(pr => String(pr.id) === pid || String(pr.code) === pid || String(pr.name).toLowerCase() === pid.toLowerCase());
+        const ids = [pid];
+        if (p?.id) ids.push(String(p.id).trim());
+        if (p?.code) ids.push(String(p.code).trim());
+        ids.forEach(id => {
+          allIds.push(id);
+          newPublishedAt[id] = now - idx * 1000;
+        });
+      });
+      programs.forEach(p => {
+        if (p?.id) allIds.push(String(p.id).trim());
+        if (p?.code) allIds.push(String(p.code).trim());
+      });
+      updated = Array.from(new Set(allIds)).filter(Boolean);
     }
     setPublishedPrograms(updated);
     if (rNum || mId) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
+        localStorage.setItem(`milad_published_at_${rNum}`, JSON.stringify(newPublishedAt));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
       } catch {}
       try {
-        const newVis = { ...(visibilityControls || {}), published_programs: updated };
+        const newVis = { ...(visibilityControls || {}), published_programs: updated, published_at: newPublishedAt };
         setVisibilityControls(newVis);
 
         let currentPlace = loggedInMadrasa?.place || '';
@@ -1073,7 +1112,20 @@ function App() {
   const [regTabStudent, setRegTabStudent] = useState('');
   const [regTabCheckedProgs, setRegTabCheckedProgs] = useState([]);
   const [regTabSaving, setRegTabSaving] = useState(false);
-  const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP'
+  const [regTabSection, setRegTabSection] = useState('SINGLE'); // 'SINGLE' | 'GROUP' | 'TEAM'
+  const [teamRegCat, setTeamRegCat] = useState('');
+  const [teamRegGender, setTeamRegGender] = useState('COMMON');
+  const [teamRegProgram, setTeamRegProgram] = useState('');
+  const [teamRegTeam, setTeamRegTeam] = useState('');
+  const [teamRegStudents, setTeamRegStudents] = useState([]);
+  const [teamRegLeader, setTeamRegLeader] = useState('');
+  const [teamRegMemberSearch, setTeamRegMemberSearch] = useState('');
+  const [teamRegSaving, setTeamRegSaving] = useState(false);
+  const [teamRegSummaryFilterProg, setTeamRegSummaryFilterProg] = useState('ALL');
+  const [editingTeamRegId, setEditingTeamRegId] = useState(null);
+  const [editingTeamRegStudents, setEditingTeamRegStudents] = useState([]);
+  const [editingTeamRegLeader, setEditingTeamRegLeader] = useState('');
+  const [editingTeamRegSaving, setEditingTeamRegSaving] = useState(false);
   const regTabDirtyRef = React.useRef(false); // true when user has unsaved checkbox changes
 
   // ── Prizes Tab States ──
@@ -1220,6 +1272,49 @@ function App() {
     const studentGender = studentObj ? (studentObj.gender || '') : null;
     const rawProgs = sRegs.map(r => findProgForReg(r, studentCatId, studentGender)).filter(Boolean);
 
+    // Also include Group / Team Registrations where this student is a member or leader
+    if (Array.isArray(groupRegistrations)) {
+      const sDbId = studentObj ? String(studentObj.id || '').trim() : String(studentId).trim();
+      const sRegNo = studentObj ? String(studentObj.regno || studentObj.regNo || '').trim() : '';
+
+      groupRegistrations.forEach(g => {
+        if (!g) return;
+        const lId = String(g.leader_id || '').trim();
+        const isLeader = Boolean(lId && (lId === sDbId || (sRegNo && lId === sRegNo)));
+
+        let mIds = [];
+        if (Array.isArray(g.student_ids)) mIds = g.student_ids;
+        else if (typeof g.student_ids === 'string') {
+          try { mIds = JSON.parse(g.student_ids || '[]'); } catch (e) { mIds = [g.student_ids]; }
+        }
+        if (!Array.isArray(mIds)) mIds = [mIds];
+
+        const isMember = mIds.some(item => {
+          if (!item) return false;
+          if (typeof item === 'object') {
+            const mId = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
+            return mId === sDbId || (sRegNo && mId === sRegNo);
+          }
+          const idStr = String(item).trim();
+          return idStr === sDbId || (sRegNo && idStr === sRegNo);
+        });
+
+        if (isLeader || isMember) {
+          const gProgId = String(g.program_id || '').trim();
+          const prog = programs.find(p => String(p.id).trim() === gProgId || (p.code && String(p.code).trim() === gProgId) || (p.name && String(p.name).trim().toLowerCase() === gProgId.toLowerCase()));
+          if (prog) {
+            rawProgs.push({
+              ...prog,
+              isGroup: true,
+              groupName: g.group_name || 'Group',
+              groupId: g.id,
+              isLeader
+            });
+          }
+        }
+      });
+    }
+
     // Deduplicate so every program appears EXACTLY ONCE for the student
     const uniqueMap = new Map();
     rawProgs.forEach(p => {
@@ -1230,7 +1325,7 @@ function App() {
     });
 
     return Array.from(uniqueMap.values());
-  }, [programRegistrations, programs, students, isStudentMatch, isProgramMatch, isGeneralProg, findStudentByRef]);
+  }, [programRegistrations, groupRegistrations, programs, students, isStudentMatch, isProgramMatch, isGeneralProg, findStudentByRef]);
 
   const getStudentRegisteredProgIds = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
@@ -1389,6 +1484,9 @@ function App() {
     };
     if (Array.isArray(parsed.published_programs)) {
       res.published_programs = parsed.published_programs.map(String);
+    }
+    if (parsed.published_at && typeof parsed.published_at === 'object') {
+      res.published_at = parsed.published_at;
     }
     return res;
   };
@@ -1751,6 +1849,17 @@ function App() {
               try { visFromPlace = JSON.parse(parts[8]); } catch (e2) {}
             }
           }
+          if (parts[10]) {
+            try {
+              const parsedPs = JSON.parse(decodeURIComponent(parts[10]));
+              if (parsedPs && typeof parsedPs === 'object') {
+                setPointSystem(prev => ({ ...prev, ...parsedPs }));
+                if (rNum) {
+                  try { localStorage.setItem(`points_${rNum}`, JSON.stringify(parsedPs)); } catch(e){}
+                }
+              }
+            } catch(e) {}
+          }
           // Fallback: search all parts for scoreboard or published_programs
           if (!visFromPlace) {
             for (const p of parts) {
@@ -1801,6 +1910,16 @@ function App() {
 
         if (fetchedVisibility) {
           const normalizedVis = normalizeVisibilityControls(fetchedVisibility);
+          let localPubAt = {};
+          if (rNum) {
+            try {
+              const storedAt = localStorage.getItem(`milad_published_at_${rNum}`);
+              if (storedAt) localPubAt = JSON.parse(storedAt);
+            } catch (e) {}
+          }
+          if (localPubAt && typeof localPubAt === 'object') {
+            normalizedVis.published_at = { ...(normalizedVis.published_at || {}), ...localPubAt };
+          }
           setVisibilityControls(normalizedVis);
 
           let dbPublished = [];
@@ -1812,7 +1931,7 @@ function App() {
           if (isAdminRole) {
             // ADMIN: UNION of DB and localStorage — published items are NEVER silently removed by a poll.
             // Only a manual "Move to Draft" action (handleTogglePublishProgram) can remove items.
-            finalPublished = Array.from(new Set([...dbPublished, ...localPubList]));
+            finalPublished = Array.from(new Set([...localPubList, ...dbPublished]));
           } else {
             // VIEW role: DB is the sole source of truth (admin controls what VIEW users see)
             finalPublished = dbPublished;
@@ -3326,8 +3445,9 @@ function App() {
     const normalizedVisObj = normalizeVisibilityControls(rawVisVal);
     const visCtrls = encodeURIComponent(JSON.stringify(normalizedVisObj));
     const ccVal = overrides.coordinatorConvener !== undefined ? overrides.coordinatorConvener : (parts[9] ? parts[9] : (coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''));
+    const psVal = overrides.pointSystem !== undefined ? overrides.pointSystem : (parts[10] ? parts[10] : (pointSystem ? encodeURIComponent(JSON.stringify(pointSystem)) : ''));
 
-    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}|${ccVal}`;
+    return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}|${ccVal}|${psVal}`;
   };
 
   const handleApproveMadrasa = async (madrasa) => {
@@ -4568,11 +4688,106 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     }
   };
 
-  // ⚙️ 5. CUSTOM MARK SYSTEM SAVE
-  const handleSavePoints = (e) => {
-    e.preventDefault();
+  // 🎯 Dynamic Result Points Evaluator based on active/custom pointSystem
+  const computeResultPoints = useCallback((result, customPointSystem = null) => {
+    if (!result) return 0;
+    const ps = customPointSystem || pointSystem || {};
+    const p = (result.place || '').toString().toLowerCase();
+    const g = (result.grade || '').toString().toUpperCase();
+
+    // Determine type: Team, Group, or Single
+    const rawType = String(result.progtype || result.progType || result.type || '').toUpperCase();
+    const prog = Array.isArray(programs) ? programs.find(pr => String(pr.id) === String(result.progid || result.progId || '') || (pr.code && String(pr.code) === String(result.progid || result.progId || ''))) : null;
+    const fullType = prog ? String(prog.type || '').toUpperCase() : rawType;
+
+    const isTeam = fullType.includes('TEAM');
+    const isGroup = !isTeam && fullType.includes('GROUP');
+
+    let pts = 0;
+    if (isTeam) {
+      if (p === 'first' || p === '1' || p === '1st') pts += Number(ps.tp1 ?? 15);
+      else if (p === 'second' || p === '2' || p === '2nd') pts += Number(ps.tp2 ?? 10);
+      else if (p === 'third' || p === '3' || p === '3rd') pts += Number(ps.tp3 ?? 5);
+
+      if (g === 'A') pts += Number(ps.tpA ?? 5);
+      else if (g === 'B') pts += Number(ps.tpB ?? 3);
+      else if (g === 'C') pts += Number(ps.tpC ?? 1);
+    } else if (isGroup) {
+      if (p === 'first' || p === '1' || p === '1st') pts += Number(ps.gp1 ?? 10);
+      else if (p === 'second' || p === '2' || p === '2nd') pts += Number(ps.gp2 ?? 6);
+      else if (p === 'third' || p === '3' || p === '3rd') pts += Number(ps.gp3 ?? 2);
+
+      if (g === 'A') pts += Number(ps.gpA ?? 5);
+      else if (g === 'B') pts += Number(ps.gpB ?? 3);
+      else if (g === 'C') pts += Number(ps.gpC ?? 1);
+    } else {
+      if (p === 'first' || p === '1' || p === '1st') pts += Number(ps.p1 ?? 5);
+      else if (p === 'second' || p === '2' || p === '2nd') pts += Number(ps.p2 ?? 3);
+      else if (p === 'third' || p === '3' || p === '3rd') pts += Number(ps.p3 ?? 1);
+
+      if (g === 'A') pts += Number(ps.gA ?? 5);
+      else if (g === 'B') pts += Number(ps.gB ?? 3);
+      else if (g === 'C') pts += Number(ps.gC ?? 1);
+    }
+
+    return pts;
+  }, [pointSystem, programs]);
+
+  // ⚙️ 5. CUSTOM MARK SYSTEM SAVE WITH CLOUD SYNC & RE-CALCULATION
+  const handleSavePoints = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!loggedInMadrasa) return;
+    const rNum = String(loggedInMadrasa.regNumber || '').trim();
+
+    // 1. Save locally to localStorage
     saveToStorage('points', pointSystem);
-    alert(t('alertPointsUpdated'));
+
+    // 2. Dynamically recompute points for all results in resultsList
+    const updatedResults = resultsList.map(r => {
+      const newPts = computeResultPoints(r, pointSystem);
+      return { ...r, points: newPts };
+    });
+    setResultsList(updatedResults);
+
+    if (rNum) {
+      safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+        let cacheObj = {};
+        try { cacheObj = JSON.parse(rawCache) || {}; } catch(err) {}
+        cacheObj.resultsList = updatedResults;
+        return JSON.stringify(cacheObj);
+      });
+    }
+
+    // 3. Save to Supabase madrasas.place cloud metadata
+    try {
+      const numReg = parseInt(rNum, 10);
+      const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
+      const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
+      const { data: md } = await queryWithRetry(() =>
+        supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
+      );
+      const updatedPlace = makePlaceString(md ? md.place : '', {
+        pointSystem: encodeURIComponent(JSON.stringify(pointSystem))
+      });
+      await queryWithRetry(() =>
+        supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
+      );
+    } catch (err) {
+      console.warn('Could not save points to madrasas place:', err);
+    }
+
+    // 4. Batch update points in Supabase results table
+    try {
+      for (const r of updatedResults) {
+        if (r.id && !String(r.id).startsWith('temp_')) {
+          await supabase.from('results').update({ points: r.points }).eq('id', r.id);
+        }
+      }
+    } catch (err) {
+      console.warn('Batch update results points error:', err);
+    }
+
+    alert(lang === 'EN' ? '✅ Point structure saved & all program scores updated successfully!' : '✅ പോയിന്റ് സ്ട്രക്ചർ സേവ് ചെയ്യുകയും എല്ലാ പ്രോഗ്രാമുകളുടെയും സ്കോറുകൾ വിജയകരമായി അപ്ഡേറ്റ് ചെയ്യുകയും ചെയ്തു!');
   };
 
   // 📝 6. MARK ENTRY ACTIONS (SUPABASE)
@@ -4597,51 +4812,99 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     let groupObj = null;
     let teamObj = null;
 
-    if (isTeam) {
-      teamObj = teams.find(t => String(t.id) === String(selectedResultStudent));
+    if (isTeam || markEntrySection === 'TEAM') {
+      const cleanTId = String(selectedResultStudent).replace('team_', '');
+      teamObj = teams.find(t => String(t.id) === cleanTId);
       if (!teamObj) { alert(t('alertUnexpectedError') + 'Team not found'); return; }
-    } else if (isGroup) {
-      groupObj = groupRegistrations.find(g => String(g.id) === String(selectedResultStudent));
-      if (!groupObj) { alert(t('alertUnexpectedError') + 'Group not found'); return; }
+    } else if (isGroup || markEntrySection === 'GROUP') {
+      if (String(selectedResultStudent).startsWith('team_')) {
+        const cleanTId = String(selectedResultStudent).replace('team_', '');
+        teamObj = teams.find(t => String(t.id) === cleanTId);
+        if (!teamObj) { alert(t('alertUnexpectedError') + 'Team not found'); return; }
+      } else {
+        groupObj = groupRegistrations.find(g => String(g.id) === String(selectedResultStudent));
+        if (!groupObj) {
+          groupObj = groupRegistrations.find(g => String(g.group_name).toLowerCase() === String(selectedResultStudent).toLowerCase());
+        }
+        if (!groupObj) {
+          teamObj = teams.find(t => String(t.id) === String(selectedResultStudent));
+        }
+        if (!groupObj && !teamObj) { alert(t('alertUnexpectedError') + 'Group not found'); return; }
+      }
     } else {
       studentObj = students.find(s => String(s.id) === String(selectedResultStudent));
       if (!studentObj) { alert(t('alertUnexpectedError') + 'Student not found'); return; }
     }
 
-    const computedStudentName = isTeam
+    const computedStudentName = (isTeam || markEntrySection === 'TEAM')
       ? `🏟️ ${teamObj.name}`
-      : isGroup
-      ? groupObj.group_name
+      : (isGroup || markEntrySection === 'GROUP')
+      ? (groupObj ? groupObj.group_name : (teamObj ? `${teamObj.name} Group` : 'Group'))
       : `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`;
 
     // ── 1. Strict Duplicate Student / Participant Check ──────────────────────────────
     // Prevent assigning multiple results or ranks to the same student/group/team in the same program.
     const sRegStr = (isGroup || isTeam) ? '' : String(studentObj.regno || studentObj.regNo || '').trim().toLowerCase();
-    const sNameStr = isTeam ? String(teamObj.name || '').trim().toLowerCase() : isGroup ? String(groupObj.group_name || '').trim().toLowerCase() : String(studentObj.name || '').trim().toLowerCase();
-    const sDbIdStr = isTeam ? String(teamObj.id || '').trim() : isGroup ? String(groupObj.id || '').trim() : String(studentObj.id || '').trim();
+    const sNameStr = isTeam ? String(teamObj.name || '').trim().toLowerCase() : isGroup ? String(groupObj ? groupObj.group_name : (teamObj ? teamObj.name : '')).trim().toLowerCase() : String(studentObj.name || '').trim().toLowerCase();
+    const sDbIdStr = isTeam ? String(teamObj.id || '').trim() : isGroup ? String(groupObj ? groupObj.id : (teamObj ? teamObj.id : '')).trim() : String(studentObj.id || '').trim();
     const pIdStr = String(progObj.id || '').trim();
     const pCodeStr = String(progObj.code || '').trim();
     const pNameStr = String(progObj.name || '').trim().toLowerCase();
+    const progCatName = ((categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '').trim().toLowerCase();
 
     const existingStudentResult = resultsList.find(r => {
       if (!r) return false;
       const rPid = String(r.progid || r.program_id || r.prog_id || '').trim();
       const rPName = String(r.progname || r.program_name || r.progName || '').trim().toLowerCase();
-      const isProgMatch = (pIdStr && rPid === pIdStr) || (pCodeStr && rPid === pCodeStr) || (pNameStr && (rPName === pNameStr || rPName.includes(pNameStr) || pNameStr.includes(rPName)));
+      const rCatName = String(r.catname || '').trim().toLowerCase();
+
+      // Program match check: Must strictly be for the current program
+      let isProgMatch = false;
+      if (pIdStr && rPid) {
+        isProgMatch = (rPid === pIdStr || (pCodeStr && rPid === pCodeStr));
+      } else if (pCodeStr && rPid) {
+        isProgMatch = (rPid === pCodeStr);
+      } else if (pNameStr && rPName) {
+        const catMatches = !rCatName || !progCatName || rCatName === progCatName;
+        isProgMatch = (rPName === pNameStr) && catMatches;
+      }
       if (!isProgMatch) return false;
 
       const rSName = String(r.studentname || r.student_name || r.studentName || '').trim().toLowerCase();
-      if (isTeam) {
-        const rTid = String(r.teamid || r.teamId || '').trim();
-        return (sDbIdStr && rTid === sDbIdStr) || (sNameStr && (rSName.includes(sNameStr) || sNameStr.includes(rSName)));
-      } else if (isGroup) {
-        return sNameStr && (rSName === sNameStr || rSName.includes(sNameStr) || sNameStr.includes(rSName));
+      const rTid = String(r.teamid || r.teamId || '').trim();
+
+      if (isTeam || markEntrySection === 'TEAM') {
+        if (sDbIdStr && rTid && rTid === sDbIdStr) return true;
+        if (sNameStr && (rSName === sNameStr || rSName === `🏟️ ${sNameStr}` || rSName.replace(/^🏟️\s*/, '').trim() === sNameStr)) return true;
+        return false;
+      } else if (isGroup || markEntrySection === 'GROUP') {
+        // Group match: Exact match on team and group name (never substring matching!)
+        if (groupObj) {
+          const gTeamId = String(groupObj.team_id || '').trim();
+          const targetGName = String(groupObj.group_name || '').trim().toLowerCase();
+          if (gTeamId && rTid) {
+            return (rTid === gTeamId) && (rSName === targetGName);
+          }
+          return Boolean(targetGName && rSName === targetGName);
+        } else if (teamObj) {
+          const tId = String(teamObj.id || '').trim();
+          const tName = String(teamObj.name || '').trim().toLowerCase();
+          if (tId && rTid) {
+            return (rTid === tId) && (rSName === tName || rSName === `${tName} group` || rSName === 'group');
+          }
+          return rSName === tName || rSName === `${tName} group`;
+        } else {
+          return Boolean(sNameStr && rSName === sNameStr);
+        }
       } else {
+        // Single Student match:
         const rSid = String(r.studentid || r.student_id || '').trim();
         if (sDbIdStr && rSid && rSid === sDbIdStr) return true;
         const rRegPart = rSName.includes(' - ') ? rSName.split(' - ')[0].trim() : (rSName.includes('-') ? rSName.split('-')[0].trim() : '');
         if (sRegStr && rRegPart && sRegStr === rRegPart.toLowerCase()) return true;
         if (sRegStr && (rSName.startsWith(sRegStr + ' ') || rSName.startsWith(sRegStr + '-') || rSName.startsWith(sRegStr + ':') || rSName === sRegStr)) return true;
+        const computedFullName = `${studentObj.regno || studentObj.regNo || ''} - ${studentObj.name}`.trim().toLowerCase();
+        if (rSName === computedFullName) return true;
         return false;
       }
     });
@@ -4652,10 +4915,19 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       const exPlaceMl = exPlace === 'First' ? 'ഒന്നാം സ്ഥാനം (1st Place)' : exPlace === 'Second' ? 'രണ്ടാം സ്ഥാനം (2nd Place)' : exPlace === 'Third' ? 'മൂന്നാം സ്ഥാനം (3rd Place)' : 'സ്ഥാനമില്ല (No Place)';
       const exGradeMl = (existingStudentResult.grade && existingStudentResult.grade !== '-') ? `${existingStudentResult.grade} ഗ്രേഡ്` : 'ഗ്രേഡില്ല';
 
+      const entityName = (isTeam || markEntrySection === 'TEAM')
+        ? (teamObj?.name || 'ടീം')
+        : (isGroup || markEntrySection === 'GROUP')
+        ? (groupObj?.group_name || (teamObj ? `${teamObj.name} Group` : 'ഗ്രൂപ്പ്'))
+        : (studentObj?.name || 'വിദ്യാർത്ഥി');
+
+      const entityTypeEn = (isTeam || markEntrySection === 'TEAM') ? 'team' : (isGroup || markEntrySection === 'GROUP') ? 'group' : 'student';
+      const entityTypeMl = (isTeam || markEntrySection === 'TEAM') ? 'ടീമിന്' : (isGroup || markEntrySection === 'GROUP') ? 'ഗ്രൂപ്പിന്' : 'വിദ്യാർത്ഥിക്ക്';
+
       alert(
         lang === 'EN'
-          ? `⚠️ A result is already registered for this student in "${progObj.name}" (${exPlace} - ${exGrade}).\nA student can only have one result per program. Please edit the existing result below if you wish to make changes.`
-          : `⚠️ ഈ വിദ്യാർത്ഥി നിലവിൽ "${progObj.name}" മത്സരത്തിൽ ഫലം രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട് (${exPlaceMl} - ${exGradeMl}).\nഒരു പ്രോഗ്രാമിന് ഒരു വിദ്യാർത്ഥിക്ക് ഒരു ഫലം മാത്രമേ നൽകാൻ സാധിക്കൂ. തിരുത്തണമെങ്കിൽ താഴെയുള്ള ലിസ്റ്റിൽ നിന്ന് എഡിറ്റ് ചെയ്യുക.`
+          ? `⚠️ A result is already registered for this ${entityTypeEn} ("${entityName}") in "${progObj.name}" (${exPlace} - ${exGrade}).\nA ${entityTypeEn} can only have one result per program. Please edit the existing result below if you wish to make changes.`
+          : `⚠️ ഈ ${entityTypeMl} ("${entityName}") നിലവിൽ "${progObj.name}" മത്സരത്തിൽ ഫലം രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട് (${exPlaceMl} - ${exGradeMl}).\nഒരു പ്രോഗ്രാമിന് ഒരു ${entityTypeMl} ഒരു ഫലം മാത്രമേ നൽകാൻ സാധിക്കൂ. തിരുത്തണമെങ്കിൽ താഴെയുള്ള ലിസ്റ്റിൽ നിന്ന് എഡിറ്റ് ചെയ്യുക.`
       );
       return;
     }
@@ -4692,16 +4964,21 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       catname: (categories.find(c => String(c.id) === String(progObj.catid)) || {}).name || '',
       studentname: computedStudentName,
       studentgender: isTeam ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : isGroup ? (progObj.type.includes('BOY') ? 'BOY' : progObj.type.includes('GIRL') ? 'GIRL' : 'COMMON') : (studentObj.gender || 'BOY'),
-      teamid: isTeam ? teamObj.id : isGroup ? groupObj.team_id : studentObj.teamid,
-      teamname: isTeam
+      teamid: (isTeam || markEntrySection === 'TEAM')
+        ? teamObj.id
+        : (isGroup || markEntrySection === 'GROUP')
+        ? (groupObj ? groupObj.team_id : (teamObj ? teamObj.id : ''))
+        : studentObj.teamid,
+      teamname: (isTeam || markEntrySection === 'TEAM')
         ? teamObj.name
-        : isGroup
-        ? ((teams.find(t => String(t.id) === String(groupObj.team_id)) || {}).name || '')
+        : (isGroup || markEntrySection === 'GROUP')
+        ? (groupObj ? ((teams.find(t => String(t.id) === String(groupObj.team_id)) || {}).name || '') : (teamObj ? teamObj.name : ''))
         : ((teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || ''),
       place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
       grade: selectedGrade === 'No' ? '-' : selectedGrade,
       points: pts,
-      madrasa_id: loggedInMadrasa.regNumber
+      madrasa_id: loggedInMadrasa.regNumber,
+      created_at: new Date().toISOString()
     };
 
     setIsSavingResult(true);
@@ -4714,7 +4991,10 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       if (error) {
         alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
       } else {
-        const savedRow = (data && data[0]) ? data[0] : { ...resultRecord, id: Date.now() };
+        const nowIso = new Date().toISOString();
+        const savedRow = (data && data[0])
+          ? { ...data[0], created_at: data[0].created_at || nowIso, savedAt: Date.now() }
+          : { ...resultRecord, id: Date.now(), created_at: nowIso, savedAt: Date.now() };
 
         setResultsList(prev => {
           const updated = [...prev, savedRow];
@@ -4934,7 +5214,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       if (!r) continue;
       const pKey = String(r.progid || r.program_id || r.progname || '').trim().toLowerCase();
       const sKey = String(r.studentname || '').trim().toLowerCase();
-      const uniqueKey = `${pKey}___${sKey}`;
+      const tKey = String(r.teamid || r.teamId || '').trim().toLowerCase();
+      const uniqueKey = `${pKey}___${tKey}___${sKey}`;
 
       if (seen.has(uniqueKey)) {
         duplicateIds.push(r.id);
@@ -4981,6 +5262,144 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     } catch (err) {
       alert(t('alertUnexpectedError') + getFriendlyErrorMessage(err.message));
     }
+  };
+
+  // 🏆 TEAM REGISTRATION ACTIONS (Supabase table: group_registrations)
+  const handleSaveTeamRegistration = async () => {
+    if (!teamRegProgram || !teamRegTeam || !loggedInMadrasa) {
+      alert(lang === 'EN' ? 'Please select Program and Competing Team!' : 'ദയവായി പ്രോഗ്രാമും മത്സരിക്കുന്ന ടീമും തിരഞ്ഞെടുക്കുക!');
+      return;
+    }
+
+    setTeamRegSaving(true);
+    try {
+      const madrasaId = String(loggedInMadrasa?.regNumber || '').trim();
+      const progObj = programs.find(p => String(p.id) === String(teamRegProgram) || String(p.code) === String(teamRegProgram));
+      const teamObj = teams.find(t => String(t.id) === String(teamRegTeam));
+
+      if (!progObj || !teamObj) {
+        alert(lang === 'EN' ? 'Program or Team not found!' : 'പ്രോഗ്രാം അല്ലെങ്കിൽ ടീം കണ്ടെത്തിയില്ല!');
+        setTeamRegSaving(false);
+        return;
+      }
+
+      // Check if this team is already registered for this program
+      const alreadyRegistered = groupRegistrations.some(g => {
+        const pMatch = String(g.program_id) === String(progObj.id) || String(g.program_id) === String(progObj.code) || String(g.program_id).toLowerCase() === String(progObj.name || '').toLowerCase();
+        const tMatch = String(g.team_id) === String(teamObj.id);
+        return pMatch && tMatch;
+      });
+
+      if (alreadyRegistered) {
+        alert(lang === 'EN'
+          ? `⚠️ Team "${teamObj.name}" is already registered for "${progObj.name}".`
+          : `⚠️ "${teamObj.name}" ടീം നിലവിൽ "${progObj.name}" മത്സരത്തിൽ രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട്.`
+        );
+        setTeamRegSaving(false);
+        return;
+      }
+
+      const defaultGroupName = `${teamObj.name} Team`;
+      const chosenLeader = teamRegLeader ? String(teamRegLeader) : (teamRegStudents.length > 0 ? String(teamRegStudents[0]) : null);
+
+      const insertData = {
+        madrasa_id: madrasaId,
+        program_id: String(progObj.id),
+        group_name: defaultGroupName,
+        team_id: String(teamObj.id),
+        leader_id: chosenLeader,
+        student_ids: teamRegStudents.map(String)
+      };
+
+      // 🚀 Instant state + LocalStorage cache update (<1ms)
+      const tempGroup = {
+        id: 'temp_treg_' + Date.now(),
+        ...insertData
+      };
+      setGroupRegistrations(prev => {
+        const updated = [tempGroup, ...prev];
+        try {
+          const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+          if (rawCache) {
+            const cacheObj = JSON.parse(rawCache);
+            cacheObj.groupRegistrations = updated;
+            localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+          }
+        } catch (e) {}
+        return updated;
+      });
+
+      let { data: insData, error } = await supabase
+        .from('group_registrations')
+        .insert([insertData])
+        .select();
+
+      if (error && error.message && error.message.includes('leader_id')) {
+        delete insertData.leader_id;
+        const res = await supabase.from('group_registrations').insert([insertData]).select();
+        error = res.error;
+      }
+
+      if (error) {
+        alert('Team registration error: ' + getFriendlyErrorMessage(error.message));
+        if (loggedInMadrasa) fetchSupabaseData(loggedInMadrasa.regNumber);
+      } else {
+        alert(lang === 'EN' ? `✅ Team "${teamObj.name}" registered successfully for "${progObj.name}"!` : `✅ "${teamObj.name}" ടീം "${progObj.name}" മത്സരത്തിലേക്ക് വിജയകരമായി രജിസ്റ്റർ ചെയ്തു!`);
+        setTeamRegStudents([]);
+        setTeamRegLeader('');
+        fetchReqIdRef.current++;
+        const { data: gRegData } = await supabase
+          .from('group_registrations')
+          .select('*')
+          .eq('madrasa_id', madrasaId);
+        if (gRegData) {
+          setGroupRegistrations(gRegData);
+          try {
+            const rawCache = localStorage.getItem(`cached_data_${madrasaId}`);
+            if (rawCache) {
+              const cacheObj = JSON.parse(rawCache);
+              cacheObj.groupRegistrations = gRegData;
+              localStorage.setItem(`cached_data_${madrasaId}`, JSON.stringify(cacheObj));
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (err) {
+      alert(t('alertUploadFailed') + err.message);
+    }
+    setTeamRegSaving(false);
+  };
+
+  const handleUpdateTeamRegistration = async (id) => {
+    setEditingTeamRegSaving(true);
+    try {
+      const chosenLeader = editingTeamRegLeader ? String(editingTeamRegLeader) : (editingTeamRegStudents.length > 0 ? String(editingTeamRegStudents[0]) : null);
+      const updateData = {
+        leader_id: chosenLeader,
+        student_ids: editingTeamRegStudents.map(String)
+      };
+
+      const { error } = await supabase.from('group_registrations').update(updateData).eq('id', id);
+      if (error) {
+        if (error.message && error.message.includes('leader_id')) {
+          const { error: e2 } = await supabase.from('group_registrations').update({
+            student_ids: updateData.student_ids
+          }).eq('id', id);
+          if (e2) throw new Error(e2.message);
+        } else {
+          throw new Error(error.message);
+        }
+      }
+      setGroupRegistrations(prev => prev.map(g => g.id === id
+        ? { ...g, student_ids: editingTeamRegStudents, leader_id: chosenLeader }
+        : g
+      ));
+      setEditingTeamRegId(null);
+      alert(lang === 'EN' ? 'Team registration updated!' : 'ടീം രജിസ്ട്രേഷൻ അപ്ഡേറ്റ് ചെയ്തു!');
+    } catch (err) {
+      alert((lang === 'EN' ? 'Update failed: ' : 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു: ') + err.message);
+    }
+    setEditingTeamRegSaving(false);
   };
 
   const handleSaveGroupRegistration = async () => {
@@ -5179,7 +5598,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     }
   };
 
-  const getTeamTotalPoints = (teamId) => {
+  const getTeamTotalPoints = useCallback((teamId) => {
     try {
       const cleanList = getCleanResultsList(resultsList);
       const targetTeam = Array.isArray(teams) ? teams.find(t => String(t?.id || '').trim() === String(teamId).trim()) : null;
@@ -5194,45 +5613,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
           return false;
         })
         .reduce((sum, r) => {
-          let pts = Number(r.points);
-          if (isNaN(pts) || pts === 0) {
-            // Dynamic fallback point calculation if r.points is 0 or null
-            const p = (r.place || '').toString().toLowerCase();
-            const g = (r.grade || '').toString().toUpperCase();
-            const isGrp = String(r.progtype || '').includes('GROUP');
-            const isTm = String(r.progtype || '').includes('TEAM');
-            let calcPts = 0;
-            const ps = pointSystem || {};
-            if (isTm) {
-              if (p === 'first' || p === '1') calcPts += Number(ps.tp1 || 15);
-              else if (p === 'second' || p === '2') calcPts += Number(ps.tp2 || 10);
-              else if (p === 'third' || p === '3') calcPts += Number(ps.tp3 || 5);
-              if (g === 'A') calcPts += Number(ps.tpA || 5);
-              else if (g === 'B') calcPts += Number(ps.tpB || 3);
-              else if (g === 'C') calcPts += Number(ps.tpC || 1);
-            } else if (isGrp) {
-              if (p === 'first' || p === '1') calcPts += Number(ps.gp1 || 10);
-              else if (p === 'second' || p === '2') calcPts += Number(ps.gp2 || 6);
-              else if (p === 'third' || p === '3') calcPts += Number(ps.gp3 || 2);
-              if (g === 'A') calcPts += Number(ps.gpA || 5);
-              else if (g === 'B') calcPts += Number(ps.gpB || 3);
-              else if (g === 'C') calcPts += Number(ps.gpC || 1);
-            } else {
-              if (p === 'first' || p === '1') calcPts += Number(ps.p1 || 5);
-              else if (p === 'second' || p === '2') calcPts += Number(ps.p2 || 3);
-              else if (p === 'third' || p === '3') calcPts += Number(ps.p3 || 1);
-              if (g === 'A') calcPts += Number(ps.gA || 5);
-              else if (g === 'B') calcPts += Number(ps.gB || 3);
-              else if (g === 'C') calcPts += Number(ps.gC || 1);
-            }
-            pts = calcPts;
-          }
+          const pts = computeResultPoints(r);
           return sum + (pts || 0);
         }, 0);
     } catch (e) {
       return 0;
     }
-  };
+  }, [resultsList, teams, computeResultPoints]);
 
   // ══════════════════════════════════════════════════════════════════════
   // 👤 PROFILE TAB HANDLERS
@@ -7047,30 +7434,147 @@ ${pagesHtml}
                                 </div>
                               </div>
 
-                              {/* Category Breakdown for this Team */}
-                              <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {categories.map(c => {
-                                  // Calculate points for this category and team (gate by published programs in View Mode)
-                                  const catResults = resultsList.filter(r => {
+                              {/* Category & Program Breakdown for this Team */}
+                              <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,0.03)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {(() => {
+                                  const teamResults = resultsList.filter(r => {
                                     if (!isProgPublished(r.progid)) return false;
-                                    const teamMatch = String(r.teamId) === String(team.id) || String(r.teamid) === String(team.id) || (String(r.teamname || '').toLowerCase() === String(team.name || '').toLowerCase());
-                                    return teamMatch && r.catname === c.name;
+                                    const teamMatch = String(r.teamId || r.teamid || '') === String(team.id) || (String(r.teamname || '').toLowerCase() === String(team.name || '').toLowerCase());
+                                    return teamMatch;
                                   });
-                                  if (catResults.length === 0) return null;
 
-                                  const boyPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'BOY').reduce((sum, r) => sum + (Number(r.points) || 0), 0);
-                                  const girlPts = catResults.filter(r => (r.studentgender || r.studentGender) === 'GIRL').reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                                  const singlePts = teamResults.filter(r => {
+                                    const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                    const pt = String(pr?.type || r.progtype || '').toUpperCase();
+                                    return !pt.includes('GROUP') && !pt.includes('TEAM');
+                                  }).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+
+                                  const groupPts = teamResults.filter(r => {
+                                    const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                    const pt = String(pr?.type || r.progtype || '').toUpperCase();
+                                    return pt.includes('GROUP');
+                                  }).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+
+                                  const teamEvPts = teamResults.filter(r => {
+                                    const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                    const pt = String(pr?.type || r.progtype || '').toUpperCase();
+                                    return pt.includes('TEAM');
+                                  }).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+
+                                  const genPts = teamResults.filter(r => {
+                                    const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                    return isGeneralResult(r) || (pr && isGeneralProg(pr));
+                                  }).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
 
                                   return (
-                                    <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', minWidth: '110px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                      <strong style={{ color: '#1e293b', display: 'block', marginBottom: '4px' }}>{c.name}</strong>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
-                                        <span>👦 <b style={{ color: '#3b82f6' }}>{boyPts}</b></span>
-                                        <span>👧 <b style={{ color: '#ec4899' }}>{girlPts}</b></span>
+                                    <>
+                                      {/* High-level program type badges */}
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '11px', fontWeight: '700' }}>
+                                        <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '6px', border: '1px solid #bae6fd' }}>
+                                          👤 {lang === 'EN' ? 'Single:' : 'സിംഗിൾ:'} <b>{singlePts}</b> pts
+                                        </span>
+                                        <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 8px', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                                          👥 {lang === 'EN' ? 'Group:' : 'ഗ്രൂപ്പ്:'} <b>{groupPts}</b> pts
+                                        </span>
+                                        <span style={{ background: '#f3e8ff', color: '#7e22ce', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e9d5ff' }}>
+                                          🏟️ {lang === 'EN' ? 'Team Events:' : 'ടീം ഇവന്റുകൾ:'} <b>{teamEvPts}</b> pts
+                                        </span>
+                                        <span style={{ background: '#dcfce7', color: '#15803d', padding: '4px 8px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                          🌟 {lang === 'EN' ? 'General:' : 'ജനറൽ:'} <b>{genPts}</b> pts
+                                        </span>
                                       </div>
-                                    </div>
+
+                                      {/* Detailed Category Cards (including General & Group) */}
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
+                                        {categories.map(c => {
+                                          const catResults = teamResults.filter(r => {
+                                            const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                            if (pr && isGeneralProg(pr)) return false;
+                                            if (isGeneralResult(r)) return false;
+                                            return r.catname === c.name || String(r.catid || '') === String(c.id) || (pr && String(pr.catid || '') === String(c.id));
+                                          });
+                                          if (catResults.length === 0) return null;
+
+                                          const totalCatPts = catResults.reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const boyPts = catResults.filter(r => String(r.studentgender || r.studentGender || '').toUpperCase().includes('BOY')).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const girlPts = catResults.filter(r => String(r.studentgender || r.studentGender || '').toUpperCase().includes('GIRL')).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const commonPts = totalCatPts - boyPts - girlPts;
+
+                                          return (
+                                            <div key={c.id} style={{ fontSize: '11px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '8px', minWidth: '120px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                <strong style={{ color: '#1e293b' }}>📂 {c.name}</strong>
+                                                <span style={{ fontWeight: '800', color: 'var(--primary-deep)', background: '#ecfdf5', padding: '1px 5px', borderRadius: '4px' }}>{totalCatPts} pts</span>
+                                              </div>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '10.5px' }}>
+                                                <span>👦 <b style={{ color: '#2563eb' }}>{boyPts}</b></span>
+                                                <span>👧 <b style={{ color: '#db2777' }}>{girlPts}</b></span>
+                                                {commonPts > 0 && <span>🚻 <b style={{ color: '#0d9488' }}>{commonPts}</b></span>}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+
+                                        {/* GENERAL Category Card */}
+                                        {(() => {
+                                          const genResults = teamResults.filter(r => {
+                                            const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                            return isGeneralResult(r) || (pr && isGeneralProg(pr));
+                                          });
+                                          if (genResults.length === 0) return null;
+
+                                          const totalGenPts = genResults.reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const boyPts = genResults.filter(r => String(r.studentgender || r.studentGender || '').toUpperCase().includes('BOY')).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const girlPts = genResults.filter(r => String(r.studentgender || r.studentGender || '').toUpperCase().includes('GIRL')).reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const commonPts = totalGenPts - boyPts - girlPts;
+
+                                          return (
+                                            <div style={{ fontSize: '11px', background: '#fffbeb', border: '1px solid #fde68a', padding: '6px 10px', borderRadius: '8px', minWidth: '120px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                <strong style={{ color: '#b45309' }}>🌟 GENERAL</strong>
+                                                <span style={{ fontWeight: '800', color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px' }}>{totalGenPts} pts</span>
+                                              </div>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '10.5px' }}>
+                                                <span>👦 <b style={{ color: '#2563eb' }}>{boyPts}</b></span>
+                                                <span>👧 <b style={{ color: '#db2777' }}>{girlPts}</b></span>
+                                                {commonPts > 0 && <span>🚻 <b style={{ color: '#0d9488' }}>{commonPts}</b></span>}
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
+
+                                        {/* 🏟️ TEAM EVENTS Card */}
+                                        {(() => {
+                                          const tEvResults = teamResults.filter(r => {
+                                            const pr = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                            const pt = String(pr?.type || r.progtype || '').toUpperCase();
+                                            return pt.includes('TEAM');
+                                          });
+                                          if (tEvResults.length === 0) return null;
+
+                                          const totalTEvPts = tEvResults.reduce((s, r) => s + (computeResultPoints(r) || 0), 0);
+                                          const firsts = tEvResults.filter(r => r.place === 'First').length;
+                                          const seconds = tEvResults.filter(r => r.place === 'Second').length;
+                                          const thirds = tEvResults.filter(r => r.place === 'Third').length;
+
+                                          return (
+                                            <div style={{ fontSize: '11px', background: '#faf5ff', border: '1px solid #e9d5ff', padding: '6px 10px', borderRadius: '8px', minWidth: '120px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                <strong style={{ color: '#7e22ce' }}>🏟️ TEAM EVENTS</strong>
+                                                <span style={{ fontWeight: '800', color: '#7e22ce', background: '#f3e8ff', padding: '1px 5px', borderRadius: '4px' }}>{totalTEvPts} pts</span>
+                                              </div>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '10.5px' }}>
+                                                <span>🥇 <b style={{ color: '#d97706' }}>{firsts}</b></span>
+                                                <span>🥈 <b style={{ color: '#475569' }}>{seconds}</b></span>
+                                                <span>🥉 <b style={{ color: '#9a3412' }}>{thirds}</b></span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    </>
                                   );
-                                })}
+                                })()}
                               </div>
                             </div>
                           );
@@ -8466,33 +8970,74 @@ ${pagesHtml}
 
                     const displayHistoryResults = resultsList.filter(r => isProgPublished(r.progid));
                     const groupMap = new Map();
+                    const pubTimes = visibilityControls?.published_at || {};
+
                     displayHistoryResults.forEach(r => {
                       const pKey = String(r.progid || r.progId || r.progname || '').trim();
-                      const cKey = String(r.catid || r.catId || r.catname || '').trim();
-                      const groupKey = `${pKey}___${cKey}`;
-                      if (!groupMap.has(groupKey)) {
-                        const progObj = programs.find(p => String(p.id) === pKey || String(p.code) === pKey || String(p.name).toLowerCase() === pKey.toLowerCase());
-                        const catObj = categories.find(c => String(c.id) === cKey || String(c.name).toLowerCase() === cKey.toLowerCase());
-                        groupMap.set(groupKey, {
-                          groupKey,
-                          latestId: parseInt(r.id, 10) || 0,
-                          progId: pKey,
+                      const progObj = programs.find(p => String(p.id) === pKey || String(p.code) === pKey || String(p.name).toLowerCase() === pKey.toLowerCase());
+                      const canonicalProgKey = progObj ? String(progObj.id) : pKey;
+                      const catObj = categories.find(c => (progObj && String(c.id) === String(progObj.catid || progObj.categoryid || '')) || String(c.id) === String(r.catid || r.catId || '') || String(c.name).toLowerCase() === String(r.catname || r.catName || '').toLowerCase());
+                      const catName = r.catname || r.catName || (catObj ? catObj.name : '');
+
+                      if (!groupMap.has(canonicalProgKey)) {
+                        let pubIndex = 999999;
+                        if (Array.isArray(publishedPrograms)) {
+                          const idx = publishedPrograms.findIndex(pid => {
+                            const pStr = String(pid).trim();
+                            return pStr === canonicalProgKey || pStr === pKey || (progObj && (pStr === String(progObj.id).trim() || pStr === String(progObj.code).trim() || pStr.toLowerCase() === String(progObj.name).trim().toLowerCase()));
+                          });
+                          if (idx !== -1) pubIndex = idx;
+                        }
+
+                        const pubTime = pubTimes[canonicalProgKey] || pubTimes[pKey] || (progObj?.id && pubTimes[String(progObj.id)]) || (progObj?.code && pubTimes[String(progObj.code)]) || 0;
+
+                        groupMap.set(canonicalProgKey, {
+                          groupKey: canonicalProgKey,
+                          progId: canonicalProgKey,
                           progObj,
-                          catId: cKey,
                           catObj,
-                          progName: r.progname || r.progName || (progObj ? progObj.name : pKey),
+                          progName: r.progname || r.progName || (progObj ? progObj.name : canonicalProgKey),
                           progType: r.progtype || r.progType || (progObj ? progObj.type : ''),
-                          catName: r.catname || r.catName || (catObj ? catObj.name : cKey),
+                          catName: catName || (catObj ? catObj.name : ''),
+                          pubIndex,
+                          pubTime,
+                          latestTime: 0,
+                          maxListIndex: -1,
                           rows: []
                         });
                       }
-                      const group = groupMap.get(groupKey);
-                      const rId = parseInt(r.id, 10) || 0;
-                      if (rId > group.latestId) group.latestId = rId;
+                      const group = groupMap.get(canonicalProgKey);
+                      const t = new Date(r.created_at || r.createdAt || r.inserted_at || r.savedAt || 0).getTime();
+                      if (!isNaN(t) && t > group.latestTime) group.latestTime = t;
+                      const listIdx = resultsList.indexOf(r);
+                      if (listIdx > group.maxListIndex) group.maxListIndex = listIdx;
+                      const numId = Number(r.id);
+                      if (!isNaN(numId) && numId > 1000000000 && numId > group.latestTime) group.latestTime = numId;
+
                       group.rows.push(r);
                     });
 
-                    const sortedProgramSections = Array.from(groupMap.values()).sort((a, b) => b.latestId - a.latestId);
+                    // 🏆 Sort Results History:
+                    // 1. Most recently published program at the VERY TOP:
+                    //    - If published_at timestamp exists: highest pubTime (descending)
+                    //    - Then lowest pubIndex (ascending: 0, 1, 2...)
+                    // 2. If publish times are tied (e.g. Publish All), sort by latest result save time (descending)
+                    // 3. Fallback: maxListIndex (descending)
+                    const sortedProgramSections = Array.from(groupMap.values()).sort((a, b) => {
+                      if (a.pubTime > 0 && b.pubTime > 0 && a.pubTime !== b.pubTime) {
+                        return b.pubTime - a.pubTime;
+                      }
+                      if (a.pubIndex !== b.pubIndex) {
+                        return a.pubIndex - b.pubIndex; // smaller index = published more recently!
+                      }
+                      if (a.latestTime !== b.latestTime && a.latestTime > 0 && b.latestTime > 0) {
+                        return b.latestTime - a.latestTime;
+                      }
+                      if (a.maxListIndex !== b.maxListIndex) {
+                        return b.maxListIndex - a.maxListIndex;
+                      }
+                      return 0;
+                    });
 
                     sortedProgramSections.forEach(group => {
                       group.rows.sort((a, b) => {
@@ -13519,7 +14064,10 @@ ${pagesHtml}
                       const regStudentsFiltered = regTabCat ? students.filter(s => {
                         if (regTabGender !== 'COMMON' && s.gender !== regTabGender) return false;
                         if (regTabCat === 'GENERAL') {
-                          return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                          if (generalCatIds.length > 0) {
+                            return generalCatIds.map(String).includes(String(s.catid || s.catId || ''));
+                          }
+                          return true; // All students eligible for GENERAL by default
                         }
                         if (isRegGeneral) return true;
                         return String(s.catid || s.catId || '') === String(regTabCat);
@@ -13527,8 +14075,8 @@ ${pagesHtml}
 
                       // Only show SINGLE programs in Single Registration mode
                       const regPrograms = regTabCat ? programs.filter(p => {
-                        const pt = p.type || '';
-                        if (pt.includes('GROUP')) return false;
+                        const pt = (p.type || '').toUpperCase();
+                        if (pt.includes('GROUP') || pt.includes('TEAM')) return false;
 
                         const isGeneral = isGeneralProg(p);
                         let catMatch = false;
@@ -13883,6 +14431,23 @@ ${pagesHtml}
                             >
                               👥 {lang === 'EN' ? 'Group Registration' : 'ഗ്രൂപ്പ് രജിസ്ട്രേഷൻ'}
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setRegTabSection('TEAM')}
+                              style={{
+                                padding: '10px 20px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                fontWeight: '800',
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                background: regTabSection === 'TEAM' ? 'var(--primary-light)' : 'transparent',
+                                color: regTabSection === 'TEAM' ? 'white' : '#475569',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              🏟️ {lang === 'EN' ? 'Team Registration' : 'ടീം രജിസ്ട്രേഷൻ'}
+                            </button>
                           </div>
 
                           {regTabSection === 'SINGLE' ? (
@@ -13911,9 +14476,7 @@ ${pagesHtml}
                                           {categories.map(c => (
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                           ))}
-                                          {generalCatIds.length > 0 && (
-                                            <option value="GENERAL">🌟 GENERAL</option>
-                                          )}
+                                          <option value="GENERAL">🌟 GENERAL</option>
                                         </select>
                                       </div>
                                     </div>
@@ -14132,7 +14695,7 @@ ${pagesHtml}
                                 </div>
                               </div>
                             </div>
-                          ) : (
+                          ) : regTabSection === 'GROUP' ? (
                             // ── GROUP REGISTRATION VIEW ──
                             <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
@@ -14209,19 +14772,24 @@ ${pagesHtml}
                                         <div className="step-content">
                                           {(() => {
                                             const groupProgs = programs.filter(p => {
-                                              if (groupRegCat === 'GENERAL') { if (!isGeneralProg(p)) return false; } else if (String(p.catid || p.catId || '') !== String(groupRegCat)) return false;
-                                              const pt = p.type || '';
-                                              if (!pt.includes('GROUP')) return false;
-                                              if (groupRegGender === 'COMMON') return true;
+                                              if (groupRegCat === 'GENERAL') {
+                                                if (!isGeneralProg(p)) return false;
+                                              } else if (String(p.catid || p.catId || '') !== String(groupRegCat)) {
+                                                return false;
+                                              }
+                                              const pt = (p.type || '').toUpperCase();
+                                              // 🌟 Allow BOTH GROUP and TEAM programs in Group Registration
+                                              if (!pt.includes('GROUP') && !pt.includes('TEAM')) return false;
+                                              if (!groupRegGender || groupRegGender === 'COMMON' || groupRegGender === 'ALL') return true;
                                               if (pt.includes('COMMON')) return true;
                                               if (groupRegGender === 'BOY' && pt.includes('BOY')) return true;
                                               if (groupRegGender === 'GIRL' && pt.includes('GIRL')) return true;
-                                              return false;
+                                              return true;
                                             });
 
                                             return groupProgs.length === 0 ? (
                                               <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', margin: 0 }}>
-                                                {lang === 'EN' ? 'No group programs in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ ഗ്രൂപ്പ് പ്രോഗ്രാമുകൾ ഇല്ല.'}
+                                                {lang === 'EN' ? 'No group or team programs found in this category/division.' : 'ഈ വിഭാഗത്തിൽ/ഡിവിഷനിൽ ഗ്രൂപ്പ് അല്ലെങ്കിൽ ടീം പ്രോഗ്രാമുകൾ ഇല്ല.'}
                                               </p>
                                             ) : (
                                               <select className="settings-input-v2" value={groupRegProgram} onChange={e => {
@@ -14229,9 +14797,13 @@ ${pagesHtml}
                                                 setGroupRegStudents([]);
                                               }}>
                                                 <option value="">-- {lang === 'EN' ? 'Select Program' : 'പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'} --</option>
-                                                {groupProgs.map(p => (
-                                                  <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
-                                                ))}
+                                                {groupProgs.map(p => {
+                                                  const pt = (p.type || '').toUpperCase();
+                                                  const badge = pt.includes('TEAM') ? ' (🏟️ Team Event)' : ' (👥 Group Event)';
+                                                  return (
+                                                    <option key={p.id} value={p.id}>{p.code} – {p.name}{badge}</option>
+                                                  );
+                                                })}
                                               </select>
                                             );
                                           })()}
@@ -14299,7 +14871,7 @@ ${pagesHtml}
                                             const groupStudentsFiltered = groupRegCat ? students.filter(s => {
                                               if (groupRegGender !== 'COMMON' && s.gender !== groupRegGender) return false;
                                               if (groupRegCat === 'GENERAL') {
-                                                if (!generalCatIds.map(String).includes(String(s.catid || s.catId || ''))) return false;
+                                                if (generalCatIds.length > 0 && !generalCatIds.map(String).includes(String(s.catid || s.catId || ''))) return false;
                                               } else if (String(s.catid || s.catId || '') !== String(groupRegCat)) {
                                                 return false;
                                               }
@@ -14934,6 +15506,321 @@ ${pagesHtml}
                                 </div>
                               </div>
                             </div>
+                          ) : (
+                            // ── 🏟️ TEAM REGISTRATION VIEW ──
+                            <div className="register-layout-split" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                                {/* LEFT: Step Form */}
+                                <div className="settings-form-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                  <h3>{lang === 'EN' ? '🏟️ Register Team for Competition' : '🏟️ ടീം ഇവന്റ് രജിസ്ട്രേഷൻ'}</h3>
+
+                                  <div className="stepper-timeline">
+                                    {/* Step 1: Category */}
+                                    <div className={`step-box ${teamRegCat ? 'filled' : 'active'}`}>
+                                      <div className="step-header">
+                                        <div className="step-number">01</div>
+                                        <div className="step-title">{lang === 'EN' ? 'Select Category' : 'വിഭാഗം തിരഞ്ഞെടുക്കുക'}</div>
+                                      </div>
+                                      <div className="step-content">
+                                        <select className="settings-input-v2" value={teamRegCat} onChange={e => {
+                                          setTeamRegCat(e.target.value);
+                                          setTeamRegProgram('');
+                                          setTeamRegStudents([]);
+                                          setTeamRegLeader('');
+                                        }}>
+                                          <option value="">-- {lang === 'EN' ? 'Select Category' : 'വിഭാഗം തിരഞ്ഞെടുക്കുക'} --</option>
+                                          {categories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                          ))}
+                                          <option value="GENERAL">🌟 GENERAL</option>
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    {/* Step 2: Division */}
+                                    {teamRegCat && (
+                                      <div className={`step-box ${teamRegGender ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">02</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Select Division' : 'ഡിവിഷൻ തിരഞ്ഞെടുക്കുക'}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {[
+                                              { val: 'COMMON', label: t('allGenders') },
+                                              { val: 'BOY', label: t('boys') },
+                                              { val: 'GIRL', label: t('girls') }
+                                            ].map(opt => (
+                                              <button key={opt.val} type="button"
+                                                onClick={() => { setTeamRegGender(opt.val); setTeamRegProgram(''); setTeamRegStudents([]); }}
+                                                className="btn-premium-action-small"
+                                                style={{
+                                                  padding: '10px 16px', borderRadius: '10px', border: 'none',
+                                                  fontWeight: '800', fontSize: '13px', cursor: 'pointer',
+                                                  background: teamRegGender === opt.val
+                                                    ? (opt.val === 'BOY' ? '#2563eb' : opt.val === 'GIRL' ? '#db2777' : '#0f766e')
+                                                    : '#e2e8f0',
+                                                  color: teamRegGender === opt.val ? 'white' : '#475569',
+                                                  boxShadow: teamRegGender === opt.val ? '0 4px 10px rgba(0,0,0,0.1)' : 'none',
+                                                  transition: 'all 0.2s'
+                                                }}
+                                              >{opt.label}</button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Step 3: Select Team Program */}
+                                    {teamRegCat && (
+                                      <div className={`step-box ${teamRegProgram ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">03</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Select Team Program' : 'ടീം പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          {(() => {
+                                            const teamProgs = programs.filter(p => {
+                                              if (teamRegCat === 'GENERAL') { if (!isGeneralProg(p)) return false; } else if (String(p.catid || p.catId || '') !== String(teamRegCat)) return false;
+                                              const pt = (p.type || '').toUpperCase();
+                                              if (!pt.includes('TEAM')) return false;
+                                              if (teamRegGender === 'COMMON') return true;
+                                              if (pt.includes('COMMON')) return true;
+                                              if (teamRegGender === 'BOY' && pt.includes('BOY')) return true;
+                                              if (teamRegGender === 'GIRL' && pt.includes('GIRL')) return true;
+                                              return false;
+                                            });
+
+                                            return teamProgs.length === 0 ? (
+                                              <div style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '10px', padding: '12px', fontSize: '13px', fontWeight: '700' }}>
+                                                ⚠️ {lang === 'EN' ? 'No Team type programs found in this category/division. (Create a program with type TEAM in Master Settings > Programs first).' : 'ഈ വിഭാഗത്തിൽ TEAM ടൈപ്പിലുള്ള പ്രോഗ്രാമുകൾ ഒന്നും കണ്ടെത്തിയില്ല. (Programs സെക്ഷനിൽ Type: TEAM ആയി പ്രോഗ്രാം ചേർക്കുക).'}
+                                              </div>
+                                            ) : (
+                                              <select className="settings-input-v2" value={teamRegProgram} onChange={e => {
+                                                setTeamRegProgram(e.target.value);
+                                                setTeamRegStudents([]);
+                                                setTeamRegLeader('');
+                                              }}>
+                                                <option value="">-- {lang === 'EN' ? 'Select Team Program' : 'ടീം പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക'} --</option>
+                                                {teamProgs.map(p => (
+                                                  <option key={p.id} value={p.id}>{p.code} – {p.name} (🏟️ Team Event)</option>
+                                                ))}
+                                              </select>
+                                            );
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Step 4: Competing Team */}
+                                    {teamRegProgram && (
+                                      <div className={`step-box ${teamRegTeam ? 'filled' : 'active'}`}>
+                                        <div className="step-header">
+                                          <div className="step-number">04</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Select Competing Team' : 'മത്സരിക്കുന്ന ടീമിനെ തിരഞ്ഞെടുക്കുക'}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          <select className="settings-input-v2" value={teamRegTeam} onChange={e => {
+                                            setTeamRegTeam(e.target.value);
+                                            setTeamRegStudents([]);
+                                            setTeamRegLeader('');
+                                            setTeamRegMemberSearch('');
+                                          }}>
+                                            <option value="">-- {lang === 'EN' ? 'Select Team' : 'ടീം തിരഞ്ഞെടുക്കുക'} --</option>
+                                            {teams.map(t => {
+                                              const progObj = programs.find(p => String(p.id) === String(teamRegProgram));
+                                              const isReg = groupRegistrations.some(g => {
+                                                const pMatch = progObj && (String(g.program_id) === String(progObj.id) || String(g.program_id) === String(progObj.code));
+                                                return pMatch && String(g.team_id) === String(t.id);
+                                              });
+                                              return (
+                                                <option key={t.id} value={t.id}>
+                                                  🚩 {t.name} {isReg ? `(✅ ${lang === 'EN' ? 'Already Registered' : 'രജിസ്റ്റർ ചെയ്തു'})` : ''}
+                                                </option>
+                                              );
+                                            })}
+                                          </select>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Step 5: (Optional) Select Participating Members */}
+                                    {teamRegProgram && teamRegTeam && (
+                                      <div className="step-box active">
+                                        <div className="step-header">
+                                          <div className="step-number">05</div>
+                                          <div className="step-title">{lang === 'EN' ? 'Team Members / Participants (Optional)' : 'ടീം അംഗങ്ങൾ / മത്സരാർത്ഥികൾ (ഓപ്ഷണൽ)'}</div>
+                                        </div>
+                                        <div className="step-content">
+                                          {(() => {
+                                            // Eligible students in this team
+                                            const teamStudentsFiltered = students.filter(s => {
+                                              if (teamRegGender !== 'COMMON' && s.gender !== teamRegGender) return false;
+                                              if (teamRegCat !== 'GENERAL' && String(s.catid || s.catId || '') !== String(teamRegCat)) return false;
+                                              if (String(s.teamid || s.teamId || '') !== String(teamRegTeam)) return false;
+                                              return true;
+                                            });
+
+                                            const searchFiltered = teamRegMemberSearch.trim()
+                                              ? teamStudentsFiltered.filter(s => {
+                                                  const q = teamRegMemberSearch.trim().toLowerCase();
+                                                  const reg = String(s.regno || s.regNo || '').toLowerCase();
+                                                  const name = String(s.name || '').toLowerCase();
+                                                  return reg.includes(q) || name.includes(q);
+                                                })
+                                              : teamStudentsFiltered;
+
+                                            const selectedTeamObj = teams.find(t => String(t.id) === String(teamRegTeam));
+
+                                            return (
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <div style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '10px', fontSize: '12px', fontWeight: '600' }}>
+                                                  ℹ️ {lang === 'EN' ? 'You can register the whole team directly, or optionally check specific members/captain representing this team.' : 'മുഴുവൻ ടീമിനെയും നേരിട്ട് രജിസ്റ്റർ ചെയ്യാം, അല്ലെങ്കിൽ ടീമിനെ പ്രതിനിധീകരിക്കുന്ന അംഗങ്ങളെ തിരഞ്ഞെടുക്കാം.'}
+                                                </div>
+
+                                                {teamStudentsFiltered.length > 0 && (
+                                                  <>
+                                                    <input
+                                                      type="text"
+                                                      className="settings-input-v2"
+                                                      placeholder={lang === 'EN' ? '🔍 Search members by Reg No or Name...' : '🔍 രജി. നമ്പർ / പേര് തിരയുക...'}
+                                                      value={teamRegMemberSearch}
+                                                      onChange={e => setTeamRegMemberSearch(e.target.value)}
+                                                      style={{ padding: '7px 10px', fontSize: '12px' }}
+                                                    />
+
+                                                    <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '8px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                      {searchFiltered.map(s => {
+                                                        const sRegNo = s.regno || s.regNo || '';
+                                                        const isChecked = teamRegStudents.includes(String(s.id));
+                                                        const isLeader = teamRegLeader ? String(teamRegLeader) === String(s.id) : (teamRegStudents.length > 0 && String(teamRegStudents[0]) === String(s.id));
+                                                        return (
+                                                          <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', background: isChecked ? (isLeader ? '#f0fdf4' : '#eff6ff') : 'transparent', border: isLeader && isChecked ? '1px solid #86efac' : '1px solid transparent' }}>
+                                                            <input type="checkbox" checked={isChecked}
+                                                              onChange={e => {
+                                                                if (e.target.checked) {
+                                                                  setTeamRegStudents(prev => [...prev, String(s.id)]);
+                                                                  if (!teamRegLeader) setTeamRegLeader(String(s.id));
+                                                                } else {
+                                                                  const next = teamRegStudents.filter(id => id !== String(s.id));
+                                                                  setTeamRegStudents(next);
+                                                                  if (String(teamRegLeader) === String(s.id)) setTeamRegLeader(next[0] || '');
+                                                                }
+                                                              }}
+                                                              style={{ width: '16px', height: '16px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                                            />
+                                                            <div style={{ flex: 1, fontSize: '12px', color: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                              <span><b>{sRegNo}</b> - {s.name}</span>
+                                                              {isChecked && isLeader && <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', fontWeight: '800', padding: '1px 6px', borderRadius: '4px' }}>👑 {lang === 'EN' ? 'Captain' : 'ക്യാപ്റ്റൻ'}</span>}
+                                                            </div>
+                                                          </label>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </>
+                                                )}
+
+                                                <button
+                                                  type="button"
+                                                  onClick={handleSaveTeamRegistration}
+                                                  disabled={teamRegSaving}
+                                                  className="btn-premium-action"
+                                                  style={{ marginTop: '12px', background: 'linear-gradient(135deg, #0f766e 0%, #065f46 100%)' }}
+                                                >
+                                                  {teamRegSaving ? `⏳ ${lang === 'EN' ? 'Registering Team...' : 'ടീം രജിസ്റ്റർ ചെയ്യുന്നു...'}` : `✅ ${lang === 'EN' ? 'Register Team for Program' : 'ടീം രജിസ്റ്റർ ചെയ്യുക'}`}
+                                                </button>
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* RIGHT: Registered Teams List */}
+                                <div className="settings-list-box-v2" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                  {(() => {
+                                    // Filter registrations for team programs
+                                    const teamRegsAll = groupRegistrations.filter(g => {
+                                      const prog = programs.find(p => String(p.id) === String(g.program_id) || String(p.code) === String(g.program_id));
+                                      const pt = String(prog?.type || '').toUpperCase();
+                                      return pt.includes('TEAM');
+                                    });
+
+                                    const displayedTeamRegs = teamRegsAll.filter(g => {
+                                      if (teamRegSummaryFilterProg && teamRegSummaryFilterProg !== 'ALL') {
+                                        const prog = programs.find(p => String(p.id) === String(g.program_id) || String(p.code) === String(g.program_id));
+                                        if (!prog || (String(prog.id) !== String(teamRegSummaryFilterProg) && String(prog.code) !== String(teamRegSummaryFilterProg))) return false;
+                                      }
+                                      return true;
+                                    });
+
+                                    const teamProgList = programs.filter(p => (p.type || '').toUpperCase().includes('TEAM'));
+
+                                    return (
+                                      <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                          <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px', fontWeight: '800' }}>
+                                            🏟️ {lang === 'EN' ? 'Registered Team Events' : 'രജിസ്റ്റർ ചെയ്ത ടീം ഇവന്റുകൾ'} ({displayedTeamRegs.length})
+                                          </h4>
+                                          <select
+                                            className="settings-input-v2"
+                                            value={teamRegSummaryFilterProg}
+                                            onChange={e => setTeamRegSummaryFilterProg(e.target.value)}
+                                            style={{ padding: '6px 10px', fontSize: '12px', minWidth: '180px' }}
+                                          >
+                                            <option value="ALL">-- {lang === 'EN' ? 'All Team Programs' : 'എല്ലാ ടീം പ്രോഗ്രാമുകളും'} --</option>
+                                            {teamProgList.map(p => (
+                                              <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        {displayedTeamRegs.length === 0 ? (
+                                          <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '30px 0' }}>
+                                            {lang === 'EN' ? 'No team registrations found.' : 'ടീം രജിസ്ട്രേഷനുകൾ ഒന്നും കണ്ടെത്തിയില്ല.'}
+                                          </p>
+                                        ) : (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
+                                            {displayedTeamRegs.map(g => {
+                                              const prog = programs.find(p => String(p.id) === String(g.program_id) || String(p.code) === String(g.program_id));
+                                              const team = teams.find(t => String(t.id) === String(g.team_id));
+                                              const memberIds = Array.isArray(g.student_ids) ? g.student_ids : [];
+                                              const memberNames = memberIds.map(id => {
+                                                const studentObj = students.find(s => String(s.id) === String(id));
+                                                return studentObj ? `${studentObj.regno || studentObj.regNo || ''} ${studentObj.name}` : '';
+                                              }).filter(Boolean);
+
+                                              return (
+                                                <div key={g.id} style={{ padding: '12px', borderRadius: '12px', background: '#fff', border: '1.5px solid #e2e8f0', position: 'relative' }}>
+                                                  <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '4px' }}>
+                                                    <button onClick={() => handleDeleteGroupRegistration(g.id)}
+                                                      className="btn-row-action-v2 delete" style={{ padding: '4px', fontSize: '12px' }} title={lang === 'EN' ? 'Delete' : 'ഡിലീറ്റ്'}>❌</button>
+                                                  </div>
+                                                  <div style={{ fontWeight: '800', fontSize: '14px', color: '#1e293b' }}>
+                                                    🚩 {team?.name || g.group_name} <span style={{ fontSize: '11px', background: '#f3e8ff', color: '#7e22ce', borderRadius: '6px', padding: '2px 8px', fontWeight: '800', marginLeft: '6px' }}>🏟️ TEAM EVENT</span>
+                                                  </div>
+                                                  <div style={{ fontSize: '12px', color: '#0f766e', fontWeight: '700', marginTop: '4px' }}>
+                                                    📚 {prog?.code} – {prog?.name}
+                                                  </div>
+                                                  {memberNames.length > 0 && (
+                                                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#475569' }}>
+                                                      <span style={{ fontWeight: '700' }}>{lang === 'EN' ? 'Members: ' : 'അംഗങ്ങൾ: '}</span>
+                                                      {memberNames.join(', ')}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
@@ -14960,8 +15847,8 @@ ${pagesHtml}
 
                       return (
                       <div className="settings-card-v2">
-                        {/* Navigation Tabs for Single vs Group Mark Entry */}
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+                        {/* Navigation Tabs for Single vs Group vs Team Mark Entry */}
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', flexWrap: 'wrap' }}>
                           <button
                             type="button"
                             onClick={() => {
@@ -14972,13 +15859,13 @@ ${pagesHtml}
                               setSelectedResultStudent('');
                             }}
                             style={{
-                              padding: '10px 20px',
+                              padding: '10px 18px',
                               borderRadius: '10px',
                               border: 'none',
                               fontWeight: '800',
-                              fontSize: '14px',
+                              fontSize: '13.5px',
                               cursor: 'pointer',
-                              background: markEntrySection === 'SINGLE' ? 'var(--primary-light)' : 'transparent',
+                              background: markEntrySection === 'SINGLE' ? 'var(--primary-light)' : '#f1f5f9',
                               color: markEntrySection === 'SINGLE' ? 'white' : '#475569',
                               transition: 'all 0.2s'
                             }}
@@ -14995,18 +15882,41 @@ ${pagesHtml}
                               setSelectedResultStudent('');
                             }}
                             style={{
-                              padding: '10px 20px',
+                              padding: '10px 18px',
                               borderRadius: '10px',
                               border: 'none',
                               fontWeight: '800',
-                              fontSize: '14px',
+                              fontSize: '13.5px',
                               cursor: 'pointer',
-                              background: markEntrySection === 'GROUP' ? 'var(--primary-light)' : 'transparent',
+                              background: markEntrySection === 'GROUP' ? 'var(--primary-light)' : '#f1f5f9',
                               color: markEntrySection === 'GROUP' ? 'white' : '#475569',
                               transition: 'all 0.2s'
                             }}
                           >
                             👥 {lang === 'EN' ? 'Group Entry' : 'ഗ്രൂപ്പ് മാർക്ക് എൻട്രി'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMarkEntrySection('TEAM');
+                              setSelectedResultCat('');
+                              setSelectedResultGender('ALL');
+                              setSelectedResultProg('');
+                              setSelectedResultStudent('');
+                            }}
+                            style={{
+                              padding: '10px 18px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              fontWeight: '800',
+                              fontSize: '13.5px',
+                              cursor: 'pointer',
+                              background: markEntrySection === 'TEAM' ? 'var(--primary-light)' : '#f1f5f9',
+                              color: markEntrySection === 'TEAM' ? 'white' : '#475569',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            🏟️ {lang === 'EN' ? 'Team Event Entry' : 'ടീം മാർക്ക് എൻട്രി'}
                           </button>
                         </div>
 
@@ -15048,13 +15958,11 @@ ${pagesHtml}
                                         <option value={`${c.id}_COMMON`}>{c.name} - Common</option>
                                       </React.Fragment>
                                     ))}
-                                    {generalCatIds.length > 0 && (
-                                      <React.Fragment>
-                                        <option value="GENERAL_BOY">GENERAL - Boys</option>
-                                        <option value="GENERAL_GIRL">GENERAL - Girls</option>
-                                        <option value="GENERAL_COMMON">GENERAL - Common</option>
-                                      </React.Fragment>
-                                    )}
+                                    <React.Fragment>
+                                      <option value="GENERAL_BOY">🌟 GENERAL - Boys</option>
+                                      <option value="GENERAL_GIRL">🌟 GENERAL - Girls</option>
+                                      <option value="GENERAL_COMMON">🌟 GENERAL - Common</option>
+                                    </React.Fragment>
                                   </select>
                                 </div>
                               </div>
@@ -15078,14 +15986,19 @@ ${pagesHtml}
                                          } else if (String(p.catid || p.catId || '') !== String(selectedResultCat)) {
                                            return false;
                                          }
-                                        if (markEntrySection === 'SINGLE' && (p.type || '').includes('GROUP')) return false;
-                                        if (markEntrySection === 'SINGLE' && (p.type || '').includes('TEAM')) return false;
-                                        if (markEntrySection === 'GROUP' && !(p.type || '').includes('GROUP')) return false;
-                                        if (markEntrySection === 'GROUP' && (p.type || '').includes('TEAM')) return false;
-                                        if (markEntrySection === 'TEAM' && !(p.type || '').includes('TEAM')) return false;
+                                        const pt = (p.type || '').toUpperCase();
+                                        // In Single Entry: only individual programs
+                                        if (markEntrySection === 'SINGLE' && (pt.includes('GROUP') || pt.includes('TEAM'))) return false;
+                                        // In Group Entry: allow BOTH Group and Team events (e.g. 702 Magazine)
+                                        if (markEntrySection === 'GROUP' && !pt.includes('GROUP') && !pt.includes('TEAM')) return false;
+                                        // In Team Entry: allow BOTH Team and Group events
+                                        if (markEntrySection === 'TEAM' && !pt.includes('TEAM') && !pt.includes('GROUP')) return false;
                                         if (!p.type || !p.type.includes('_')) return true;
-                                        if (p.type.includes('COMMON')) return true;
-                                        if (selectedResultGender !== 'ALL' && !p.type.includes(selectedResultGender)) return false;
+                                        if (pt.includes('COMMON')) return true;
+                                        if (selectedResultGender && selectedResultGender !== 'ALL' && selectedResultGender !== 'COMMON') {
+                                          if (selectedResultGender === 'BOY' && !pt.includes('BOY') && !pt.includes('COMMON')) return false;
+                                          if (selectedResultGender === 'GIRL' && !pt.includes('GIRL') && !pt.includes('COMMON')) return false;
+                                        }
                                         return true;
                                       })
                                       .map(p => {
@@ -15111,50 +16024,67 @@ ${pagesHtml}
                                   {(() => {
                                     const progObj = programs.find(p => String(p.id) === String(selectedResultProg));
                                     const isGroup = progObj && (progObj.type || '').includes('GROUP');
-                                    const isTeam = progObj && (progObj.type || '').includes('TEAM');
-
-                                     if (isTeam) {
-                                       // Render Team Selector
-                                       return (
-                                         <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
-                                           <option value="">{teams.length === 0 ? '-- No Teams --' : '-- Select Team --'}</option>
-                                           {teams.map(team => {
-                                             const exRes = currentProgSavedResults.find(r => String(r.teamid || r.teamId || '') === String(team.id));
-                                             const alreadyTag = exRes ? ` ⚠️ [${lang === 'EN' ? 'Saved: ' : 'രേഖപ്പെടുത്തി: '}${exRes.place === 'First' ? '🥇 1st' : exRes.place === 'Second' ? '🥈 2nd' : exRes.place === 'Third' ? '🥉 3rd' : '—'}]` : '';
-                                             return (
-                                               <option key={team.id} value={team.id}>
-                                                 🏟️ {team.name}{alreadyTag}
-                                               </option>
-                                             );
-                                           })}
-                                         </select>
-                                       );
-                                     } else if (isGroup) {
-                                       // Render Group Selector
-                                       const filteredGroups = groupRegistrations.filter(g => {
-                                         if (!progObj) return false;
-                                         return isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, progObj) ||
-                                           String(g.program_id) === String(progObj.id) ||
-                                           String(g.program_id) === String(progObj.code) ||
-                                           String(g.program_id).toLowerCase() === String(progObj.name || '').toLowerCase();
-                                       });
-                                       return (
-                                         <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
-                                           <option value="">{filteredGroups.length === 0 ? '-- No Groups Registered for this Program --' : '-- Select Group --'}</option>
-                                           {filteredGroups.map(g => {
-                                             const teamObj = teams.find(t => String(t.id) === String(g.team_id));
-                                             const exRes = currentProgSavedResults.find(r => String(r.studentname || '').toLowerCase().trim() === String(g.group_name || '').toLowerCase().trim());
-                                             const alreadyTag = exRes ? ` ⚠️ [${lang === 'EN' ? 'Saved: ' : 'രേഖപ്പെടുത്തി: '}${exRes.place === 'First' ? '🥇 1st' : exRes.place === 'Second' ? '🥈 2nd' : exRes.place === 'Third' ? '🥉 3rd' : '—'}]` : '';
-                                             return (
-                                               <option key={g.id} value={g.id}>
-                                                 {g.group_name} [{teamObj ? teamObj.name : 'No Team'}]{alreadyTag}
-                                               </option>
-                                             );
-                                           })}
-                                         </select>
-                                       );
-                                     } else {
-                                       // Render Student Selector (using checkIsStudentRegisteredForProg)
+                                    const isTeam = progObj && (progObj.type || '').includes('TEAM');                                      if (isTeam || markEntrySection === 'TEAM') {
+                                        // Render Team Selector
+                                        return (
+                                          <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
+                                            <option value="">{teams.length === 0 ? '-- No Teams --' : '-- Select Team --'}</option>
+                                            {teams.map(team => {
+                                              const exRes = currentProgSavedResults.find(r => String(r.teamid || r.teamId || '') === String(team.id));
+                                              const alreadyTag = exRes ? ` ⚠️ [${lang === 'EN' ? 'Saved: ' : 'രേഖപ്പെടുത്തി: '}${exRes.place === 'First' ? '🥇 1st' : exRes.place === 'Second' ? '🥈 2nd' : exRes.place === 'Third' ? '🥉 3rd' : '—'}]` : '';
+                                              return (
+                                                <option key={team.id} value={team.id}>
+                                                  🏟️ {team.name}{alreadyTag}
+                                                </option>
+                                              );
+                                            })}
+                                          </select>
+                                        );
+                                      } else if (isGroup || markEntrySection === 'GROUP') {
+                                        // Render Group Selector
+                                        const filteredGroups = groupRegistrations.filter(g => {
+                                          if (!progObj) return false;
+                                          return isProgramMatch({ program_id: g.program_id, program_name: g.program_id }, progObj) ||
+                                            String(g.program_id) === String(progObj.id) ||
+                                            String(g.program_id) === String(progObj.code) ||
+                                            String(g.program_id).toLowerCase() === String(progObj.name || '').toLowerCase();
+                                        });
+                                        return (
+                                          <select className="settings-input-v2" value={selectedResultStudent} onChange={(e) => setSelectedResultStudent(e.target.value)} required disabled={!selectedResultProg}>
+                                            <option value="">{filteredGroups.length === 0 ? (teams.length > 0 ? '-- Select Registered Group or Choose Team Below --' : '-- No Groups Registered --') : '-- Select Group --'}</option>
+                                            {filteredGroups.map(g => {
+                                              const teamObj = teams.find(t => String(t.id) === String(g.team_id));
+                                              const exRes = currentProgSavedResults.find(r => {
+                                                const nameMatch = String(r.studentname || '').toLowerCase().trim() === String(g.group_name || '').toLowerCase().trim();
+                                                const rTeam = String(r.teamid || r.teamId || '').trim();
+                                                const gTeam = String(g.team_id || '').trim();
+                                                const teamMatch = !rTeam || !gTeam || rTeam === gTeam;
+                                                return nameMatch && teamMatch;
+                                              });
+                                              const alreadyTag = exRes ? ` ⚠️ [${lang === 'EN' ? 'Saved: ' : 'രേഖപ്പെടുത്തി: '}${exRes.place === 'First' ? '🥇 1st' : exRes.place === 'Second' ? '🥈 2nd' : exRes.place === 'Third' ? '🥉 3rd' : '—'}]` : '';
+                                              return (
+                                                <option key={g.id} value={g.id}>
+                                                  👥 {g.group_name} [{teamObj ? teamObj.name : 'No Team'}]{alreadyTag}
+                                                </option>
+                                              );
+                                            })}
+                                            {teams.length > 0 && (
+                                              <optgroup label={lang === 'EN' ? 'Direct Team Group Result:' : 'ടീം ഗ്രൂപ്പ് നേരിട്ട് തിരഞ്ഞെടുക്കുക:'}>
+                                                {teams.map(team => {
+                                                  const exRes = currentProgSavedResults.find(r => String(r.teamid || r.teamId || '') === String(team.id));
+                                                  const alreadyTag = exRes ? ` ⚠️ [${lang === 'EN' ? 'Saved: ' : 'രേഖപ്പെടുത്തി: '}${exRes.place === 'First' ? '🥇 1st' : exRes.place === 'Second' ? '🥈 2nd' : exRes.place === 'Third' ? '🥉 3rd' : '—'}]` : '';
+                                                  return (
+                                                    <option key={`team_${team.id}`} value={`team_${team.id}`}>
+                                                      🚩 {team.name} (Team Group){alreadyTag}
+                                                    </option>
+                                                  );
+                                                })}
+                                              </optgroup>
+                                            )}
+                                          </select>
+                                        );
+                                      } else {
+                                        // Render Student Selector (using checkIsStudentRegisteredForProg)
                                        const selectedCatObj = categories.find(c => String(c.id) === String(selectedResultCat));
                                        const isGeneral = selectedCatObj && selectedCatObj.name.toLowerCase().includes('general');
 
@@ -17122,7 +18052,7 @@ ${pagesHtml}
                                                    return <td key={p.id} style={{ textAlign: 'center', padding: '3px', border: '1px solid #cbd5e1', fontSize: '12px', background: isReg ? '#ecfdf5' : '' }}>{isReg ? '✓' : ''}</td>;
                                                  })}
                                                 <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#064e3b', background: '#f0fdf4', padding: '3px', border: '1px solid #cbd5e1' }}>{sc}</td>
-                                                <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', padding: '3px', border: '1px solid #cbd5e1' }}>{gc}</td>
+<td style={{ textAlign: 'center', fontWeight: '800', fontSize: '11px', color: '#7c3aed', background: '#f5f3ff', padding: '3px', border: '1px solid #cbd5e1' }}>{gc}</td>
                                                 <td style={{ textAlign: 'center', fontWeight: '900', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '3px', border: '1px solid #cbd5e1' }}>{sc + gc}</td>
                                               </tr>
                                             );
@@ -17414,11 +18344,81 @@ ${pagesHtml}
                         return false;
                       });
 
-                      const firstWinners = catFilteredResults.filter(r => getNormPlace(r.place) === 'First');
-                      const secondWinners = catFilteredResults.filter(r => getNormPlace(r.place) === 'Second');
-                      const thirdWinners = catFilteredResults.filter(r => getNormPlace(r.place) === 'Third');
+                      // Helper: expand a result row into individual student rows for GROUP/TEAM programs
+                      // Points are NOT given individually — expansion is only for prize distribution counting
+                      const expandResultToIndividuals = (r) => {
+                        const pObj = programs.find(p => String(p.id) === String(r.progid));
+                        const progType = String(pObj?.type || r.progtype || r.progType || '').toUpperCase();
+                        const isGroupOrTeam = progType.includes('GROUP') || progType.includes('TEAM');
+                        if (!isGroupOrTeam) return [r]; // Not a group program — return as-is
 
-                      const displayWinners = catFilteredResults.filter(r => {
+                        // Find the group registration for this result
+                        const matchedGroup = groupRegistrations.find(g => {
+                          const gProgId = String(g.program_id || '').trim();
+                          const rProgId = String(r.progid || '').trim();
+                          const rName = String(r.studentname || '').trim().toLowerCase();
+                          const gName = String(g.group_name || '').trim().toLowerCase();
+                          return gProgId === rProgId || rName === gName || rName.includes(gName) || gName.includes(rName);
+                        });
+
+                        if (!matchedGroup) {
+                          // No group reg found — show as a single "group" entry
+                          return [{ ...r, _isGroupEntry: true, _groupLabel: r.studentname || 'Group', _groupMemberIndex: 0, _groupMemberTotal: 1 }];
+                        }
+
+                        // Expand: get all student IDs from the group
+                        let memberIds = [];
+                        try {
+                          if (Array.isArray(matchedGroup.student_ids)) memberIds = matchedGroup.student_ids;
+                          else if (typeof matchedGroup.student_ids === 'string') memberIds = JSON.parse(matchedGroup.student_ids || '[]');
+                        } catch (e) { memberIds = []; }
+                        if (!Array.isArray(memberIds)) memberIds = [memberIds];
+
+                        // Also include leader if not already in memberIds
+                        const leaderId = String(matchedGroup.leader_id || '').trim();
+
+                        // Resolve each member to a student object
+                        const memberStudents = [];
+                        if (leaderId) {
+                          const ls = students.find(s => String(s.id).trim() === leaderId || String(s.regno || s.regNo || '').trim() === leaderId);
+                          if (ls && !memberStudents.find(m => String(m.id) === String(ls.id))) memberStudents.push(ls);
+                        }
+                        memberIds.forEach(item => {
+                          let sid = '';
+                          if (typeof item === 'object' && item !== null) sid = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
+                          else sid = String(item || '').trim();
+                          if (!sid) return;
+                          const s = students.find(st => String(st.id).trim() === sid || String(st.regno || st.regNo || '').trim() === sid);
+                          if (s && !memberStudents.find(m => String(m.id) === String(s.id))) memberStudents.push(s);
+                        });
+
+                        if (memberStudents.length === 0) {
+                          return [{ ...r, _isGroupEntry: true, _groupLabel: matchedGroup.group_name || r.studentname || 'Group', _groupMemberIndex: 0, _groupMemberTotal: 1 }];
+                        }
+
+                        // Return one row per member — no personal points
+                        return memberStudents.map((s, idx) => ({
+                          ...r,
+                          _isGroupEntry: true,
+                          _groupLabel: matchedGroup.group_name || r.studentname || 'Group',
+                          _groupMemberIndex: idx,
+                          _groupMemberTotal: memberStudents.length,
+                          _memberStudent: s,
+                          // Override studentname & studentid for display — but NO individual points
+                          _displayStudentName: s.name,
+                          _displayRegNo: s.regno || s.regNo || '',
+                          _displayTeam: (teams.find(t => String(t.id) === String(s.teamid || s.teamId || '')) || {}).name || r.teamname || '',
+                        }));
+                      };
+
+                      // Expanded display list — group programs expand into individual members
+                      const expandedCatFiltered = catFilteredResults.flatMap(r => expandResultToIndividuals(r));
+
+                      const firstWinners = expandedCatFiltered.filter(r => getNormPlace(r.place) === 'First');
+                      const secondWinners = expandedCatFiltered.filter(r => getNormPlace(r.place) === 'Second');
+                      const thirdWinners = expandedCatFiltered.filter(r => getNormPlace(r.place) === 'Third');
+
+                      const displayWinners = expandedCatFiltered.filter(r => {
                         const norm = getNormPlace(r.place);
                         if (prizesPlaceFilter === 'FIRST') return norm === 'First';
                         if (prizesPlaceFilter === 'SECOND') return norm === 'Second';
@@ -17435,26 +18435,28 @@ ${pagesHtml}
                         const catLabel = prizesCatFilter === 'ALL' ? (lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും') : prizesCatFilter === 'GENERAL' ? 'GENERAL' : (activeCatObj ? activeCatObj.name : '');
 
                         const printRows = displayWinners.map((r, idx) => {
-                          const norm = getNormPlace(r.place);
-                          const placeBadge = norm === 'First' ? '🥇 1st Place' : norm === 'Second' ? '🥈 2nd Place' : '🥉 3rd Place';
-                          const pObj = programs.find(p => String(p.id) === String(r.progid));
-                          const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
-                          const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
-                          const cName = r.catname || (cObj ? cObj.name : '—');
-                          const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim());
-                          const regNo = sObj ? (sObj.regno || sObj.regNo || '—') : '—';
-                          const studentName = r.studentname || (sObj ? sObj.name : '—');
-                          const teamName = r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
-
-                          return `<tr>
-                            <td style="font-weight:700;text-align:center;">${idx + 1}</td>
-                            <td style="font-weight:700;color:#1e40af;">${regNo}</td>
-                            <td style="font-weight:700;">${studentName}</td>
-                            <td>${cName}</td>
-                            <td style="font-weight:600;">${pName}</td>
-                            <td style="font-weight:800;color:${norm === 'First' ? '#92400e' : norm === 'Second' ? '#475569' : '#9a3412'};">${placeBadge}</td>
-                            <td>${teamName}</td>
-                          </tr>`;
+                           const norm = getNormPlace(r.place);
+                           const placeBadge = norm === 'First' ? '🥇 1st Place' : norm === 'Second' ? '🥈 2nd Place' : '🥉 3rd Place';
+                           const pObj = programs.find(p => String(p.id) === String(r.progid));
+                           const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
+                           const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
+                           const cName = r.catname || (cObj ? cObj.name : '—');
+                           const regNo = r._displayRegNo || (() => { const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim()); return sObj ? (sObj.regno || sObj.regNo || '—') : '—'; })();
+                           const studentName = r._displayStudentName || r.studentname || '—';
+                           const teamName = r._displayTeam || r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+                           const isGrp = r._isGroupEntry;
+                           const placeColor = norm === 'First' ? '#92400e' : norm === 'Second' ? '#475569' : '#9a3412';
+                           const rowBg = isGrp ? 'background:#fefce8;' : '';
+                           const groupTag = isGrp ? '<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px;font-size:10px;margin-left:4px;font-weight:800;">Group</span>' : '';
+                           return '<tr style="' + rowBg + '">' +
+                             '<td style="font-weight:700;text-align:center;">' + (idx + 1) + '</td>' +
+                             '<td style="font-weight:700;color:#1e40af;">' + regNo + '</td>' +
+                             '<td style="font-weight:700;">' + studentName + '</td>' +
+                             '<td>' + cName + '</td>' +
+                             '<td style="font-weight:600;">' + pName + groupTag + '</td>' +
+                             '<td style="font-weight:800;color:' + placeColor + ';">' + placeBadge + '</td>' +
+                             '<td>' + teamName + '</td>' +
+                           '</tr>';
                         }).join('');
 
                         const printWin = window.open('', '_blank');
@@ -17873,22 +18875,34 @@ ${pagesHtml}
                                         const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
                                         const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
                                         const cName = r.catname || (cObj ? cObj.name : '—');
-                                        const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim());
-                                        const regNo = sObj ? (sObj.regno || sObj.regNo || '—') : '—';
-                                        const studentName = r.studentname || (sObj ? sObj.name : '—');
-                                        const teamName = r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+                                        // Use expanded group member data when available
+                                        const regNo = r._displayRegNo || (() => {
+                                          const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim());
+                                          return sObj ? (sObj.regno || sObj.regNo || '—') : '—';
+                                        })();
+                                        const studentName = r._displayStudentName || r.studentname || '—';
+                                        const teamName = r._displayTeam || r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+                                        const isGrp = r._isGroupEntry;
 
                                         const badgeBg = norm === 'First' ? '#fef3c7' : norm === 'Second' ? '#e2e8f0' : '#ffedd5';
                                         const badgeColor = norm === 'First' ? '#92400e' : norm === 'Second' ? '#334155' : '#9a3412';
                                         const icon = norm === 'First' ? '🥇' : norm === 'Second' ? '🥈' : '🥉';
+                                        const rowBg = isGrp ? (idx % 2 === 0 ? '#fefce8' : '#fef9c3') : (idx % 2 === 0 ? '#fff' : '#f8fafc');
 
                                         return (
-                                          <tr key={r.id || idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                          <tr key={(r.id || r.progid || '') + '_' + idx} style={{ borderBottom: '1px solid #e2e8f0', background: rowBg }}>
                                             <td style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
                                             <td style={{ padding: '10px 12px', fontWeight: '800', color: '#1e40af' }}>{regNo}</td>
                                             <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>{studentName}</td>
                                             <td style={{ padding: '10px 12px', color: '#475569' }}>{cName}</td>
-                                            <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>{pName}</td>
+                                            <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>
+                                              {pName}
+                                              {isGrp && (
+                                                <span style={{ marginLeft: '6px', background: '#fef3c7', color: '#92400e', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '800', verticalAlign: 'middle' }}>
+                                                  👥 {r._groupLabel || 'Group'}
+                                                </span>
+                                              )}
+                                            </td>
                                             <td style={{ padding: '10px 12px' }}>
                                               <span style={{ background: badgeBg, color: badgeColor, padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                 <span>{icon}</span> <span>{norm}</span>
@@ -18072,19 +19086,38 @@ ${pagesHtml}
                     // Build grouped program sections from all saved results
                     const allProgIds = Array.from(new Set(resultsList.map(r => String(r.progid || '').trim()).filter(Boolean)));
 
+                    const pubTimes = visibilityControls?.published_at || {};
                     const progSections = allProgIds.map(pid => {
                       const progObj = programs.find(p => String(p.id) === pid || String(p.code) === pid || String(p.name).toLowerCase() === pid.toLowerCase());
                       const progName = progObj?.name || pid;
-                      const catObj = progObj ? categories.find(c => String(c.id) === String(progObj.categoryid)) : null;
+                      const catObj = progObj ? categories.find(c => String(c.id) === String(progObj.catid || progObj.categoryid || '')) : null;
                       const catName = catObj?.name || '';
                       const progType = progObj?.type || '';
                       const rows = resultsList.filter(r => String(r.progid || '').trim() === pid || (progObj && (String(r.progid) === String(progObj.id) || String(r.progid) === String(progObj.code))));
-                      const latestId = Math.max(...rows.map(r => Number(r.id) || 0), 0);
-                      return { pid, progObj, progName, catName, progType, rows, latestId };
+                      
+                      // 🕒 Calculate the latest modification/creation timestamp across all result rows for this program
+                      const latestTime = Math.max(
+                        ...rows.map(r => new Date(r.created_at || r.createdAt || r.inserted_at || r.savedAt || 0).getTime() || 0),
+                        ...rows.map(r => Number(r.savedAt) || 0),
+                        ...rows.map(r => (!isNaN(Number(r.id)) && Number(r.id) > 1000000000) ? Number(r.id) : 0),
+                        0
+                      );
+                      const maxListIndex = Math.max(...rows.map(r => resultsList.indexOf(r)), 0);
+                      const pubTime = pubTimes[pid] || (progObj?.id && pubTimes[String(progObj.id)]) || (progObj?.code && pubTimes[String(progObj.code)]) || 0;
+
+                      return { pid, progObj, progName, catName, progType, rows, latestTime, maxListIndex, pubTime };
                     });
 
-                    // ⚡ Sort program sections so the most recently saved result is at the VERY TOP!
-                    progSections.sort((a, b) => b.latestId - a.latestId);
+                    // ⚡ Sort program sections so the most recently saved / modified / entered result is at the VERY TOP!
+                    progSections.sort((a, b) => {
+                      if (a.latestTime !== b.latestTime && a.latestTime > 0 && b.latestTime > 0) {
+                        return b.latestTime - a.latestTime;
+                      }
+                      if (a.maxListIndex !== b.maxListIndex) {
+                        return b.maxListIndex - a.maxListIndex;
+                      }
+                      return 0;
+                    });
 
                     // Search filter
                     const rpSearch = (publishProgSearch || '').toLowerCase().trim();
@@ -18895,8 +19928,14 @@ ${pagesHtml}
                       if (rId > group.latestId) group.latestId = rId;
                     });
 
-                    // 2. Sort distinct program groups descending by latest timestamp / latest ID
+                    const pubTimes = visibilityControls?.published_at || {};
+                    // 2. Sort distinct program groups descending by latest publish time / latest timestamp / latest ID
                     const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => {
+                      const pubA = pubTimes[a.progId] || (a.progCode && pubTimes[a.progCode]) || 0;
+                      const pubB = pubTimes[b.progId] || (b.progCode && pubTimes[b.progCode]) || 0;
+                      if (pubA > 0 && pubB > 0 && pubA !== pubB) {
+                        return pubB - pubA;
+                      }
                       if (a.latestTime !== b.latestTime && a.latestTime > 0 && b.latestTime > 0) {
                         return b.latestTime - a.latestTime;
                       }
