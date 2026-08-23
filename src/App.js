@@ -2914,16 +2914,21 @@ function App() {
         });
 
         const isPub = res ? isProgramPublishedInList(res.progid || p.id, localPubList, localProgs) : false;
+        const rawPlace = (res && isPub) ? String(res.place || '').trim() : '';
+        const validPlace = (rawPlace && rawPlace !== 'No Place' && rawPlace !== '-' && rawPlace !== '0' && rawPlace !== 'No' && rawPlace !== 'none' && rawPlace !== 'null') ? rawPlace : null;
+        const rawGrade = (res && isPub) ? String(res.grade || '').trim() : '';
+        const validGrade = (rawGrade && rawGrade !== '-' && rawGrade !== 'No' && rawGrade !== '0' && rawGrade !== 'none' && rawGrade !== 'None' && rawGrade !== 'null') ? rawGrade : null;
+        const validPts = (res && isPub && (validPlace || validGrade)) ? Number(res.points || 0) : null;
 
         individualEvents.push({
           progid: p.id,
           progname: `${p.code ? p.code + ' – ' : ''}${p.name}`,
-          place: (res && isPub) ? res.place : null,
-          grade: (res && isPub) ? res.grade : null,
-          points: (res && isPub) ? res.points : null,
+          place: validPlace,
+          grade: validGrade,
+          points: validPts,
           isPublished: isPub,
-          hasResult: !!res,
-          pending: !res || !isPub
+          hasResult: !!(res && isPub && (validPlace || validGrade)),
+          pending: !res || !isPub || (!validPlace && !validGrade)
         });
       });
 
@@ -2944,16 +2949,21 @@ function App() {
         processedProgKeys.add(rPid);
 
         const isPub = isProgramPublishedInList(r.progid, localPubList, localProgs);
+        const rawPlace = isPub ? String(r.place || '').trim() : '';
+        const validPlace = (rawPlace && rawPlace !== 'No Place' && rawPlace !== '-' && rawPlace !== '0' && rawPlace !== 'No' && rawPlace !== 'none' && rawPlace !== 'null') ? rawPlace : null;
+        const rawGrade = isPub ? String(r.grade || '').trim() : '';
+        const validGrade = (rawGrade && rawGrade !== '-' && rawGrade !== 'No' && rawGrade !== '0' && rawGrade !== 'none' && rawGrade !== 'None' && rawGrade !== 'null') ? rawGrade : null;
+        const validPts = (isPub && (validPlace || validGrade)) ? Number(r.points || 0) : null;
 
         individualEvents.push({
           progid: r.progid,
           progname: r.progname || (prog ? `${prog.code ? prog.code + ' – ' : ''}${prog.name}` : (r.program_name || 'Program')),
-          place: isPub ? r.place : null,
-          grade: isPub ? r.grade : null,
-          points: isPub ? r.points : null,
+          place: validPlace,
+          grade: validGrade,
+          points: validPts,
           isPublished: isPub,
-          hasResult: true,
-          pending: !isPub
+          hasResult: !!(isPub && (validPlace || validGrade)),
+          pending: !isPub || (!validPlace && !validGrade)
         });
       });
 
@@ -3025,9 +3035,11 @@ function App() {
         });
 
         const groupTeam = (localTeams || []).find(t => String(t.id) === String(g.team_id));
-        const groupTeamName = groupTeam ? groupTeam.name.toLowerCase() : '';
+        const groupTeamName = groupTeam ? String(groupTeam.name || '').trim().toLowerCase() : '';
+        const gName = String(g.group_name || '').trim().toLowerCase();
+        const gTeamId = String(g.team_id || '').trim();
 
-        // Find result for this group in localResults
+        // Find result for this group in localResults (STRICT MATCHING)
         const result = (localResults || []).find(r => {
           if (!r) return false;
           const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
@@ -3036,17 +3048,29 @@ function App() {
           if (!rProgMatch) return false;
 
           const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
-          const gName = String(g.group_name || '').trim().toLowerCase();
           const rTeamId = String(r.teamid || r.team_id || r.team || '').trim();
-          const gTeamId = String(g.team_id || '').trim();
 
-          if (gName && (rName === gName || rName.includes(gName) || gName.includes(rName))) return true;
-          if (gTeamId && rTeamId === gTeamId) return true;
-          if (groupTeamName && rName.includes(groupTeamName)) return true;
+          // 1. Explicit group ID match if stored on result
+          if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
+          // 2. Exact group name match
+          if (gName && (rName === gName || rName === `👥 ${gName}`)) return true;
+          // 3. Team-level match: Team ID matches AND result name matches team name / team group
+          if (gTeamId && rTeamId && gTeamId === rTeamId) {
+            if (groupTeamName && (rName === groupTeamName || rName === `${groupTeamName} group` || rName === `🏟️ ${groupTeamName}` || rName === 'group')) return true;
+          }
           return false;
         });
 
         const isPub = result ? isProgramPublishedInList(result.progid || g.program_id, localPubList, localProgs) : false;
+
+        // Clean place & grade: If "No Place", "-", "0", "No", treat as null
+        const rawPlace = (result && isPub) ? String(result.place || '').trim() : '';
+        const validPlace = (rawPlace && rawPlace !== 'No Place' && rawPlace !== '-' && rawPlace !== '0' && rawPlace !== 'No' && rawPlace !== 'none' && rawPlace !== 'null') ? rawPlace : null;
+
+        const rawGrade = (result && isPub) ? String(result.grade || '').trim() : '';
+        const validGrade = (rawGrade && rawGrade !== '-' && rawGrade !== 'No' && rawGrade !== '0' && rawGrade !== 'none' && rawGrade !== 'None' && rawGrade !== 'null') ? rawGrade : null;
+
+        const validPts = (result && isPub && (validPlace || validGrade)) ? Number(result.points || 0) : null;
 
         let isLeader = false;
         if (g.leader_id) {
@@ -3060,10 +3084,11 @@ function App() {
           progtype: 'GROUP',
           groupName: g.group_name,
           isLeader,
-          place: (result && isPub) ? result.place : null,
-          grade: (result && isPub) ? result.grade : null,
-          points: (result && isPub) ? result.points : null,
-          isPublished: isPub,
+          place: validPlace,
+          grade: validGrade,
+          points: validPts,
+          isPublished: isPub && (validPlace !== null || validGrade !== null),
+          hasResult: !!(result && isPub && (validPlace || validGrade)),
           isGroup: true
         };
       });
@@ -19609,7 +19634,10 @@ ${pagesHtml}
                         const groupList = qrModalData.groupResults || [];
                         const allEvents = [...individualList, ...groupList];
                         const totalEventsCount = allEvents.length;
-                        const wonEventsCount = allEvents.filter(e => e.place && e.place !== 'No Place' && e.place !== '-').length;
+                        const wonEventsCount = allEvents.filter(e => {
+                          const p = String(e.place || '').trim();
+                          return p && p !== 'No Place' && p !== '-' && p !== '0' && p !== 'No' && p !== 'none' && p !== 'null';
+                        }).length;
                         const totalStudentPoints = allEvents.reduce((sum, e) => sum + (Number(e.points) || 0), 0);
 
                         return (
@@ -19643,11 +19671,13 @@ ${pagesHtml}
                               </p>
                             ) : (() => {
                               const formatPlace = (place) => {
-                                if (!place || place === 'No Place' || place === '-') return null;
-                                if (place === 'First' || place === '1') return { text: '🥇 1st Place', cls: 'gold' };
-                                if (place === 'Second' || place === '2') return { text: '🥈 2nd Place', cls: 'silver' };
-                                if (place === 'Third' || place === '3') return { text: '🥉 3rd Place', cls: 'bronze' };
-                                return { text: `🏆 ${place}`, cls: 'other' };
+                                if (!place) return null;
+                                const pStr = String(place).trim();
+                                if (pStr === 'No Place' || pStr === '-' || pStr === '0' || pStr === 'No' || pStr === 'none' || pStr === 'null') return null;
+                                if (pStr === 'First' || pStr === '1') return { text: '🥇 1st Place', cls: 'gold' };
+                                if (pStr === 'Second' || pStr === '2') return { text: '🥈 2nd Place', cls: 'silver' };
+                                if (pStr === 'Third' || pStr === '3') return { text: '🥉 3rd Place', cls: 'bronze' };
+                                return { text: `🏆 ${pStr}`, cls: 'other' };
                               };
 
                               return (
@@ -19661,8 +19691,9 @@ ${pagesHtml}
                                   {/* Individual Events */}
                                   {individualList.map((r, idx) => {
                                     const placeInfo = formatPlace(r.place);
-                                    const hasGrade = r.grade && r.grade !== '-' && r.grade !== 'No';
-                                    const hasPts = r.points !== null && r.points !== undefined && Number(r.points) > 0;
+                                    const rawG = String(r.grade || '').trim();
+                                    const hasGrade = rawG && rawG !== '-' && rawG !== 'No' && rawG !== 'none' && rawG !== 'None' && rawG !== '0' && rawG !== 'null';
+                                    const hasPts = r.points !== null && r.points !== undefined && Number(r.points) > 0 && (placeInfo || hasGrade);
                                     return (
                                       <div key={`ind_${idx}`} className="events-table-row">
                                         <div className="event-name">
@@ -19704,8 +19735,9 @@ ${pagesHtml}
                                   {/* Group Events */}
                                   {groupList.map((g, idx) => {
                                     const placeInfo = formatPlace(g.place);
-                                    const hasGrade = g.grade && g.grade !== '-' && g.grade !== 'No';
-                                    const hasPts = g.points !== null && g.points !== undefined && Number(g.points) > 0;
+                                    const rawG = String(g.grade || '').trim();
+                                    const hasGrade = rawG && rawG !== '-' && rawG !== 'No' && rawG !== 'none' && rawG !== 'None' && rawG !== '0' && rawG !== 'null';
+                                    const hasPts = g.points !== null && g.points !== undefined && Number(g.points) > 0 && (placeInfo || hasGrade);
                                     return (
                                       <div key={`grp_${idx}`} className="events-table-row">
                                         <div className="event-name">
