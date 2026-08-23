@@ -3551,8 +3551,13 @@ function App() {
         safeSetLocalStorage('miladfest_session', sessionObj);
         try { sessionStorage.setItem('miladfest_session', JSON.stringify(sessionObj)); } catch(e){}
 
-        // Load data immediately for this logged in madrasa
-        fetchSupabaseData(sanitizedMadrasa.regNumber);
+        // 🔄 Clear stale results immediately so old cached data never appears after net-off/on cycle
+        setResultsList([]);
+        setIsInitialDataLoading(true);
+        // Load fresh data from server for this logged in madrasa
+        fetchSupabaseData(sanitizedMadrasa.regNumber)
+          .then(() => { setIsInitialDataLoading(false); })
+          .catch(() => { setIsInitialDataLoading(false); });
 
         // Clear login form
         setLoginRegNum('');
@@ -5813,12 +5818,18 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         .filter(r => {
           if (!r) return false;
           const rTid = String(r.teamId || r.teamid || '').trim();
-          if (rTid && rTid === String(teamId).trim()) return true;
-          const rTName = String(r.teamname || r.teamName || '').trim().toLowerCase();
-          if (targetName && rTName && (rTName === targetName || rTName.includes(targetName) || targetName.includes(rTName))) return true;
+          const tId = String(teamId).trim();
+          // Primary match: by teamId (exact)
+          if (rTid && tId && rTid === tId) return true;
+          // Fallback: exact name match only (NO includes/substring — avoids double-counting)
+          if (!rTid && targetName) {
+            const rTName = String(r.teamname || r.teamName || '').trim().toLowerCase();
+            if (rTName && rTName === targetName) return true;
+          }
           return false;
         })
         .reduce((sum, r) => {
+          // Always use computeResultPoints for live point system accuracy
           const pts = computeResultPoints(r);
           return sum + (pts || 0);
         }, 0);
@@ -20022,7 +20033,8 @@ ${pagesHtml}
                           }
                         });
 
-                        const pts = catResults.reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                        // Use computeResultPoints for live accuracy (not stale r.points from DB)
+                        const pts = catResults.reduce((sum, r) => sum + (computeResultPoints(r) || 0), 0);
 
                         const boyPts = catResults.filter(r => {
                           let g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
@@ -20035,7 +20047,7 @@ ${pagesHtml}
                             if (prog && prog.type) g = String(prog.type).toUpperCase();
                           }
                           return g.includes('BOY') || g === 'MALE' || g === 'M';
-                        }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                        }).reduce((sum, r) => sum + (computeResultPoints(r) || 0), 0);
 
                         const girlPts = catResults.filter(r => {
                           let g = String(r.studentgender || r.studentGender || r.gender || '').toUpperCase();
@@ -20048,7 +20060,7 @@ ${pagesHtml}
                             if (prog && prog.type) g = String(prog.type).toUpperCase();
                           }
                           return g.includes('GIRL') || g === 'FEMALE' || g === 'F';
-                        }).reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+                        }).reduce((sum, r) => sum + (computeResultPoints(r) || 0), 0);
 
                         return { team: t, points: pts, boyPts, girlPts };
                       }).sort((a, b) => b.points - a.points);
