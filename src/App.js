@@ -5179,6 +5179,8 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         : (isGroup || markEntrySection === 'GROUP')
         ? (groupObj ? ((teams.find(t => String(t.id) === String(groupObj.team_id)) || {}).name || '') : (teamObj ? teamObj.name : ''))
         : ((teams.find(t => String(t.id) === String(studentObj.teamid)) || {}).name || ''),
+      // Store group_id for strict QR code matching (prevents cross-match when team has multiple group programs)
+      group_id: (isGroup || markEntrySection === 'GROUP') ? (groupObj ? (groupObj.id || null) : null) : null,
       place: selectedPlace === '0' ? 'No Place' : selectedPlace === '1' ? 'First' : selectedPlace === '2' ? 'Second' : 'Third',
       grade: selectedGrade === 'No' ? '-' : selectedGrade,
       points: Number(pts) || 0,
