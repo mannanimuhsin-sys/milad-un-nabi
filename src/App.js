@@ -1251,20 +1251,20 @@ function App() {
       return true;
     }
 
-    // 2. Direct Category Name match
-    if (sCatNameStr && pCatName && (pCatName === sCatNameStr || (sCatNameStr && pCatName.includes(sCatNameStr)))) {
+    // 2. Direct Category Name match (EXACT match only, no substring includes!)
+    if (sCatNameStr && pCatName && pCatName === sCatNameStr) {
       return true;
     }
 
     // 3. Category object resolution
-    const progCatObj = list.find(c => String(c.id).trim() === pCatId || (c.name && c.name.toLowerCase() === pCatId.toLowerCase()));
+    const progCatObj = list.find(c => String(c.id).trim() === pCatId || (c.name && c.name.trim().toLowerCase() === pCatId.toLowerCase()));
     if (progCatObj) {
       const pObjName = String(progCatObj.name || '').trim().toLowerCase();
       if (sCatNameStr && pObjName === sCatNameStr) return true;
       if (sCatIdStr && String(progCatObj.id).trim() === sCatIdStr) return true;
     }
 
-    const studentCatObj = list.find(c => String(c.id).trim() === sCatIdStr || (c.name && c.name.toLowerCase() === sCatIdStr.toLowerCase()));
+    const studentCatObj = list.find(c => String(c.id).trim() === sCatIdStr || (c.name && c.name.trim().toLowerCase() === sCatIdStr.toLowerCase()));
     if (studentCatObj) {
       const sObjName = String(studentCatObj.name || '').trim().toLowerCase();
       if (pCatName && pCatName === sObjName) return true;
@@ -2685,10 +2685,10 @@ function App() {
       fetchSupabaseData(rNum);
     }, 30000);
 
-    // Slide rotation every 10 seconds
+    // Slide rotation every 20 seconds
     const slideInterval = setInterval(() => {
       setProjectorSlide(prev => (prev + 1) % 3);
-    }, 10000);
+    }, 20000);
 
     // ESC key support to exit projector mode
     const handleKeyDown = (e) => {
@@ -7618,10 +7618,17 @@ ${pagesHtml}
                               {/* Category & Program Breakdown for this Team */}
                               <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,0.03)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {(() => {
-                                  const teamResults = resultsList.filter(r => {
-                                    if (!isProgPublished(r.progid)) return false;
-                                    const teamMatch = String(r.teamId || r.teamid || '') === String(team.id) || (String(r.teamname || '').toLowerCase() === String(team.name || '').toLowerCase());
-                                    return teamMatch;
+                                   // Use clean (published, deduplicated) results for accurate scoreboard counts
+                                   const cleanResults = getCleanResultsList(resultsList);
+                                   const teamResults = cleanResults.filter(r => {
+                                    // Strict: match by teamId first; fall back to name only when ID absent
+                                    const rTid = String(r.teamId || r.teamid || '').trim();
+                                    const tId = String(team.id || '').trim();
+                                    if (rTid && tId) return rTid === tId;
+                                    if (!rTid && team.name) {
+                                      return String(r.teamname || '').trim().toLowerCase() === String(team.name || '').trim().toLowerCase();
+                                    }
+                                    return false;
                                   });
 
                                   const singlePts = teamResults.filter(r => {
@@ -16667,6 +16674,7 @@ ${pagesHtml}
 
                       const judgePrograms = programs.filter(p => {
                         if (!judgeSheetCat) return false;
+                        // ── Strict Category Filter ──
                         if (judgeSheetCat === 'GENERAL') {
                           if (!isGeneralProg(p)) return false;
                         } else if (isJudgeGeneral) {
@@ -16675,9 +16683,23 @@ ${pagesHtml}
                           if (String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
                         }
 
-                        if (!judgeSheetGender || judgeSheetGender === 'COMMON' || judgeSheetGender === 'ALL') return true;
-                        if ((p.type || '').toUpperCase().includes('COMMON')) return true;
-                        return (p.type || '').toUpperCase().includes(judgeSheetGender.toUpperCase());
+                        // ── Strict Gender Filter ──
+                        // COMMON gender → only programs whose type is COMMON (not BOY, not GIRL)
+                        // BOY  gender   → BOY and COMMON programs only
+                        // GIRL gender   → GIRL and COMMON programs only
+                        const pType = String(p.type || '').toUpperCase();
+                        if (!judgeSheetGender || judgeSheetGender === 'ALL') return true;
+                        if (judgeSheetGender === 'COMMON') {
+                          // Show only programs that are COMMON type (not specifically boys or girls)
+                          return pType.includes('COMMON') || (!pType.includes('BOY') && !pType.includes('GIRL'));
+                        }
+                        if (judgeSheetGender === 'BOY') {
+                          return pType.includes('BOY') || pType.includes('BOYS') || pType.includes('COMMON');
+                        }
+                        if (judgeSheetGender === 'GIRL') {
+                          return pType.includes('GIRL') || pType.includes('GIRLS') || pType.includes('COMMON');
+                        }
+                        return true;
                       });
 
                       const selectedProgObj = programs.find(p => String(p.id) === String(judgeSheetProg));
@@ -16729,7 +16751,19 @@ ${pagesHtml}
                             });
                           } else {
                             // Fallback: Check students registered for this group program and cluster by team
-                            const baseStudents = students.filter(s => checkIsStudentRegisteredForProg(s, pObj));
+                            const pFbCatId = String(pObj.catid ?? pObj.catId ?? pObj.category ?? pObj.category_id ?? '').trim();
+                            const pFbIsGen = isGeneralProg(pObj);
+                            const pFbType = String(pObj.type || '').toUpperCase();
+                            const baseStudents = students.filter(s => {
+                              const sFbCatId = String(s.catid ?? s.catId ?? '').trim();
+                              if (!pFbIsGen && sFbCatId && pFbCatId && sFbCatId !== pFbCatId) return false;
+                              const sFbGender = String(s.gender || '').toUpperCase();
+                              if (sFbGender && pFbType && !pFbType.includes('COMMON')) {
+                                if (sFbGender === 'BOY' && pFbType.includes('GIRL') && !pFbType.includes('BOY')) return false;
+                                if (sFbGender === 'GIRL' && pFbType.includes('BOY') && !pFbType.includes('GIRL')) return false;
+                              }
+                              return checkIsStudentRegisteredForProg(s, pObj);
+                            });
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
                               const tId = String(s.teamid || s.teamId || 'no_team');
@@ -16756,8 +16790,28 @@ ${pagesHtml}
                             });
                           }
                         } else {
-                          // Single Program: Return ALL students registered for this program!
-                          const baseStudents = students.filter(s => checkIsStudentRegisteredForProg(s, pObj));
+                          // Single Program: Return students strictly matching selected category & gender
+                          const pCatId = String(pObj.catid ?? pObj.catId ?? pObj.category ?? pObj.category_id ?? '').trim();
+                          const pIsGen = isGeneralProg(pObj);
+                          const pType = String(pObj.type || '').toUpperCase();
+
+                          const baseStudents = students.filter(s => {
+                            // ── Category check: student must belong to same category as program ──
+                            const sCatId = String(s.catid ?? s.catId ?? '').trim();
+                            if (!pIsGen) {
+                              // Non-general program: student category must match program category
+                              if (sCatId && pCatId && sCatId !== pCatId) return false;
+                            }
+                            // ── Gender check: student gender must match program type ──
+                            const sGender = String(s.gender || '').toUpperCase();
+                            if (sGender && pType && !pType.includes('COMMON')) {
+                              if (sGender === 'BOY' && pType.includes('GIRL') && !pType.includes('BOY')) return false;
+                              if (sGender === 'GIRL' && pType.includes('BOY') && !pType.includes('GIRL')) return false;
+                            }
+                            // ── Also check that student is actually registered for this program ──
+                            return checkIsStudentRegisteredForProg(s, pObj);
+                          });
+
                           return baseStudents
                             .sort(compareRegNo)
                             .map(s => ({
@@ -17878,10 +17932,19 @@ ${pagesHtml}
                                } else {
                                  if (String(p.catid || p.catId || '') !== String(entryFormCat)) return false;
                                }
-                              if (!entryFormGender || entryFormGender === 'COMMON') return true;
-                              const pt = (p.type || '').toUpperCase();
-                              if (pt.includes('COMMON') || (!pt.includes('BOY') && !pt.includes('GIRL'))) return true;
-                              return pt.includes((entryFormGender || '').toUpperCase());
+                              // ── Strict Gender Filter ──
+                              const pt = String(p.type || '').toUpperCase();
+                              if (!entryFormGender || entryFormGender === 'ALL') return true;
+                              if (entryFormGender === 'COMMON') {
+                                return pt.includes('COMMON') || (!pt.includes('BOY') && !pt.includes('GIRL'));
+                              }
+                              if (entryFormGender === 'BOY') {
+                                return pt.includes('BOY') || pt.includes('BOYS') || pt.includes('COMMON');
+                              }
+                              if (entryFormGender === 'GIRL') {
+                                return pt.includes('GIRL') || pt.includes('GIRLS') || pt.includes('COMMON');
+                              }
+                              return true;
                             }) : [];
 
                             const efSinglePrograms = efAllPrograms.filter(p => !(p.type || '').includes('GROUP'));
@@ -19902,9 +19965,12 @@ ${pagesHtml}
                     ].map(c => {
                       // Get team points breakdown for this category (including boys/girls split)
                       const teamPointsList = teams.map(t => {
-                        const catResults = resultsList.filter(r => {
-                          if (!isProgPublished(r.progid)) return false;
-                          const teamMatch = String(r.teamId || r.teamid || '') === String(t.id);
+                        const catResults = getCleanResultsList(resultsList).filter(r => {
+                          const rTid = String(r.teamId || r.teamid || '').trim();
+                          const tId = String(t.id || '').trim();
+                          const teamMatch = (rTid && tId)
+                            ? rTid === tId
+                            : (t.name && String(r.teamname || '').trim().toLowerCase() === String(t.name || '').trim().toLowerCase());
                           if (!teamMatch) return false;
 
                           if (c.isGeneral) {
