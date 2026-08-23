@@ -7,25 +7,10 @@
     <meta http-equiv="Expires" content="0" />
     <script>
       (function() {
-        var RELOAD_KEY = 'milad_cache_purged_v1_1_0';
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            var unregistered = false;
             for (var i = 0; i < registrations.length; i++) {
               registrations[i].unregister();
-              unregistered = true;
-            }
-            if (unregistered && !sessionStorage.getItem(RELOAD_KEY)) {
-              sessionStorage.setItem(RELOAD_KEY, 'true');
-              if ('caches' in window) {
-                caches.keys().then(function(names) {
-                  return Promise.all(names.map(function(name) { return caches.delete(name); }));
-                }).then(function() {
-                  window.location.reload(true);
-                }).catch(function() { window.location.reload(true); });
-              } else {
-                window.location.reload(true);
-              }
             }
           }).catch(function(e) {});
         }
