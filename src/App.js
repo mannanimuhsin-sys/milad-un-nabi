@@ -3047,13 +3047,20 @@ function App() {
                              rPid === String(g.program_id).toLowerCase();
           if (!rProgMatch) return false;
 
+          // Strict gender check
+          const rGender = String(r.studentgender || r.studentGender || '').trim().toUpperCase();
+          const sGenderUpper = String(sGender || '').trim().toUpperCase();
+          if (rGender && sGenderUpper && rGender !== 'COMMON' && rGender !== 'ALL' && rGender !== sGenderUpper) {
+            return false;
+          }
+
           const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
           const rTeamId = String(r.teamid || r.team_id || r.team || '').trim();
 
           // 1. Explicit group ID match if stored on result
           if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
-          // 2. Exact group name match
-          if (gName && (rName === gName || rName === `👥 ${gName}`)) return true;
+          // 2. Exact group name match or group name prefix
+          if (gName && (rName === gName || rName === `👥 ${gName}` || rName.startsWith(`${gName} -`) || rName.startsWith(`${gName}-`))) return true;
           // 3. Team-level match: Team ID matches AND result name matches team name / team group
           if (gTeamId && rTeamId && gTeamId === rTeamId) {
             if (groupTeamName && (rName === groupTeamName || rName === `${groupTeamName} group` || rName === `🏟️ ${groupTeamName}` || rName === 'group')) return true;
@@ -8088,9 +8095,11 @@ ${pagesHtml}
                       }).map((r, idx) => {
                         const sName = r.studentname || r.studentName || '';
                         const dashIdx = sName.indexOf(' - ');
-                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx).trim() : '';
+                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx).trim() : (sName.includes('-') ? sName.split('-')[0].trim() : '');
                         const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3).trim() : sName;
-                        const student = students.find(s => String(s.regno || s.regNo || '').trim().toLowerCase() === regPart.toLowerCase()) || {
+                        const rSid = String(r.studentid || r.student_id || '').trim();
+                        const student = (rSid ? students.find(s => String(s.id).trim() === rSid) : null) ||
+                          (regPart ? students.find(s => String(s.regno || s.regNo || '').trim().toLowerCase() === regPart.toLowerCase()) : null) || {
                           name: namePart,
                           regno: regPart,
                           gender: (r.studentgender || r.studentGender || 'BOY').toUpperCase()
@@ -9053,11 +9062,63 @@ ${pagesHtml}
                             const rRaw = String(r.studentname || r.studentName || '').trim();
                             const rSid = String(r.studentid || r.student_id || '').trim();
                             const dashIdx = rRaw.indexOf(' - ');
-                            const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
+                            const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : (rRaw.includes('-') ? rRaw.split('-')[0].trim() : '');
                             const sIdStr = String(matchedStudent.id || '').trim();
                             const sRegStr = String(sRegNo || '').trim();
-                            if (sIdStr && rSid && rSid === sIdStr) return true;
-                            if (sRegStr && rRegPart && rRegPart === sRegStr) return true;
+                            const sGender = String(matchedStudent.gender || '').toUpperCase();
+                            const rGender = String(r.studentgender || r.studentGender || '').toUpperCase();
+
+                            // Gender gate: never cross genders
+                            if (rGender && sGender && rGender !== 'COMMON' && rGender !== 'ALL' && rGender !== sGender) return false;
+
+                            // 1. Single match strictly by Register Number or DB ID (NEVER BY NAME)
+                            if (sIdStr && rSid && (rSid === sIdStr || (!isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sIdStr, 10)))) return true;
+                            if (sRegStr && rRegPart && (rRegPart.toLowerCase() === sRegStr.toLowerCase() || (!isNaN(parseInt(rRegPart, 10)) && parseInt(rRegPart, 10) === parseInt(sRegStr, 10)))) return true;
+                            if (sRegStr && (rRaw.toLowerCase() === sRegStr.toLowerCase() || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + ' -') || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + '-'))) return true;
+
+                            // 2. Group match: if student is a member/leader of the winning group
+                            const studentGroupsForProg = (groupRegistrations || []).filter(g => {
+                              const prog = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                              const pIdStr = prog ? String(prog.id) : String(r.progid);
+                              const pCodeStr = prog ? String(prog.code || '') : '';
+                              const gProgMatch = String(g.program_id) === pIdStr || (pCodeStr && String(g.program_id) === pCodeStr);
+                              if (!gProgMatch) return false;
+
+                              if (g.leader_id) {
+                                const lId = String(g.leader_id).trim();
+                                if (lId === sIdStr || (sRegStr && lId.toLowerCase() === sRegStr.toLowerCase())) return true;
+                              }
+
+                              let mIds = [];
+                              if (Array.isArray(g.student_ids)) mIds = g.student_ids;
+                              else if (typeof g.student_ids === 'string') {
+                                try { mIds = JSON.parse(g.student_ids); } catch(e) { mIds = [g.student_ids]; }
+                              }
+                              if (!Array.isArray(mIds)) mIds = [mIds];
+
+                              return mIds.some(id => {
+                                if (typeof id === 'object' && id !== null) {
+                                  const mId = String(id.id || id.student_id || id.regno || id.regNo || '').trim();
+                                  return mId === sIdStr || (sRegStr && mId.toLowerCase() === sRegStr.toLowerCase());
+                                }
+                                const idStr = String(id).trim();
+                                return idStr === sIdStr || (sRegStr && idStr.toLowerCase() === sRegStr.toLowerCase());
+                              });
+                            });
+
+                            for (const g of studentGroupsForProg) {
+                              const gName = String(g.group_name || '').trim().toLowerCase();
+                              const rRawLower = rRaw.toLowerCase();
+                              if (gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`))) return true;
+                              if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
+                              const gTeamId = String(g.team_id || '').trim();
+                              const rTeamId = String(r.teamid || r.team_id || '').trim();
+                              if (gTeamId && rTeamId && gTeamId === rTeamId) {
+                                const tName = (teamObj ? teamObj.name : '').toLowerCase();
+                                if (tName && (rRawLower === tName || rRawLower === `${tName} group` || rRawLower === `🏟️ ${tName}` || rRawLower === 'group')) return true;
+                              }
+                            }
+
                             return false;
                           });
 
@@ -10282,13 +10343,12 @@ ${pagesHtml}
                                       if (!r) return false;
                                       if (!isProgPublished(r.progid)) return false;
 
-                                      // Exact program match by ID or Code
+                                      // 1. Program ID / Code Match
                                       const rPid = String(r.progid || r.program_id || '').trim();
                                       const pIdStr = String(p.id || '').trim();
                                       const pCodeStr = String(p.code || '').trim();
-                                      let pMatch = (rPid && (rPid === pIdStr || (pCodeStr && rPid === pCodeStr)));
+                                      let pMatch = Boolean(rPid && (rPid === pIdStr || (pCodeStr && rPid === pCodeStr) || (pCodeStr && rPid.toLowerCase() === pCodeStr.toLowerCase())));
 
-                                      // Fallback by name only if category also matches
                                       if (!pMatch && String(r.progname || '').trim().toLowerCase() === String(p.name || '').trim().toLowerCase()) {
                                         const rCat = String(r.catname || '').trim().toLowerCase();
                                         const pCatObj = categories.find(c => String(c.id) === String(p.catid || p.catId || ''));
@@ -10299,43 +10359,92 @@ ${pagesHtml}
                                       }
                                       if (!pMatch) return false;
 
+                                      // 2. Strict Gender Gate: Boys results for Boys, Girls results for Girls
+                                      const rGender = String(r.studentgender || r.studentGender || '').trim().toUpperCase();
+                                      const sGender = String(s.gender || '').trim().toUpperCase();
+                                      if (rGender && sGender && rGender !== 'COMMON' && rGender !== 'ALL' && rGender !== sGender) {
+                                        return false;
+                                      }
+
                                       const rSid = String(r.student_id || r.studentid || '').trim();
                                       const rRaw = String(r.studentname || r.student_name || '').trim();
                                       const dashIdx = rRaw.indexOf(' - ');
-                                      const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
-                                      const rNamePart = dashIdx !== -1 ? rRaw.substring(dashIdx + 3).trim().toLowerCase() : rRaw.toLowerCase();
+                                      const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : (rRaw.includes('-') ? rRaw.split('-')[0].trim() : '');
 
-                                      // 1. Exact DB ID match
-                                      if (sDbIdStr && rSid && rSid === sDbIdStr) return true;
+                                      const pType = (p.type || '').toUpperCase();
+                                      const isGroupOrTeam = pType.includes('GROUP') || pType.includes('TEAM');
 
-                                      // 2. Strict Register Number match ONLY (NEVER match by student name)
-                                      if (sRegStr && rRegPart && rRegPart.toLowerCase() === sRegStr.toLowerCase()) return true;
-                                      if (sRegStr && (rRaw.startsWith(sRegStr + ' ') || rRaw === sRegStr)) return true;
+                                      // 3. Group / Team Program Resolution
+                                      if (isGroupOrTeam) {
+                                        // Match against student's resolved groupInfo
+                                        if (groupInfo) {
+                                          const gName = String(groupInfo.groupName || '').trim().toLowerCase();
+                                          const gTeamName = String(groupInfo.teamName || '').trim().toLowerCase();
+                                          const gTeamId = String(groupInfo.teamId || '').trim();
+                                          const rTeamId = String(r.teamid || r.team_id || '').trim();
+                                          const rRawLower = rRaw.toLowerCase();
 
-                                      // 4. Group registration check
-                                      const isGroup = (p.type || '').toUpperCase().includes('GROUP');
-                                      if (isGroup) {
-                                        const studentGroup = groupRegistrations.find(g => {
-                                          const pMatchGroup = String(g.program_id) === pIdStr || (pCodeStr && String(g.program_id) === pCodeStr);
-                                          if (!pMatchGroup) return false;
+                                          if (r.group_id && groupInfo.groupId && String(r.group_id) === String(groupInfo.groupId)) return true;
+                                          if (gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`))) return true;
+                                          if (gTeamId && rTeamId && gTeamId === rTeamId) {
+                                            if (gTeamName && (rRawLower === gTeamName || rRawLower === `${gTeamName} group` || rRawLower === `🏟️ ${gTeamName}` || rRawLower === 'group')) return true;
+                                          }
+                                        }
+
+                                        // Check any group registration for this student
+                                        const matchingGroups = (groupRegistrations || []).filter(g => {
+                                          const gProgMatch = String(g.program_id) === pIdStr || (pCodeStr && String(g.program_id) === pCodeStr) || isProgramMatch({ program_id: g.program_id, program_name: g.program_name }, p);
+                                          if (!gProgMatch) return false;
+
+                                          // Check leader
+                                          if (g.leader_id) {
+                                            const lId = String(g.leader_id).trim();
+                                            if (lId === sDbIdStr || (sRegStr && lId.toLowerCase() === sRegStr.toLowerCase())) return true;
+                                            const lNum = parseInt(lId, 10);
+                                            if (!isNaN(lNum) && ((!isNaN(parseInt(sDbIdStr, 10)) && lNum === parseInt(sDbIdStr, 10)) || (!isNaN(parseInt(sRegStr, 10)) && lNum === parseInt(sRegStr, 10)))) return true;
+                                          }
+
+                                          // Check members
                                           let mIds = [];
                                           if (Array.isArray(g.student_ids)) mIds = g.student_ids;
                                           else if (typeof g.student_ids === 'string') {
                                             try { mIds = JSON.parse(g.student_ids); } catch(e) { mIds = [g.student_ids]; }
                                           }
                                           if (!Array.isArray(mIds)) mIds = [mIds];
+
                                           return mIds.some(id => {
-                                            if (typeof id === 'object') {
-                                              const mId = String(id.id || id.regno || '').trim();
+                                            if (typeof id === 'object' && id !== null) {
+                                              const mId = String(id.id || id.student_id || id.regno || id.regNo || '').trim();
                                               return mId === sDbIdStr || (sRegStr && mId.toLowerCase() === sRegStr.toLowerCase());
                                             }
-                                            return String(id).trim() === sDbIdStr || (sRegStr && String(id).trim().toLowerCase() === sRegStr.toLowerCase());
+                                            const idStr = String(id).trim();
+                                            return idStr === sDbIdStr || (sRegStr && idStr.toLowerCase() === sRegStr.toLowerCase()) ||
+                                              (!isNaN(parseInt(idStr, 10)) && !isNaN(parseInt(sRegStr, 10)) && parseInt(idStr, 10) === parseInt(sRegStr, 10));
                                           });
                                         });
-                                        if (studentGroup && rRaw.toLowerCase() === String(studentGroup.group_name || '').trim().toLowerCase()) {
-                                          return true;
+
+                                        for (const g of matchingGroups) {
+                                          const gName = String(g.group_name || '').trim().toLowerCase();
+                                          const rRawLower = rRaw.toLowerCase();
+                                          if (gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`))) return true;
+                                          if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
+                                          const gTeamId = String(g.team_id || '').trim();
+                                          const rTeamId = String(r.teamid || r.team_id || '').trim();
+                                          if (gTeamId && rTeamId && gTeamId === rTeamId) {
+                                            const teamObj = (teams || []).find(t => String(t.id) === gTeamId);
+                                            const tName = teamObj ? teamObj.name.toLowerCase() : '';
+                                            if (tName && (rRawLower === tName || rRawLower === `${tName} group` || rRawLower === `🏟️ ${tName}` || rRawLower === 'group')) return true;
+                                          }
                                         }
+
+                                        return false;
                                       }
+
+                                      // 4. Single Program Resolution (STRICT REGISTER NUMBER / DB ID ONLY — NEVER BY NAME)
+                                      if (sDbIdStr && rSid && (rSid === sDbIdStr || (!isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sDbIdStr, 10)))) return true;
+                                      if (sRegStr && rRegPart && (rRegPart.toLowerCase() === sRegStr.toLowerCase() || (!isNaN(parseInt(rRegPart, 10)) && parseInt(rRegPart, 10) === parseInt(sRegStr, 10)))) return true;
+                                      if (sRegStr && (rRaw.toLowerCase() === sRegStr.toLowerCase() || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + ' -') || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + '-'))) return true;
+
                                       return false;
                                     });
 
@@ -18953,20 +19062,59 @@ ${pagesHtml}
 
                                   const matchedStudent = students.find(s => {
                                     const rNo = String(s.regno || s.regNo || '').trim().toLowerCase();
+                                    return rNo === term;
+                                  }) || students.find(s => {
+                                    const rNo = String(s.regno || s.regNo || '').trim().toLowerCase();
+                                    return rNo.startsWith(term);
+                                  }) || students.find(s => {
                                     const sName = String(s.name || '').trim().toLowerCase();
-                                    return rNo === term || rNo.includes(term) || sName.includes(term);
+                                    return sName === term || sName.startsWith(term);
                                   });
 
                                   const matchedResults = resultsList.filter(r => {
                                     if (!isProgPublished(r.progid)) return false;
-                                    const rSid = String(r.studentid || '').trim().toLowerCase();
-                                    const rSName = String(r.studentname || '').trim().toLowerCase();
+                                    const rRaw = String(r.studentname || '').trim();
+                                    const rSid = String(r.studentid || r.student_id || '').trim().toLowerCase();
+                                    const dashIdx = rRaw.indexOf(' - ');
+                                    const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim().toLowerCase() : (rRaw.includes('-') ? rRaw.split('-')[0].trim().toLowerCase() : '');
+
                                     if (matchedStudent) {
-                                      const sDbId = String(matchedStudent.id).toLowerCase();
+                                      const sDbId = String(matchedStudent.id || '').toLowerCase();
                                       const sRegNo = String(matchedStudent.regno || matchedStudent.regNo || '').toLowerCase();
-                                      if (rSid === sDbId || rSid === sRegNo) return true;
+                                      if (sDbId && rSid === sDbId) return true;
+                                      if (sRegNo && rRegPart === sRegNo) return true;
+                                      if (sRegNo && (rRaw.toLowerCase() === sRegNo || rRaw.toLowerCase().startsWith(sRegNo + ' -') || rRaw.toLowerCase().startsWith(sRegNo + '-'))) return true;
+
+                                      // Check group results for matchedStudent
+                                      const isGroupMatch = (groupRegistrations || []).some(g => {
+                                        const prog = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                                        const pIdStr = prog ? String(prog.id) : String(r.progid);
+                                        const pCodeStr = prog ? String(prog.code || '') : '';
+                                        if (String(g.program_id) !== pIdStr && (!pCodeStr || String(g.program_id) !== pCodeStr)) return false;
+
+                                        let mIds = [];
+                                        if (Array.isArray(g.student_ids)) mIds = g.student_ids;
+                                        else if (typeof g.student_ids === 'string') {
+                                          try { mIds = JSON.parse(g.student_ids); } catch(e) { mIds = [g.student_ids]; }
+                                        }
+                                        if (!Array.isArray(mIds)) mIds = [mIds];
+
+                                        const inGroup = (g.leader_id && (String(g.leader_id).toLowerCase() === sDbId || String(g.leader_id).toLowerCase() === sRegNo)) ||
+                                          mIds.some(id => {
+                                            const idStr = String(typeof id === 'object' && id !== null ? (id.id || id.student_id || id.regno || '') : id).toLowerCase();
+                                            return idStr === sDbId || idStr === sRegNo;
+                                          });
+                                        if (!inGroup) return false;
+
+                                        const gName = String(g.group_name || '').trim().toLowerCase();
+                                        const rRawLower = rRaw.toLowerCase();
+                                        return gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`));
+                                      });
+                                      if (isGroupMatch) return true;
+                                    } else {
+                                      if (rSid === term || rRegPart === term) return true;
                                     }
-                                    return rSid === term || rSName.includes(term);
+                                    return false;
                                   });
 
                                   if (!matchedStudent && matchedResults.length === 0) {
