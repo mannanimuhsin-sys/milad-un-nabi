@@ -646,6 +646,7 @@ function App() {
 
   // Super admin panel states
   const [superMadrasas, setSuperMadrasas] = useState([]);
+  const [isRefreshingSuperMadrasas, setIsRefreshingSuperMadrasas] = useState(false);
   const [pendingMadrasa, setPendingMadrasa] = useState(null);
   const [editingMadrasaId, setEditingMadrasaId] = useState(null);
   const [editingMadrasaData, setEditingMadrasaData] = useState({});
@@ -2356,6 +2357,7 @@ function App() {
   };
 
   const fetchMadrasas = async () => {
+    setIsRefreshingSuperMadrasas(true);
     // 1. Helper to extract any known local madrasas from local storage
     const getLocalMadrasas = () => {
       const madrasaMap = new Map();
@@ -2387,13 +2389,10 @@ function App() {
       setSuperMadrasas(localList);
     }
 
-    // 2. Fetch fresh madrasas list from Supabase with automatic retry & timeout handling
+    // 2. Fetch fresh madrasas list from Supabase with automatic pagination (loads all madrasas without limit or column errors)
     try {
       const { data, error } = await queryWithRetry(() =>
-        supabase
-          .from('madrasas')
-          .select('id,regNumber,name,place,adminPassword,viewPassword,approvalStatus,visibility_controls')
-          .order('id', { ascending: false }),
+        fetchAllRows('madrasas', q => q),
         4,
         1000
       );
@@ -2401,8 +2400,10 @@ function App() {
       if (error) {
         console.warn('Failed to load madrasas:', error.message);
       } else if (data && Array.isArray(data) && data.length > 0) {
+        // Sort descending by id so newest registrations always appear on top
+        const sortedData = [...data].sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
         const freshMap = new Map();
-        data.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
+        sortedData.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
 
         localList.forEach(m => {
           if (m && m.regNumber && !freshMap.has(String(m.regNumber))) {
@@ -2410,7 +2411,7 @@ function App() {
           }
         });
 
-        const mergedList = Array.from(freshMap.values());
+        const mergedList = Array.from(freshMap.values()).sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
         setSuperMadrasas(mergedList);
         try {
           localStorage.setItem('cached_super_madrasas', JSON.stringify(mergedList));
@@ -2418,12 +2419,14 @@ function App() {
       }
     } catch (err) {
       console.error('Error fetching madrasas:', err);
+    } finally {
+      setIsRefreshingSuperMadrasas(false);
     }
   };
 
   useEffect(() => {
     // Only fetch madrasas list on screens that actually need it — avoids unnecessary network calls on every tab switch
-    if (currentScreen === 'LOGIN' || currentScreen === 'SUPER_ADMIN' || currentScreen === 'PENDING_APPROVAL') {
+    if (currentScreen === 'LOGIN' || currentScreen === 'SUPER_ADMIN' || currentScreen === 'SUPER_ADMIN_PANEL' || currentScreen === 'PENDING_APPROVAL') {
       fetchMadrasas();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -7207,7 +7210,17 @@ ${pagesHtml}
               <h1 style={{ color: 'white' }}>⚙️ Super Admin Control Panel</h1>
               <p>Registered Madrasa Management System</p>
             </div>
-            <button onClick={() => setCurrentScreen('LOGIN')} className="btn-logout-top">Login Screen</button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => fetchMadrasas()}
+                className="btn-logout-top"
+                style={{ background: isRefreshingSuperMadrasas ? '#047857' : '#2563eb', cursor: isRefreshingSuperMadrasas ? 'not-allowed' : 'pointer' }}
+                disabled={isRefreshingSuperMadrasas}
+              >
+                {isRefreshingSuperMadrasas ? '⏳ Refreshing...' : '🔄 Refresh List'}
+              </button>
+              <button onClick={() => setCurrentScreen('LOGIN')} className="btn-logout-top">Login Screen</button>
+            </div>
           </header>
 
           {/* Stats section */}
