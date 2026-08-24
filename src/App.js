@@ -1201,14 +1201,18 @@ function App() {
       return true;
     }
 
-    // 2. Direct Program Code Match
-    if (pCode && (rProgId.toLowerCase() === pCode.toLowerCase() || rProgCode === pCode.toLowerCase())) {
+    // 2. Direct Program Code Match — rProgName is checked because programRegistrations store {program_name: code}
+    if (pCode && (
+      rProgId.toLowerCase() === pCode.toLowerCase() ||
+      rProgName === pCode.toLowerCase() ||
+      rProgCode === pCode.toLowerCase()
+    )) {
       return true;
     }
 
     // 3. Numeric Code match (e.g. 5 vs 05)
     const pCodeNum = parseInt(pCode, 10);
-    const rProgIdNum = parseInt(rProgId, 10);
+    const rProgIdNum = parseInt(rProgId || rProgName, 10);
     if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum && String(pCodeNum) === String(rProgIdNum)) {
       return true;
     }
@@ -1243,7 +1247,8 @@ function App() {
   const isStudentCategoryMatch = useCallback((p, sCatId, sCatName = null, catList = null) => {
     if (!p) return false;
     if (isGeneralProg(p)) return true; // General programs are open to all
-    if (!sCatId && !sCatName) return false;
+    // If student has no category assigned, don't block them — the registration check will handle it
+    if (!sCatId && !sCatName) return true;
 
     const list = Array.isArray(catList) ? catList : (Array.isArray(categories) ? categories : []);
     const pCatId = String(p.catid ?? p.catId ?? p.category ?? p.category_id ?? '').trim();
@@ -16846,21 +16851,16 @@ ${pagesHtml}
                           if (String(p.catid || p.catId || '') !== String(judgeSheetCat)) return false;
                         }
 
-                        // ── Strict Gender Filter ──
-                        // COMMON gender → only programs whose type is COMMON (not BOY, not GIRL)
-                        // BOY  gender   → BOY and COMMON programs only
-                        // GIRL gender   → GIRL and COMMON programs only
-                        const pType = String(p.type || '').toUpperCase();
                         if (!judgeSheetGender || judgeSheetGender === 'ALL') return true;
+                        const pGender = getProgramGender(p);
                         if (judgeSheetGender === 'COMMON') {
-                          // Show only programs that are COMMON type (not specifically boys or girls)
-                          return pType.includes('COMMON') || (!pType.includes('BOY') && !pType.includes('GIRL'));
+                          return pGender === 'COMMON';
                         }
                         if (judgeSheetGender === 'BOY') {
-                          return pType.includes('BOY') || pType.includes('BOYS') || pType.includes('COMMON');
+                          return pGender === 'BOY' || pGender === 'COMMON';
                         }
                         if (judgeSheetGender === 'GIRL') {
-                          return pType.includes('GIRL') || pType.includes('GIRLS') || pType.includes('COMMON');
+                          return pGender === 'GIRL' || pGender === 'COMMON';
                         }
                         return true;
                       });
