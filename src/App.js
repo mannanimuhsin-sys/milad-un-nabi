@@ -1192,35 +1192,41 @@ function App() {
     const pCode = String(p.code || '').trim();
     const pName = String(p.name || '').trim().toLowerCase();
 
-    const rProgName = String(r.program_name || r.programName || r.progname || r.progName || '').trim();
+    const rProgName = String(r.program_name || r.programName || r.progname || r.progName || '').trim().toLowerCase();
     const rProgId = String(r.program_id || r.programId || r.progid || r.progId || '').trim();
+    const rProgCode = String(r.program_code || r.progcode || '').trim().toLowerCase();
 
     // 1. Direct Database Program ID match (Highest Accuracy)
-    if (pId && (rProgId === pId || rProgName === pId)) {
+    if (pId && (rProgId === pId || (!isNaN(parseInt(rProgId, 10)) && parseInt(rProgId, 10) === parseInt(pId, 10)))) {
       return true;
     }
 
     // 2. Direct Program Code Match
-    if (pCode && (rProgId.toLowerCase() === pCode.toLowerCase() || rProgName.toLowerCase() === pCode.toLowerCase())) {
+    if (pCode && (rProgId.toLowerCase() === pCode.toLowerCase() || rProgCode === pCode.toLowerCase())) {
+      return true;
+    }
+
+    // 3. Numeric Code match (e.g. 5 vs 05)
+    const pCodeNum = parseInt(pCode, 10);
+    const rProgIdNum = parseInt(rProgId, 10);
+    if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum && String(pCodeNum) === String(rProgIdNum)) {
       return true;
     }
 
     if (exactOnly) return false;
 
-    // 3. Direct Program Name Match
-    if (pName && (rProgName.toLowerCase() === pName || rProgId.toLowerCase() === pName)) {
-      return true;
-    }
-
-    // 4. Numeric Code match (e.g. 5 vs 05)
-    const pCodeNum = parseInt(pCode, 10);
-    const rProgIdNum = parseInt(rProgId || rProgName, 10);
-    if (!isNaN(pCodeNum) && !isNaN(rProgIdNum) && pCodeNum === rProgIdNum && String(pCodeNum) === String(rProgIdNum)) {
-      return true;
+    // 4. Direct Program Name Match (Only if exact name matches and category is consistent)
+    if (pName && (rProgName === pName || (rProgId && rProgId.toLowerCase() === pName))) {
+      const rCat = String(r.catname || r.category || r.cat_name || r.catid || '').trim().toLowerCase();
+      const pCatId = String(p.catid || p.catId || '').trim().toLowerCase();
+      const pCatName = String(p.catname || p.catName || '').trim().toLowerCase();
+      if (!rCat || rCat === pCatId || rCat === pCatName || isGeneralProg(p)) {
+        return true;
+      }
     }
 
     return false;
-  }, []);
+  }, [isGeneralProg]);
 
   // 🔍 Helper to resolve student by ID first, then by regno (prevents matching wrong student when ID matches another student's regno)
   const findStudentByRef = useCallback((refId) => {
@@ -1237,7 +1243,7 @@ function App() {
   const isStudentCategoryMatch = useCallback((p, sCatId, sCatName = null, catList = null) => {
     if (!p) return false;
     if (isGeneralProg(p)) return true; // General programs are open to all
-    if (!sCatId && !sCatName) return true;
+    if (!sCatId && !sCatName) return false;
 
     const list = Array.isArray(catList) ? catList : (Array.isArray(categories) ? categories : []);
     const pCatId = String(p.catid ?? p.catId ?? p.category ?? p.category_id ?? '').trim();
@@ -1275,23 +1281,35 @@ function App() {
     return false;
   }, [categories, isGeneralProg]);
 
+  // 🎯 Strict Program Gender Detector
+  const getProgramGender = useCallback((p) => {
+    if (!p) return 'COMMON';
+    const pg = String(p.gender || p.program_gender || '').trim().toUpperCase();
+    if (pg === 'BOY' || pg === 'BOYS') return 'BOY';
+    if (pg === 'GIRL' || pg === 'GIRLS') return 'GIRL';
+
+    const pt = String(p.type || p.program_type || p.progtype || '').trim().toUpperCase();
+    if (pt.includes('GIRL')) return 'GIRL';
+    if (pt.includes('BOY')) return 'BOY';
+
+    const pn = String(p.name || p.program_name || '').trim().toUpperCase();
+    if (pn.includes('(GIRL') || pn.includes('[GIRL') || pn.includes('GIRLS') || pn.includes('പെൺ')) return 'GIRL';
+    if (pn.includes('(BOY') || pn.includes('[BOY') || pn.includes('BOYS') || pn.includes('ആൺ')) return 'BOY';
+
+    return 'COMMON';
+  }, []);
+
   // 🎯 Strict Gender Matching: Boy -> BOY / COMMON; Girl -> GIRL / COMMON
   const isStudentGenderMatch = useCallback((p, studentGender) => {
     if (!p || !studentGender) return true;
     const sg = String(studentGender).trim().toUpperCase(); // 'BOY' or 'GIRL'
-    const pt = String(p.type || p.program_type || p.progtype || '').trim().toUpperCase();
-    if (!pt || pt === 'COMMON' || pt === 'GENERAL' || pt === 'ALL') return true;
+    const progGender = getProgramGender(p);
+    if (progGender === 'COMMON' || progGender === 'GENERAL' || progGender === 'ALL') return true;
 
-    if (sg === 'BOY') {
-      if (pt.includes('GIRL') && !pt.includes('BOY')) return false;
-      return true;
-    }
-    if (sg === 'GIRL') {
-      if (pt.includes('BOY') && !pt.includes('GIRL')) return false;
-      return true;
-    }
+    if (sg === 'BOY') return progGender !== 'GIRL';
+    if (sg === 'GIRL') return progGender !== 'BOY';
     return true;
-  }, []);
+  }, [getProgramGender]);
 
   const getStudentRegisteredPrograms = useCallback((studentId, customRegs = null) => {
     if (!studentId) return [];
@@ -16859,13 +16877,16 @@ ${pagesHtml}
                       const getJudgeItemsForProg = (pObj) => {
                         if (!pObj) return [];
                         const isGroup = (pObj.type || '').toUpperCase().includes('GROUP');
-                        if (isGroup) {
+                        const isTeam = (pObj.type || '').toUpperCase().includes('TEAM');
+
+                        if (isGroup || isTeam) {
+                          // 1. Group / Team Program: strictly match by Program ID or Code
                           const progGroupRegs = groupRegistrations.filter(g =>
                             String(g.program_id) === String(pObj.id) ||
                             String(g.program_id) === String(pObj.code) ||
-                            (pObj.name && String(g.program_id).trim().toLowerCase() === String(pObj.name).trim().toLowerCase()) ||
-                            (g.program_name && String(g.program_name).trim().toLowerCase() === String(pObj.name).trim().toLowerCase())
+                            (pObj.code && String(g.program_id).toLowerCase() === String(pObj.code).toLowerCase())
                           );
+
                           if (progGroupRegs.length > 0) {
                             return progGroupRegs.map(g => {
                               const teamObj = teams.find(t => String(t.id) === String(g.team_id));
@@ -16875,10 +16896,12 @@ ${pagesHtml}
                               else if (typeof g.student_ids === 'string') {
                                 try { studentIds = JSON.parse(g.student_ids || '[]'); } catch(e) { studentIds = [g.student_ids]; }
                               }
-                              const leaderId = g.leader_id || (studentIds.length > 0 ? (typeof studentIds[0] === 'object' ? studentIds[0].id : studentIds[0]) : null);
+                              if (!Array.isArray(studentIds)) studentIds = [studentIds];
+
+                              const leaderId = g.leader_id || (studentIds.length > 0 ? (typeof studentIds[0] === 'object' && studentIds[0] !== null ? (studentIds[0].id || studentIds[0].regno || studentIds[0].regNo) : studentIds[0]) : null);
                               const leaderStudent = findStudentByRef(leaderId);
                               const memberStudents = studentIds
-                                .map(item => findStudentByRef(typeof item === 'object' ? (item.id || item.regno || item.regNo) : item))
+                                .map(item => findStudentByRef(typeof item === 'object' && item !== null ? (item.id || item.regno || item.regNo) : item))
                                 .filter(s => s && (!leaderStudent || String(s.id) !== String(leaderStudent.id)));
 
                               return {
@@ -16895,26 +16918,25 @@ ${pagesHtml}
                               };
                             });
                           } else {
-                            // Fallback: Check students registered for this group program and cluster by team
-                            const pFbCatId = String(pObj.catid ?? pObj.catId ?? pObj.category ?? pObj.category_id ?? '').trim();
-                            const pFbIsGen = isGeneralProg(pObj);
-                            const pFbType = String(pObj.type || '').toUpperCase();
+                            // Fallback: Check students registered for this group program strictly by category and gender
                             const baseStudents = students.filter(s => {
-                              const sFbCatId = String(s.catid ?? s.catId ?? '').trim();
-                              if (!pFbIsGen && sFbCatId && pFbCatId && sFbCatId !== pFbCatId) return false;
-                              const sFbGender = String(s.gender || '').toUpperCase();
-                              if (sFbGender && pFbType && !pFbType.includes('COMMON')) {
-                                if (sFbGender === 'BOY' && pFbType.includes('GIRL') && !pFbType.includes('BOY')) return false;
-                                if (sFbGender === 'GIRL' && pFbType.includes('BOY') && !pFbType.includes('GIRL')) return false;
-                              }
+                              const sCatId = String(s.catid ?? s.catId ?? s.category ?? '').trim();
+                              const sCatObj = (categories || []).find(c => String(c.id) === sCatId || (c.name && c.name.toLowerCase() === sCatId.toLowerCase()));
+                              const sCName = sCatObj ? sCatObj.name : sCatId;
+
+                              if (!isStudentCategoryMatch(pObj, sCatId, sCName, categories)) return false;
+                              if (!isStudentGenderMatch(pObj, s.gender)) return false;
+
                               return checkIsStudentRegisteredForProg(s, pObj);
                             });
+
                             const teamGroupMap = {};
                             baseStudents.forEach(s => {
                               const tId = String(s.teamid || s.teamId || 'no_team');
                               if (!teamGroupMap[tId]) teamGroupMap[tId] = [];
                               teamGroupMap[tId].push(s);
                             });
+
                             return Object.keys(teamGroupMap).map(tId => {
                               const teamSts = teamGroupMap[tId].sort(compareRegNo);
                               const teamObj = teams.find(t => String(t.id) === String(tId));
@@ -16936,24 +16958,18 @@ ${pagesHtml}
                           }
                         } else {
                           // Single Program: Return students strictly matching selected category & gender
-                          const pCatId = String(pObj.catid ?? pObj.catId ?? pObj.category ?? pObj.category_id ?? '').trim();
-                          const pIsGen = isGeneralProg(pObj);
-                          const pType = String(pObj.type || '').toUpperCase();
-
                           const baseStudents = students.filter(s => {
-                            // ── Category check: student must belong to same category as program ──
-                            const sCatId = String(s.catid ?? s.catId ?? '').trim();
-                            if (!pIsGen) {
-                              // Non-general program: student category must match program category
-                              if (sCatId && pCatId && sCatId !== pCatId) return false;
-                            }
-                            // ── Gender check: student gender must match program type ──
-                            const sGender = String(s.gender || '').toUpperCase();
-                            if (sGender && pType && !pType.includes('COMMON')) {
-                              if (sGender === 'BOY' && pType.includes('GIRL') && !pType.includes('BOY')) return false;
-                              if (sGender === 'GIRL' && pType.includes('BOY') && !pType.includes('GIRL')) return false;
-                            }
-                            // ── Also check that student is actually registered for this program ──
+                            const sCatId = String(s.catid ?? s.catId ?? s.category ?? '').trim();
+                            const sCatObj = (categories || []).find(c => String(c.id) === sCatId || (c.name && c.name.toLowerCase() === sCatId.toLowerCase()));
+                            const sCName = sCatObj ? sCatObj.name : sCatId;
+
+                            // ── Strict Category Gate ──
+                            if (!isStudentCategoryMatch(pObj, sCatId, sCName, categories)) return false;
+
+                            // ── Strict Gender Gate ──
+                            if (!isStudentGenderMatch(pObj, s.gender)) return false;
+
+                            // ── Strict Registration Check ──
                             return checkIsStudentRegisteredForProg(s, pObj);
                           });
 
