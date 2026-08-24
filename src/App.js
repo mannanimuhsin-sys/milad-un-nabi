@@ -13877,17 +13877,24 @@ ${pagesHtml}
                               // Filtered programs based on selected category chip + gender chip
                               const genderMatch = (p) => {
                                 if (programFilterGender === 'ALL') return true;
-                                const t = (p.type || '').toUpperCase();
-                                if (programFilterGender === 'BOY') return t.includes('BOY');
-                                if (programFilterGender === 'GIRL') return t.includes('GIRL');
-                                if (programFilterGender === 'COMMON') return !t.includes('BOY') && !t.includes('GIRL');
+                                const pGender = getProgramGender(p);
+                                if (programFilterGender === 'BOY') return pGender === 'BOY' || pGender === 'COMMON';
+                                if (programFilterGender === 'GIRL') return pGender === 'GIRL' || pGender === 'COMMON';
+                                if (programFilterGender === 'COMMON') return pGender === 'COMMON';
                                 return true;
                               };
                               const filteredPrograms = (programFilterCat === 'ALL'
                                 ? programs
                                 : programFilterCat === 'GENERAL'
                                   ? programs.filter(isGeneralProg)
-                                  : programs.filter(p => String(p.catid || p.catId || '') === String(programFilterCat))
+                                  : programs.filter(p => {
+                                      const pCId = String(p.catid || p.catId || '').trim();
+                                      const targetCId = String(programFilterCat).trim();
+                                      if (pCId === targetCId) return true;
+                                      const catObj = categories.find(c => String(c.id).trim() === targetCId);
+                                      if (catObj && p.catname && p.catname.toLowerCase() === catObj.name.toLowerCase()) return true;
+                                      return false;
+                                    })
                               ).filter(genderMatch);
 
                               // PDF generator function
@@ -13899,10 +13906,10 @@ ${pagesHtml}
                                 // Apply the currently active gender filter to any program list
                                 const pdfGenderMatch = (p) => {
                                   if (programFilterGender === 'ALL') return true;
-                                  const t = (p.type || '').toUpperCase();
-                                  if (programFilterGender === 'BOY') return t.includes('BOY');
-                                  if (programFilterGender === 'GIRL') return t.includes('GIRL');
-                                  if (programFilterGender === 'COMMON') return !t.includes('BOY') && !t.includes('GIRL');
+                                  const pGender = getProgramGender(p);
+                                  if (programFilterGender === 'BOY') return pGender === 'BOY' || pGender === 'COMMON';
+                                  if (programFilterGender === 'GIRL') return pGender === 'GIRL' || pGender === 'COMMON';
+                                  if (programFilterGender === 'COMMON') return pGender === 'COMMON';
                                   return true;
                                 };
 
@@ -13915,12 +13922,12 @@ ${pagesHtml}
                                   // 1. Standard DB Categories (for ALL)
                                   if (catIdFilter === 'ALL') {
                                     categories.forEach(cat => {
-                                      const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(cat.id)).filter(pdfGenderMatch);
+                                      const catProgs = programs.filter(p => String(p.catid || p.catId || '').trim() === String(cat.id).trim()).filter(pdfGenderMatch);
                                       if (catProgs.length === 0) return;
                                       pdfTotalCount += catProgs.length;
                                       const rows = catProgs.map(p => {
                                         const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                        const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                        const typeLabel = (p.type || '').includes('TEAM') ? 'Team' : (p.type || '').includes('GROUP') ? 'Group' : 'Single';
                                         return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
                                       }).join('');
                                       catSections += `
@@ -13946,7 +13953,7 @@ ${pagesHtml}
                                     }
                                     const rows = genProgs.map(p => {
                                       const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                      const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                      const typeLabel = (p.type || '').includes('TEAM') ? 'Team' : (p.type || '').includes('GROUP') ? 'Group' : 'Single';
                                       return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
                                     }).join('');
                                     catSections += `
@@ -13960,12 +13967,12 @@ ${pagesHtml}
                                   }
                                 } else {
                                   const cat = categories.find(c => String(c.id) === String(catIdFilter));
-                                  const catProgs = programs.filter(p => String(p.catid || p.catId || '') === String(catIdFilter)).filter(pdfGenderMatch);
+                                  const catProgs = programs.filter(p => String(p.catid || p.catId || '').trim() === String(catIdFilter).trim()).filter(pdfGenderMatch);
                                   if (catProgs.length > 0 && cat) {
                                     pdfTotalCount = catProgs.length;
                                     const rows = catProgs.map(p => {
                                       const divLabel = (p.type || '').includes('BOY') ? 'Boys' : (p.type || '').includes('GIRL') ? 'Girls' : 'Common';
-                                      const typeLabel = (p.type || '').includes('GROUP') ? 'Group' : 'Single';
+                                      const typeLabel = (p.type || '').includes('TEAM') ? 'Team' : (p.type || '').includes('GROUP') ? 'Group' : 'Single';
                                       return `<tr><td>${p.code}</td><td>${p.name}</td><td>${divLabel}</td><td>${typeLabel}</td></tr>`;
                                     }).join('');
                                     catSections += `
@@ -14197,7 +14204,7 @@ ${pagesHtml}
                                       📄 All Programs PDF
                                     </button>
                                     {categories.map(c => {
-                                      const hasProgs = programs.some(p => String(p.catid || p.catId || '') === String(c.id));
+                                      const hasProgs = programs.some(p => String(p.catid || p.catId || '').trim() === String(c.id).trim());
                                       if (!hasProgs) return null;
                                       return (
                                         <button
@@ -14222,16 +14229,20 @@ ${pagesHtml}
                                   <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
                                     {(() => {
                                       const dbCatsToShow = programFilterCat === 'ALL'
-                                        ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '') === String(c.id)))
+                                        ? categories.filter(c => filteredPrograms.some(p => String(p.catid || p.catId || '').trim() === String(c.id).trim()))
                                         : programFilterCat === 'GENERAL'
                                           ? []
-                                          : categories.filter(c => String(c.id) === String(programFilterCat));
+                                          : categories.filter(c => String(c.id).trim() === String(programFilterCat).trim());
 
                                       const standaloneGenProgs = filteredPrograms.filter(p => isGeneralProg(p));
+                                      const uncategorizedProgs = programFilterCat === 'ALL'
+                                        ? filteredPrograms.filter(p => !isGeneralProg(p) && !categories.some(c => String(c.id).trim() === String(p.catid || p.catId || '').trim()))
+                                        : [];
 
                                       const showGeneralBlock = (programFilterCat === 'ALL' && standaloneGenProgs.length > 0) || programFilterCat === 'GENERAL';
+                                      const showUncategorizedBlock = programFilterCat === 'ALL' && uncategorizedProgs.length > 0;
 
-                                      if (dbCatsToShow.length === 0 && !showGeneralBlock) {
+                                      if (dbCatsToShow.length === 0 && !showGeneralBlock && !showUncategorizedBlock) {
                                         return (
                                           <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
                                             {programs.length === 0 ? 'No programs added.' : 'No programs in this category.'}
@@ -14311,7 +14322,7 @@ ${pagesHtml}
                                       return (
                                         <>
                                           {dbCatsToShow.map(cat => {
-                                            const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '') === String(cat.id));
+                                            const catProgs = filteredPrograms.filter(p => String(p.catid || p.catId || '').trim() === String(cat.id).trim());
                                             if (catProgs.length === 0) return null;
                                             return (
                                               <div key={cat.id} style={{ marginTop: '16px' }}>
@@ -14370,6 +14381,31 @@ ${pagesHtml}
                                                   {standaloneGenProgs.map(renderProgRow)}
                                                 </div>
                                               )}
+                                            </div>
+                                          )}
+
+                                          {showUncategorizedBlock && (
+                                            <div key="UNCATEGORIZED" style={{ marginTop: '16px' }}>
+                                              {/* Uncategorized heading */}
+                                              <div style={{
+                                                background: 'linear-gradient(90deg, #475569, #64748b)',
+                                                color: 'white',
+                                                padding: '10px 14px',
+                                                borderRadius: '8px',
+                                                fontWeight: '700',
+                                                fontSize: '13px',
+                                                marginBottom: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                boxShadow: '0 2px 6px rgba(71, 85, 105, 0.2)'
+                                              }}>
+                                                📂 Other / Unassigned Category
+                                                <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '2px 10px', fontSize: '11px' }}>{uncategorizedProgs.length} programs</span>
+                                              </div>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                {uncategorizedProgs.map(renderProgRow)}
+                                              </div>
                                             </div>
                                           )}
                                         </>
