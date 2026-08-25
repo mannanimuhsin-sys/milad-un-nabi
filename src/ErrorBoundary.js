@@ -13,41 +13,24 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('[ErrorBoundary caught error]:', error, errorInfo);
 
-    // 🚀 Auto Self-Healing: If error occurs on mobile/desktop, auto-clear corrupt caches and reload once
+    // 🚀 Auto Self-Healing: Clear corrupt caches and reload cleanly
     try {
-      const recoveryKey = 'milad_auto_heal_' + Math.floor(Date.now() / 60000); // 1-minute window
-      const alreadyTried = sessionStorage.getItem(recoveryKey);
-      if (!alreadyTried) {
-        sessionStorage.setItem(recoveryKey, '1');
-
-        // Unregister service workers
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(regs => {
-            regs.forEach(r => r.unregister());
-          }).catch(() => {});
-        }
-
-        // Delete cache storage
-        if ('caches' in window) {
-          caches.keys().then(names => {
-            names.forEach(name => caches.delete(name));
-          }).catch(() => {});
-        }
-
-        // Purge potentially corrupt JSON cache keys from localStorage
-        try {
-          Object.keys(localStorage).forEach(k => {
-            if (k.startsWith('cached_data_') || k.startsWith('milad_visibility_') || k.includes('chunk_reload')) {
-              localStorage.removeItem(k);
-            }
-          });
-        } catch (e) {}
-
-        // Auto-heal reload with cache-busting param
-        setTimeout(() => {
-          window.location.replace(window.location.origin + window.location.pathname + '?v=' + Date.now());
-        }, 300);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(r => r.unregister());
+        }).catch(() => {});
       }
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        }).catch(() => {});
+      }
+      sessionStorage.clear();
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('cached_data_') || k.startsWith('milad_visibility_') || k.includes('chunk_reload') || k.startsWith('miladfest_')) {
+          localStorage.removeItem(k);
+        }
+      });
     } catch (e) {}
   }
 
@@ -63,13 +46,14 @@ class ErrorBoundary extends React.Component {
           names.forEach(name => caches.delete(name));
         }).catch(() => {});
       }
+      sessionStorage.clear();
       Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('cached_data_') || k.includes('chunk_reload')) {
+        if (k.startsWith('cached_data_') || k.includes('chunk_reload') || k.startsWith('miladfest_')) {
           localStorage.removeItem(k);
         }
       });
     } catch (e) {}
-    window.location.replace(window.location.origin + window.location.pathname + '?t=' + Date.now());
+    window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
   };
 
   handleResetAndReload = () => {
@@ -87,7 +71,7 @@ class ErrorBoundary extends React.Component {
         }).catch(() => {});
       }
     } catch (e) {}
-    window.location.replace(window.location.origin + window.location.pathname + '?reset=' + Date.now());
+    window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
   };
 
   render() {
@@ -118,7 +102,7 @@ class ErrorBoundary extends React.Component {
               Milad Fest
             </h2>
             <p style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '20px', lineHeight: '1.5' }}>
-              ആപ്പ് അപ്ഡേറ്റ് ചെയ്തുകൊണ്ടിരിക്കുകയാണ്. താഴെയുള്ള ബട്ടൺ അമർത്തി പുതിയ വേർഷൻ ലോഡ് ചെയ്യുക.
+              ആപ്പ് പുതിയ വേർഷനിലേക്ക് അപ്ഡേറ്റ് ചെയ്തിട്ടുണ്ട്. തുറക്കാൻ താഴെയുള്ള ബട്ടൺ അമർത്തുക.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
@@ -127,19 +111,20 @@ class ErrorBoundary extends React.Component {
                   background: 'linear-gradient(135deg, #059669, #047857)',
                   color: 'white',
                   border: 'none',
-                  padding: '12px',
+                  padding: '14px',
                   borderRadius: '10px',
-                  fontWeight: '700',
-                  fontSize: '14px',
-                  cursor: 'pointer'
+                  fontWeight: '800',
+                  fontSize: '15px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(5,150,105,0.4)'
                 }}
               >
-                🔄 പുതിയ വേർഷൻ ലോഡ് ചെയ്യുക (Update App)
+                🚀 ആപ്പ് തുറക്കുക (Open App)
               </button>
               <button
                 onClick={this.handleResetAndReload}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   color: '#94a3b8',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
                   padding: '10px',
@@ -152,6 +137,11 @@ class ErrorBoundary extends React.Component {
                 🧹 കാഷെ ക്ലിയർ ചെയ്തു തുറക്കുക (Clear Cache & Open)
               </button>
             </div>
+            {this.state.error && (
+              <div style={{ marginTop: '16px', fontSize: '10px', color: '#64748b', wordBreak: 'break-all', opacity: 0.7 }}>
+                {String(this.state.error.message || this.state.error)}
+              </div>
+            )}
           </div>
         </div>
       );
