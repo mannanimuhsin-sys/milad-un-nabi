@@ -1159,11 +1159,11 @@ function App() {
   const regTabDirtyRef = React.useRef(false); // true when user has unsaved checkbox changes
 
   // ── Prizes Tab States ──
-  const [prizesCatFilter, setPrizesCatFilter] = useState('ALL');
-  const [prizesPlaceFilter, setPrizesPlaceFilter] = useState('ALL'); // 'ALL' | 'FIRST' | 'SECOND' | 'THIRD'
+  const [prizesTypeFilter, setPrizesTypeFilter] = useState('ALL'); // 'ALL' | 'SINGLE' | 'GROUP' | 'TEAM'
+  const [prizesCatFilter, setPrizesCatFilter] = useState('ALL'); // 'ALL' | catId | 'GENERAL'
+  const [prizesGenderFilter, setPrizesGenderFilter] = useState('ALL'); // 'ALL' | 'BOY' | 'GIRL' | 'COMMON'
+  const [prizesPlaceFilter, setPrizesPlaceFilter] = useState('ALL'); // 'ALL' | 'FIRST' | 'SECOND' | 'THIRD' | 'PARTICIPANTS'
   const [prizesStudentSearch, setPrizesStudentSearch] = useState('');
-  const [prizesActiveTab, setPrizesActiveTab] = useState('WINNERS'); // 'WINNERS' | 'ENCOURAGEMENT'
-  const [encouragementSubMode, setEncouragementSubMode] = useState('CONTESTANTS'); // 'CONTESTANTS' | 'ALL_STUDENTS'
 
   const isStudentMatch = useCallback((r, studentObj) => {
     if (!r || !studentObj) return false;
@@ -18727,315 +18727,503 @@ ${pagesHtml}
                         return null;
                       };
 
-                      // Filter results by selected category
-                      const catFilteredResults = resultsList.filter(r => {
-                        if (!isProgPublished(r.progid)) return false;
-                        if (!r.place || r.place === 'No Place') return false;
-                        const norm = getNormPlace(r.place);
-                        if (!norm) return false;
+                      // 1. Process Published Results from resultsList (Single, Group, Team)
+                      // Individual members of winning groups/teams are expanded so their names and reg numbers appear
+                      const allWinnersExpanded = [];
 
-                        if (prizesCatFilter === 'ALL') return true;
-                        const rCatId = String(r.catid || r.catId || '');
-                        if (prizesCatFilter === 'GENERAL') {
-                          if (isGeneralResult(r)) return true;
-                          return false;
+                      (resultsList || []).forEach(r => {
+                        if (!r) return;
+                        if (!isProgPublished(r.progid)) return;
+                        const normPlace = getNormPlace(r.place);
+                        if (!normPlace) return; // Only 1st, 2nd, 3rd
+
+                        const pObj = (programs || []).find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                        const pIdStr = pObj ? String(pObj.id) : String(r.progid || '');
+                        const pCodeStr = pObj?.code ? String(pObj.code) : '';
+                        const pName = r.progname || pObj?.name || r.progcode || 'Program';
+                        const rawProgType = String(pObj?.type || r.progtype || r.progType || '').toUpperCase();
+                        const isGroupProg = rawProgType.includes('GROUP') || String(r.studentname || '').startsWith('👥');
+                        const isTeamProg = rawProgType.includes('TEAM') || String(r.studentname || '').startsWith('🏟️');
+                        const progTypeCategory = isTeamProg ? 'TEAM' : isGroupProg ? 'GROUP' : 'SINGLE';
+
+                        const pGender = getProgramGender(pObj) || (rawProgType.includes('BOY') ? 'BOY' : rawProgType.includes('GIRL') ? 'GIRL' : 'COMMON');
+
+                        const cCatId = String(r.catid || r.catId || pObj?.catid || pObj?.catId || '');
+                        const cObj = (categories || []).find(c => String(c.id) === cCatId);
+                        const catName = r.catname || cObj?.name || (cCatId === 'GENERAL' || cCatId === '-1' ? 'GENERAL' : '—');
+                        const isGeneral = isGeneralProg(pObj) || isGeneralResult(r) || cCatId === '-1' || cCatId === 'GENERAL' || (generalCatIds || []).map(String).includes(cCatId);
+
+                        if (isGroupProg || isTeamProg) {
+                          // Find matching group/team registration
+                          const matchedGroup = (groupRegistrations || []).find(g => {
+                            if (!g) return false;
+                            const gProgId = String(g.program_id || '').trim();
+                            const progMatches = gProgId === pIdStr || (pCodeStr && gProgId === pCodeStr) || (pObj && String(g.program_id) === String(pObj.id));
+                            if (!progMatches) return false;
+
+                            const rName = String(r.studentname || '').trim().toLowerCase().replace(/^👥\s*/, '').replace(/^🏟️\s*/, '');
+                            const gName = String(g.group_name || '').trim().toLowerCase().replace(/^👥\s*/, '').replace(/^🏟️\s*/, '');
+                            const rTid = String(r.teamid || r.teamId || '').trim();
+                            const gTid = String(g.team_id || g.teamId || '').trim();
+
+                            if (rTid && gTid && rTid === gTid) {
+                              if (!gName || !rName || rName === gName || rName.includes(gName) || gName.includes(rName)) return true;
+                            }
+                            return rName === gName || (gName && (rName.includes(gName) || gName.includes(rName)));
+                          });
+
+                          let memberStudents = [];
+                          if (matchedGroup) {
+                            let memberIds = [];
+                            try {
+                              if (Array.isArray(matchedGroup.student_ids)) memberIds = matchedGroup.student_ids;
+                              else if (typeof matchedGroup.student_ids === 'string') memberIds = JSON.parse(matchedGroup.student_ids || '[]');
+                            } catch (e) { memberIds = []; }
+                            if (!Array.isArray(memberIds)) memberIds = [memberIds];
+
+                            const leaderId = String(matchedGroup.leader_id || '').trim();
+                            if (leaderId) {
+                              const ls = (students || []).find(s => String(s.id).trim() === leaderId || String(s.regno || s.regNo || '').trim() === leaderId);
+                              if (ls && !memberStudents.find(m => String(m.id) === String(ls.id))) memberStudents.push(ls);
+                            }
+                            memberIds.forEach(item => {
+                              let sid = '';
+                              if (typeof item === 'object' && item !== null) sid = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
+                              else sid = String(item || '').trim();
+                              if (!sid) return;
+                              const s = (students || []).find(st => String(st.id).trim() === sid || String(st.regno || st.regNo || '').trim() === sid);
+                              if (s && !memberStudents.find(m => String(m.id) === String(s.id))) memberStudents.push(s);
+                            });
+                          }
+
+                          if (memberStudents.length === 0) {
+                            allWinnersExpanded.push({
+                              id: `win_${r.id || Math.random()}`,
+                              studentId: r.studentid || '',
+                              regNo: '—',
+                              studentName: r.studentname || (matchedGroup?.group_name || 'Group'),
+                              gender: pGender === 'GIRL' ? 'GIRL' : 'BOY',
+                              catId: cCatId,
+                              catName,
+                              isGeneral,
+                              progId: pIdStr,
+                              progName,
+                              progType: progTypeCategory,
+                              progGender: pGender,
+                              position: normPlace,
+                              grade: r.grade || '-',
+                              points: r.points || 0,
+                              teamId: r.teamid || '',
+                              teamName: r.teamname || ((teams || []).find(t => String(t.id) === String(r.teamid)) || {}).name || '—',
+                              isGroup: isGroupProg,
+                              isTeam: isTeamProg,
+                              groupLabel: matchedGroup?.group_name || r.studentname || 'Group'
+                            });
+                          } else {
+                            memberStudents.forEach((s, idx) => {
+                              const sTeam = ((teams || []).find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || r.teamname || '';
+                              const sGender = String(s.gender || '').toUpperCase() || (pGender === 'GIRL' ? 'GIRL' : 'BOY');
+                              allWinnersExpanded.push({
+                                id: `win_${r.id || ''}_${s.id || idx}`,
+                                studentId: s.id,
+                                regNo: s.regno || s.regNo || '—',
+                                studentName: s.name,
+                                gender: sGender,
+                                catId: cCatId,
+                                catName,
+                                isGeneral,
+                                progId: pIdStr,
+                                progName,
+                                progType: progTypeCategory,
+                                progGender: pGender,
+                                position: normPlace,
+                                grade: r.grade || '-',
+                                points: 0,
+                                teamId: s.teamid || s.teamId || r.teamid || '',
+                                teamName: sTeam,
+                                isGroup: isGroupProg,
+                                isTeam: isTeamProg,
+                                groupLabel: matchedGroup?.group_name || r.studentname || 'Group',
+                                memberIndex: idx + 1,
+                                memberTotal: memberStudents.length
+                              });
+                            });
+                          }
+                        } else {
+                          // SINGLE program
+                          const studentObj = (students || []).find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim()) ||
+                            (students || []).find(s => {
+                              const rName = String(r.studentname || '').toLowerCase();
+                              const sReg = String(s.regno || s.regNo || '').toLowerCase();
+                              return sReg && (rName === sReg || rName.startsWith(`${sReg} -`) || rName.startsWith(`${sReg}-`));
+                            });
+
+                          const sRegNo = studentObj ? (studentObj.regno || studentObj.regNo || '') : (r.studentname && r.studentname.includes('-') ? r.studentname.split('-')[0].trim() : '—');
+                          const sName = studentObj ? studentObj.name : r.studentname;
+                          const sGender = studentObj ? (studentObj.gender || 'BOY') : (r.studentgender || (pGender === 'GIRL' ? 'GIRL' : 'BOY'));
+                          const sTeam = (studentObj && ((teams || []).find(t => String(t.id) === String(studentObj.teamid || studentObj.teamId)) || {}).name) || r.teamname || ((teams || []).find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+
+                          allWinnersExpanded.push({
+                            id: `win_${r.id || Math.random()}`,
+                            studentId: studentObj ? studentObj.id : (r.studentid || ''),
+                            regNo: sRegNo,
+                            studentName: sName,
+                            gender: sGender,
+                            catId: cCatId,
+                            catName,
+                            isGeneral,
+                            progId: pIdStr,
+                            progName,
+                            progType: 'SINGLE',
+                            progGender: pGender,
+                            position: normPlace,
+                            grade: r.grade || '-',
+                            points: r.points || 0,
+                            teamId: (studentObj && (studentObj.teamid || studentObj.teamId)) || r.teamid || '',
+                            teamName: sTeam,
+                            isGroup: false,
+                            isTeam: false
+                          });
                         }
-                        if (rCatId === String(prizesCatFilter)) return true;
-                        const pObj = programs.find(p => String(p.id) === String(r.progid));
-                        if (pObj && String(pObj.catid || pObj.catId || '') === String(prizesCatFilter)) return true;
-                        return false;
                       });
 
-                      // Helper: expand a result row into individual student rows for GROUP/TEAM programs
-                      // Points are NOT given individually — expansion is only for prize distribution counting
-                      const expandResultToIndividuals = (r) => {
-                        const pObj = programs.find(p => String(p.id) === String(r.progid));
-                        const progType = String(pObj?.type || r.progtype || r.progType || '').toUpperCase();
-                        const isGroupOrTeam = progType.includes('GROUP') || progType.includes('TEAM');
-                        if (!isGroupOrTeam) return [r]; // Not a group program — return as-is
+                      // 2. Build list of Participants (Students registered in competitions without 1st/2nd place)
+                      // If 3rd place won, position is 'Third'; otherwise 'Participant'
+                      const allParticipantsList = [];
 
-                        // Find the group registration for this result
-                        const matchedGroup = groupRegistrations.find(g => {
-                          const gProgId = String(g.program_id || '').trim();
-                          const rProgId = String(r.progid || '').trim();
-                          const rName = String(r.studentname || '').trim().toLowerCase();
-                          const gName = String(g.group_name || '').trim().toLowerCase();
-                          return gProgId === rProgId || rName === gName || rName.includes(gName) || gName.includes(rName);
+                      (students || []).forEach(s => {
+                        if (!s) return;
+                        const sRegProgs = getStudentRegisteredPrograms(s.id) || [];
+                        if (sRegProgs.length === 0) return;
+
+                        const sDbId = String(s.id);
+                        const sRegNo = String(s.regno || s.regNo || '');
+                        const sGender = String(s.gender || 'BOY').toUpperCase();
+                        const sCatId = String(s.catid || s.catId || '');
+                        const sCatObj = (categories || []).find(c => String(c.id) === sCatId);
+                        const sCatName = sCatObj ? sCatObj.name : (sCatId === 'GENERAL' || sCatId === '-1' ? 'GENERAL' : '—');
+                        const sTeam = ((teams || []).find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || '—';
+
+                        sRegProgs.forEach(p => {
+                          if (!p) return;
+                          const pIdStr = String(p.id || '');
+                          const pCodeStr = String(p.code || '');
+                          const rawProgType = String(p.type || p.program_type || p.progtype || '').toUpperCase();
+                          const isGroupProg = Boolean(p.isGroup) || rawProgType.includes('GROUP');
+                          const isTeamProg = rawProgType.includes('TEAM');
+                          const progTypeCategory = isTeamProg ? 'TEAM' : isGroupProg ? 'GROUP' : 'SINGLE';
+                          const pGender = getProgramGender(p) || (rawProgType.includes('BOY') ? 'BOY' : rawProgType.includes('GIRL') ? 'GIRL' : 'COMMON');
+                          const isGenProg = isGeneralProg(p) || sCatId === '-1' || sCatId === 'GENERAL' || (generalCatIds || []).map(String).includes(sCatId);
+
+                          // Check if this student won a place in this program
+                          const wonWinnerEntry = allWinnersExpanded.find(w => {
+                            const progMatches = w.progId === pIdStr || (pCodeStr && w.progId === pCodeStr);
+                            if (!progMatches) return false;
+                            const sMatch = (w.studentId && String(w.studentId) === sDbId) || (sRegNo && String(w.regNo) === sRegNo) || (w.studentName && w.studentName.toLowerCase() === s.name.toLowerCase());
+                            return sMatch;
+                          });
+
+                          if (wonWinnerEntry) {
+                            if (wonWinnerEntry.position === 'First' || wonWinnerEntry.position === 'Second') {
+                              return; // Skip 1st and 2nd winners
+                            }
+                            if (wonWinnerEntry.position === 'Third') {
+                              // Include with 'Third' position badge
+                              allParticipantsList.push({
+                                id: `part_3rd_${s.id}_${pIdStr}`,
+                                studentId: s.id,
+                                regNo: sRegNo || '—',
+                                studentName: s.name,
+                                gender: sGender,
+                                catId: sCatId,
+                                catName: sCatName,
+                                isGeneral: isGenProg,
+                                progId: pIdStr,
+                                progName: p.name || 'Program',
+                                progType: progTypeCategory,
+                                progGender: pGender,
+                                position: 'Third',
+                                grade: wonWinnerEntry.grade || '-',
+                                points: 0,
+                                teamId: s.teamid || s.teamId || '',
+                                teamName: sTeam,
+                                isGroup: isGroupProg,
+                                isTeam: isTeamProg,
+                                groupLabel: p.groupName || (isGroupProg ? 'Group' : '')
+                              });
+                              return;
+                            }
+                          }
+
+                          // Registered participant without rank
+                          allParticipantsList.push({
+                            id: `part_reg_${s.id}_${pIdStr}`,
+                            studentId: s.id,
+                            regNo: sRegNo || '—',
+                            studentName: s.name,
+                            gender: sGender,
+                            catId: sCatId,
+                            catName: sCatName,
+                            isGeneral: isGenProg,
+                            progId: pIdStr,
+                            progName: p.name || 'Program',
+                            progType: progTypeCategory,
+                            progGender: pGender,
+                            position: 'Participant',
+                            grade: '-',
+                            points: 0,
+                            teamId: s.teamid || s.teamId || '',
+                            teamName: sTeam,
+                            isGroup: isGroupProg,
+                            isTeam: isTeamProg,
+                            groupLabel: p.groupName || (isGroupProg ? 'Group' : '')
+                          });
                         });
+                      });
 
-                        if (!matchedGroup) {
-                          // No group reg found — show as a single "group" entry
-                          return [{ ...r, _isGroupEntry: true, _groupLabel: r.studentname || 'Group', _groupMemberIndex: 0, _groupMemberTotal: 1 }];
+                      // 3. Determine base list according to Position / Status Filter
+                      let baseList = [];
+                      if (prizesPlaceFilter === 'ALL') {
+                        baseList = allWinnersExpanded;
+                      } else if (prizesPlaceFilter === 'FIRST') {
+                        baseList = allWinnersExpanded.filter(r => r.position === 'First');
+                      } else if (prizesPlaceFilter === 'SECOND') {
+                        baseList = allWinnersExpanded.filter(r => r.position === 'Second');
+                      } else if (prizesPlaceFilter === 'THIRD') {
+                        baseList = allWinnersExpanded.filter(r => r.position === 'Third');
+                      } else if (prizesPlaceFilter === 'PARTICIPANTS') {
+                        baseList = allParticipantsList;
+                      }
+
+                      // 4. Apply Type, Category, Gender, and Search Filters
+                      const filteredDisplayList = baseList.filter(item => {
+                        // Program / Event Type
+                        if (prizesTypeFilter !== 'ALL') {
+                          if (item.progType !== prizesTypeFilter) return false;
                         }
 
-                        // Expand: get all student IDs from the group
-                        let memberIds = [];
-                        try {
-                          if (Array.isArray(matchedGroup.student_ids)) memberIds = matchedGroup.student_ids;
-                          else if (typeof matchedGroup.student_ids === 'string') memberIds = JSON.parse(matchedGroup.student_ids || '[]');
-                        } catch (e) { memberIds = []; }
-                        if (!Array.isArray(memberIds)) memberIds = [memberIds];
-
-                        // Also include leader if not already in memberIds
-                        const leaderId = String(matchedGroup.leader_id || '').trim();
-
-                        // Resolve each member to a student object
-                        const memberStudents = [];
-                        if (leaderId) {
-                          const ls = students.find(s => String(s.id).trim() === leaderId || String(s.regno || s.regNo || '').trim() === leaderId);
-                          if (ls && !memberStudents.find(m => String(m.id) === String(ls.id))) memberStudents.push(ls);
-                        }
-                        memberIds.forEach(item => {
-                          let sid = '';
-                          if (typeof item === 'object' && item !== null) sid = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
-                          else sid = String(item || '').trim();
-                          if (!sid) return;
-                          const s = students.find(st => String(st.id).trim() === sid || String(st.regno || st.regNo || '').trim() === sid);
-                          if (s && !memberStudents.find(m => String(m.id) === String(s.id))) memberStudents.push(s);
-                        });
-
-                        if (memberStudents.length === 0) {
-                          return [{ ...r, _isGroupEntry: true, _groupLabel: matchedGroup.group_name || r.studentname || 'Group', _groupMemberIndex: 0, _groupMemberTotal: 1 }];
+                        // Category
+                        if (prizesCatFilter !== 'ALL') {
+                          if (prizesCatFilter === 'GENERAL') {
+                            if (!item.isGeneral) return false;
+                          } else {
+                            if (String(item.catId) !== String(prizesCatFilter)) return false;
+                          }
                         }
 
-                        // Return one row per member — no personal points
-                        return memberStudents.map((s, idx) => ({
-                          ...r,
-                          _isGroupEntry: true,
-                          _groupLabel: matchedGroup.group_name || r.studentname || 'Group',
-                          _groupMemberIndex: idx,
-                          _groupMemberTotal: memberStudents.length,
-                          _memberStudent: s,
-                          // Override studentname & studentid for display — but NO individual points
-                          _displayStudentName: s.name,
-                          _displayRegNo: s.regno || s.regNo || '',
-                          _displayTeam: (teams.find(t => String(t.id) === String(s.teamid || s.teamId || '')) || {}).name || r.teamname || '',
-                        }));
-                      };
+                        // Gender / Section
+                        if (prizesGenderFilter !== 'ALL') {
+                          if (prizesGenderFilter === 'BOY') {
+                            if (item.gender !== 'BOY' && item.progGender !== 'BOY') return false;
+                          } else if (prizesGenderFilter === 'GIRL') {
+                            if (item.gender !== 'GIRL' && item.progGender !== 'GIRL') return false;
+                          } else if (prizesGenderFilter === 'COMMON') {
+                            if (item.progGender !== 'COMMON') return false;
+                          }
+                        }
 
-                      // Expanded display list — group programs expand into individual members
-                      const expandedCatFiltered = catFilteredResults.flatMap(r => expandResultToIndividuals(r));
+                        // Search
+                        if (prizesStudentSearch && prizesStudentSearch.trim()) {
+                          const q = prizesStudentSearch.trim().toLowerCase();
+                          const rNo = String(item.regNo || '').toLowerCase();
+                          const sName = String(item.studentName || '').toLowerCase();
+                          const pName = String(item.progName || '').toLowerCase();
+                          const tName = String(item.teamName || '').toLowerCase();
+                          const cName = String(item.catName || '').toLowerCase();
+                          if (!rNo.includes(q) && !sName.includes(q) && !pName.includes(q) && !tName.includes(q) && !cName.includes(q)) {
+                            return false;
+                          }
+                        }
 
-                      const firstWinners = expandedCatFiltered.filter(r => getNormPlace(r.place) === 'First');
-                      const secondWinners = expandedCatFiltered.filter(r => getNormPlace(r.place) === 'Second');
-                      const thirdWinners = expandedCatFiltered.filter(r => getNormPlace(r.place) === 'Third');
-
-                      const displayWinners = expandedCatFiltered.filter(r => {
-                        const norm = getNormPlace(r.place);
-                        if (prizesPlaceFilter === 'FIRST') return norm === 'First';
-                        if (prizesPlaceFilter === 'SECOND') return norm === 'Second';
-                        if (prizesPlaceFilter === 'THIRD') return norm === 'Third';
                         return true;
                       });
 
-                      // PDF Generator for Winners List
+                      // 5. Stat Counts under current Type, Category, Gender filters
+                      const activeFilterWinners = allWinnersExpanded.filter(item => {
+                        if (prizesTypeFilter !== 'ALL' && item.progType !== prizesTypeFilter) return false;
+                        if (prizesCatFilter !== 'ALL') {
+                          if (prizesCatFilter === 'GENERAL') { if (!item.isGeneral) return false; }
+                          else if (String(item.catId) !== String(prizesCatFilter)) return false;
+                        }
+                        if (prizesGenderFilter !== 'ALL') {
+                          if (prizesGenderFilter === 'BOY' && item.gender !== 'BOY' && item.progGender !== 'BOY') return false;
+                          if (prizesGenderFilter === 'GIRL' && item.gender !== 'GIRL' && item.progGender !== 'GIRL') return false;
+                          if (prizesGenderFilter === 'COMMON' && item.progGender !== 'COMMON') return false;
+                        }
+                        return true;
+                      });
+
+                      const activeFilterParticipants = allParticipantsList.filter(item => {
+                        if (prizesTypeFilter !== 'ALL' && item.progType !== prizesTypeFilter) return false;
+                        if (prizesCatFilter !== 'ALL') {
+                          if (prizesCatFilter === 'GENERAL') { if (!item.isGeneral) return false; }
+                          else if (String(item.catId) !== String(prizesCatFilter)) return false;
+                        }
+                        if (prizesGenderFilter !== 'ALL') {
+                          if (prizesGenderFilter === 'BOY' && item.gender !== 'BOY' && item.progGender !== 'BOY') return false;
+                          if (prizesGenderFilter === 'GIRL' && item.gender !== 'GIRL' && item.progGender !== 'GIRL') return false;
+                          if (prizesGenderFilter === 'COMMON' && item.progGender !== 'COMMON') return false;
+                        }
+                        return true;
+                      });
+
+                      const countFirst = activeFilterWinners.filter(r => r.position === 'First').length;
+                      const countSecond = activeFilterWinners.filter(r => r.position === 'Second').length;
+                      const countThird = activeFilterWinners.filter(r => r.position === 'Third').length;
+                      const countParticipants = activeFilterParticipants.length;
+
+                      // PDF Generator
                       const generatePrizesPDF = () => {
                         const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
                         const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
                         const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                        const activeCatObj = categories.find(c => String(c.id) === String(prizesCatFilter));
+                        const activeCatObj = (categories || []).find(c => String(c.id) === String(prizesCatFilter));
                         const catLabel = prizesCatFilter === 'ALL' ? (lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും') : prizesCatFilter === 'GENERAL' ? 'GENERAL' : (activeCatObj ? activeCatObj.name : '');
+                        const typeLabel = prizesTypeFilter === 'ALL' ? (lang === 'EN' ? 'All Programs' : 'എല്ലാ മത്സരങ്ങളും') : prizesTypeFilter;
+                        const genderLabel = prizesGenderFilter === 'ALL' ? (lang === 'EN' ? 'All' : 'എല്ലാം') : prizesGenderFilter;
+                        const posLabel = prizesPlaceFilter === 'ALL' ? (lang === 'EN' ? 'All Winners' : 'വിജയികൾ') : prizesPlaceFilter === 'PARTICIPANTS' ? (lang === 'EN' ? 'Participants' : 'പങ്കെടുത്തവർ') : prizesPlaceFilter;
 
-                        const printRows = displayWinners.map((r, idx) => {
-                           const norm = getNormPlace(r.place);
-                           const placeBadge = norm === 'First' ? '🥇 1st Place' : norm === 'Second' ? '🥈 2nd Place' : '🥉 3rd Place';
-                           const pObj = programs.find(p => String(p.id) === String(r.progid));
-                           const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
-                           const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
-                           const cName = r.catname || (cObj ? cObj.name : '—');
-                           const regNo = r._displayRegNo || (() => { const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim()); return sObj ? (sObj.regno || sObj.regNo || '—') : '—'; })();
-                           const studentName = r._displayStudentName || r.studentname || '—';
-                           const teamName = r._displayTeam || r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
-                           const isGrp = r._isGroupEntry;
-                           const placeColor = norm === 'First' ? '#92400e' : norm === 'Second' ? '#475569' : '#9a3412';
-                           const rowBg = isGrp ? 'background:#fefce8;' : '';
-                           const groupTag = isGrp ? '<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px;font-size:10px;margin-left:4px;font-weight:800;">Group</span>' : '';
-                           return '<tr style="' + rowBg + '">' +
-                             '<td style="font-weight:700;text-align:center;">' + (idx + 1) + '</td>' +
-                             '<td style="font-weight:700;color:#1e40af;">' + regNo + '</td>' +
-                             '<td style="font-weight:700;">' + studentName + '</td>' +
-                             '<td>' + cName + '</td>' +
-                             '<td style="font-weight:600;">' + pName + groupTag + '</td>' +
-                             '<td style="font-weight:800;color:' + placeColor + ';">' + placeBadge + '</td>' +
-                             '<td>' + teamName + '</td>' +
-                           '</tr>';
+                        const printRows = filteredDisplayList.map((r, idx) => {
+                          const placeBadge = r.position === 'First' ? '🥇 1st Place' : r.position === 'Second' ? '🥈 2nd Place' : r.position === 'Third' ? '🥉 3rd Place' : '🎗️ Participant';
+                          const placeColor = r.position === 'First' ? '#92400e' : r.position === 'Second' ? '#475569' : r.position === 'Third' ? '#9a3412' : '#047857';
+                          const isGrp = r.isGroup || r.isTeam;
+                          const rowBg = isGrp ? 'background:#fefce8;' : '';
+                          const groupTag = isGrp ? `<span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px;font-size:10px;margin-left:4px;font-weight:800;">${r.progType}</span>` : '';
+
+                          return `<tr style="${rowBg}">
+                            <td style="font-weight:700;text-align:center;">${idx + 1}</td>
+                            <td style="font-weight:700;color:#1e40af;">${r.regNo || '—'}</td>
+                            <td style="font-weight:700;">${r.studentName}</td>
+                            <td>${r.gender || '—'}</td>
+                            <td>${r.catName}</td>
+                            <td style="font-weight:600;">${r.progName}${groupTag}</td>
+                            <td style="font-weight:700;">${r.progType}</td>
+                            <td style="font-weight:800;color:${placeColor};">${placeBadge}</td>
+                            <td>${r.teamName || '—'}</td>
+                          </tr>`;
                         }).join('');
 
-                        const printWin = window.open('', '_blank');
-                        printWin.document.write(`<!DOCTYPE html>
+                        const prizesHtml = `<!DOCTYPE html>
 <html>
 <head>
-<title>Prizes & Winners List - ${madrasaName}</title>
+<title>Prizes & Awards List - ${madrasaName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4 portrait; margin: 15mm; }
+  @page { size: A4 portrait; margin: 12mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', sans-serif; background: #fff; color: #0f172a; padding: 10px; }
-  .header { text-align: center; border-bottom: 3px double #1e3a8a; padding-bottom: 12px; margin-bottom: 16px; }
-  .header h1 { font-size: 24px; color: #1e3a8a; font-weight: 800; }
-  .header p { font-size: 13px; color: #475569; margin-top: 3px; font-weight: 600; }
-  .sub-header { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .sub-title { font-size: 16px; font-weight: 800; color: #1e40af; }
-  .sub-meta { font-size: 12px; color: #334155; font-weight: 700; }
-  .summary-bar { display: flex; gap: 10px; margin-bottom: 16px; }
-  .sum-box { flex: 1; padding: 10px; text-align: center; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; }
-  .sum-val { font-size: 20px; font-weight: 900; }
-  .sum-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: #1e3a8a; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; text-align: left; }
-  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+  .header { text-align: center; border-bottom: 3px double #1e3a8a; padding-bottom: 10px; margin-bottom: 14px; }
+  .header h1 { font-size: 22px; color: #1e3a8a; font-weight: 800; }
+  .header p { font-size: 12px; color: #475569; margin-top: 3px; font-weight: 600; }
+  .sub-header { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .sub-title { font-size: 15px; font-weight: 800; color: #1e40af; }
+  .sub-meta { font-size: 11px; color: #334155; font-weight: 700; }
+  .summary-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .sum-box { flex: 1; min-width: 80px; padding: 8px; text-align: center; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; }
+  .sum-val { font-size: 18px; font-weight: 900; }
+  .sum-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th { background: #1e3a8a; color: white; font-size: 11px; font-weight: 700; padding: 7px 8px; text-align: left; }
+  td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
   tr:nth-child(even) td { background: #f8fafc; }
-  .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+  .footer { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
   @media print { .no-print { display: none !important; } }
 </style>
 </head>
 <body>
-<button onclick="window.print()" class="no-print" style="margin-bottom:14px;padding:10px 24px;background:#1e40af;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Print / Download Winners PDF</button>
+<button onclick="window.print()" class="no-print" style="margin-bottom:12px;padding:9px 20px;background:#1e40af;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Print / Download Prizes PDF</button>
 <div class="header">
-  ${eventName ? `<div style="font-size:12px;font-weight:800;color:#d97706;letter-spacing:1px;margin-bottom:4px;">${eventName} ${eventYear || ''}</div>` : ''}
+  ${eventName ? `<div style="font-size:11px;font-weight:800;color:#d97706;letter-spacing:1px;margin-bottom:3px;">${eventName} ${eventYear || ''}</div>` : ''}
   <h1>${madrasaName}</h1>
   <p>${madrasaPlace} | Reg No: ${madrasaRegNo}</p>
 </div>
 <div class="sub-header">
-  <div class="sub-title">🎁 ${lang === 'EN' ? 'Prizes & Winners List' : 'സമ്മാനങ്ങളും വിജയികളുടെ ലിസ്റ്റും'}</div>
-  <div class="sub-meta">📂 Category: <strong>${catLabel}</strong> | Total: <strong>${displayWinners.length}</strong></div>
+  <div class="sub-title">🎁 ${lang === 'EN' ? 'Prizes & Awards List' : 'സമ്മാനങ്ങളുടെ ലിസ്റ്റ്'} (${posLabel})</div>
+  <div class="sub-meta">Type: <strong>${typeLabel}</strong> | Category: <strong>${catLabel}</strong> | Gender: <strong>${genderLabel}</strong> | Total: <strong>${filteredDisplayList.length}</strong></div>
 </div>
 <div class="summary-bar">
-  <div class="sum-box" style="background:#fffbeb;border-color:#fcd34d;"><div class="sum-val" style="color:#b45309;">🥇 ${firstWinners.length}</div><div class="sum-lbl" style="color:#b45309;">First Place</div></div>
-  <div class="sum-box" style="background:#f8fafc;border-color:#cbd5e1;"><div class="sum-val" style="color:#475569;">🥈 ${secondWinners.length}</div><div class="sum-lbl" style="color:#475569;">Second Place</div></div>
-  <div class="sum-box" style="background:#fff7ed;border-color:#fdba74;"><div class="sum-val" style="color:#c2410c;">🥉 ${thirdWinners.length}</div><div class="sum-lbl" style="color:#c2410c;">Third Place</div></div>
-  <div class="sum-box" style="background:#f0fdf4;border-color:#86efac;"><div class="sum-val" style="color:#15803d;">🏆 ${catFilteredResults.length}</div><div class="sum-lbl" style="color:#15803d;">Total Winners</div></div>
+  <div class="sum-box" style="background:#fffbeb;border-color:#fcd34d;"><div class="sum-val" style="color:#b45309;">🥇 ${countFirst}</div><div class="sum-lbl" style="color:#b45309;">First</div></div>
+  <div class="sum-box" style="background:#f8fafc;border-color:#cbd5e1;"><div class="sum-val" style="color:#475569;">🥈 ${countSecond}</div><div class="sum-lbl" style="color:#475569;">Second</div></div>
+  <div class="sum-box" style="background:#fff7ed;border-color:#fdba74;"><div class="sum-val" style="color:#c2410c;">🥉 ${countThird}</div><div class="sum-lbl" style="color:#c2410c;">Third</div></div>
+  <div class="sum-box" style="background:#ecfdf5;border-color:#a7f3d0;"><div class="sum-val" style="color:#047857;">🎗️ ${countParticipants}</div><div class="sum-lbl" style="color:#047857;">Participants</div></div>
+  <div class="sum-box" style="background:#eff6ff;border-color:#bfdbfe;"><div class="sum-val" style="color:#1e40af;">📄 ${filteredDisplayList.length}</div><div class="sum-lbl" style="color:#1e40af;">Total</div></div>
 </div>
 <table>
   <thead>
     <tr>
-      <th style="width:40px;text-align:center;">#</th>
-      <th style="width:70px;">Reg No</th>
+      <th style="width:35px;text-align:center;">#</th>
+      <th style="width:65px;">Reg No</th>
       <th>Student Name</th>
+      <th style="width:45px;">Gender</th>
       <th>Category</th>
-      <th>Competition / Program</th>
+      <th>Competition</th>
+      <th style="width:55px;">Type</th>
       <th>Position</th>
       <th>Team</th>
     </tr>
   </thead>
   <tbody>
-    ${printRows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">No winner records found.</td></tr>'}
+    ${printRows || '<tr><td colspan="9" style="text-align:center;padding:18px;color:#94a3b8;">No records found.</td></tr>'}
   </tbody>
 </table>
-<div class="footer">Generated by Milad Fest Management App • Total Entries: ${displayWinners.length}</div>
-</body>
-</html>`);
-                        printWin.document.close();
-                        printWin.print();
-                      };
-
-                      // PDF Generator for Encouragement List
-                      const generateEncouragementPDF = (contestantList, modeTitle) => {
-                        const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
-                        const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
-                        const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                        const activeCatObj = categories.find(c => String(c.id) === String(prizesCatFilter));
-                        const catLabel = prizesCatFilter === 'ALL' ? (lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും') : prizesCatFilter === 'GENERAL' ? 'GENERAL' : (activeCatObj ? activeCatObj.name : '');
-
-                        const printRows = contestantList.map((s, idx) => {
-                          const regNo = s.regno || s.regNo || '—';
-                          const cObj = categories.find(c => String(c.id) === String(s.catid || s.catId || ''));
-                          const cName = cObj ? cObj.name : '—';
-                          const tObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
-                          const tName = tObj ? tObj.name : '—';
-                          const sProgs = getStudentRegisteredPrograms(s.id);
-                          const progNames = sProgs.map(p => p.name).join(', ') || '—';
-
-                          return `<tr>
-                            <td style="font-weight:700;text-align:center;">${idx + 1}</td>
-                            <td style="font-weight:700;color:#1e40af;">${regNo}</td>
-                            <td style="font-weight:700;">${s.name}</td>
-                            <td>${cName}</td>
-                            <td style="font-size:11px;">${progNames}</td>
-                            <td>${tName}</td>
-                          </tr>`;
-                        }).join('');
-
-                        const encouragementHtml = `<!DOCTYPE html>
-<html>
-<head>
-<title>Encouragement List - ${madrasaName}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  @page { size: A4 portrait; margin: 15mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: #fff; color: #0f172a; padding: 10px; }
-  .header { text-align: center; border-bottom: 3px double #065f46; padding-bottom: 12px; margin-bottom: 16px; }
-  .header h1 { font-size: 24px; color: #065f46; font-weight: 800; }
-  .header p { font-size: 13px; color: #475569; margin-top: 3px; font-weight: 600; }
-  .sub-header { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .sub-title { font-size: 16px; font-weight: 800; color: #047857; }
-  .sub-meta { font-size: 12px; color: #064e3b; font-weight: 700; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: #047857; color: white; font-size: 12px; font-weight: 700; padding: 8px 10px; text-align: left; }
-  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-  @media print { .no-print { display: none !important; } }
-</style>
-</head>
-<body>
-<button onclick="window.print()" class="no-print" style="margin-bottom:14px;padding:10px 24px;background:#047857;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Print / Download Encouragement PDF</button>
-<div class="header">
-  ${eventName ? `<div style="font-size:12px;font-weight:800;color:#d97706;letter-spacing:1px;margin-bottom:4px;">${eventName} ${eventYear || ''}</div>` : ''}
-  <h1>${madrasaName}</h1>
-  <p>${madrasaPlace} | Reg No: ${madrasaRegNo}</p>
-</div>
-<div class="sub-header">
-  <div class="sub-title">🎗️ ${modeTitle}</div>
-  <div class="sub-meta">📂 Category: <strong>${catLabel}</strong> | Total: <strong>${contestantList.length}</strong></div>
-</div>
-<table>
-  <thead>
-    <tr>
-      <th style="width:40px;text-align:center;">#</th>
-      <th style="width:80px;">Reg No</th>
-      <th>Student Name</th>
-      <th>Category</th>
-      <th>Registered Competitions</th>
-      <th>Team</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${printRows || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#94a3b8;">No student records found.</td></tr>'}
-  </tbody>
-</table>
-<div class="footer">Generated by Milad Fest Management App • Total Students: ${contestantList.length}</div>
+<div class="footer">Generated by Milad Fest Management App • Total: ${filteredDisplayList.length}</div>
 </body>
 </html>`;
-                        openPrintDocument(encouragementHtml, 'Encouragement_List');
+                        openPrintDocument(prizesHtml, 'Prizes_List');
                       };
 
                       return (
                         <div className="settings-card-v2" style={{ maxWidth: '1000px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {/* Title */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+                            <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
                               🎁 {lang === 'EN' ? 'Prizes & Awards Control' : 'സമ്മാനങ്ങളും പ്രോത്സാഹനവും (Prizes Panel)'}
                             </h3>
                           </div>
 
-                          {/* ── Category Filter Chips ── */}
-                          <div className="student-filters-container" style={{ marginBottom: '18px', background: '#fff', padding: '14px 16px', borderRadius: '14px', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                            <div className="filter-section-title" style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
-                              📂 {lang === 'EN' ? 'Filter by Category' : 'കാറ്റഗറി അനുസരിച്ച് തിരിക്കുക'}
+                          {/* ── FILTER 1: Program / Competition Type ── */}
+                          <div className="student-filters-container" style={{ marginBottom: '14px', background: '#fff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                            <div className="filter-section-title" style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              🎭 {lang === 'EN' ? '1. Filter by Program Type' : '1. പ്രോഗ്രാം തരം (Program Type)'}
+                            </div>
+                            <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {[
+                                { key: 'ALL', label: lang === 'EN' ? '📁 All Programs' : '📁 All (എല്ലാം)' },
+                                { key: 'SINGLE', label: lang === 'EN' ? '👤 Single' : '👤 സിംഗിൾ (Single)' },
+                                { key: 'GROUP', label: lang === 'EN' ? '👥 Group' : '👥 ഗ്രൂപ്പ് (Group)' },
+                                { key: 'TEAM', label: lang === 'EN' ? '🏟️ Team' : '🏟️ ടീം (Team)' },
+                              ].map(f => (
+                                <div
+                                  key={f.key}
+                                  className={`filter-chip-box ${prizesTypeFilter === f.key ? 'active' : ''}`}
+                                  onClick={() => setPrizesTypeFilter(f.key)}
+                                  style={{ padding: '8px 14px', fontSize: '12px', fontWeight: '700' }}
+                                >
+                                  {f.label}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* ── FILTER 2: Category Filter ── */}
+                          <div className="student-filters-container" style={{ marginBottom: '14px', background: '#fff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                            <div className="filter-section-title" style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              📂 {lang === 'EN' ? '2. Filter by Category' : '2. കാറ്റഗറി അനുസരിച്ച് തിരിക്കുക (Category)'}
                             </div>
                             <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                               <div
                                 className={`filter-chip-box ${prizesCatFilter === 'ALL' ? 'active' : ''}`}
                                 onClick={() => setPrizesCatFilter('ALL')}
+                                style={{ padding: '8px 14px', fontSize: '12px', fontWeight: '700' }}
                               >
                                 📁 {lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും (All)'}
                               </div>
-                              {categories.map(c => (
+                              {(categories || []).map(c => (
                                 <div
                                   key={c.id}
                                   className={`filter-chip-box ${String(prizesCatFilter) === String(c.id) ? 'active' : ''}`}
                                   onClick={() => setPrizesCatFilter(c.id)}
+                                  style={{ padding: '8px 14px', fontSize: '12px', fontWeight: '700' }}
                                 >
                                   {c.name}
                                 </div>
@@ -19044,6 +19232,8 @@ ${pagesHtml}
                                 className={`filter-chip-box ${prizesCatFilter === 'GENERAL' ? 'active' : ''}`}
                                 onClick={() => setPrizesCatFilter('GENERAL')}
                                 style={{
+                                  padding: '8px 14px',
+                                  fontSize: '12px',
                                   background: prizesCatFilter === 'GENERAL' ? 'linear-gradient(135deg,#d97706,#b45309)' : '',
                                   color: prizesCatFilter === 'GENERAL' ? '#fff' : '',
                                   fontWeight: '800'
@@ -19054,475 +19244,236 @@ ${pagesHtml}
                             </div>
                           </div>
 
-                          {/* ── Sub Tab Navigation ── */}
-                          <div className="sub-tab-nav" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+                          {/* ── FILTER 3: Gender / Section Filter ── */}
+                          <div className="student-filters-container" style={{ marginBottom: '14px', background: '#fff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                            <div className="filter-section-title" style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              👥 {lang === 'EN' ? '3. Filter by Gender / Section' : '3. വിഭാഗം അനുസരിച്ച് തിരിക്കുക (Gender)'}
+                            </div>
+                            <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {[
+                                { key: 'ALL', label: lang === 'EN' ? '👥 All' : '👥 All (എല്ലാം)', activeClass: 'active' },
+                                { key: 'BOY', label: lang === 'EN' ? '👦 Boys' : '👦 ബോയ് (Boys)', activeClass: 'active-boy' },
+                                { key: 'GIRL', label: lang === 'EN' ? '👧 Girls' : '👧 ഗേൾ (Girls)', activeClass: 'active-girl' },
+                                { key: 'COMMON', label: lang === 'EN' ? '🤝 Common' : '🤝 കോമൺ (Common)', activeClass: 'active' },
+                              ].map(f => (
+                                <div
+                                  key={f.key}
+                                  className={`filter-chip-box ${prizesGenderFilter === f.key ? f.activeClass : ''}`}
+                                  onClick={() => setPrizesGenderFilter(f.key)}
+                                  style={{ padding: '8px 14px', fontSize: '12px', fontWeight: '700' }}
+                                >
+                                  {f.label}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* ── FILTER 4: Position / Rank / Status Filter ── */}
+                          <div className="student-filters-container" style={{ marginBottom: '18px', background: '#fff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                            <div className="filter-section-title" style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              🏅 {lang === 'EN' ? '4. Filter by Position / Prize' : '4. സമ്മാനം / സ്ഥാനം അനുസരിച്ച് തിരിക്കുക (Position)'}
+                            </div>
+                            <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {[
+                                { key: 'ALL', label: lang === 'EN' ? '🏅 All Winners' : '🏅 All (എല്ലാ വിജയികളും)' },
+                                { key: 'FIRST', label: lang === 'EN' ? '🥇 First Place' : '🥇 ഫസ്റ്റ് (1st Place)' },
+                                { key: 'SECOND', label: lang === 'EN' ? '🥈 Second Place' : '🥈 സെക്കൻഡ് (2nd Place)' },
+                                { key: 'THIRD', label: lang === 'EN' ? '🥉 Third Place' : '🥉 തേർഡ് (3rd Place)' },
+                                { key: 'PARTICIPANTS', label: lang === 'EN' ? '🎗️ Participant Members' : '🎗️ പാർട്ടിസിപ്പന്റ്സ് (പങ്കെടുത്തവർ)' },
+                              ].map(f => (
+                                <div
+                                  key={f.key}
+                                  className={`filter-chip-box ${prizesPlaceFilter === f.key ? 'active' : ''}`}
+                                  onClick={() => setPrizesPlaceFilter(f.key)}
+                                  style={{ padding: '8px 14px', fontSize: '12px', fontWeight: '700' }}
+                                >
+                                  {f.label}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* ── Summary Stat Cards (5 Cards) ── */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+                            <div style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1.5px solid #fcd34d', borderRadius: '14px', padding: '12px 10px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                              <div style={{ fontSize: '22px', marginBottom: '2px' }}>🥇</div>
+                              <div style={{ fontSize: '24px', fontWeight: '900', color: '#b45309', lineHeight: 1 }}>{countFirst}</div>
+                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#92400e', marginTop: '4px' }}>{lang === 'EN' ? 'First Place' : 'ഫസ്റ്റ് (1st)'}</div>
+                            </div>
+                            <div style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', border: '1.5px solid #cbd5e1', borderRadius: '14px', padding: '12px 10px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                              <div style={{ fontSize: '22px', marginBottom: '2px' }}>🥈</div>
+                              <div style={{ fontSize: '24px', fontWeight: '900', color: '#475569', lineHeight: 1 }}>{countSecond}</div>
+                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#334155', marginTop: '4px' }}>{lang === 'EN' ? 'Second Place' : 'സെക്കൻഡ് (2nd)'}</div>
+                            </div>
+                            <div style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', border: '1.5px solid #fdba74', borderRadius: '14px', padding: '12px 10px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                              <div style={{ fontSize: '22px', marginBottom: '2px' }}>🥉</div>
+                              <div style={{ fontSize: '24px', fontWeight: '900', color: '#c2410c', lineHeight: 1 }}>{countThird}</div>
+                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#9a3412', marginTop: '4px' }}>{lang === 'EN' ? 'Third Place' : 'തേർഡ് (3rd)'}</div>
+                            </div>
+                            <div style={{ background: 'linear-gradient(135deg, #ecfdf5, #d1fae5)', border: '1.5px solid #a7f3d0', borderRadius: '14px', padding: '12px 10px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                              <div style={{ fontSize: '22px', marginBottom: '2px' }}>🎗️</div>
+                              <div style={{ fontSize: '24px', fontWeight: '900', color: '#047857', lineHeight: 1 }}>{countParticipants}</div>
+                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#064e3b', marginTop: '4px' }}>{lang === 'EN' ? 'Participants' : 'പങ്കെടുത്തവർ'}</div>
+                            </div>
+                            <div style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', border: '1.5px solid #bfdbfe', borderRadius: '14px', padding: '12px 10px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                              <div style={{ fontSize: '22px', marginBottom: '2px' }}>🏆</div>
+                              <div style={{ fontSize: '24px', fontWeight: '900', color: '#1e40af', lineHeight: 1 }}>{filteredDisplayList.length}</div>
+                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#1e3a8a', marginTop: '4px' }}>{lang === 'EN' ? 'Total Shown' : 'ലിസ്റ്റിലുള്ളവർ'}</div>
+                            </div>
+                          </div>
+
+                          {/* ── Search Bar + PDF Export Bar ── */}
+                          <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '14px', padding: '12px 16px', marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1, minWidth: '240px' }}>
+                              <input
+                                type="text"
+                                className="settings-input-v2"
+                                placeholder={lang === 'EN' ? '🔍 Search by Reg No, Name, Program, Team...' : '🔍 രജിസ്റ്റർ നമ്പർ, പേര്, പ്രോഗ്രാം, ടീം തിരയുക...'}
+                                value={prizesStudentSearch}
+                                onChange={(e) => setPrizesStudentSearch(e.target.value)}
+                                style={{ margin: 0, width: '100%' }}
+                              />
+                              {prizesStudentSearch && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPrizesStudentSearch('')}
+                                  style={{ background: '#cbd5e1', border: 'none', borderRadius: '8px', padding: '9px 14px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                >
+                                  ✕ Clear
+                                </button>
+                              )}
+                            </div>
+
                             <button
-                              className={`sub-nav-item ${prizesActiveTab === 'WINNERS' ? 'active' : ''}`}
-                              onClick={() => setPrizesActiveTab('WINNERS')}
-                              style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '800' }}
+                              type="button"
+                              onClick={generatePrizesPDF}
+                              style={{
+                                background: 'linear-gradient(135deg, #1e40af, #1d4ed8)',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '10px',
+                                fontWeight: '800',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 4px 12px rgba(30,64,175,0.25)',
+                                whiteSpace: 'nowrap'
+                              }}
                             >
-                              🏆 {lang === 'EN' ? 'Winners List (1st, 2nd, 3rd)' : 'വിജയികളുടെ ലിസ്റ്റ് (1st, 2nd, 3rd)'}
-                            </button>
-                            <button
-                              className={`sub-nav-item ${prizesActiveTab === 'ENCOURAGEMENT' ? 'active' : ''}`}
-                              onClick={() => setPrizesActiveTab('ENCOURAGEMENT')}
-                              style={{ flex: 1, padding: '12px', fontSize: '14px', fontWeight: '800' }}
-                            >
-                              🎗️ {lang === 'EN' ? 'Encouragement / Participation' : 'പ്രോത്സാഹനം (പങ്കെടുത്തവർ)'}
+                              📄 {lang === 'EN' ? 'Download Prizes PDF' : 'സമ്മാനങ്ങളുടെ പിഡിഎഫ് (PDF)'}
                             </button>
                           </div>
 
-                          {/* ── SECTION 1: WINNERS LIST ── */}
-                          {prizesActiveTab === 'WINNERS' && (
-                            <div>
-                              {/* ── Summary Stat Cards ── */}
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-                                <div style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1.5px solid #fcd34d', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
-                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🥇</div>
-                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#b45309', lineHeight: 1 }}>{firstWinners.length}</div>
-                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#92400e', marginTop: '4px' }}>{lang === 'EN' ? 'First Place' : 'ഫസ്റ്റ് (1st)'}</div>
-                                </div>
-                                <div style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', border: '1.5px solid #cbd5e1', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
-                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🥈</div>
-                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#475569', lineHeight: 1 }}>{secondWinners.length}</div>
-                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#334155', marginTop: '4px' }}>{lang === 'EN' ? 'Second Place' : 'സെക്കൻഡ് (2nd)'}</div>
-                                </div>
-                                <div style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', border: '1.5px solid #fdba74', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
-                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🥉</div>
-                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#c2410c', lineHeight: 1 }}>{thirdWinners.length}</div>
-                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#9a3412', marginTop: '4px' }}>{lang === 'EN' ? 'Third Place' : 'തേർഡ് (3rd)'}</div>
-                                </div>
-                                <div style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1.5px solid #86efac', borderRadius: '14px', padding: '14px 12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
-                                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>🏆</div>
-                                  <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', lineHeight: 1 }}>{catFilteredResults.length}</div>
-                                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#166534', marginTop: '4px' }}>{lang === 'EN' ? 'Total Winners' : 'ആകെ വിജയികൾ'}</div>
-                                </div>
-                              </div>
+                          {/* ── Prizes & Participants Data Table ── */}
+                          <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                              <thead>
+                                <tr style={{ background: '#1e3a8a', color: 'white', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
+                                  <th style={{ padding: '10px 12px', textAlign: 'center', width: '45px' }}>#</th>
+                                  <th style={{ padding: '10px 12px', width: '75px' }}>Reg No</th>
+                                  <th style={{ padding: '10px 12px' }}>Student Name</th>
+                                  <th style={{ padding: '10px 12px', width: '60px' }}>Gender</th>
+                                  <th style={{ padding: '10px 12px' }}>Category</th>
+                                  <th style={{ padding: '10px 12px' }}>Competition</th>
+                                  <th style={{ padding: '10px 12px', width: '65px' }}>Type</th>
+                                  <th style={{ padding: '10px 12px' }}>Position / Status</th>
+                                  <th style={{ padding: '10px 12px' }}>Team</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredDisplayList.length === 0 ? (
+                                  <tr>
+                                    <td colSpan="9" style={{ textAlign: 'center', padding: '28px 0', color: '#94a3b8', fontStyle: 'italic' }}>
+                                      {lang === 'EN' ? 'No records found for this filter.' : 'ഈ ഫിൽട്ടറിൽ വിവരങ്ങൾ ലഭ്യമല്ല.'}
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  filteredDisplayList.map((r, idx) => {
+                                    const is1st = r.position === 'First';
+                                    const is2nd = r.position === 'Second';
+                                    const is3rd = r.position === 'Third';
+                                    const isPart = r.position === 'Participant';
 
-                              {/* ── Student Prize Search Box ── */}
-                              <div style={{ background: 'linear-gradient(135deg, #f8fafc, #eff6ff)', border: '1.5px solid #bfdbfe', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
-                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e40af', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  🔍 {lang === 'EN' ? 'Search Student Prizes by Reg No / Name' : 'രജിസ്റ്റർ നമ്പർ നൽകി ഒരു വിദ്യാർത്ഥിയുടെ സമ്മാനങ്ങൾ തിരയുക'}
-                                </div>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                  <input
-                                    type="text"
-                                    className="settings-input-v2"
-                                    placeholder={lang === 'EN' ? 'Enter Register No (eg: 101) or Student Name...' : 'രജിസ്റ്റർ നമ്പർ അല്ലെങ്കിൽ പേര് ടൈപ്പ് ചെയ്യുക...'}
-                                    value={prizesStudentSearch}
-                                    onChange={(e) => setPrizesStudentSearch(e.target.value)}
-                                    style={{ flex: 1, minWidth: '220px', margin: 0 }}
-                                  />
-                                  {prizesStudentSearch && (
-                                    <button onClick={() => setPrizesStudentSearch('')} style={{ background: '#cbd5e1', border: 'none', borderRadius: '8px', padding: '10px 16px', fontWeight: '700', cursor: 'pointer' }}>
-                                      ✕ Clear
-                                    </button>
-                                  )}
-                                </div>
+                                    const badgeBg = is1st ? '#fef3c7' : is2nd ? '#e2e8f0' : is3rd ? '#ffedd5' : '#dcfce7';
+                                    const badgeColor = is1st ? '#92400e' : is2nd ? '#334155' : is3rd ? '#9a3412' : '#166534';
+                                    const badgeBorder = is1st ? '#fcd34d' : is2nd ? '#94a3b8' : is3rd ? '#fdba74' : '#86efac';
+                                    const icon = is1st ? '🥇' : is2nd ? '🥈' : is3rd ? '🥉' : '🎗️';
+                                    const posLabel = is1st ? '1st Place' : is2nd ? '2nd Place' : is3rd ? '3rd Place' : (lang === 'EN' ? 'Participant' : 'പങ്കെടുത്തവർ');
 
-                                {/* Results of Student Search */}
-                                {(() => {
-                                  if (!prizesStudentSearch.trim()) return null;
-                                  const term = prizesStudentSearch.trim().toLowerCase();
+                                    const isGrp = r.isGroup || r.isTeam;
+                                    const rowBg = isGrp ? (idx % 2 === 0 ? '#fefce8' : '#fef9c3') : (idx % 2 === 0 ? '#fff' : '#f8fafc');
 
-                                  const matchedStudent = students.find(s => {
-                                    const rNo = String(s.regno || s.regNo || '').trim().toLowerCase();
-                                    return rNo === term;
-                                  }) || students.find(s => {
-                                    const rNo = String(s.regno || s.regNo || '').trim().toLowerCase();
-                                    return rNo.startsWith(term);
-                                  }) || students.find(s => {
-                                    const sName = String(s.name || '').trim().toLowerCase();
-                                    return sName === term || sName.startsWith(term);
-                                  });
-
-                                  const matchedResults = resultsList.filter(r => {
-                                    if (!isProgPublished(r.progid)) return false;
-                                    const rRaw = String(r.studentname || '').trim();
-                                    const rSid = String(r.studentid || r.student_id || '').trim().toLowerCase();
-                                    const dashIdx = rRaw.indexOf(' - ');
-                                    const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim().toLowerCase() : (rRaw.includes('-') ? rRaw.split('-')[0].trim().toLowerCase() : '');
-
-                                    if (matchedStudent) {
-                                      const sDbId = String(matchedStudent.id || '').toLowerCase();
-                                      const sRegNo = String(matchedStudent.regno || matchedStudent.regNo || '').toLowerCase();
-                                      if (sDbId && rSid === sDbId) return true;
-                                      if (sRegNo && rRegPart === sRegNo) return true;
-                                      if (sRegNo && (rRaw.toLowerCase() === sRegNo || rRaw.toLowerCase().startsWith(sRegNo + ' -') || rRaw.toLowerCase().startsWith(sRegNo + '-'))) return true;
-
-                                      // Check group results for matchedStudent
-                                      const isGroupMatch = (groupRegistrations || []).some(g => {
-                                        const prog = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
-                                        const pIdStr = prog ? String(prog.id) : String(r.progid);
-                                        const pCodeStr = prog ? String(prog.code || '') : '';
-                                        if (String(g.program_id) !== pIdStr && (!pCodeStr || String(g.program_id) !== pCodeStr)) return false;
-
-                                        let mIds = [];
-                                        if (Array.isArray(g.student_ids)) mIds = g.student_ids;
-                                        else if (typeof g.student_ids === 'string') {
-                                          try { mIds = JSON.parse(g.student_ids); } catch(e) { mIds = [g.student_ids]; }
-                                        }
-                                        if (!Array.isArray(mIds)) mIds = [mIds];
-
-                                        const inGroup = (g.leader_id && (String(g.leader_id).toLowerCase() === sDbId || String(g.leader_id).toLowerCase() === sRegNo)) ||
-                                          mIds.some(id => {
-                                            const idStr = String(typeof id === 'object' && id !== null ? (id.id || id.student_id || id.regno || '') : id).toLowerCase();
-                                            return idStr === sDbId || idStr === sRegNo;
-                                          });
-                                        if (!inGroup) return false;
-
-                                        const gName = String(g.group_name || '').trim().toLowerCase();
-                                        const rRawLower = rRaw.toLowerCase();
-                                        return gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`));
-                                      });
-                                      if (isGroupMatch) return true;
-                                    } else {
-                                      if (rSid === term || rRegPart === term) return true;
-                                    }
-                                    return false;
-                                  });
-
-                                  if (!matchedStudent && matchedResults.length === 0) {
                                     return (
-                                      <div style={{ marginTop: '12px', color: '#dc2626', fontStyle: 'italic', fontSize: '13px', fontWeight: '600' }}>
-                                        ⚠️ {lang === 'EN' ? 'No records found for this Reg No/Name.' : 'ഈ രജിസ്റ്റർ നമ്പറിൽ/പേരിൽ വിവരങ്ങൾ ലഭ്യമല്ല.'}
-                                      </div>
-                                    );
-                                  }
-
-                                  const sTeamObj = matchedStudent ? teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || '')) : null;
-                                  const sCatObj = matchedStudent ? categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || '')) : null;
-
-                                  return (
-                                    <div style={{ marginTop: '14px', background: '#fff', borderRadius: '12px', border: '1px solid #93c5fd', padding: '14px 16px', boxShadow: '0 2px 8px rgba(30,64,175,0.08)' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                                        <div>
-                                          <div style={{ fontSize: '16px', fontWeight: '900', color: '#1e3a8a' }}>
-                                            🧑‍🎓 {matchedStudent ? matchedStudent.name : matchedResults[0]?.studentname}
-                                          </div>
-                                          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', marginTop: '2px' }}>
-                                            🆔 Reg No: <strong>{matchedStudent ? (matchedStudent.regno || matchedStudent.regNo) : prizesStudentSearch}</strong> | 
-                                            📂 Category: <strong>{sCatObj ? sCatObj.name : '—'}</strong> | 
-                                            🚩 Team: <strong>{sTeamObj ? sTeamObj.name : (matchedResults[0]?.teamname || '—')}</strong>
-                                          </div>
-                                        </div>
-                                        <div style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '800' }}>
-                                          🏆 {matchedResults.length} {lang === 'EN' ? 'Prizes Won' : 'സമ്മാനങ്ങൾ'}
-                                        </div>
-                                      </div>
-
-                                      {matchedResults.length === 0 ? (
-                                        <div style={{ color: '#64748b', fontStyle: 'italic', fontSize: '13px' }}>
-                                          {lang === 'EN' ? 'No prizes recorded yet for this student.' : 'ഈ വിദ്യാർത്ഥിക്ക് ഇതുവരെ സമ്മാനങ്ങൾ ഒന്നും ലഭിച്ചിട്ടില്ല.'}
-                                        </div>
-                                      ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                          {matchedResults.map((res, i) => {
-                                            const normPlace = getNormPlace(res.place);
-                                            const badgeBg = normPlace === 'First' ? '#fef3c7' : normPlace === 'Second' ? '#e2e8f0' : normPlace === 'Third' ? '#ffedd5' : '#f1f5f9';
-                                            const badgeBorder = normPlace === 'First' ? '#fcd34d' : normPlace === 'Second' ? '#94a3b8' : normPlace === 'Third' ? '#fdba74' : '#cbd5e1';
-                                            const badgeColor = normPlace === 'First' ? '#92400e' : normPlace === 'Second' ? '#334155' : normPlace === 'Third' ? '#9a3412' : '#475569';
-                                            const icon = normPlace === 'First' ? '🥇' : normPlace === 'Second' ? '🥈' : normPlace === 'Third' ? '🥉' : '🎗️';
-
-                                            return (
-                                              <div key={res.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: badgeBg, border: `1px solid ${badgeBorder}`, borderRadius: '10px', padding: '10px 14px' }}>
-                                                <div>
-                                                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
-                                                    🎭 {res.progname || res.progcode}
-                                                  </div>
-                                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                                    Grade: <strong>{res.grade || '-'}</strong> | Points: <strong>{res.points || 0}</strong>
-                                                  </div>
-                                                </div>
-                                                <div style={{ fontSize: '14px', fontWeight: '900', color: badgeColor, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                  <span>{icon}</span> <span>{normPlace || res.place}</span>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-
-                              {/* ── Place Filter Chips + PDF Button Bar ── */}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                                <div className="filter-chips-wrapper" style={{ display: 'flex', gap: '6px' }}>
-                                  {[
-                                    { key: 'ALL', label: 'All Prizes' },
-                                    { key: 'FIRST', label: '🥇 First' },
-                                    { key: 'SECOND', label: '🥈 Second' },
-                                    { key: 'THIRD', label: '🥉 Third' },
-                                  ].map(f => (
-                                    <div
-                                      key={f.key}
-                                      className={`filter-chip-box ${prizesPlaceFilter === f.key ? 'active' : ''}`}
-                                      onClick={() => setPrizesPlaceFilter(f.key)}
-                                      style={{ padding: '6px 14px', fontSize: '12px' }}
-                                    >
-                                      {f.label}
-                                    </div>
-                                  ))}
-                                </div>
-
-                                <button
-                                  onClick={generatePrizesPDF}
-                                  style={{
-                                    background: 'linear-gradient(135deg, #1e40af, #1d4ed8)',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '9px 18px',
-                                    borderRadius: '10px',
-                                    fontWeight: '800',
-                                    fontSize: '13px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 4px 12px rgba(30,64,175,0.25)'
-                                  }}
-                                >
-                                  📄 {lang === 'EN' ? 'Download Winners PDF' : 'വിജയികളുടെ പിഡിഎഫ് (PDF)'}
-                                </button>
-                              </div>
-
-                              {/* ── Winners Table ── */}
-                              <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                  <thead>
-                                    <tr style={{ background: '#1e3a8a', color: 'white', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
-                                      <th style={{ padding: '10px 12px', textAlignment: 'center', width: '50px' }}>#</th>
-                                      <th style={{ padding: '10px 12px', width: '80px' }}>Reg No</th>
-                                      <th style={{ padding: '10px 12px' }}>Student Name</th>
-                                      <th style={{ padding: '10px 12px' }}>Category</th>
-                                      <th style={{ padding: '10px 12px' }}>Competition</th>
-                                      <th style={{ padding: '10px 12px' }}>Position</th>
-                                      <th style={{ padding: '10px 12px' }}>Team</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {displayWinners.length === 0 ? (
-                                      <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontStyle: 'italic' }}>
-                                          {lang === 'EN' ? 'No winners recorded for this filter.' : 'ഈ ഫിൽട്ടറിൽ സമ്മാനാർഹർ ലഭ്യമല്ല.'}
+                                      <tr key={(r.id || '') + '_' + idx} style={{ borderBottom: '1px solid #e2e8f0', background: rowBg }}>
+                                        <td style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
+                                        <td style={{ padding: '10px 12px', fontWeight: '800', color: '#1e40af' }}>{r.regNo || '—'}</td>
+                                        <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>
+                                          {r.studentName}
+                                          {r.groupLabel && isGrp && (
+                                            <span style={{ display: 'block', fontSize: '11px', color: '#92400e', fontWeight: '600', marginTop: '1px' }}>
+                                              👥 {r.groupLabel} {r.memberTotal ? `(${r.memberIndex || 1}/${r.memberTotal})` : ''}
+                                            </span>
+                                          )}
                                         </td>
+                                        <td style={{ padding: '10px 12px' }}>
+                                          <span style={{
+                                            background: r.gender === 'GIRL' ? '#fce7f3' : '#dbeafe',
+                                            color: r.gender === 'GIRL' ? '#9d174d' : '#1e40af',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '10px',
+                                            fontWeight: '800'
+                                          }}>
+                                            {r.gender === 'GIRL' ? '👧 Girl' : '👦 Boy'}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '10px 12px', color: '#475569', fontWeight: '600' }}>{r.catName}</td>
+                                        <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>
+                                          {r.progName}
+                                        </td>
+                                        <td style={{ padding: '10px 12px' }}>
+                                          <span style={{
+                                            background: r.progType === 'GROUP' ? '#fee2e2' : r.progType === 'TEAM' ? '#e0e7ff' : '#f1f5f9',
+                                            color: r.progType === 'GROUP' ? '#991b1b' : r.progType === 'TEAM' ? '#3730a3' : '#475569',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '10px',
+                                            fontWeight: '800'
+                                          }}>
+                                            {r.progType}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '10px 12px' }}>
+                                          <span style={{
+                                            background: badgeBg,
+                                            color: badgeColor,
+                                            border: `1px solid ${badgeBorder}`,
+                                            padding: '3px 9px',
+                                            borderRadius: '12px',
+                                            fontSize: '11px',
+                                            fontWeight: '800',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                          }}>
+                                            <span>{icon}</span> <span>{posLabel}</span>
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>{r.teamName || '—'}</td>
                                       </tr>
-                                    ) : (
-                                      displayWinners.map((r, idx) => {
-                                        const norm = getNormPlace(r.place);
-                                        const pObj = programs.find(p => String(p.id) === String(r.progid));
-                                        const pName = r.progname || (pObj ? pObj.name : r.progcode || '—');
-                                        const cObj = categories.find(c => String(c.id) === String(r.catid || (pObj ? pObj.catid : '')));
-                                        const cName = r.catname || (cObj ? cObj.name : '—');
-                                        // Use expanded group member data when available
-                                        const regNo = r._displayRegNo || (() => {
-                                          const sObj = students.find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim());
-                                          return sObj ? (sObj.regno || sObj.regNo || '—') : '—';
-                                        })();
-                                        const studentName = r._displayStudentName || r.studentname || '—';
-                                        const teamName = r._displayTeam || r.teamname || (teams.find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
-                                        const isGrp = r._isGroupEntry;
-
-                                        const badgeBg = norm === 'First' ? '#fef3c7' : norm === 'Second' ? '#e2e8f0' : '#ffedd5';
-                                        const badgeColor = norm === 'First' ? '#92400e' : norm === 'Second' ? '#334155' : '#9a3412';
-                                        const icon = norm === 'First' ? '🥇' : norm === 'Second' ? '🥈' : '🥉';
-                                        const rowBg = isGrp ? (idx % 2 === 0 ? '#fefce8' : '#fef9c3') : (idx % 2 === 0 ? '#fff' : '#f8fafc');
-
-                                        return (
-                                          <tr key={(r.id || r.progid || '') + '_' + idx} style={{ borderBottom: '1px solid #e2e8f0', background: rowBg }}>
-                                            <td style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
-                                            <td style={{ padding: '10px 12px', fontWeight: '800', color: '#1e40af' }}>{regNo}</td>
-                                            <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>{studentName}</td>
-                                            <td style={{ padding: '10px 12px', color: '#475569' }}>{cName}</td>
-                                            <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>
-                                              {pName}
-                                              {isGrp && (
-                                                <span style={{ marginLeft: '6px', background: '#fef3c7', color: '#92400e', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: '800', verticalAlign: 'middle' }}>
-                                                  👥 {r._groupLabel || 'Group'}
-                                                </span>
-                                              )}
-                                            </td>
-                                            <td style={{ padding: '10px 12px' }}>
-                                              <span style={{ background: badgeBg, color: badgeColor, padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                <span>{icon}</span> <span>{norm}</span>
-                                              </span>
-                                            </td>
-                                            <td style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>{teamName}</td>
-                                          </tr>
-                                        );
-                                      })
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* ── SECTION 2: ENCOURAGEMENT (PROTSAHANAM) ── */}
-                          {prizesActiveTab === 'ENCOURAGEMENT' && (() => {
-                            // Find students who registered in programs but didn't win 1st, 2nd, 3rd
-                            const winnerStudentIds = new Set(
-                              resultsList
-                                .filter(r => isProgPublished(r.progid) && getNormPlace(r.place) !== null)
-                                .map(r => String(r.studentid || '').trim())
-                            );
-
-                            // Non-prize contestants (MUST have at least 1 single/group registered program and not be a winner)
-                            const nonPrizeContestants = students.filter(s => {
-                              const sCat = String(s.catid || s.catId || '');
-                              if (prizesCatFilter !== 'ALL') {
-                                if (prizesCatFilter === 'GENERAL') {
-                                  if (sCat !== '-1' && sCat !== 'GENERAL' && !generalCatIds.map(String).includes(sCat)) return false;
-                                } else if (sCat !== String(prizesCatFilter)) {
-                                  return false;
-                                }
-                              }
-
-                              // 🚀 Verify student is TRULY registered in at least 1 competition (Single or Group)
-                              const sProgs = getStudentRegisteredPrograms(s.id);
-                              if (!sProgs || sProgs.length === 0) return false;
-
-                              const sId = String(s.id);
-                              const sRegNo = String(s.regno || s.regNo || '');
-                              const isWinner = winnerStudentIds.has(sId) || winnerStudentIds.has(sRegNo) || winnerStudentIds.has(s.name);
-                              return !isWinner;
-                            });
-
-                            // All category students
-                            const allCategoryStudents = students.filter(s => {
-                              if (prizesCatFilter === 'ALL') return true;
-                              const sCat = String(s.catid || s.catId || '');
-                              if (prizesCatFilter === 'GENERAL') {
-                                return (sCat === '-1' || sCat === 'GENERAL' || generalCatIds.map(String).includes(sCat));
-                              }
-                              return sCat === String(prizesCatFilter);
-                            });
-
-                            const activeList = encouragementSubMode === 'CONTESTANTS' ? nonPrizeContestants : allCategoryStudents;
-                            const titleLabel = encouragementSubMode === 'CONTESTANTS'
-                              ? (lang === 'EN' ? 'Non-prize Contestants (Registered in Competitions)' : 'മത്സരത്തിൽ പങ്കെടുത്തവർ (ഫസ്റ്റ്, സെക്കൻഡ്, തേർഡ് ലഭിക്കാത്തവർ)')
-                              : (lang === 'EN' ? 'All Registered Students' : 'സ്റ്റുഡന്റ് ലിസ്റ്റിൽ രജിസ്റ്റർ ചെയ്തവർ');
-
-                            return (
-                              <div>
-                                {/* Sub Mode Selection Chips */}
-                                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                                  <button
-                                    onClick={() => setEncouragementSubMode('CONTESTANTS')}
-                                    style={{
-                                      flex: 1,
-                                      padding: '10px 14px',
-                                      borderRadius: '10px',
-                                      border: encouragementSubMode === 'CONTESTANTS' ? '2px solid #059669' : '1px solid #cbd5e1',
-                                      background: encouragementSubMode === 'CONTESTANTS' ? 'linear-gradient(135deg, #ecfdf5, #d1fae5)' : '#fff',
-                                      color: encouragementSubMode === 'CONTESTANTS' ? '#047857' : '#475569',
-                                      fontWeight: '800',
-                                      fontSize: '13px',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    🎭 {lang === 'EN' ? 'Registered in Competitions' : 'മത്സരത്തിൽ പങ്കെടുത്തവർ'} ({nonPrizeContestants.length})
-                                  </button>
-                                  <button
-                                    onClick={() => setEncouragementSubMode('ALL_STUDENTS')}
-                                    style={{
-                                      flex: 1,
-                                      padding: '10px 14px',
-                                      borderRadius: '10px',
-                                      border: encouragementSubMode === 'ALL_STUDENTS' ? '2px solid #0284c7' : '1px solid #cbd5e1',
-                                      background: encouragementSubMode === 'ALL_STUDENTS' ? 'linear-gradient(135deg, #f0f9ff, #e0f2fe)' : '#fff',
-                                      color: encouragementSubMode === 'ALL_STUDENTS' ? '#0369a1' : '#475569',
-                                      fontWeight: '800',
-                                      fontSize: '13px',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    🧑‍🎓 {lang === 'EN' ? 'Registered in Student List' : 'സ്റ്റുഡന്റ് ലിസ്റ്റിൽ ഉള്ളവർ'} ({allCategoryStudents.length})
-                                  </button>
-                                </div>
-
-                                {/* encouragement Top Action Bar */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px', background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
-                                    🎗️ {titleLabel} — <span style={{ color: '#059669' }}>{activeList.length} Students</span>
-                                  </div>
-
-                                  <button
-                                    onClick={() => generateEncouragementPDF(activeList, titleLabel)}
-                                    style={{
-                                      background: 'linear-gradient(135deg, #059669, #047857)',
-                                      color: 'white',
-                                      border: 'none',
-                                      padding: '9px 18px',
-                                      borderRadius: '10px',
-                                      fontWeight: '800',
-                                      fontSize: '13px',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      boxShadow: '0 4px 12px rgba(5,150,105,0.25)'
-                                    }}
-                                  >
-                                    📄 {lang === 'EN' ? 'Download Encouragement PDF' : 'പ്രോത്സാഹന പിഡിഎഫ് (PDF)'}
-                                  </button>
-                                </div>
-
-                                {/* Encouragement Table */}
-                                <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
-                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                    <thead>
-                                      <tr style={{ background: '#047857', color: 'white', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
-                                        <th style={{ padding: '10px 12px', textAlign: 'center', width: '50px' }}>#</th>
-                                        <th style={{ padding: '10px 12px', width: '80px' }}>Reg No</th>
-                                        <th style={{ padding: '10px 12px' }}>Student Name</th>
-                                        <th style={{ padding: '10px 12px' }}>Category</th>
-                                        <th style={{ padding: '10px 12px' }}>Registered Competitions</th>
-                                        <th style={{ padding: '10px 12px' }}>Team</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {activeList.length === 0 ? (
-                                        <tr>
-                                          <td colSpan="6" style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontStyle: 'italic' }}>
-                                            {lang === 'EN' ? 'No students found in this list.' : 'വിവരങ്ങൾ ലഭ്യമല്ല.'}
-                                          </td>
-                                        </tr>
-                                      ) : (
-                                        activeList.map((s, idx) => {
-                                          const regNo = s.regno || s.regNo || '—';
-                                          const cObj = categories.find(c => String(c.id) === String(s.catid || s.catId || ''));
-                                          const cName = cObj ? cObj.name : '—';
-                                          const tObj = teams.find(t => String(t.id) === String(s.teamid || s.teamId || ''));
-                                          const tName = tObj ? tObj.name : '—';
-                                          const sProgs = getStudentRegisteredPrograms(s.id);
-                                          const progNames = sProgs.map(p => p.name).join(', ') || '—';
-
-                                          return (
-                                            <tr key={s.id || idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                              <td style={{ padding: '10px 12px', fontWeight: '700', textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
-                                              <td style={{ padding: '10px 12px', fontWeight: '800', color: '#047857' }}>{regNo}</td>
-                                              <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>{s.name}</td>
-                                              <td style={{ padding: '10px 12px', color: '#475569' }}>{cName}</td>
-                                              <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>{progNames}</td>
-                                              <td style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>{tName}</td>
-                                            </tr>
-                                          );
-                                        })
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            );
-                          })()}
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       );
                     })()}
-
-                  {/* ── RESULT PUBLISH SUB-TAB ── */}
+{/* ── RESULT PUBLISH SUB-TAB ── */}
                   {settingsSubTab === 'RESULT_PUBLISH' && (() => {
                     // Build grouped program sections from all saved results
                     const allProgIds = Array.from(new Set(resultsList.map(r => String(r.progid || '').trim()).filter(Boolean)));
