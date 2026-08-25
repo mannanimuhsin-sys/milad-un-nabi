@@ -18735,17 +18735,82 @@ ${pagesHtml}
                         return null;
                       };
 
-                      // 1. Process Published Results from resultsList (Single, Group, Team)
-                      // Individual members of winning groups/teams are expanded so their names and reg numbers appear
-                      const allWinnersExpanded = [];
+                      // ── Fast Lookup Maps (O(1) lookups for maximum speed & mobile stability) ──
+                      const safeStudents = Array.isArray(students) ? students : [];
+                      const safePrograms = Array.isArray(programs) ? programs : [];
+                      const safeCategories = Array.isArray(categories) ? categories : [];
+                      const safeTeams = Array.isArray(teams) ? teams : [];
+                      const safeGroupRegs = Array.isArray(groupRegistrations) ? groupRegistrations : [];
+                      const safeProgRegs = Array.isArray(programRegistrations) ? programRegistrations : [];
+                      const safeResults = Array.isArray(resultsList) ? resultsList : [];
+                      const safeGenCatIds = Array.isArray(generalCatIds) ? generalCatIds.map(String) : [];
 
-                      (resultsList || []).forEach(r => {
+                      // Student Map by DB id and Reg No
+                      const studentByIdMap = new Map();
+                      const studentByRegMap = new Map();
+                      safeStudents.forEach(s => {
+                        if (!s) return;
+                        if (s.id) studentByIdMap.set(String(s.id).trim().toLowerCase(), s);
+                        const rNo = String(s.regno || s.regNo || '').trim().toLowerCase();
+                        if (rNo) studentByRegMap.set(rNo, s);
+                      });
+
+                      const findStudent = (ref) => {
+                        if (!ref) return null;
+                        const str = String(ref).trim().toLowerCase();
+                        if (studentByIdMap.has(str)) return studentByIdMap.get(str);
+                        if (studentByRegMap.has(str)) return studentByRegMap.get(str);
+                        if (str.includes('-')) {
+                          const p = str.split('-')[0].trim();
+                          if (studentByRegMap.has(p)) return studentByRegMap.get(p);
+                        }
+                        return safeStudents.find(s => {
+                          const sName = String(s.name || '').trim().toLowerCase();
+                          return sName && (sName === str || str.includes(sName));
+                        }) || null;
+                      };
+
+                      // Program Map
+                      const progByIdMap = new Map();
+                      safePrograms.forEach(p => {
+                        if (!p) return;
+                        if (p.id) progByIdMap.set(String(p.id).trim().toLowerCase(), p);
+                        if (p.code) progByIdMap.set(String(p.code).trim().toLowerCase(), p);
+                      });
+
+                      const findProg = (ref) => {
+                        if (!ref) return null;
+                        const str = String(ref).trim().toLowerCase();
+                        if (progByIdMap.has(str)) return progByIdMap.get(str);
+                        return safePrograms.find(p => String(p.name || '').trim().toLowerCase() === str) || null;
+                      };
+
+                      // Category Map
+                      const catByIdMap = new Map();
+                      safeCategories.forEach(c => {
+                        if (!c) return;
+                        if (c.id) catByIdMap.set(String(c.id).trim(), c);
+                      });
+
+                      // Team Map
+                      const teamByIdMap = new Map();
+                      safeTeams.forEach(t => {
+                        if (!t) return;
+                        if (t.id) teamByIdMap.set(String(t.id).trim(), t);
+                      });
+
+                      // 1. Process Published Results -> Expand Group & Team winners to individual students
+                      const allWinnersExpanded = [];
+                      const winnerFirstSecondPairSet = new Set(); // Key: studentId_progId for 1st/2nd place
+                      const winnerThirdPairMap = new Map(); // Key: studentId_progId for 3rd place
+
+                      safeResults.forEach(r => {
                         if (!r) return;
                         if (!isProgPublished(r.progid)) return;
                         const normPlace = getNormPlace(r.place);
-                        if (!normPlace) return; // Only 1st, 2nd, 3rd
+                        if (!normPlace) return;
 
-                        const pObj = (programs || []).find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                        const pObj = findProg(r.progid) || null;
                         const pIdStr = pObj ? String(pObj.id) : String(r.progid || '');
                         const pCodeStr = pObj?.code ? String(pObj.code) : '';
                         const pName = r.progname || pObj?.name || r.progcode || 'Program';
@@ -18757,17 +18822,17 @@ ${pagesHtml}
                         const pGender = getProgramGender(pObj) || (rawProgType.includes('BOY') ? 'BOY' : rawProgType.includes('GIRL') ? 'GIRL' : 'COMMON');
 
                         const cCatId = String(r.catid || r.catId || pObj?.catid || pObj?.catId || '');
-                        const cObj = (categories || []).find(c => String(c.id) === cCatId);
+                        const cObj = catByIdMap.get(cCatId) || null;
                         const catName = r.catname || cObj?.name || (cCatId === 'GENERAL' || cCatId === '-1' ? 'GENERAL' : '—');
-                        const isGeneral = isGeneralProg(pObj) || isGeneralResult(r) || cCatId === '-1' || cCatId === 'GENERAL' || (generalCatIds || []).map(String).includes(cCatId);
+                        const isGeneral = (pObj ? isGeneralProg(pObj) : false) || isGeneralResult(r) || cCatId === '-1' || cCatId === 'GENERAL' || safeGenCatIds.includes(cCatId);
 
                         if (isGroupProg || isTeamProg) {
-                          // Find matching group/team registration
-                          const matchedGroup = (groupRegistrations || []).find(g => {
+                          // Find matching group registration
+                          const matchedGroup = safeGroupRegs.find(g => {
                             if (!g) return false;
-                            const gProgId = String(g.program_id || '').trim();
-                            const progMatches = gProgId === pIdStr || (pCodeStr && gProgId === pCodeStr) || (pObj && String(g.program_id) === String(pObj.id));
-                            if (!progMatches) return false;
+                            const gProgId = String(g.program_id || '').trim().toLowerCase();
+                            const pMatch = gProgId === pIdStr.toLowerCase() || (pCodeStr && gProgId === pCodeStr.toLowerCase());
+                            if (!pMatch) return false;
 
                             const rName = String(r.studentname || '').trim().toLowerCase().replace(/^👥\s*/, '').replace(/^🏟️\s*/, '');
                             const gName = String(g.group_name || '').trim().toLowerCase().replace(/^👥\s*/, '').replace(/^🏟️\s*/, '');
@@ -18791,7 +18856,7 @@ ${pagesHtml}
 
                             const leaderId = String(matchedGroup.leader_id || '').trim();
                             if (leaderId) {
-                              const ls = (students || []).find(s => String(s.id).trim() === leaderId || String(s.regno || s.regNo || '').trim() === leaderId);
+                              const ls = findStudent(leaderId);
                               if (ls && !memberStudents.find(m => String(m.id) === String(ls.id))) memberStudents.push(ls);
                             }
                             memberIds.forEach(item => {
@@ -18799,7 +18864,7 @@ ${pagesHtml}
                               if (typeof item === 'object' && item !== null) sid = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
                               else sid = String(item || '').trim();
                               if (!sid) return;
-                              const s = (students || []).find(st => String(st.id).trim() === sid || String(st.regno || st.regNo || '').trim() === sid);
+                              const s = findStudent(sid);
                               if (s && !memberStudents.find(m => String(m.id) === String(s.id))) memberStudents.push(s);
                             });
                           }
@@ -18822,20 +18887,28 @@ ${pagesHtml}
                               grade: r.grade || '-',
                               points: r.points || 0,
                               teamId: r.teamid || '',
-                              teamName: r.teamname || ((teams || []).find(t => String(t.id) === String(r.teamid)) || {}).name || '—',
+                              teamName: r.teamname || teamByIdMap.get(String(r.teamid))?.name || '—',
                               isGroup: isGroupProg,
                               isTeam: isTeamProg,
                               groupLabel: matchedGroup?.group_name || r.studentname || 'Group'
                             });
                           } else {
                             memberStudents.forEach((s, idx) => {
-                              const sTeam = ((teams || []).find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || r.teamname || '';
+                              const sTeam = teamByIdMap.get(String(s.teamid || s.teamId))?.name || r.teamname || '';
                               const sGender = String(s.gender || '').toUpperCase() || (pGender === 'GIRL' ? 'GIRL' : 'BOY');
+                              const sId = String(s.id || '');
+                              
+                              if (normPlace === 'First' || normPlace === 'Second') {
+                                if (sId && pIdStr) winnerFirstSecondPairSet.add(`${sId}_${pIdStr}`);
+                              } else if (normPlace === 'Third') {
+                                if (sId && pIdStr) winnerThirdPairMap.set(`${sId}_${pIdStr}`, { grade: r.grade || '-' });
+                              }
+
                               allWinnersExpanded.push({
                                 id: `win_${r.id || ''}_${s.id || idx}`,
                                 studentId: s.id,
                                 regNo: s.regno || s.regNo || '—',
-                                studentName: s.name,
+                                studentName: s.name || 'Student',
                                 gender: sGender,
                                 catId: cCatId,
                                 catName,
@@ -18859,23 +18932,24 @@ ${pagesHtml}
                           }
                         } else {
                           // SINGLE program
-                          const studentObj = (students || []).find(s => String(s.id) === String(r.studentid) || String(s.regno || s.regNo || '').trim() === String(r.studentid).trim()) ||
-                            (students || []).find(s => {
-                              const rName = String(r.studentname || '').toLowerCase();
-                              const sReg = String(s.regno || s.regNo || '').toLowerCase();
-                              return sReg && (rName === sReg || rName.startsWith(`${sReg} -`) || rName.startsWith(`${sReg}-`));
-                            });
-
-                          const sRegNo = studentObj ? (studentObj.regno || studentObj.regNo || '') : (r.studentname && r.studentname.includes('-') ? r.studentname.split('-')[0].trim() : '—');
+                          const studentObj = findStudent(r.studentid) || findStudent(r.studentname);
+                          const sRegNo = studentObj ? (studentObj.regno || studentObj.regNo || '') : (r.studentname && String(r.studentname).includes('-') ? String(r.studentname).split('-')[0].trim() : '—');
                           const sName = studentObj ? studentObj.name : r.studentname;
                           const sGender = studentObj ? (studentObj.gender || 'BOY') : (r.studentgender || (pGender === 'GIRL' ? 'GIRL' : 'BOY'));
-                          const sTeam = (studentObj && ((teams || []).find(t => String(t.id) === String(studentObj.teamid || studentObj.teamId)) || {}).name) || r.teamname || ((teams || []).find(t => String(t.id) === String(r.teamid)) || {}).name || '—';
+                          const sTeam = (studentObj && teamByIdMap.get(String(studentObj.teamid || studentObj.teamId))?.name) || r.teamname || teamByIdMap.get(String(r.teamid))?.name || '—';
+                          const sId = String(studentObj ? studentObj.id : (r.studentid || ''));
+
+                          if (normPlace === 'First' || normPlace === 'Second') {
+                            if (sId && pIdStr) winnerFirstSecondPairSet.add(`${sId}_${pIdStr}`);
+                          } else if (normPlace === 'Third') {
+                            if (sId && pIdStr) winnerThirdPairMap.set(`${sId}_${pIdStr}`, { grade: r.grade || '-' });
+                          }
 
                           allWinnersExpanded.push({
                             id: `win_${r.id || Math.random()}`,
-                            studentId: studentObj ? studentObj.id : (r.studentid || ''),
+                            studentId: sId,
                             regNo: sRegNo,
-                            studentName: sName,
+                            studentName: sName || 'Student',
                             gender: sGender,
                             catId: cCatId,
                             catName,
@@ -18895,96 +18969,130 @@ ${pagesHtml}
                         }
                       });
 
-                      // 2. Build list of Participants (Students registered in competitions without 1st/2nd place)
-                      // If 3rd place won, position is 'Third'; otherwise 'Participant'
+                      // 2. Build list of Participants (Fast O(N) generation from registrations)
                       const allParticipantsList = [];
+                      const participantPairSet = new Set(); // Prevent duplicate student-prog rows
 
-                      (students || []).forEach(s => {
-                        if (!s) return;
-                        const sRegProgs = getStudentRegisteredPrograms(s.id) || [];
-                        if (sRegProgs.length === 0) return;
+                      // A. Single registrations
+                      safeProgRegs.forEach(reg => {
+                        if (!reg) return;
+                        const sObj = findStudent(reg.student_id || reg.studentid || reg.studentId || reg.regno || reg.regNo);
+                        if (!sObj) return;
+                        const pObj = findProg(reg.program_id || reg.programId || reg.progid || reg.progId || reg.program_name || reg.programName);
+                        if (!pObj) return;
 
-                        const sDbId = String(s.id);
-                        const sRegNo = String(s.regno || s.regNo || '');
-                        const sGender = String(s.gender || 'BOY').toUpperCase();
-                        const sCatId = String(s.catid || s.catId || '');
-                        const sCatObj = (categories || []).find(c => String(c.id) === sCatId);
-                        const sCatName = sCatObj ? sCatObj.name : (sCatId === 'GENERAL' || sCatId === '-1' ? 'GENERAL' : '—');
-                        const sTeam = ((teams || []).find(t => String(t.id) === String(s.teamid || s.teamId)) || {}).name || '—';
+                        const sId = String(sObj.id);
+                        const pId = String(pObj.id);
+                        const pairKey = `${sId}_${pId}`;
 
-                        sRegProgs.forEach(p => {
-                          if (!p) return;
-                          const pIdStr = String(p.id || '');
-                          const pCodeStr = String(p.code || '');
-                          const rawProgType = String(p.type || p.program_type || p.progtype || '').toUpperCase();
-                          const isGroupProg = Boolean(p.isGroup) || rawProgType.includes('GROUP');
-                          const isTeamProg = rawProgType.includes('TEAM');
-                          const progTypeCategory = isTeamProg ? 'TEAM' : isGroupProg ? 'GROUP' : 'SINGLE';
-                          const pGender = getProgramGender(p) || (rawProgType.includes('BOY') ? 'BOY' : rawProgType.includes('GIRL') ? 'GIRL' : 'COMMON');
-                          const isGenProg = isGeneralProg(p) || sCatId === '-1' || sCatId === 'GENERAL' || (generalCatIds || []).map(String).includes(sCatId);
+                        if (winnerFirstSecondPairSet.has(pairKey)) return; // Won 1st or 2nd place -> skip
+                        if (participantPairSet.has(pairKey)) return; // Already added
+                        participantPairSet.add(pairKey);
 
-                          // Check if this student won a place in this program
-                          const wonWinnerEntry = allWinnersExpanded.find(w => {
-                            const progMatches = w.progId === pIdStr || (pCodeStr && w.progId === pCodeStr);
-                            if (!progMatches) return false;
-                            const sMatch = (w.studentId && String(w.studentId) === sDbId) || (sRegNo && String(w.regNo) === sRegNo) || (w.studentName && w.studentName.toLowerCase() === s.name.toLowerCase());
-                            return sMatch;
-                          });
+                        const rawProgType = String(pObj.type || pObj.program_type || pObj.progtype || '').toUpperCase();
+                        const pGender = getProgramGender(pObj) || (rawProgType.includes('BOY') ? 'BOY' : rawProgType.includes('GIRL') ? 'GIRL' : 'COMMON');
+                        const sGender = String(sObj.gender || 'BOY').toUpperCase();
+                        const sCatId = String(sObj.catid || sObj.catId || pObj.catid || '');
+                        const cObj = catByIdMap.get(sCatId) || null;
+                        const catName = cObj ? cObj.name : (sCatId === 'GENERAL' || sCatId === '-1' ? 'GENERAL' : '—');
+                        const isGenProg = isGeneralProg(pObj) || sCatId === '-1' || sCatId === 'GENERAL' || safeGenCatIds.includes(sCatId);
+                        const sTeam = teamByIdMap.get(String(sObj.teamid || sObj.teamId))?.name || '—';
 
-                          if (wonWinnerEntry) {
-                            if (wonWinnerEntry.position === 'First' || wonWinnerEntry.position === 'Second') {
-                              return; // Skip 1st and 2nd winners
-                            }
-                            if (wonWinnerEntry.position === 'Third') {
-                              // Include with 'Third' position badge
-                              allParticipantsList.push({
-                                id: `part_3rd_${s.id}_${pIdStr}`,
-                                studentId: s.id,
-                                regNo: sRegNo || '—',
-                                studentName: s.name,
-                                gender: sGender,
-                                catId: sCatId,
-                                catName: sCatName,
-                                isGeneral: isGenProg,
-                                progId: pIdStr,
-                                progName: p.name || 'Program',
-                                progType: progTypeCategory,
-                                progGender: pGender,
-                                position: 'Third',
-                                grade: wonWinnerEntry.grade || '-',
-                                points: 0,
-                                teamId: s.teamid || s.teamId || '',
-                                teamName: sTeam,
-                                isGroup: isGroupProg,
-                                isTeam: isTeamProg,
-                                groupLabel: p.groupName || (isGroupProg ? 'Group' : '')
-                              });
-                              return;
-                            }
-                          }
+                        const isThird = winnerThirdPairMap.has(pairKey);
+                        const gradeVal = isThird ? (winnerThirdPairMap.get(pairKey)?.grade || '-') : '-';
 
-                          // Registered participant without rank
+                        allParticipantsList.push({
+                          id: `part_single_${sId}_${pId}`,
+                          studentId: sId,
+                          regNo: sObj.regno || sObj.regNo || '—',
+                          studentName: sObj.name || 'Student',
+                          gender: sGender,
+                          catId: sCatId,
+                          catName,
+                          isGeneral: isGenProg,
+                          progId: pId,
+                          progName: pObj.name || 'Program',
+                          progType: 'SINGLE',
+                          progGender: pGender,
+                          position: isThird ? 'Third' : 'Participant',
+                          grade: gradeVal,
+                          points: 0,
+                          teamId: sObj.teamid || sObj.teamId || '',
+                          teamName: sTeam,
+                          isGroup: false,
+                          isTeam: false,
+                          groupLabel: ''
+                        });
+                      });
+
+                      // B. Group & Team registrations
+                      safeGroupRegs.forEach(g => {
+                        if (!g) return;
+                        const pObj = findProg(g.program_id);
+                        if (!pObj) return;
+                        const pId = String(pObj.id);
+                        const rawProgType = String(pObj.type || pObj.program_type || pObj.progtype || '').toUpperCase();
+                        const isTeamProg = rawProgType.includes('TEAM');
+                        const isGroupProg = Boolean(g.group_name) || rawProgType.includes('GROUP');
+                        const progTypeCategory = isTeamProg ? 'TEAM' : isGroupProg ? 'GROUP' : 'SINGLE';
+                        const pGender = getProgramGender(pObj) || (rawProgType.includes('BOY') ? 'BOY' : rawProgType.includes('GIRL') ? 'GIRL' : 'COMMON');
+
+                        let mIds = [];
+                        try {
+                          if (Array.isArray(g.student_ids)) mIds = g.student_ids;
+                          else if (typeof g.student_ids === 'string') mIds = JSON.parse(g.student_ids || '[]');
+                        } catch (e) { mIds = []; }
+                        if (!Array.isArray(mIds)) mIds = [mIds];
+
+                        const leaderId = String(g.leader_id || '').trim();
+                        const memberRefs = leaderId ? [leaderId, ...mIds] : mIds;
+
+                        memberRefs.forEach(ref => {
+                          let sid = '';
+                          if (typeof ref === 'object' && ref !== null) sid = String(ref.id || ref.student_id || ref.regno || ref.regNo || '').trim();
+                          else sid = String(ref || '').trim();
+                          if (!sid) return;
+                          const sObj = findStudent(sid);
+                          if (!sObj) return;
+
+                          const sId = String(sObj.id);
+                          const pairKey = `${sId}_${pId}`;
+
+                          if (winnerFirstSecondPairSet.has(pairKey)) return; // Won 1st or 2nd place -> skip
+                          if (participantPairSet.has(pairKey)) return; // Already added
+                          participantPairSet.add(pairKey);
+
+                          const sGender = String(sObj.gender || 'BOY').toUpperCase();
+                          const sCatId = String(sObj.catid || sObj.catId || pObj.catid || '');
+                          const cObj = catByIdMap.get(sCatId) || null;
+                          const catName = cObj ? cObj.name : (sCatId === 'GENERAL' || sCatId === '-1' ? 'GENERAL' : '—');
+                          const isGenProg = isGeneralProg(pObj) || sCatId === '-1' || sCatId === 'GENERAL' || safeGenCatIds.includes(sCatId);
+                          const sTeam = teamByIdMap.get(String(sObj.teamid || sObj.teamId || g.team_id))?.name || '—';
+
+                          const isThird = winnerThirdPairMap.has(pairKey);
+                          const gradeVal = isThird ? (winnerThirdPairMap.get(pairKey)?.grade || '-') : '-';
+
                           allParticipantsList.push({
-                            id: `part_reg_${s.id}_${pIdStr}`,
-                            studentId: s.id,
-                            regNo: sRegNo || '—',
-                            studentName: s.name,
+                            id: `part_grp_${sId}_${pId}`,
+                            studentId: sId,
+                            regNo: sObj.regno || sObj.regNo || '—',
+                            studentName: sObj.name || 'Student',
                             gender: sGender,
                             catId: sCatId,
-                            catName: sCatName,
+                            catName,
                             isGeneral: isGenProg,
-                            progId: pIdStr,
-                            progName: p.name || 'Program',
+                            progId: pId,
+                            progName: pObj.name || 'Program',
                             progType: progTypeCategory,
                             progGender: pGender,
-                            position: 'Participant',
-                            grade: '-',
+                            position: isThird ? 'Third' : 'Participant',
+                            grade: gradeVal,
                             points: 0,
-                            teamId: s.teamid || s.teamId || '',
+                            teamId: sObj.teamid || sObj.teamId || g.team_id || '',
                             teamName: sTeam,
                             isGroup: isGroupProg,
                             isTeam: isTeamProg,
-                            groupLabel: p.groupName || (isGroupProg ? 'Group' : '')
+                            groupLabel: g.group_name || ''
                           });
                         });
                       });
@@ -19005,6 +19113,8 @@ ${pagesHtml}
 
                       // 4. Apply Type, Category, Gender, and Search Filters
                       const filteredDisplayList = baseList.filter(item => {
+                        if (!item) return false;
+
                         // Program / Event Type
                         if (prizesTypeFilter !== 'ALL') {
                           if (item.progType !== prizesTypeFilter) return false;
@@ -19048,6 +19158,7 @@ ${pagesHtml}
 
                       // 5. Stat Counts under current Type, Category, Gender filters
                       const activeFilterWinners = allWinnersExpanded.filter(item => {
+                        if (!item) return false;
                         if (prizesTypeFilter !== 'ALL' && item.progType !== prizesTypeFilter) return false;
                         if (prizesCatFilter !== 'ALL') {
                           if (prizesCatFilter === 'GENERAL') { if (!item.isGeneral) return false; }
@@ -19062,6 +19173,7 @@ ${pagesHtml}
                       });
 
                       const activeFilterParticipants = allParticipantsList.filter(item => {
+                        if (!item) return false;
                         if (prizesTypeFilter !== 'ALL' && item.progType !== prizesTypeFilter) return false;
                         if (prizesCatFilter !== 'ALL') {
                           if (prizesCatFilter === 'GENERAL') { if (!item.isGeneral) return false; }
@@ -19085,7 +19197,7 @@ ${pagesHtml}
                         const madrasaName = loggedInMadrasa ? loggedInMadrasa.name : '';
                         const madrasaPlace = loggedInMadrasa ? loggedInMadrasa.place : '';
                         const madrasaRegNo = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
-                        const activeCatObj = (categories || []).find(c => String(c.id) === String(prizesCatFilter));
+                        const activeCatObj = catByIdMap.get(String(prizesCatFilter)) || null;
                         const catLabel = prizesCatFilter === 'ALL' ? (lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും') : prizesCatFilter === 'GENERAL' ? 'GENERAL' : (activeCatObj ? activeCatObj.name : '');
                         const typeLabel = prizesTypeFilter === 'ALL' ? (lang === 'EN' ? 'All Programs' : 'എല്ലാ മത്സരങ്ങളും') : prizesTypeFilter;
                         const genderLabel = prizesGenderFilter === 'ALL' ? (lang === 'EN' ? 'All' : 'എല്ലാം') : prizesGenderFilter;
@@ -19226,7 +19338,7 @@ ${pagesHtml}
                               >
                                 📁 {lang === 'EN' ? 'All Categories' : 'എല്ലാ കാറ്റഗറികളും (All)'}
                               </div>
-                              {(categories || []).map(c => (
+                              {safeCategories.map(c => (
                                 <div
                                   key={c.id}
                                   className={`filter-chip-box ${String(prizesCatFilter) === String(c.id) ? 'active' : ''}`}
