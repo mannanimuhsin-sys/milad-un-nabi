@@ -2485,18 +2485,26 @@ function App() {
             }
             localStorage.setItem('miladfest_app_version', serverVersion);
           } else if (serverVersion && activeVersionRef.current !== serverVersion) {
-            console.log('[AUTO-UPDATE] New release detected! Updating app across all devices...');
+            console.log('[AUTO-UPDATE] New release detected! Silently updating all devices...');
             activeVersionRef.current = serverVersion;
             localStorage.setItem('miladfest_app_version', serverVersion);
 
-            const isUserTyping = typeof document !== 'undefined' && document.activeElement &&
-              (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-
-            if (!isUserTyping) {
+            const doReload = () => {
               if ('caches' in window) {
                 caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
               }
               window.location.reload(true);
+            };
+
+            const isUserTyping = typeof document !== 'undefined' && document.activeElement &&
+              (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT');
+
+            if (!isUserTyping) {
+              // Not typing — reload immediately & silently
+              doReload();
+            } else {
+              // User is typing — wait 4 seconds then reload quietly
+              setTimeout(doReload, 4000);
             }
           }
         }
@@ -2507,13 +2515,13 @@ function App() {
     };
 
     checkAppVersion();
-    const interval = setInterval(checkAppVersion, 300000); // 5 minutes — checks for new deployment, not Supabase
+    const interval = setInterval(checkAppVersion, 60000); // 1 minute — auto-detects new deployment and refreshes all clients
 
     let lastVersionCheckTime = 0;
     const handleFocus = () => {
       const now = Date.now();
-      // Only recheck version on focus if at least 5 minutes have passed since last check
-      if (now - lastVersionCheckTime > 300000) {
+      // Recheck version on focus if at least 60 seconds have passed since last check
+      if (now - lastVersionCheckTime > 60000) {
         lastVersionCheckTime = now;
         checkAppVersion();
       }
