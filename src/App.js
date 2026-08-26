@@ -905,6 +905,8 @@ function App() {
   const [publishProgFilter, setPublishProgFilter] = useState('ALL'); // 'ALL' | 'PUBLISHED' | 'DRAFT'
   const [publishProgSearch, setPublishProgSearch] = useState('');
   const [resultsHistoryPlaceFilter, setResultsHistoryPlaceFilter] = useState('ALL'); // 'ALL' | 'FIRST' | 'SECOND' | 'THIRD'
+  const [resultsHistoryTypeFilter, setResultsHistoryTypeFilter] = useState('ALL'); // 'ALL' | 'SINGLE' | 'GROUP' | 'TEAM'
+  const [resultsHistoryCatFilter, setResultsHistoryCatFilter] = useState('ALL'); // 'ALL' | catId / catName
 
   // 🚀 Individual Program Result Publishing (Draft / Staging vs Published Gate)
   // ⚠️ FIX: VIEW role must NEVER use localStorage for published_programs — always use DB.
@@ -9536,8 +9538,11 @@ ${pagesHtml}
                     ) : (() => {
                     // 🏆 Group & Sort Results History by Program Section:
                     // 1. Grouped by Program & Category
-                    // 2. Sorted so the MOST RECENTLY PUBLISHED program appears at the VERY TOP (Descending by publish timestamp / index)
-                    // 3. Filterable by Prize Place: All, 1st Place, 2nd Place, 3rd Place
+                    // 2. Sorted so the MOST RECENTLY PUBLISHED program appears at the VERY TOP
+                    // 3. Multi-level Filtering:
+                    //    - Type Filter: All, Single, Group, Team
+                    //    - Category Filter: All, Kiddies, Sub Junior, Junior, Senior, General...
+                    //    - Place Filter: All, 1st Place, 2nd Place, 3rd Place
                     const placeRank = (placeStr) => {
                       if (!placeStr) return 4;
                       const str = String(placeStr).trim().toLowerCase();
@@ -9545,6 +9550,29 @@ ${pagesHtml}
                       if (str === 'second' || str === '2' || str === '2nd') return 2;
                       if (str === 'third' || str === '3' || str === '3rd') return 3;
                       return 4;
+                    };
+
+                    const matchesTypeFilter = (progType) => {
+                      if (resultsHistoryTypeFilter === 'ALL') return true;
+                      const pType = String(progType || '').toUpperCase();
+                      if (resultsHistoryTypeFilter === 'SINGLE') {
+                        return pType.includes('SINGLE') || (!pType.includes('GROUP') && !pType.includes('TEAM'));
+                      }
+                      if (resultsHistoryTypeFilter === 'GROUP') {
+                        return pType.includes('GROUP');
+                      }
+                      if (resultsHistoryTypeFilter === 'TEAM') {
+                        return pType.includes('TEAM');
+                      }
+                      return true;
+                    };
+
+                    const matchesCatFilter = (group) => {
+                      if (resultsHistoryCatFilter === 'ALL') return true;
+                      const catIdStr = String(group.catObj?.id || group.progObj?.catid || group.progObj?.categoryid || '').trim();
+                      const catNameStr = String(group.catName || group.catObj?.name || '').trim().toLowerCase();
+                      const filterStr = String(resultsHistoryCatFilter).trim().toLowerCase();
+                      return (catIdStr && catIdStr.toLowerCase() === filterStr) || (catNameStr && catNameStr === filterStr);
                     };
 
                     const matchesPlaceFilter = (placeStr) => {
@@ -9575,11 +9603,13 @@ ${pagesHtml}
                       } catch(e) {}
                     }
 
-                    // Count total winners for filter pills
+                    // Count total winners and category/type distributions
                     let totalWinnersCount = 0;
                     let firstCount = 0;
                     let secondCount = 0;
                     let thirdCount = 0;
+                    const typeCounts = { all: 0, single: 0, group: 0, team: 0 };
+                    const catCounts = { ALL: 0 };
 
                     displayHistoryResults.forEach(r => {
                       const p = String(r.place || '').trim().toLowerCase();
@@ -9601,6 +9631,18 @@ ${pagesHtml}
                       const canonicalProgKey = progObj ? String(progObj.id) : pKey;
                       const catObj = categories.find(c => (progObj && String(c.id) === String(progObj.catid || progObj.categoryid || '')) || String(c.id) === String(r.catid || r.catId || '') || String(c.name).toLowerCase() === String(r.catname || r.catName || '').toLowerCase());
                       const catName = r.catname || r.catName || (catObj ? catObj.name : '');
+                      const pType = String(r.progtype || r.progType || (progObj ? progObj.type : '')).toUpperCase();
+
+                      // Type count
+                      typeCounts.all++;
+                      if (pType.includes('GROUP')) typeCounts.group++;
+                      else if (pType.includes('TEAM')) typeCounts.team++;
+                      else typeCounts.single++;
+
+                      // Category count
+                      catCounts.ALL++;
+                      const cId = catObj ? String(catObj.id) : (progObj?.catid ? String(progObj.catid) : '');
+                      if (cId) catCounts[cId] = (catCounts[cId] || 0) + 1;
 
                       if (!groupMap.has(canonicalProgKey)) {
                         const lookupKeys = [
@@ -9654,6 +9696,9 @@ ${pagesHtml}
                       group.rows.push(r);
                     });
 
+                    // Available categories for filtering
+                    const availableCategories = (categories || []).filter(c => c && c.id && c.name);
+
                     // 🏆 Sort Results History:
                     // 1. Most recently published program at the VERY TOP:
                     //    - If published_at timestamp exists: highest pubTime (descending)
@@ -9703,6 +9748,16 @@ ${pagesHtml}
                       let printedRowCount = 0;
 
                       sortedProgramSections.forEach(group => {
+                        if (!matchesTypeFilter(group.progType)) return;
+                        if (!matchesCatFilter(group)) return;
+
+                        if (publishProgSearch) {
+                          const q = publishProgSearch.toLowerCase().trim();
+                          const matchProg = (group.progName || '').toLowerCase().includes(q) || (group.progObj?.code || '').toLowerCase().includes(q);
+                          const matchStudent = group.rows.some(r => (r.studentname || '').toLowerCase().includes(q) || (r.teamname || '').toLowerCase().includes(q));
+                          if (!matchProg && !matchStudent) return;
+                        }
+
                         const visibleRows = group.rows.filter(r => matchesPlaceFilter(r.place));
                         if (visibleRows.length === 0) return;
                         printedProgCount++;
@@ -9724,7 +9779,7 @@ ${pagesHtml}
                           const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
                           allRows += `<tr>
                             <td>${group.progName}</td>
-                            <td>${String(group.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}</td>
+                            <td>${String(group.progType).includes('GROUP') ? 'GROUP' : String(group.progType).includes('TEAM') ? 'TEAM' : 'SINGLE'}</td>
                             <td>${group.catName}</td>
                             <td>${photoHtml}</td>
                             <td>${regPart}</td>
@@ -9738,20 +9793,25 @@ ${pagesHtml}
                         });
                       });
 
-                      const filterTitleSuffix = resultsHistoryPlaceFilter === 'FIRST'
-                        ? ' - 1st Place Winners'
+                      const selectedCatObj = categories.find(c => String(c.id) === String(resultsHistoryCatFilter));
+                      const catLabel = selectedCatObj ? ` | Category: ${selectedCatObj.name}` : resultsHistoryCatFilter !== 'ALL' ? ` | Category: ${resultsHistoryCatFilter}` : '';
+                      const typeLabel = resultsHistoryTypeFilter !== 'ALL' ? ` | Type: ${resultsHistoryTypeFilter}` : '';
+                      const placeLabel = resultsHistoryPlaceFilter === 'FIRST'
+                        ? ' | 1st Place Winners'
                         : resultsHistoryPlaceFilter === 'SECOND'
-                        ? ' - 2nd Place Winners'
+                        ? ' | 2nd Place Winners'
                         : resultsHistoryPlaceFilter === 'THIRD'
-                        ? ' - 3rd Place Winners'
-                        : ' - All Winners';
+                        ? ' | 3rd Place Winners'
+                        : ' | All Winners';
+
+                      const filterSummary = `${typeLabel}${catLabel}${placeLabel}`.replace(/^ \| /, '') || 'All Results';
 
                       const html = `
-                    <html><head><title>Results History${filterTitleSuffix}</title>
+                    <html><head><title>Results History - ${filterSummary}</title>
                     <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} .sub{text-align:center;color:#64748b;font-size:13px;margin-top:4px;margin-bottom:16px} table{width:100%;border-collapse:collapse;margin-top:10px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
                     <body>
-                    <h1>🏆 Results History${filterTitleSuffix}</h1>
-                    <div class="sub">Total: ${printedRowCount} winners across ${printedProgCount} programs</div>
+                    <h1>🏆 Results History</h1>
+                    <div class="sub"><b>${filterSummary}</b> • Total: ${printedRowCount} winners across ${printedProgCount} programs</div>
                     <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${allRows}</tbody></table>
                     </body></html>
                   `;
@@ -9759,8 +9819,12 @@ ${pagesHtml}
                     };
 
                     const matchingSections = sortedProgramSections.filter(group => {
+                      if (!matchesTypeFilter(group.progType)) return false;
+                      if (!matchesCatFilter(group)) return false;
+
                       const hasPlaceMatches = group.rows.some(r => matchesPlaceFilter(r.place));
                       if (!hasPlaceMatches) return false;
+
                       if (!publishProgSearch) return true;
                       const q = publishProgSearch.toLowerCase().trim();
                       const matchProg = (group.progName || '').toLowerCase().includes(q) || (group.progObj?.code || '').toLowerCase().includes(q);
@@ -9771,7 +9835,7 @@ ${pagesHtml}
                     return (
                       <div>
                         {/* Search & Action Bar */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '12px', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '12px', marginBottom: '14px' }}>
                           <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>
                             📋 {lang === 'EN' ? 'Program Results List' : 'പ്രോഗ്രാം ഫലങ്ങളുടെ ലിസ്റ്റ്'} ({matchingSections.length} {lang === 'EN' ? 'programs' : 'പ്രോഗ്രാമുകൾ'})
                           </div>
@@ -9824,70 +9888,180 @@ ${pagesHtml}
                           </div>
                         </div>
 
-                        {/* 🏅 Place Filter Buttons: All, 1st, 2nd, 3rd (English Labels) */}
+                        {/* 🎛️ Multi-level Filter Box (Type, Category, Place) */}
                         <div style={{
-                          display: 'flex',
-                          gap: '8px',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          background: '#f8fafc',
-                          padding: '10px 14px',
-                          borderRadius: '12px',
+                          background: '#ffffff',
+                          padding: '14px 16px',
+                          borderRadius: '16px',
                           border: '1.5px solid #e2e8f0',
-                          marginBottom: '18px'
+                          boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                          marginBottom: '18px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px'
                         }}>
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#475569', marginRight: '4px' }}>
-                            🏆 {lang === 'EN' ? 'Filter Place:' : 'വിഭാഗം:'}
-                          </span>
-                          {[
-                            { key: 'ALL', label: 'All', icon: '🌟', count: totalWinnersCount },
-                            { key: 'FIRST', label: '1st Place', icon: '🥇', count: firstCount },
-                            { key: 'SECOND', label: '2nd Place', icon: '🥈', count: secondCount },
-                            { key: 'THIRD', label: '3rd Place', icon: '🥉', count: thirdCount },
-                          ].map(f => {
-                            const isAct = resultsHistoryPlaceFilter === f.key;
-                            return (
-                              <button
-                                key={f.key}
-                                type="button"
-                                onClick={() => setResultsHistoryPlaceFilter(f.key)}
-                                style={{
-                                  padding: '6px 14px',
-                                  borderRadius: '20px',
-                                  border: isAct ? '2px solid #059669' : '1.5px solid #cbd5e1',
-                                  background: isAct ? 'linear-gradient(135deg, #059669, #047857)' : '#ffffff',
-                                  color: isAct ? '#ffffff' : '#334155',
-                                  fontWeight: '800',
-                                  fontSize: '12.5px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  boxShadow: isAct ? '0 3px 10px rgba(5,150,105,0.3)' : '0 1px 3px rgba(0,0,0,0.05)',
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                <span>{f.icon}</span>
-                                <span>{f.label}</span>
-                                <span style={{
-                                  background: isAct ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
-                                  color: isAct ? '#ffffff' : '#64748b',
-                                  padding: '1px 7px',
-                                  borderRadius: '10px',
-                                  fontSize: '11px',
-                                  fontWeight: '800'
-                                }}>
-                                  {f.count}
-                                </span>
-                              </button>
-                            );
-                          })}
+                          {/* 1. Type Filter: All, Single, Group, Team */}
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#475569', minWidth: '90px' }}>
+                              🏷️ {lang === 'EN' ? 'Type:' : 'ഇനം:'}
+                            </span>
+                            {[
+                              { key: 'ALL', label: 'All', icon: '🌟', count: typeCounts.all },
+                              { key: 'SINGLE', label: 'Single', icon: '👤', count: typeCounts.single },
+                              { key: 'GROUP', label: 'Group', icon: '👥', count: typeCounts.group },
+                              { key: 'TEAM', label: 'Team', icon: '🏟️', count: typeCounts.team }
+                            ].map(f => {
+                              const isAct = resultsHistoryTypeFilter === f.key;
+                              return (
+                                <button
+                                  key={f.key}
+                                  type="button"
+                                  onClick={() => setResultsHistoryTypeFilter(f.key)}
+                                  style={{
+                                    padding: '5px 13px',
+                                    borderRadius: '20px',
+                                    border: isAct ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                                    background: isAct ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#f8fafc',
+                                    color: isAct ? '#ffffff' : '#334155',
+                                    fontWeight: '800',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    boxShadow: isAct ? '0 3px 10px rgba(37,99,235,0.3)' : 'none',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <span>{f.icon}</span>
+                                  <span>{f.label}</span>
+                                  {f.count !== undefined && (
+                                    <span style={{
+                                      background: isAct ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                                      color: isAct ? '#ffffff' : '#64748b',
+                                      padding: '1px 6px',
+                                      borderRadius: '10px',
+                                      fontSize: '10.5px',
+                                      fontWeight: '800'
+                                    }}>
+                                      {f.count}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* 2. Category Filter: All, Kiddies, Sub Junior, Junior, Senior, General... */}
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#475569', minWidth: '90px' }}>
+                              📂 {lang === 'EN' ? 'Category:' : 'വിഭാഗം:'}
+                            </span>
+                            {[
+                              { key: 'ALL', label: 'All', icon: '🌟', count: catCounts['ALL'] || displayHistoryResults.length },
+                              ...availableCategories.map(c => ({
+                                key: String(c.id),
+                                label: c.name,
+                                icon: '🏷️',
+                                count: catCounts[String(c.id)] || 0
+                              }))
+                            ].map(f => {
+                              const isAct = resultsHistoryCatFilter === f.key;
+                              return (
+                                <button
+                                  key={f.key}
+                                  type="button"
+                                  onClick={() => setResultsHistoryCatFilter(f.key)}
+                                  style={{
+                                    padding: '5px 13px',
+                                    borderRadius: '20px',
+                                    border: isAct ? '2px solid #7c3aed' : '1.5px solid #cbd5e1',
+                                    background: isAct ? 'linear-gradient(135deg, #7c3aed, #6d28d9)' : '#f8fafc',
+                                    color: isAct ? '#ffffff' : '#334155',
+                                    fontWeight: '800',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    boxShadow: isAct ? '0 3px 10px rgba(124,58,237,0.3)' : 'none',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <span>{f.icon}</span>
+                                  <span>{f.label}</span>
+                                  {f.count !== undefined && (
+                                    <span style={{
+                                      background: isAct ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                                      color: isAct ? '#ffffff' : '#64748b',
+                                      padding: '1px 6px',
+                                      borderRadius: '10px',
+                                      fontSize: '10.5px',
+                                      fontWeight: '800'
+                                    }}>
+                                      {f.count}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* 3. Place Filter: All, 1st Place, 2nd Place, 3rd Place */}
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#475569', minWidth: '90px' }}>
+                              🏆 {lang === 'EN' ? 'Place:' : 'സ്ഥാനം:'}
+                            </span>
+                            {[
+                              { key: 'ALL', label: 'All', icon: '🌟', count: totalWinnersCount },
+                              { key: 'FIRST', label: '1st Place', icon: '🥇', count: firstCount },
+                              { key: 'SECOND', label: '2nd Place', icon: '🥈', count: secondCount },
+                              { key: 'THIRD', label: '3rd Place', icon: '🥉', count: thirdCount },
+                            ].map(f => {
+                              const isAct = resultsHistoryPlaceFilter === f.key;
+                              return (
+                                <button
+                                  key={f.key}
+                                  type="button"
+                                  onClick={() => setResultsHistoryPlaceFilter(f.key)}
+                                  style={{
+                                    padding: '5px 13px',
+                                    borderRadius: '20px',
+                                    border: isAct ? '2px solid #059669' : '1.5px solid #cbd5e1',
+                                    background: isAct ? 'linear-gradient(135deg, #059669, #047857)' : '#f8fafc',
+                                    color: isAct ? '#ffffff' : '#334155',
+                                    fontWeight: '800',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    boxShadow: isAct ? '0 3px 10px rgba(5,150,105,0.3)' : 'none',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <span>{f.icon}</span>
+                                  <span>{f.label}</span>
+                                  <span style={{
+                                    background: isAct ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                                    color: isAct ? '#ffffff' : '#64748b',
+                                    padding: '1px 6px',
+                                    borderRadius: '10px',
+                                    fontSize: '10.5px',
+                                    fontWeight: '800'
+                                  }}>
+                                    {f.count}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         {/* ── Program Sections ── */}
                         {matchingSections.length === 0 ? (
                           <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: '12px', border: '1.5px solid #e2e8f0', color: '#64748b', fontStyle: 'italic' }}>
-                            {lang === 'EN' ? 'No results found matching the selected filter.' : 'തിരഞ്ഞെടുത്ത ഫിൽട്ടറിന് അനുയോജ്യമായ ഫലങ്ങൾ ഒന്നും കണ്ടെത്തിയില്ല.'}
+                            {lang === 'EN' ? 'No results found matching the selected filters.' : 'തിരഞ്ഞെടുത്ത ഫിൽട്ടറുകൾക്ക് അനുയോജ്യമായ ഫലങ്ങൾ ഒന്നും കണ്ടെത്തിയില്ല.'}
                           </div>
                         ) : (
                           matchingSections.map(group => {
@@ -9929,8 +10103,8 @@ ${pagesHtml}
                                             {group.catName}
                                           </span>
                                         )}
-                                        <span style={{ background: String(group.progType).includes('GROUP') ? '#fee2e2' : '#dcfce7', color: String(group.progType).includes('GROUP') ? '#991b1b' : '#166534', padding: '1px 8px', borderRadius: '4px', fontWeight: '800' }}>
-                                          {String(group.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}
+                                        <span style={{ background: String(group.progType).includes('GROUP') ? '#fee2e2' : String(group.progType).includes('TEAM') ? '#fef3c7' : '#dcfce7', color: String(group.progType).includes('GROUP') ? '#991b1b' : String(group.progType).includes('TEAM') ? '#b45309' : '#166534', padding: '1px 8px', borderRadius: '4px', fontWeight: '800' }}>
+                                          {String(group.progType).includes('GROUP') ? '👥 GROUP' : String(group.progType).includes('TEAM') ? '🏟️ TEAM' : '👤 SINGLE'}
                                         </span>
                                         <span style={{ color: '#64748b', fontWeight: '700' }}>
                                           ({visibleRows.length} {lang === 'EN' ? 'entries' : 'വിജയികൾ'})
