@@ -2496,13 +2496,31 @@ tr:nth-child(even) {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, #090d16 0%, #03150f 100%);
-    color: #f8fafc;
     z-index: 99999;
     padding: 16px 24px;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* 🌙 1. Dark / Black Theme (Default) */
+.projector-overlay,
+.projector-overlay.theme-dark {
+    background: radial-gradient(ellipse at 50% 0%, #111827 0%, #090d16 60%, #030712 100%);
+    color: #f8fafc;
+}
+
+/* ☀️ 2. Light / Clean White Theme */
+.projector-overlay.theme-light {
+    background: radial-gradient(ellipse at 50% 0%, #ffffff 0%, #f1f5f9 55%, #e2e8f0 100%);
+    color: #0f172a;
+}
+
+/* ✨ 3. Royal Festive Emerald & Gold Theme */
+.projector-overlay.theme-festive {
+    background: radial-gradient(circle at 50% 12%, #064e3b 0%, #022c22 55%, #01140e 100%);
+    color: #f8fafc;
 }
 
 .projector-header {
@@ -2510,14 +2528,61 @@ tr:nth-child(even) {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 10px;
+    padding-bottom: 12px;
     margin-bottom: 14px;
+    gap: 16px;
+    flex-wrap: wrap;
+    transition: border-color 0.3s ease;
+}
+
+.projector-overlay.theme-light .projector-header {
+    border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+
+.projector-overlay.theme-festive .projector-header {
+    border-bottom-color: rgba(251, 191, 36, 0.25);
 }
 
 .projector-header-left {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 14px;
+}
+
+.projector-event-heading {
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 900;
+    color: #fbbf24;
+    letter-spacing: 1px;
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+    text-transform: uppercase;
+}
+
+.projector-overlay.theme-light .projector-event-heading {
+    color: #b45309;
+    text-shadow: 0 2px 8px rgba(180, 83, 9, 0.2);
+}
+
+.projector-overlay.theme-festive .projector-event-heading {
+    color: #fde047;
+    text-shadow: 0 0 25px rgba(253, 224, 71, 0.7);
+}
+
+.projector-event-sub {
+    font-size: clamp(11px, 1.5vw, 14px);
+    font-weight: 700;
+    color: #a7f3d0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.projector-overlay.theme-light .projector-event-sub {
+    color: #047857;
+}
+
+.projector-overlay.theme-festive .projector-event-sub {
+    color: #6ee7b7;
 }
 
 .projector-title {
@@ -2528,6 +2593,19 @@ tr:nth-child(even) {
     -webkit-text-fill-color: transparent;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.projector-overlay.theme-light .projector-title {
+    background: linear-gradient(135deg, #0f172a 0%, #b45309 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.projector-overlay.theme-festive .projector-title {
+    background: linear-gradient(135deg, #ffffff 20%, #fef08a 60%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
 }
 
 .projector-live-badge {
@@ -2554,39 +2632,246 @@ tr:nth-child(even) {
 
 .projector-nav-pills {
     display: flex;
-    gap: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 6px;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 5px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.projector-overlay.theme-light .projector-nav-pills {
+    background: rgba(15, 23, 42, 0.06);
+    border-color: rgba(15, 23, 42, 0.1);
+}
+
+.projector-overlay.theme-festive .projector-nav-pills {
+    background: rgba(6, 78, 59, 0.5);
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
 .projector-nav-pill {
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     color: #94a3b8;
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+.projector-overlay.theme-light .projector-nav-pill {
+    color: #475569;
+}
+
+.projector-overlay.theme-festive .projector-nav-pill {
+    color: #a7f3d0;
 }
 
 .projector-nav-pill.active {
     background: var(--accent-gold);
     color: #0f172a;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.projector-overlay.theme-light .projector-nav-pill.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+}
+
+.projector-overlay.theme-festive .projector-nav-pill.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #022c22;
+    font-weight: 900;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+}
+
+/* 🎛️ Header Controls (Pause/Auto + Theme Chips + Exit) */
+.projector-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ⏸️ / ▶️ Pause & Auto Rotate Button */
+.projector-ctrl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+    outline: none;
+}
+
+.projector-pause-toggle-btn.is-running {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+
+.projector-overlay.theme-light .projector-pause-toggle-btn.is-running {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.6);
+    color: #059669;
+}
+
+.projector-pause-toggle-btn.is-running:hover {
+    background: rgba(16, 185, 129, 0.28);
+    border-color: #10b981;
+    transform: translateY(-1px);
+}
+
+.projector-pause-toggle-btn.is-paused {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.65);
+    color: #fbbf24;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+    animation: pausedGlow 2s infinite ease-in-out;
+}
+
+.projector-overlay.theme-light .projector-pause-toggle-btn.is-paused {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: #d97706;
+    color: #b45309;
+}
+
+@keyframes pausedGlow {
+    0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.55); }
+}
+
+.auto-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    animation: autoPulse 1.5s infinite;
+}
+
+@keyframes autoPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+/* 🎨 Theme Selector Chips */
+.projector-theme-switch-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 3px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.projector-overlay.theme-light .projector-theme-switch-group {
+    background: rgba(15, 23, 42, 0.06);
+    border-color: rgba(15, 23, 42, 0.12);
+}
+
+.projector-overlay.theme-festive .projector-theme-switch-group {
+    background: rgba(6, 78, 59, 0.5);
+    border-color: rgba(251, 191, 36, 0.25);
+}
+
+.theme-chip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.projector-overlay.theme-light .theme-chip-btn {
+    color: #64748b;
+}
+
+.projector-overlay.theme-festive .theme-chip-btn {
+    color: #a7f3d0;
+}
+
+.theme-chip-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.projector-overlay.theme-light .theme-chip-btn:hover {
+    background: rgba(15, 23, 42, 0.08);
+    color: #0f172a;
+}
+
+.theme-chip-btn.selected {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.projector-overlay.theme-light .theme-chip-btn.selected {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.projector-overlay.theme-festive .theme-chip-btn.selected {
+    background: rgba(251, 191, 36, 0.25);
+    color: #fef08a;
+    border-color: #fbbf24;
+}
+
+.theme-color-preview {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.theme-color-preview.dark-swatch {
+    background: #090d16;
+    border: 1px solid #64748b;
+}
+
+.theme-color-preview.light-swatch {
+    background: #ffffff;
+    border: 1px solid #94a3b8;
+}
+
+.theme-color-preview.festive-swatch {
+    background: linear-gradient(135deg, #059669, #fbbf24);
+    border: 1px solid #fbbf24;
 }
 
 .projector-close-btn {
     background: rgba(239, 68, 68, 0.15);
     border: 1px solid rgba(239, 68, 68, 0.3);
     color: #f87171;
-    padding: 10px 20px;
+    padding: 7px 14px;
     border-radius: 10px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     transition: all 0.2s;
+    outline: none;
 }
 
 .projector-close-btn:hover {
@@ -3407,6 +3692,287 @@ tr:nth-child(even) {
     z-index: 2;
 }
 
+/* ==========================================================================
+   ☀️ THEME OVERRIDES: LIGHT / WHITE THEME
+   ========================================================================== */
+.projector-overlay.theme-light .projector-slide-title {
+    color: #334155;
+}
+
+.projector-overlay.theme-light .projector-leaderboard-card {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+}
+
+.projector-overlay.theme-light .projector-leaderboard-card.rank-1 {
+    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+    border-color: #f59e0b;
+    box-shadow: 0 12px 35px rgba(245, 158, 11, 0.22);
+}
+
+.projector-overlay.theme-light .projector-leaderboard-card.rank-2 {
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    border-color: #94a3b8;
+    box-shadow: 0 10px 30px rgba(148, 163, 184, 0.18);
+}
+
+.projector-overlay.theme-light .projector-leaderboard-card.rank-3 {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+    border-color: #f97316;
+    box-shadow: 0 10px 30px rgba(249, 115, 22, 0.18);
+}
+
+.projector-overlay.theme-light .projector-leaderboard-card.rank-other {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+
+.projector-overlay.theme-light .projector-team-name {
+    color: #0f172a;
+}
+
+.projector-overlay.theme-light .projector-team-score {
+    color: #0f172a;
+}
+
+.projector-overlay.theme-light .rank-1 .projector-team-score {
+    color: #b45309;
+    text-shadow: none;
+}
+
+.projector-overlay.theme-light .rank-2 .projector-team-score {
+    color: #334155;
+    text-shadow: none;
+}
+
+.projector-overlay.theme-light .rank-3 .projector-team-score {
+    color: #c2410c;
+    text-shadow: none;
+}
+
+.projector-overlay.theme-light .projector-team-score .score-lbl {
+    color: #64748b;
+}
+
+.projector-overlay.theme-light .projector-troll-bubble {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.projector-overlay.theme-light .projector-bar-track {
+    background: #e2e8f0;
+}
+
+.projector-overlay.theme-light .projector-category-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+}
+
+.projector-overlay.theme-light .projector-category-name {
+    color: #b45309;
+    border-bottom-color: #f1f5f9;
+}
+
+.projector-overlay.theme-light .projector-category-team-row {
+    background: #f8fafc;
+}
+
+.projector-overlay.theme-light .projector-category-team-row .team-title {
+    color: #0f172a;
+}
+
+.projector-overlay.theme-light .projector-category-team-row .team-pts {
+    color: #0f172a;
+}
+
+.projector-overlay.theme-light .projector-category-team-row .team-gender-pts {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.projector-overlay.theme-light .winner-poster-container {
+    background: radial-gradient(circle at top, #ffffff 0%, #f8fafc 100%);
+    border-color: rgba(217, 119, 6, 0.45);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(245, 158, 11, 0.12);
+}
+
+.projector-overlay.theme-light .winner-poster-header {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+.projector-overlay.theme-light .winner-poster-prog-title {
+    background: linear-gradient(135deg, #0f172a 0%, #b45309 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.projector-overlay.theme-light .winner-poster-cat-badge,
+.projector-overlay.theme-light .winner-poster-catname-badge {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.projector-overlay.theme-light .winner-poster-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+}
+
+.projector-overlay.theme-light .winner-poster-card.gold {
+    background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+    border-color: #f59e0b;
+    box-shadow: 0 12px 30px rgba(245, 158, 11, 0.2);
+}
+
+.projector-overlay.theme-light .winner-poster-card.silver {
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    border-color: #94a3b8;
+    box-shadow: 0 10px 25px rgba(148, 163, 184, 0.18);
+}
+
+.projector-overlay.theme-light .winner-poster-card.bronze {
+    background: linear-gradient(180deg, #fff7ed 0%, #ffffff 100%);
+    border-color: #f97316;
+    box-shadow: 0 10px 25px rgba(249, 115, 22, 0.18);
+}
+
+.projector-overlay.theme-light .winner-poster-card.gold .winner-poster-place-label {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #f59e0b;
+}
+
+.projector-overlay.theme-light .winner-poster-card.silver .winner-poster-place-label {
+    background: #f1f5f9;
+    color: #334155;
+    border-color: #94a3b8;
+}
+
+.projector-overlay.theme-light .winner-poster-card.bronze .winner-poster-place-label {
+    background: #ffedd5;
+    color: #9a3412;
+    border-color: #f97316;
+}
+
+.projector-overlay.theme-light .winner-poster-name {
+    color: #0f172a;
+}
+
+.projector-overlay.theme-light .winner-poster-card.gold .winner-poster-name {
+    color: #92400e;
+    text-shadow: none;
+}
+
+.projector-overlay.theme-light .winner-poster-reg {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.projector-overlay.theme-light .winner-poster-team {
+    color: #0284c7;
+}
+
+.projector-overlay.theme-light .winner-poster-cat {
+    color: #059669;
+}
+
+.projector-overlay.theme-light .winner-poster-empty-place {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+/* ==========================================================================
+   ✨ THEME OVERRIDES: ROYAL FESTIVE EMERALD & GOLD THEME
+   ========================================================================== */
+.projector-overlay.theme-festive .projector-slide-title {
+    color: #fef08a;
+    text-shadow: 0 0 15px rgba(254, 240, 138, 0.35);
+}
+
+.projector-overlay.theme-festive .projector-leaderboard-card {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.7) 0%, rgba(2, 44, 34, 0.85) 100%);
+    border-color: rgba(251, 191, 36, 0.25);
+    box-shadow: 0 10px 30px rgba(1, 20, 14, 0.5);
+}
+
+.projector-overlay.theme-festive .projector-leaderboard-card.rank-1 {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(6, 78, 59, 0.95) 100%);
+    border-color: #fbbf24;
+    box-shadow: 0 15px 40px rgba(245, 158, 11, 0.35), 0 0 25px rgba(6, 78, 59, 0.5);
+}
+
+.projector-overlay.theme-festive .projector-leaderboard-card.rank-2 {
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.2) 0%, rgba(6, 78, 59, 0.9) 100%);
+    border-color: rgba(226, 232, 240, 0.7);
+    box-shadow: 0 10px 30px rgba(148, 163, 184, 0.25);
+}
+
+.projector-overlay.theme-festive .projector-leaderboard-card.rank-3 {
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.2) 0%, rgba(6, 78, 59, 0.9) 100%);
+    border-color: rgba(251, 146, 60, 0.7);
+    box-shadow: 0 10px 30px rgba(234, 88, 12, 0.25);
+}
+
+.projector-overlay.theme-festive .projector-leaderboard-card.rank-other {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 78, 59, 0.85) 100%);
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.projector-overlay.theme-festive .projector-team-name {
+    color: #ffffff;
+}
+
+.projector-overlay.theme-festive .projector-troll-bubble {
+    background: rgba(2, 44, 34, 0.9);
+    border-color: rgba(251, 191, 36, 0.35);
+    color: #fef08a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.projector-overlay.theme-festive .projector-category-card {
+    background: rgba(6, 78, 59, 0.45);
+    border-color: rgba(251, 191, 36, 0.2);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.projector-overlay.theme-festive .projector-category-name {
+    color: #fbbf24;
+    border-bottom-color: rgba(251, 191, 36, 0.2);
+}
+
+.projector-overlay.theme-festive .projector-category-team-row {
+    background: rgba(2, 44, 34, 0.5);
+}
+
+.projector-overlay.theme-festive .winner-poster-container {
+    background: radial-gradient(circle at top, rgba(6, 78, 59, 0.95), rgba(2, 44, 34, 0.98));
+    border-color: rgba(251, 191, 36, 0.5);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6), 0 0 35px rgba(245, 158, 11, 0.25);
+}
+
+.projector-overlay.theme-festive .winner-poster-prog-title {
+    background: linear-gradient(135deg, #ffffff 0%, #fef08a 60%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 25px rgba(251, 191, 36, 0.5);
+}
+
+.projector-overlay.theme-festive .winner-poster-card {
+    background: rgba(4, 47, 46, 0.85);
+    border-color: rgba(251, 191, 36, 0.25);
+}
+
+.projector-overlay.theme-festive .winner-poster-card.gold {
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.25) 0%, rgba(6, 78, 59, 0.9) 100%);
+    border-color: #fbbf24;
+    box-shadow: 0 15px 40px rgba(245, 158, 11, 0.35), 0 0 25px rgba(6, 78, 59, 0.4);
+}
+
 /* 📱 MOBILE RESPONSIVE STYLES FOR LIVE SCOREBOARD & RECENT WINNERS */
 @media (max-width: 768px) {
     .projector-overlay {
@@ -3440,9 +4006,25 @@ tr:nth-child(even) {
         white-space: nowrap;
     }
 
+    .projector-header-controls {
+        justify-content: center;
+        width: 100%;
+        gap: 6px;
+    }
+
+    .projector-ctrl-btn {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    .theme-chip-btn {
+        padding: 4px 6px;
+        font-size: 10px;
+    }
+
     .projector-close-btn {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 5px 10px;
+        font-size: 11px;
     }
 
     .projector-slide-title {

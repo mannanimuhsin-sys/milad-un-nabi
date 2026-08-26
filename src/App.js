@@ -634,6 +634,14 @@ function App() {
   const [isProjectorActive, setIsProjectorActive] = useState(false);
   const [projectorSlide, setProjectorSlide] = useState(0); // 0: Overall, 1: Category, 2: Recent Winners
   const [selectedRecentProgIndex, setSelectedRecentProgIndex] = useState(0);
+  const [projectorTheme, setProjectorTheme] = useState(() => {
+    try {
+      return localStorage.getItem('milad_projector_theme') || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  });
+  const [isProjectorPaused, setIsProjectorPaused] = useState(false);
 
   // Event / Program Name SFtates (stored in localStorage)
   const [eventName, setEventName] = useState('');
@@ -2777,26 +2785,32 @@ function App() {
       fetchSupabaseData(rNum);
     }, 30000);
 
-    // Slide rotation every 20 seconds
-    const slideInterval = setInterval(() => {
-      setProjectorSlide(prev => (prev + 1) % 3);
-    }, 20000);
+    // Slide rotation every 20 seconds (only when NOT paused)
+    let slideInterval = null;
+    if (!isProjectorPaused) {
+      slideInterval = setInterval(() => {
+        setProjectorSlide(prev => (prev + 1) % 3);
+      }, 20000);
+    }
 
-    // ESC key support to exit projector mode
+    // ESC key support to exit projector mode & Space/P to toggle pause
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setIsProjectorActive(false);
+      } else if (e.key === ' ' || e.key === 'p' || e.key === 'P') {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+        setIsProjectorPaused(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       clearInterval(dataInterval);
-      clearInterval(slideInterval);
+      if (slideInterval) clearInterval(slideInterval);
       window.removeEventListener('keydown', handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isProjectorActive, loggedInMadrasa]);
+  }, [isProjectorActive, loggedInMadrasa, isProjectorPaused]);
 
   // 🎭 Troll Mode Auto-Rotate: ഓരോ 10 മിനിറ്റിലും dialog cycle ആകും
   useEffect(() => {
@@ -21056,7 +21070,7 @@ ${pagesHtml}
 
       {/* 📺 LIVE RESULTS PROJECTOR OVERLAY */}
       {isProjectorActive && (
-        <div className="projector-overlay">
+        <div className={`projector-overlay theme-${projectorTheme}`}>
           {/* Confetti container (glowing particles) */}
           <div className="projector-confetti-container">
             {Array.from({ length: 40 }).map((_, i) => {
@@ -21064,7 +21078,7 @@ ${pagesHtml}
               const delay = Math.random() * 8;
               const duration = 4 + Math.random() * 6;
               const size = 6 + Math.random() * 10;
-              const color = ['#f59e0b', '#fbbf24', '#10b981', '#3b82f6', '#ec4899'][Math.floor(Math.random() * 5)];
+              const color = ['#f59e0b', '#fbbf24', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#8b5cf6'][Math.floor(Math.random() * 7)];
               return (
                 <div
                   key={i}
@@ -21091,18 +21105,11 @@ ${pagesHtml}
               </div>
               {eventName && (
                 <div style={{ lineHeight: '1.2', marginBottom: '2px' }}>
-                  <div style={{
-                    fontSize: 'clamp(18px, 3vw, 28px)',
-                    fontWeight: '900',
-                    color: '#fbbf24',
-                    letterSpacing: '1px',
-                    textShadow: '0 0 20px rgba(251,191,36,0.5)',
-                    textTransform: 'uppercase'
-                  }}>
+                  <div className="projector-event-heading">
                     {eventName}
                   </div>
                   {eventYear && (
-                    <div style={{ fontSize: 'clamp(11px, 1.5vw, 14px)', fontWeight: '700', color: '#a7f3d0', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '2px' }}>
+                    <div className="projector-event-sub">
                       Milad_fest {eventYear}
                     </div>
                   )}
@@ -21110,20 +21117,102 @@ ${pagesHtml}
               )}
               <h1 className="projector-title" style={{ fontSize: eventName ? 'clamp(13px, 2vw, 18px)' : undefined, opacity: eventName ? 0.85 : 1 }}>{loggedInMadrasa ? loggedInMadrasa.name : 'MILAD FESTIVAL'}</h1>
             </div>
+
+            {/* Slide Navigation Tabs */}
             <div className="projector-nav-pills">
-              <span className={`projector-nav-pill ${projectorSlide === 0 ? 'active' : ''}`} onClick={() => setProjectorSlide(0)}>
+              <button
+                type="button"
+                className={`projector-nav-pill ${projectorSlide === 0 ? 'active' : ''}`}
+                onClick={() => setProjectorSlide(0)}
+              >
                 🏆 {lang === 'EN' ? 'Overall Standings' : 'ആകെ പോയിന്റ് നില'}
-              </span>
-              <span className={`projector-nav-pill ${projectorSlide === 1 ? 'active' : ''}`} onClick={() => setProjectorSlide(1)}>
+              </button>
+              <button
+                type="button"
+                className={`projector-nav-pill ${projectorSlide === 1 ? 'active' : ''}`}
+                onClick={() => setProjectorSlide(1)}
+              >
                 📂 {lang === 'EN' ? 'Category Standings' : 'വിഭാഗം തിരിച്ച്'}
-              </span>
-              <span className={`projector-nav-pill ${projectorSlide === 2 ? 'active' : ''}`} onClick={() => setProjectorSlide(2)}>
+              </button>
+              <button
+                type="button"
+                className={`projector-nav-pill ${projectorSlide === 2 ? 'active' : ''}`}
+                onClick={() => setProjectorSlide(2)}
+              >
                 🥇 {lang === 'EN' ? 'Recent Winners' : 'വിജയികൾ'}
-              </span>
+              </button>
             </div>
-            <button className="projector-close-btn" onClick={() => setIsProjectorActive(false)}>
-              ✕ Exit
-            </button>
+
+            {/* Header Right Controls: Auto/Pause Toggle + 3 Theme Switchers + Exit */}
+            <div className="projector-header-controls">
+              {/* ⏸️ Pause / Hold / Auto-Rotate Toggle Button */}
+              <button
+                type="button"
+                className={`projector-ctrl-btn projector-pause-toggle-btn ${isProjectorPaused ? 'is-paused' : 'is-running'}`}
+                onClick={() => setIsProjectorPaused(prev => !prev)}
+                title={isProjectorPaused ? (lang === 'EN' ? 'Click to Resume Auto-Slide (20s)' : 'ഓട്ടോ റൊട്ടേഷൻ തുടങ്ങുക (20s)') : (lang === 'EN' ? 'Click to Hold / Pause on this screen' : 'ഈ സ്ക്രീനിൽ ഫിക്സ് ചെയ്ത് നിർത്തുക')}
+              >
+                <span className="ctrl-btn-icon">{isProjectorPaused ? '⏸️' : '▶️'}</span>
+                <span className="ctrl-btn-text">
+                  {isProjectorPaused
+                    ? (lang === 'EN' ? 'Hold (Paused)' : 'പോസ് ചെയ്തു')
+                    : (lang === 'EN' ? 'Auto (20s)' : 'ഓട്ടോ (20s)')}
+                </span>
+                {!isProjectorPaused && <span className="auto-pulse-dot" />}
+              </button>
+
+              {/* 🎨 3 Background Color Theme Switcher */}
+              <div className="projector-theme-switch-group">
+                <button
+                  type="button"
+                  className={`theme-chip-btn ${projectorTheme === 'dark' ? 'selected' : ''}`}
+                  onClick={() => {
+                    setProjectorTheme('dark');
+                    try { localStorage.setItem('milad_projector_theme', 'dark'); } catch(e){}
+                  }}
+                  title={lang === 'EN' ? 'Midnight Black Theme' : 'ബ്ലാക്ക് മോഡ്'}
+                >
+                  <span className="theme-color-preview dark-swatch" />
+                  <span className="theme-chip-text">{lang === 'EN' ? 'Dark' : 'ബ്ലാക്ക്'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`theme-chip-btn ${projectorTheme === 'light' ? 'selected' : ''}`}
+                  onClick={() => {
+                    setProjectorTheme('light');
+                    try { localStorage.setItem('milad_projector_theme', 'light'); } catch(e){}
+                  }}
+                  title={lang === 'EN' ? 'Crisp White Theme' : 'വൈറ്റ് മോഡ്'}
+                >
+                  <span className="theme-color-preview light-swatch" />
+                  <span className="theme-chip-text">{lang === 'EN' ? 'White' : 'വൈറ്റ്'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`theme-chip-btn ${projectorTheme === 'festive' ? 'selected' : ''}`}
+                  onClick={() => {
+                    setProjectorTheme('festive');
+                    try { localStorage.setItem('milad_projector_theme', 'festive'); } catch(e){}
+                  }}
+                  title={lang === 'EN' ? 'Royal Festive Emerald & Gold Theme' : 'ഫെസ്റ്റിവൽ മോഡ്'}
+                >
+                  <span className="theme-color-preview festive-swatch" />
+                  <span className="theme-chip-text">{lang === 'EN' ? 'Festive' : 'ഫെസ്റ്റിവൽ'}</span>
+                </button>
+              </div>
+
+              {/* Close / Exit Button */}
+              <button
+                type="button"
+                className="projector-close-btn"
+                onClick={() => setIsProjectorActive(false)}
+                title={lang === 'EN' ? 'Exit Projector Mode (Esc)' : 'പുറത്ത് കടക്കുക (Esc)'}
+              >
+                ✕ {lang === 'EN' ? 'Exit' : 'Exit'}
+              </button>
+            </div>
           </header>
 
           {/* Main Slide Viewer */}
