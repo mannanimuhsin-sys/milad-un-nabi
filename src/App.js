@@ -9699,138 +9699,141 @@ ${pagesHtml}
                     // Available categories for filtering
                     const availableCategories = (categories || []).filter(c => c && c.id && c.name);
 
-                    // 👥 Helper to resolve all registered student members for a GROUP or TEAM result entry
+                    // 👥 Helper to resolve ONLY the specific student members ticked/selected for this GROUP or TEAM entry
                     const getGroupOrTeamMembers = (resultRow, programGroup) => {
                       const rTeamId = String(resultRow.teamid || resultRow.teamId || resultRow.team_id || '').trim().toLowerCase();
                       const rTeamName = String(resultRow.teamname || resultRow.teamName || '').trim().toLowerCase();
-                      const rStudentName = String(resultRow.studentname || resultRow.studentName || '').trim().toLowerCase();
+                      const rEntryName = String(resultRow.studentname || resultRow.studentName || '').trim().toLowerCase();
                       const pId = String(programGroup.progId || programGroup.progObj?.id || '').trim();
                       const pCode = String(programGroup.progObj?.code || '').trim().toLowerCase();
                       const pName = String(programGroup.progName || programGroup.progObj?.name || '').trim().toLowerCase();
 
-                      const memberMap = new Map();
+                      // Resolve team object
+                      const canonicalTeam = (teams || []).find(t => 
+                        (rTeamId && String(t.id).toLowerCase() === rTeamId) ||
+                        (rTeamName && String(t.name || '').trim().toLowerCase() === rTeamName)
+                      );
+                      const resolvedTeamId = canonicalTeam ? String(canonicalTeam.id).toLowerCase() : rTeamId;
 
-                      const addStudent = (st, isLeader = false) => {
-                        if (!st) return;
-                        const key = String(st.id || st.regno || st.regNo || st.name);
-                        if (!memberMap.has(key)) {
-                          memberMap.set(key, { ...st, isLeader });
+                      if (!Array.isArray(groupRegistrations) || groupRegistrations.length === 0) {
+                        return [];
+                      }
+
+                      // 1. Filter groupRegistrations strictly for this program and team
+                      const candidateGroups = groupRegistrations.filter(g => {
+                        if (!g) return false;
+                        const gProgId = String(g.program_id || g.progid || g.programId || '').trim();
+                        const gProgCode = String(g.program_code || g.progcode || '').trim().toLowerCase();
+                        const gTeamId = String(g.team_id || g.teamid || '').trim().toLowerCase();
+
+                        const progMatches = (pId && gProgId === pId) ||
+                                            (pCode && (gProgId.toLowerCase() === pCode || gProgCode === pCode)) ||
+                                            (pName && (gProgId.toLowerCase() === pName || gProgCode === pName));
+
+                        if (!progMatches) return false;
+
+                        const teamMatches = (resolvedTeamId && gTeamId === resolvedTeamId) ||
+                                            (rTeamId && gTeamId === rTeamId) ||
+                                            (rTeamName && canonicalTeam && gTeamId === String(canonicalTeam.id).toLowerCase()) ||
+                                            (!resolvedTeamId && !rTeamId && !rTeamName);
+
+                        return teamMatches;
+                      });
+
+                      // 2. Match the specific group entry by group_name (e.g. "A", "B", "C", "Majlisunnoor Team", etc.)
+                      let matchedGroup = null;
+                      if (rEntryName) {
+                        matchedGroup = candidateGroups.find(g => {
+                          const gName = String(g.group_name || '').trim().toLowerCase();
+                          return gName === rEntryName || gName === `team ${rEntryName}` || `team ${gName}` === rEntryName;
+                        });
+                      }
+
+                      // If not matched by exact name, but there is only 1 registered group for this team in this program, use it
+                      if (!matchedGroup && candidateGroups.length === 1) {
+                        matchedGroup = candidateGroups[0];
+                      }
+
+                      // If still not matched and entry name has multiple words or prefixes, check fuzzy match
+                      if (!matchedGroup && candidateGroups.length > 0 && rEntryName) {
+                        matchedGroup = candidateGroups.find(g => {
+                          const gName = String(g.group_name || '').trim().toLowerCase();
+                          return gName && (gName.includes(rEntryName) || rEntryName.includes(gName));
+                        });
+                      }
+
+                      // If no matching group registration found, return empty array (DO NOT fallback to entire team!)
+                      if (!matchedGroup) {
+                        return [];
+                      }
+
+                      // 3. Extract ONLY the student_ids ticked for this specific matchedGroup
+                      let mIds = [];
+                      if (Array.isArray(matchedGroup.student_ids)) {
+                        mIds = matchedGroup.student_ids;
+                      } else if (typeof matchedGroup.student_ids === 'string') {
+                        try {
+                          mIds = JSON.parse(matchedGroup.student_ids || '[]');
+                        } catch (e) {
+                          mIds = matchedGroup.student_ids.split(',').map(s => s.trim());
                         }
-                      };
-
-                      // 1. Check in groupRegistrations
-                      if (Array.isArray(groupRegistrations)) {
-                        groupRegistrations.forEach(g => {
-                          if (!g) return;
-                          const gProgId = String(g.program_id || g.progid || g.programId || '').trim();
-                          const gProgCode = String(g.program_code || g.progcode || '').trim().toLowerCase();
-                          const gTeamId = String(g.team_id || g.teamid || '').trim().toLowerCase();
-                          const gGroupName = String(g.group_name || '').trim().toLowerCase();
-
-                          const progMatches = (pId && gProgId === pId) || 
-                                              (pCode && (gProgId.toLowerCase() === pCode || gProgCode === pCode)) ||
-                                              (pName && (gProgCode === pName || gProgId.toLowerCase() === pName));
-
-                          const teamMatches = (rTeamId && gTeamId === rTeamId) ||
-                                              (rTeamName && (gGroupName === rTeamName || gGroupName.includes(rTeamName) || rTeamName.includes(gGroupName))) ||
-                                              (rStudentName && (gGroupName === rStudentName || rStudentName.includes(gGroupName) || gGroupName.includes(rStudentName)));
-
-                          if (progMatches && (teamMatches || (!rTeamId && !rTeamName))) {
-                            // Leader
-                            const lId = String(g.leader_id || '').trim();
-                            if (lId) {
-                              const leaderSt = (students || []).find(s => String(s.id).trim() === lId || String(s.regno || s.regNo || '').trim() === lId);
-                              if (leaderSt) addStudent(leaderSt, true);
-                            }
-
-                            // Student IDs
-                            let mIds = [];
-                            if (Array.isArray(g.student_ids)) mIds = g.student_ids;
-                            else if (typeof g.student_ids === 'string') {
-                              try { mIds = JSON.parse(g.student_ids || '[]'); } catch (e) {
-                                mIds = g.student_ids.split(',').map(s => s.trim());
-                              }
-                            }
-                            if (!Array.isArray(mIds)) mIds = [mIds];
-
-                            mIds.forEach(item => {
-                              if (!item) return;
-                              let targetId = '';
-                              let targetReg = '';
-                              if (typeof item === 'object') {
-                                targetId = String(item.id || item.student_id || '').trim();
-                                targetReg = String(item.regno || item.regNo || '').trim();
-                              } else {
-                                targetId = String(item).trim();
-                              }
-                              const st = (students || []).find(s => 
-                                (targetId && String(s.id).trim() === targetId) || 
-                                (targetId && String(s.regno || s.regNo || '').trim() === targetId) ||
-                                (targetReg && String(s.regno || s.regNo || '').trim() === targetReg)
-                              );
-                              if (st) addStudent(st, false);
-                              else if (typeof item === 'object' && (item.name || item.student_name)) {
-                                addStudent({
-                                  id: targetId || targetReg || Math.random(),
-                                  name: item.name || item.student_name,
-                                  regno: targetReg || targetId || '',
-                                  gender: item.gender || item.student_gender || '',
-                                  photo_url: item.photo_url || ''
-                                }, false);
-                              }
-                            });
-                          }
-                        });
                       }
+                      if (!Array.isArray(mIds)) mIds = [mIds];
 
-                      // 2. Check in programRegistrations
-                      if (memberMap.size === 0 && Array.isArray(programRegistrations)) {
-                        programRegistrations.forEach(pr => {
-                          if (!pr) return;
-                          const prProgId = String(pr.program_id || pr.progid || pr.programId || '').trim();
-                          const prProgCode = String(pr.program_code || pr.progcode || '').trim().toLowerCase();
-                          const prTeamId = String(pr.team_id || pr.teamid || '').trim().toLowerCase();
-                          const prTeamName = String(pr.team_name || pr.teamname || '').trim().toLowerCase();
+                      const lId = String(matchedGroup.leader_id || '').trim();
+                      const resolvedStudents = [];
+                      const addedKeys = new Set();
 
-                          const progMatches = (pId && prProgId === pId) || 
-                                              (pCode && (prProgId.toLowerCase() === pCode || prProgCode === pCode));
-
-                          const teamMatches = (rTeamId && prTeamId === rTeamId) ||
-                                              (rTeamName && prTeamName === rTeamName);
-
-                          if (progMatches && teamMatches) {
-                            const sId = String(pr.student_id || '').trim();
-                            const sReg = String(pr.regno || pr.regNo || '').trim();
-                            const st = (students || []).find(s => 
-                              (sId && String(s.id).trim() === sId) ||
-                              (sReg && String(s.regno || s.regNo || '').trim() === sReg)
-                            );
-                            if (st) addStudent(st, false);
-                          }
-                        });
-                      }
-
-                      // 3. Fallback: match students of this team belonging to the program category
-                      if (memberMap.size === 0 && (rTeamId || rTeamName) && Array.isArray(students)) {
-                        const teamStudents = students.filter(s => {
-                          const sTeamId = String(s.teamid || s.team_id || '').trim().toLowerCase();
-                          const sTeamName = String(s.teamname || s.teamName || '').trim().toLowerCase();
-                          const matchesTeam = (rTeamId && sTeamId === rTeamId) || (rTeamName && sTeamName === rTeamName);
-                          if (!matchesTeam) return false;
-
-                          if (programGroup.catObj?.id || programGroup.progObj?.catid) {
-                            const pCatId = String(programGroup.catObj?.id || programGroup.progObj?.catid || '').trim();
-                            const sCatId = String(s.catid || s.catId || s.category || '').trim();
-                            if (pCatId && sCatId && pCatId !== sCatId) return false;
-                          }
-                          return true;
-                        });
-                        if (teamStudents.length > 0 && teamStudents.length <= 15) {
-                          teamStudents.forEach(st => addStudent(st, false));
+                      // If leader is specified, ensure leader is included
+                      if (lId) {
+                        const leaderSt = (students || []).find(s => 
+                          String(s.id).trim() === lId || 
+                          String(s.regno || s.regNo || '').trim() === lId
+                        );
+                        if (leaderSt) {
+                          const key = String(leaderSt.id || leaderSt.regno);
+                          addedKeys.add(key);
+                          resolvedStudents.push({ ...leaderSt, isLeader: true });
                         }
                       }
 
-                      return Array.from(memberMap.values());
+                      mIds.forEach(item => {
+                        if (!item) return;
+                        let targetId = '';
+                        let targetReg = '';
+                        if (typeof item === 'object') {
+                          targetId = String(item.id || item.student_id || '').trim();
+                          targetReg = String(item.regno || item.regNo || '').trim();
+                        } else {
+                          targetId = String(item).trim();
+                        }
+
+                        const st = (students || []).find(s =>
+                          (targetId && String(s.id).trim() === targetId) ||
+                          (targetId && String(s.regno || s.regNo || '').trim() === targetId) ||
+                          (targetReg && String(s.regno || s.regNo || '').trim() === targetReg)
+                        );
+
+                        if (st) {
+                          const key = String(st.id || st.regno);
+                          if (!addedKeys.has(key)) {
+                            addedKeys.add(key);
+                            const isLeader = Boolean(lId && (String(st.id).trim() === lId || String(st.regno || s.regNo || '').trim() === lId));
+                            resolvedStudents.push({ ...st, isLeader });
+                          }
+                        } else if (typeof item === 'object' && (item.name || item.student_name)) {
+                          resolvedStudents.push({
+                            id: targetId || targetReg || Math.random(),
+                            name: item.name || item.student_name,
+                            regno: targetReg || targetId || '',
+                            gender: item.gender || item.student_gender || '',
+                            photo_url: item.photo_url || '',
+                            isLeader: false
+                          });
+                        }
+                      });
+
+                      return resolvedStudents;
                     };
 
                     // 🏆 Sort Results History:
