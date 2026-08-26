@@ -7,6 +7,42 @@ import * as XLSX from 'xlsx';
 import './App.css';
 import translations from './translations';
 
+// ── Strict Chest / Register Number Extractor ──
+// Extracts chest number / register number from strings like "101 - Name", "101-Name", "A1: Name", "JR-05 - Name", "101"
+const extractChestNumber = (rawString) => {
+  if (!rawString || typeof rawString !== 'string') return '';
+  const trimmed = rawString.trim();
+  const match = trimmed.match(/^([^\s\-:.]+(?:-[^\s\-:.]+)?)\s*(?:[-:.]|\s+-)\s*/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  const firstToken = trimmed.split(/\s+/)[0];
+  return firstToken || '';
+};
+
+// ── Prize Priority Rank ──
+// 1st Place (1) > 2nd Place (2) > 3rd Place (3) > Other Place (4) > No Place (99)
+const getPlaceRank = (place) => {
+  if (!place) return 99;
+  const p = String(place).trim().toLowerCase();
+  if (p === 'first' || p === '1' || p === '1st') return 1;
+  if (p === 'second' || p === '2' || p === '2nd') return 2;
+  if (p === 'third' || p === '3' || p === '3rd') return 3;
+  if (p && p !== 'no place' && p !== '-' && p !== '0' && p !== 'no' && p !== 'none' && p !== 'null') return 4;
+  return 99;
+};
+
+// ── Clean Entity Name (strips emojis and prefix tags for safe comparison) ──
+const cleanEntityName = (str) => {
+  if (!str) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/^[👥🏟️🚩👑🏆\s]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 // Inline component to generate and display QR code asynchronously
 function StudentQrCode({ madrasaReg, studentId, size = 70 }) {
   const [qrUrl, setQrUrl] = useState('');
@@ -868,6 +904,7 @@ function App() {
   const [publishManagerOpen, setPublishManagerOpen] = useState(false);
   const [publishProgFilter, setPublishProgFilter] = useState('ALL'); // 'ALL' | 'PUBLISHED' | 'DRAFT'
   const [publishProgSearch, setPublishProgSearch] = useState('');
+  const [resultsHistoryPlaceFilter, setResultsHistoryPlaceFilter] = useState('ALL'); // 'ALL' | 'FIRST' | 'SECOND' | 'THIRD'
 
   // 🚀 Individual Program Result Publishing (Draft / Staging vs Published Gate)
   // ⚠️ FIX: VIEW role must NEVER use localStorage for published_programs — always use DB.
@@ -1448,8 +1485,6 @@ function App() {
     if (!s || !p || !Array.isArray(groupRegistrations)) return null;
     const sDbId = String(s.id || '').trim();
     const sRegNo = String(s.regno || s.regNo || '').trim();
-    const sIdNum = parseInt(sDbId, 10);
-    const sRegNum = parseInt(sRegNo, 10);
     const sCatId = String(s.catid || s.catId || s.category || '');
     const sCatObj = (categories || []).find(c => String(c.id) === sCatId || (c.name && c.name.toLowerCase() === sCatId.toLowerCase()));
     const sCatName = sCatObj ? sCatObj.name : sCatId;
@@ -1459,41 +1494,61 @@ function App() {
     if (!isStudentCategoryMatch(p, sCatId, sCatName, categories)) return null;
     if (!isStudentGenderMatch(p, sGender)) return null;
 
+    const pIdStr = String(p.id || '').trim();
+    const pCodeStr = String(p.code || '').trim().toLowerCase();
+    const pNameStr = String(p.name || '').trim().toLowerCase();
+
     const foundGroup = groupRegistrations.find(g => {
       if (!g) return false;
+      const gProgId = String(g.program_id || '').trim().toLowerCase();
       const pMatch = isProgramMatch({ program_id: g.program_id, program_name: g.program_name || g.program_id }, p) ||
-        String(g.program_id || '').trim() === String(p.id || '').trim() ||
-        (p.code && String(g.program_id || '').trim().toLowerCase() === String(p.code || '').trim().toLowerCase()) ||
-        (p.name && String(g.program_id || '').trim().toLowerCase() === String(p.name || '').trim().toLowerCase());
+        gProgId === pIdStr.toLowerCase() ||
+        (pCodeStr && gProgId === pCodeStr) ||
+        (pNameStr && gProgId === pNameStr);
       if (!pMatch) return false;
 
-      // Check leader ID
+      // 1. Check leader ID strictly
       if (g.leader_id) {
         const lId = String(g.leader_id).trim();
-        if (lId === sDbId || (sRegNo && lId === sRegNo)) return true;
-        const lNum = parseInt(lId, 10);
-        if (!isNaN(lNum) && ((!isNaN(sIdNum) && lNum === sIdNum) || (!isNaN(sRegNum) && lNum === sRegNum))) return true;
+        if (sDbId && lId === sDbId) return true;
+        if (sRegNo && lId.toLowerCase() === sRegNo.toLowerCase()) return true;
+        if (sRegNo && (lId.toLowerCase().startsWith(sRegNo.toLowerCase() + ' -') || lId.toLowerCase().startsWith(sRegNo.toLowerCase() + '-'))) return true;
       }
 
-      // Check members array
+      // 2. Check members array (handles JSON array, strings, numbers, objects, comma-separated strings)
       let mIds = [];
       if (Array.isArray(g.student_ids)) {
         mIds = g.student_ids;
       } else if (typeof g.student_ids === 'string') {
-        try { mIds = JSON.parse(g.student_ids || '[]'); } catch (e) { mIds = [g.student_ids]; }
+        const rawStr = g.student_ids.trim();
+        try {
+          const parsed = JSON.parse(rawStr);
+          mIds = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          if (rawStr.includes(',')) {
+            mIds = rawStr.split(',').map(x => x.trim()).filter(Boolean);
+          } else {
+            mIds = [rawStr];
+          }
+        }
       }
       if (!Array.isArray(mIds)) mIds = [mIds];
 
       return mIds.some(item => {
         if (!item) return false;
-        if (typeof item === 'object') {
-          const mId = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
-          return mId === sDbId || (sRegNo && mId === sRegNo);
+        if (typeof item === 'object' && item !== null) {
+          const mDbId = String(item.id || item.student_id || item.studentId || '').trim();
+          const mReg = String(item.regno || item.regNo || '').trim();
+          if (sDbId && mDbId && mDbId === sDbId) return true;
+          if (sRegNo && mReg && mReg.toLowerCase() === sRegNo.toLowerCase()) return true;
+          if (sRegNo && mDbId && mDbId.toLowerCase() === sRegNo.toLowerCase()) return true;
+          return false;
         }
         const idStr = String(item).trim();
-        if (idStr === sDbId || (sRegNo && idStr === sRegNo)) return true;
-        const idNum = parseInt(idStr, 10);
-        if (!isNaN(idNum) && ((!isNaN(sIdNum) && idNum === sIdNum) || (!isNaN(sRegNum) && idNum === sRegNum))) return true;
+        if (!idStr) return false;
+        if (sDbId && idStr === sDbId) return true;
+        if (sRegNo && idStr.toLowerCase() === sRegNo.toLowerCase()) return true;
+        if (sRegNo && (idStr.toLowerCase().startsWith(sRegNo.toLowerCase() + ' -') || idStr.toLowerCase().startsWith(sRegNo.toLowerCase() + '-'))) return true;
         return false;
       });
     });
@@ -1503,7 +1558,7 @@ function App() {
     let isLeader = false;
     if (foundGroup.leader_id) {
       const lId = String(foundGroup.leader_id).trim();
-      isLeader = (lId === sDbId || (sRegNo && lId === sRegNo));
+      isLeader = (sDbId && lId === sDbId) || (sRegNo && lId.toLowerCase() === sRegNo.toLowerCase());
     }
 
     const teamObj = (teams || []).find(t => String(t.id) === String(foundGroup.team_id));
@@ -1513,7 +1568,8 @@ function App() {
       groupName: foundGroup.group_name || 'Group',
       isLeader,
       teamName: teamObj ? teamObj.name : '',
-      groupId: foundGroup.id
+      groupId: foundGroup.id,
+      teamId: foundGroup.team_id
     };
   }, [groupRegistrations, teams, isProgramMatch, isStudentCategoryMatch, isStudentGenderMatch, categories]);
 
@@ -2819,9 +2875,9 @@ function App() {
         const sId = String(s.id || '').trim();
         const sReg = String(s.regno || s.regNo || '').trim();
         if (sId && sId === studentId) return true;
-        if (sReg && sReg === studentId) return true;
+        if (sReg && sReg.toLowerCase() === studentId.toLowerCase()) return true;
         const targetNum = parseInt(studentId, 10);
-        if (!isNaN(targetNum)) {
+        if (!isNaN(targetNum) && String(targetNum) === studentId) {
           if (parseInt(sId, 10) === targetNum) return true;
           if (parseInt(sReg, 10) === targetNum) return true;
         }
@@ -2840,25 +2896,19 @@ function App() {
       );
       const sCatName = catObj ? catObj.name : (studentObj._resolvedCatName || sCatId);
       const sGender = studentObj.gender || '';
+      const sName = String(studentObj.name || '').trim();
 
       const sDbId = String(studentObj.id || '').trim();
       const sRegNo = String(studentObj.regno || studentObj.regNo || '').trim();
-      const sIdNum = parseInt(sDbId, 10);
-      const sRegNum = parseInt(sRegNo, 10);
 
-      // A. Match all Single Event Registrations for this student in localProgRegs
+      // A. Match all Single Event Registrations for this student in localProgRegs strictly by DB ID or Chest No
       const sRegs = (localProgRegs || []).filter(r => {
         if (!r) return false;
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
         if (!rSid) return false;
         if (sDbId && rSid === sDbId) return true;
-        if (sRegNo && rSid === sRegNo) return true;
-        const rSidNum = parseInt(rSid, 10);
-        if (!isNaN(rSidNum)) {
-          if (!isNaN(sIdNum) && rSidNum === sIdNum) return true;
-          if (!isNaN(sRegNum) && rSidNum === sRegNum) return true;
-        }
-        if (sRegNo && (rSid.startsWith(sRegNo + ' -') || rSid.startsWith(sRegNo + '-'))) return true;
+        if (sRegNo && rSid.toLowerCase() === sRegNo.toLowerCase()) return true;
+        if (sRegNo && (rSid.toLowerCase().startsWith(sRegNo.toLowerCase() + ' -') || rSid.toLowerCase().startsWith(sRegNo.toLowerCase() + '-'))) return true;
         return false;
       });
 
@@ -2904,23 +2954,39 @@ function App() {
       });
       const uniqueSingleProgs = Array.from(singleProgMap.values());
 
-      // B. Match all Individual Results for this student in localResults (STRICT REG NO / ID ONLY)
+      // B. Match all Individual Results for this student in localResults (STRICT CHEST / REGISTER NUMBER OR DB ID ONLY)
       const studentMatchedResults = (localResults || []).filter(r => {
         if (!r) return false;
-        const rRaw = String(r.studentname || r.studentName || '').trim();
-        const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
-        const dashIdx = rRaw.indexOf(' - ');
-        const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : '';
-
-        if (rSid && sDbId && rSid === sDbId) return true;
-        if (rSid && sRegNo && rSid === sRegNo) return true;
-        const rSidNum = parseInt(rSid, 10);
-        if (!isNaN(rSidNum)) {
-          if (!isNaN(sIdNum) && rSidNum === sIdNum) return true;
-          if (!isNaN(sRegNum) && rSidNum === sRegNum) return true;
+        // Gender check
+        const rGender = String(r.studentgender || r.studentGender || '').trim().toUpperCase();
+        const sGenderUpper = String(sGender || '').trim().toUpperCase();
+        if (rGender && sGenderUpper && rGender !== 'COMMON' && rGender !== 'ALL' && rGender !== sGenderUpper) {
+          return false;
         }
-        if (sRegNo && rRegPart && rRegPart.toLowerCase() === sRegNo.toLowerCase()) return true;
-        if (sRegNo && (rRaw.startsWith(sRegNo + ' ') || rRaw === sRegNo)) return true;
+
+        const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
+        if (sDbId && rSid && rSid === sDbId) return true;
+        if (sRegNo && rSid && rSid.toLowerCase() === sRegNo.toLowerCase()) return true;
+
+        const rRaw = String(r.studentname || r.studentName || '').trim();
+        if (!rRaw) return false;
+
+        // Strict Chest Number match
+        const rChestNo = extractChestNumber(rRaw);
+        if (sRegNo && rChestNo && rChestNo.toLowerCase() === sRegNo.toLowerCase()) return true;
+
+        if (sRegNo) {
+          const sRegLower = sRegNo.toLowerCase();
+          const rRawLower = rRaw.toLowerCase();
+          if (rRawLower === sRegLower ||
+              rRawLower.startsWith(sRegLower + ' -') ||
+              rRawLower.startsWith(sRegLower + '-') ||
+              rRawLower.startsWith(sRegLower + ' :') ||
+              rRawLower.startsWith(sRegLower + ':') ||
+              rRawLower.startsWith(sRegLower + '.')) {
+            return true;
+          }
+        }
         return false;
       });
 
@@ -2934,12 +3000,12 @@ function App() {
         if (p.id) processedProgKeys.add(String(p.id).trim().toLowerCase());
         if (p.code) processedProgKeys.add(String(p.code).trim().toLowerCase());
 
-        const res = studentMatchedResults.find(r => {
+        // Find candidate results for this program
+        const candidateResults = studentMatchedResults.filter(r => {
           const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
           const rPname = String(r.progname || r.program_name || '').trim().toLowerCase();
           if (p.id && rPid === String(p.id).toLowerCase()) return true;
-          if (p.code && rPid === String(p.code).toLowerCase()) return true;
-          if (p.code && rPname.startsWith(String(p.code).toLowerCase())) return true;
+          if (p.code && (rPid === String(p.code).toLowerCase() || rPname.startsWith(String(p.code).toLowerCase()))) return true;
           if (p.name && rPname === String(p.name).toLowerCase()) {
             const rCat = String(r.catname || r.catName || '').trim().toLowerCase();
             if (!rCat || isStudentCategoryMatch(p, rCat, rCat, localCats)) return true;
@@ -2947,6 +3013,15 @@ function App() {
           return false;
         });
 
+        // Sort candidates so the BEST place / highest points comes FIRST (Never downgrade 1st to 3rd)
+        candidateResults.sort((a, b) => {
+          const rankA = getPlaceRank(a.place);
+          const rankB = getPlaceRank(b.place);
+          if (rankA !== rankB) return rankA - rankB;
+          return (Number(b.points) || 0) - (Number(a.points) || 0);
+        });
+
+        const res = candidateResults[0] || null;
         const isPub = res ? isProgramPublishedInList(res.progid || p.id, localPubList, localProgs) : false;
         const rawPlace = (res && isPub) ? String(res.place || '').trim() : '';
         const validPlace = (rawPlace && rawPlace !== 'No Place' && rawPlace !== '-' && rawPlace !== '0' && rawPlace !== 'No' && rawPlace !== 'none' && rawPlace !== 'null') ? rawPlace : null;
@@ -2981,6 +3056,9 @@ function App() {
         if (prog && !isStudentCategoryMatch(prog, sCatId, sCatName, localCats)) return;
 
         processedProgKeys.add(rPid);
+        if (rPname) processedProgKeys.add(rPname);
+        if (prog?.id) processedProgKeys.add(String(prog.id).toLowerCase());
+        if (prog?.code) processedProgKeys.add(String(prog.code).toLowerCase());
 
         const isPub = isProgramPublishedInList(r.progid, localPubList, localProgs);
         const rawPlace = isPub ? String(r.place || '').trim() : '';
@@ -3011,51 +3089,55 @@ function App() {
       });
 
       // C. Match all Group Registrations where this student is a member or leader
-      const studentGroups = (localGroupRegs || []).filter(g => {
+      const isStudentInGroup = (g) => {
         if (!g) return false;
         // Leader match
         if (g.leader_id) {
           const lId = String(g.leader_id).trim();
-          if (lId === sDbId || (sRegNo && lId === sRegNo)) return true;
-          const lNum = parseInt(lId, 10);
-          if (!isNaN(lNum)) {
-            if (!isNaN(sIdNum) && lNum === sIdNum) return true;
-            if (!isNaN(sRegNum) && lNum === sRegNum) return true;
-          }
-          if (sRegNo && (lId.startsWith(sRegNo + ' -') || lId.startsWith(sRegNo + '-'))) return true;
+          if (sDbId && lId === sDbId) return true;
+          if (sRegNo && lId.toLowerCase() === sRegNo.toLowerCase()) return true;
+          if (sRegNo && (lId.toLowerCase().startsWith(sRegNo.toLowerCase() + ' -') || lId.toLowerCase().startsWith(sRegNo.toLowerCase() + '-'))) return true;
         }
 
-        // Member match
+        // Member match (supports array, JSON string, objects, comma-separated string)
         let memberIds = [];
-        if (Array.isArray(g.student_ids)) memberIds = g.student_ids;
-        else if (typeof g.student_ids === 'string') {
-          try { memberIds = JSON.parse(g.student_ids); } catch (e) { memberIds = [g.student_ids]; }
+        if (Array.isArray(g.student_ids)) {
+          memberIds = g.student_ids;
+        } else if (typeof g.student_ids === 'string') {
+          const rawStr = g.student_ids.trim();
+          try {
+            const parsed = JSON.parse(rawStr);
+            memberIds = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            if (rawStr.includes(',')) {
+              memberIds = rawStr.split(',').map(x => x.trim()).filter(Boolean);
+            } else {
+              memberIds = [rawStr];
+            }
+          }
         }
         if (!Array.isArray(memberIds)) memberIds = [memberIds];
 
         return memberIds.some(item => {
           if (!item) return false;
-          if (typeof item === 'object') {
-            const mId = String(item.id || item.student_id || item.regno || item.regNo || '').trim();
-            if (mId && (mId === sDbId || (sRegNo && mId === sRegNo))) return true;
-            const mNum = parseInt(mId, 10);
-            if (!isNaN(mNum)) {
-              if (!isNaN(sIdNum) && mNum === sIdNum) return true;
-              if (!isNaN(sRegNum) && mNum === sRegNum) return true;
-            }
+          if (typeof item === 'object' && item !== null) {
+            const mDbId = String(item.id || item.student_id || item.studentId || '').trim();
+            const mReg = String(item.regno || item.regNo || '').trim();
+            if (sDbId && mDbId && mDbId === sDbId) return true;
+            if (sRegNo && mReg && mReg.toLowerCase() === sRegNo.toLowerCase()) return true;
+            if (sRegNo && mDbId && mDbId.toLowerCase() === sRegNo.toLowerCase()) return true;
             return false;
           }
           const idStr = String(item).trim();
-          if (idStr === sDbId || (sRegNo && idStr === sRegNo)) return true;
-          const idNum = parseInt(idStr, 10);
-          if (!isNaN(idNum)) {
-            if (!isNaN(sIdNum) && idNum === sIdNum) return true;
-            if (!isNaN(sRegNum) && idNum === sRegNum) return true;
-          }
-          if (sRegNo && (idStr.startsWith(sRegNo + ' -') || idStr.startsWith(sRegNo + '-'))) return true;
+          if (!idStr) return false;
+          if (sDbId && idStr === sDbId) return true;
+          if (sRegNo && idStr.toLowerCase() === sRegNo.toLowerCase()) return true;
+          if (sRegNo && (idStr.toLowerCase().startsWith(sRegNo.toLowerCase() + ' -') || idStr.toLowerCase().startsWith(sRegNo.toLowerCase() + '-'))) return true;
           return false;
         });
-      });
+      };
+
+      const studentGroups = (localGroupRegs || []).filter(isStudentInGroup);
 
       const resolvedGroupResults = studentGroups.map(g => {
         const prog = (localProgs || []).find(p => {
@@ -3071,10 +3153,11 @@ function App() {
         const groupTeam = (localTeams || []).find(t => String(t.id) === String(g.team_id));
         const groupTeamName = groupTeam ? String(groupTeam.name || '').trim().toLowerCase() : '';
         const gName = String(g.group_name || '').trim().toLowerCase();
+        const gCleanName = cleanEntityName(gName);
         const gTeamId = String(g.team_id || '').trim();
 
-        // Find result for this group in localResults (STRICT MATCHING)
-        const result = (localResults || []).find(r => {
+        // Find candidate results for this group in localResults
+        const candidateGroupResults = (localResults || []).filter(r => {
           if (!r) return false;
           const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
           const rProgMatch = (prog && (rPid === String(prog.id).toLowerCase() || rPid === String(prog.code).toLowerCase())) ||
@@ -3089,34 +3172,58 @@ function App() {
           }
 
           const rName = String(r.studentname || r.student_name || '').trim().toLowerCase();
+          const rCleanName = cleanEntityName(rName);
           const rTeamId = String(r.teamid || r.team_id || r.team || '').trim();
 
           // 1. Explicit group ID match if stored on result
           if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
-          // 2. Exact group name match or group name prefix
-          if (gName && (rName === gName || rName === `👥 ${gName}` || rName.startsWith(`${gName} -`) || rName.startsWith(`${gName}-`))) return true;
+
+          // 2. Group name match (exact or with prefix / emoji / brackets)
+          if (gCleanName && (
+            rCleanName === gCleanName ||
+            rName === gName ||
+            rName === `👥 ${gName}` ||
+            rCleanName.startsWith(gCleanName + ' -') ||
+            rCleanName.startsWith(gCleanName + '-') ||
+            rCleanName.startsWith(gCleanName + ' [') ||
+            rCleanName.includes(gCleanName) ||
+            gCleanName.includes(rCleanName)
+          )) return true;
+
           // 3. Team-level match: Team ID matches AND result name matches team name / team group
           if (gTeamId && rTeamId && gTeamId === rTeamId) {
-            if (groupTeamName && (rName === groupTeamName || rName === `${groupTeamName} group` || rName === `🏟️ ${groupTeamName}` || rName === 'group')) return true;
+            if (groupTeamName && (
+              rCleanName === groupTeamName ||
+              rCleanName === `${groupTeamName} group` ||
+              rCleanName === 'team group' ||
+              rCleanName === 'group' ||
+              rCleanName.includes(groupTeamName)
+            )) return true;
           }
           return false;
         });
 
+        // Pick BEST place result for this group
+        candidateGroupResults.sort((a, b) => {
+          const rankA = getPlaceRank(a.place);
+          const rankB = getPlaceRank(b.place);
+          if (rankA !== rankB) return rankA - rankB;
+          return (Number(b.points) || 0) - (Number(a.points) || 0);
+        });
+
+        const result = candidateGroupResults[0] || null;
         const isPub = result ? isProgramPublishedInList(result.progid || g.program_id, localPubList, localProgs) : false;
 
-        // Clean place & grade: If "No Place", "-", "0", "No", treat as null
         const rawPlace = (result && isPub) ? String(result.place || '').trim() : '';
         const validPlace = (rawPlace && rawPlace !== 'No Place' && rawPlace !== '-' && rawPlace !== '0' && rawPlace !== 'No' && rawPlace !== 'none' && rawPlace !== 'null') ? rawPlace : null;
-
         const rawGrade = (result && isPub) ? String(result.grade || '').trim() : '';
         const validGrade = (rawGrade && rawGrade !== '-' && rawGrade !== 'No' && rawGrade !== '0' && rawGrade !== 'none' && rawGrade !== 'None' && rawGrade !== 'null') ? rawGrade : null;
-
         const validPts = (result && isPub && (validPlace || validGrade)) ? Number(result.points || 0) : null;
 
         let isLeader = false;
         if (g.leader_id) {
           const lId = String(g.leader_id).trim();
-          isLeader = (lId === sDbId || (sRegNo && lId === sRegNo) || (sName && lId.toLowerCase() === sName.toLowerCase()));
+          isLeader = (sDbId && lId === sDbId) || (sRegNo && lId.toLowerCase() === sRegNo.toLowerCase()) || (sName && lId.toLowerCase() === sName.toLowerCase());
         }
 
         return {
@@ -3133,6 +3240,66 @@ function App() {
           isGroup: true
         };
       });
+
+      // D. Include direct Team/Group results for this student's team (if not already present in resolvedGroupResults)
+      if (sTeamId) {
+        const teamProgResults = (localResults || []).filter(r => {
+          if (!r) return false;
+          if (String(r.teamid || r.team_id || '').trim() !== sTeamId) return false;
+          const rPid = String(r.progid || r.program_id || '').trim();
+          const prog = (localProgs || []).find(p => String(p.id) === rPid || (p.code && String(p.code) === rPid) || String(p.name).toLowerCase() === String(r.progname || '').toLowerCase());
+          if (!prog) return false;
+          const pType = (prog.type || r.progtype || '').toUpperCase();
+          if (!pType.includes('GROUP') && !pType.includes('TEAM')) return false;
+          if (!isStudentCategoryMatch(prog, sCatId, sCatName, localCats)) return false;
+          if (!isStudentGenderMatch(prog, sGender)) return false;
+
+          // Check if already in resolvedGroupResults
+          const alreadyInGroup = resolvedGroupResults.some(g => String(g.progid) === String(prog.id) || String(g.progid) === String(prog.code));
+          if (alreadyInGroup) return false;
+
+          return true;
+        });
+
+        const teamProgsMap = new Map();
+        teamProgResults.forEach(r => {
+          const rPid = String(r.progid || r.program_id || '').trim();
+          const prog = (localProgs || []).find(p => String(p.id) === rPid || (p.code && String(p.code) === rPid));
+          const pKey = prog ? String(prog.id) : rPid;
+          if (!teamProgsMap.has(pKey)) teamProgsMap.set(pKey, { prog, results: [] });
+          teamProgsMap.get(pKey).results.push(r);
+        });
+
+        teamProgsMap.forEach(({ prog, results: pResults }, pKey) => {
+          pResults.sort((a, b) => {
+            const rankA = getPlaceRank(a.place);
+            const rankB = getPlaceRank(b.place);
+            if (rankA !== rankB) return rankA - rankB;
+            return (Number(b.points) || 0) - (Number(a.points) || 0);
+          });
+          const bestRes = pResults[0];
+          const isPub = isProgramPublishedInList(bestRes.progid || pKey, localPubList, localProgs);
+          const rawPlace = isPub ? String(bestRes.place || '').trim() : '';
+          const validPlace = (rawPlace && rawPlace !== 'No Place' && rawPlace !== '-' && rawPlace !== '0' && rawPlace !== 'No' && rawPlace !== 'none' && rawPlace !== 'null') ? rawPlace : null;
+          const rawGrade = isPub ? String(bestRes.grade || '').trim() : '';
+          const validGrade = (rawGrade && rawGrade !== '-' && rawGrade !== 'No' && rawGrade !== '0' && rawGrade !== 'none' && rawGrade !== 'None' && rawGrade !== 'null') ? rawGrade : null;
+          const validPts = (isPub && (validPlace || validGrade)) ? Number(bestRes.points || 0) : null;
+
+          resolvedGroupResults.push({
+            progid: prog ? prog.id : pKey,
+            progname: prog ? `${prog.code ? prog.code + ' – ' : ''}${prog.name}` : (bestRes.progname || 'Team Program'),
+            progtype: 'TEAM',
+            groupName: teamObj?.name ? `${teamObj.name} Team` : 'Team',
+            isLeader: false,
+            place: validPlace,
+            grade: validGrade,
+            points: validPts,
+            isPublished: isPub && (validPlace !== null || validGrade !== null),
+            hasResult: !!(bestRes && isPub && (validPlace || validGrade)),
+            isGroup: true
+          });
+        });
+      }
 
       return {
         madrasa: localMadrasa ? { ...localMadrasa, place: actualPlace } : null,
@@ -6378,10 +6545,10 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setProfilePdfGenerating(true);
     try {
       const isA3 = paperSize === 'A3';
-      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.7cm × 9.9cm
-      // A3 Landscape: 5 columns × 2 rows = 10 cards per page (420mm × 297mm), card size: 7.7cm × 9.9cm
-      const cols = isA3 ? 5 : 3;
-      const rows = 2;
+      // A4 Landscape: 3 columns × 2 rows = 6 cards per page (297mm × 210mm), card size: 7.7cm × 9.4cm
+      // A3 Landscape: 4 columns × 3 rows = 12 cards per page (420mm × 297mm), card size: 7.7cm × 9.4cm
+      const cols = isA3 ? 4 : 3;
+      const rows = isA3 ? 3 : 2;
       const cardsPerPage = cols * rows;
       const pageSize = isA3 ? 'A3 landscape' : 'A4 landscape';
 
@@ -6395,7 +6562,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         } catch (e) { qrMap[s.id] = ''; }
       }
 
-      // Build card HTML for each student (Exact 7.7cm × 9.9cm / 77mm × 99mm with zero footer cutoff)
+      // Build card HTML for each student (Exact 7.7cm × 9.4cm / 77mm × 94mm with zero footer cutoff)
       const cardHtmlList = filteredStudentsList.map(s => {
         const sTeamId = s.teamid || s.teamId || '';
         const sCatId = s.catid || s.catId || '';
@@ -6444,7 +6611,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         </div>`;
       });
 
-      // Group cards into pages (6 cards per page on A4 Landscape, 10 on A3 Landscape)
+      // Group cards into pages (6 cards per page on A4 Landscape, 12 on A3 Landscape)
       const pages = [];
       for (let i = 0; i < cardHtmlList.length; i += cardsPerPage) {
         pages.push(cardHtmlList.slice(i, i + cardsPerPage));
@@ -6501,14 +6668,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   .card-grid {
     display: grid;
     grid-template-columns: repeat(${cols}, 77mm);
-    grid-template-rows: repeat(${rows}, 99mm);
-    gap: ${isA3 ? '6mm 6mm' : '3mm 4mm'};
+    grid-template-rows: repeat(${rows}, 94mm);
+    gap: ${isA3 ? '3.5mm 5mm' : '3mm 4mm'};
     justify-content: center;
     align-content: center;
   }
   .id-card {
     width: 77mm;
-    height: 99mm;
+    height: 94mm;
     border: 2px solid #16a34a;
     box-sizing: border-box;
     overflow: hidden;
@@ -6753,7 +6920,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 </style>
 </head>
 <body>
-<div class="landscape-warn no-print">⚠️ IMPORTANT — Print Settings: Set Paper = <strong>A4</strong> | Orientation = <strong>LANDSCAPE (തിരശ്ചീനം)</strong> | Scale = <strong>100%</strong></div>
+<div class="landscape-warn no-print">⚠️ IMPORTANT — Print Settings: Set Paper = <strong>${paperSize}</strong> | Orientation = <strong>LANDSCAPE (തിരശ്ചീനം)</strong> | Scale = <strong>100%</strong></div>
 <button class="print-floating-btn no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
 ${pagesHtml}
 <script>
@@ -9101,12 +9268,10 @@ ${pagesHtml}
                           const sRegNo = matchedStudent.regno || matchedStudent.regNo || '';
                           const teamObj = teams.find(t => String(t.id) === String(matchedStudent.teamid || matchedStudent.teamId || ''));
                           const catObj = categories.find(c => String(c.id) === String(matchedStudent.catid || matchedStudent.catId || ''));
-                          const sResults = resultsList.filter(r => {
+                          const rawMatchedResults = resultsList.filter(r => {
                             if (!isProgPublished(r.progid)) return false;
                             const rRaw = String(r.studentname || r.studentName || '').trim();
                             const rSid = String(r.studentid || r.student_id || '').trim();
-                            const dashIdx = rRaw.indexOf(' - ');
-                            const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : (rRaw.includes('-') ? rRaw.split('-')[0].trim() : '');
                             const sIdStr = String(matchedStudent.id || '').trim();
                             const sRegStr = String(sRegNo || '').trim();
                             const sGender = String(matchedStudent.gender || '').toUpperCase();
@@ -9116,11 +9281,24 @@ ${pagesHtml}
                             if (rGender && sGender && rGender !== 'COMMON' && rGender !== 'ALL' && rGender !== sGender) return false;
 
                             // 1. Single match strictly by Register Number or DB ID (NEVER BY NAME)
-                            if (sIdStr && rSid && (rSid === sIdStr || (!isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sIdStr, 10)))) return true;
-                            if (sRegStr && rRegPart && (rRegPart.toLowerCase() === sRegStr.toLowerCase() || (!isNaN(parseInt(rRegPart, 10)) && parseInt(rRegPart, 10) === parseInt(sRegStr, 10)))) return true;
-                            if (sRegStr && (rRaw.toLowerCase() === sRegStr.toLowerCase() || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + ' -') || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + '-'))) return true;
+                            if (sIdStr && rSid && rSid === sIdStr) return true;
+                            if (sRegStr && rSid && rSid.toLowerCase() === sRegStr.toLowerCase()) return true;
 
-                            // 2. Group match: if student is a member/leader of the winning group
+                            const rChestNo = extractChestNumber(rRaw);
+                            if (sRegStr && rChestNo && rChestNo.toLowerCase() === sRegStr.toLowerCase()) return true;
+
+                            if (sRegStr) {
+                              const sRegLower = sRegStr.toLowerCase();
+                              const rRawLower = rRaw.toLowerCase();
+                              if (rRawLower === sRegLower ||
+                                  rRawLower.startsWith(sRegLower + ' -') ||
+                                  rRawLower.startsWith(sRegLower + '-') ||
+                                  rRawLower.startsWith(sRegLower + ' :') ||
+                                  rRawLower.startsWith(sRegLower + ':') ||
+                                  rRawLower.startsWith(sRegLower + '.')) return true;
+                            }
+
+                            // 2. Group / Team match: if student is a member/leader of the winning group
                             const studentGroupsForProg = (groupRegistrations || []).filter(g => {
                               const prog = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
                               const pIdStr = prog ? String(prog.id) : String(r.progid);
@@ -9130,40 +9308,112 @@ ${pagesHtml}
 
                               if (g.leader_id) {
                                 const lId = String(g.leader_id).trim();
-                                if (lId === sIdStr || (sRegStr && lId.toLowerCase() === sRegStr.toLowerCase())) return true;
+                                if (sIdStr && lId === sIdStr) return true;
+                                if (sRegStr && lId.toLowerCase() === sRegStr.toLowerCase()) return true;
                               }
 
                               let mIds = [];
-                              if (Array.isArray(g.student_ids)) mIds = g.student_ids;
-                              else if (typeof g.student_ids === 'string') {
-                                try { mIds = JSON.parse(g.student_ids); } catch(e) { mIds = [g.student_ids]; }
+                              if (Array.isArray(g.student_ids)) {
+                                mIds = g.student_ids;
+                              } else if (typeof g.student_ids === 'string') {
+                                const rawStr = g.student_ids.trim();
+                                try {
+                                  mIds = JSON.parse(rawStr);
+                                } catch(e) {
+                                  if (rawStr.includes(',')) mIds = rawStr.split(',').map(x => x.trim()).filter(Boolean);
+                                  else mIds = [rawStr];
+                                }
                               }
                               if (!Array.isArray(mIds)) mIds = [mIds];
 
                               return mIds.some(id => {
                                 if (typeof id === 'object' && id !== null) {
-                                  const mId = String(id.id || id.student_id || id.regno || id.regNo || '').trim();
-                                  return mId === sIdStr || (sRegStr && mId.toLowerCase() === sRegStr.toLowerCase());
+                                  const mDbId = String(id.id || id.student_id || id.studentId || '').trim();
+                                  const mReg = String(id.regno || id.regNo || '').trim();
+                                  if (sIdStr && mDbId && mDbId === sIdStr) return true;
+                                  if (sRegStr && mReg && mReg.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                  if (sRegStr && mDbId && mDbId.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                  return false;
                                 }
                                 const idStr = String(id).trim();
-                                return idStr === sIdStr || (sRegStr && idStr.toLowerCase() === sRegStr.toLowerCase());
+                                if (!idStr) return false;
+                                if (sIdStr && idStr === sIdStr) return true;
+                                if (sRegStr && idStr.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                if (sRegStr && (idStr.toLowerCase().startsWith(sRegStr.toLowerCase() + ' -') || idStr.toLowerCase().startsWith(sRegStr.toLowerCase() + '-'))) return true;
+                                return false;
                               });
                             });
 
                             for (const g of studentGroupsForProg) {
-                              const gName = String(g.group_name || '').trim().toLowerCase();
-                              const rRawLower = rRaw.toLowerCase();
-                              if (gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`))) return true;
                               if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
+                              const gName = String(g.group_name || '').trim().toLowerCase();
+                              const gCleanName = cleanEntityName(gName);
+                              const rRawLower = rRaw.toLowerCase();
+                              const rCleanName = cleanEntityName(rRawLower);
+                              if (gCleanName && (
+                                rCleanName === gCleanName ||
+                                rCleanName.startsWith(gCleanName + ' -') ||
+                                rCleanName.startsWith(gCleanName + '-') ||
+                                rCleanName.startsWith(gCleanName + ' [') ||
+                                rCleanName.includes(gCleanName) ||
+                                gCleanName.includes(rCleanName)
+                              )) return true;
+
                               const gTeamId = String(g.team_id || '').trim();
                               const rTeamId = String(r.teamid || r.team_id || '').trim();
                               if (gTeamId && rTeamId && gTeamId === rTeamId) {
                                 const tName = (teamObj ? teamObj.name : '').toLowerCase();
-                                if (tName && (rRawLower === tName || rRawLower === `${tName} group` || rRawLower === `🏟️ ${tName}` || rRawLower === 'group')) return true;
+                                if (tName && (
+                                  rCleanName === tName ||
+                                  rCleanName === `${tName} group` ||
+                                  rCleanName === 'team group' ||
+                                  rCleanName === 'group' ||
+                                  rCleanName.includes(tName)
+                                )) return true;
+                              }
+                            }
+
+                            // Direct Team match for student's team
+                            const sTeamId = String(matchedStudent.teamid || matchedStudent.teamId || '').trim();
+                            const rTeamId = String(r.teamid || r.team_id || '').trim();
+                            if (sTeamId && rTeamId && sTeamId === rTeamId) {
+                              const prog = programs.find(p => String(p.id) === String(r.progid) || (p.code && String(p.code) === String(r.progid)));
+                              const pType = (prog?.type || r.progtype || '').toUpperCase();
+                              if (pType.includes('GROUP') || pType.includes('TEAM')) {
+                                const tName = (teamObj ? teamObj.name : '').toLowerCase();
+                                const rCleanName = cleanEntityName(rRaw);
+                                if (tName && (
+                                  rCleanName === tName ||
+                                  rCleanName === `${tName} group` ||
+                                  rCleanName === 'team group' ||
+                                  rCleanName === 'group' ||
+                                  rCleanName.includes(tName)
+                                )) return true;
                               }
                             }
 
                             return false;
+                          });
+
+                          // Deduplicate per program, keeping best prize place
+                          const progMapForReport = new Map();
+                          rawMatchedResults.forEach(r => {
+                            const pKey = String(r.progid || r.program_id || r.progname || '').trim();
+                            if (!progMapForReport.has(pKey)) {
+                              progMapForReport.set(pKey, []);
+                            }
+                            progMapForReport.get(pKey).push(r);
+                          });
+
+                          const sResults = [];
+                          progMapForReport.forEach((pRows) => {
+                            pRows.sort((a, b) => {
+                              const rankA = getPlaceRank(a.place);
+                              const rankB = getPlaceRank(b.place);
+                              if (rankA !== rankB) return rankA - rankB;
+                              return (Number(b.points) || 0) - (Number(a.points) || 0);
+                            });
+                            sResults.push(pRows[0]);
                           });
 
                           const printReport = () => {
@@ -9286,8 +9536,8 @@ ${pagesHtml}
                     ) : (() => {
                     // 🏆 Group & Sort Results History by Program Section:
                     // 1. Grouped by Program & Category
-                    // 2. Each Program is a distinct section with its own Single Publish/Draft Button
-                    // 3. Winners inside each Program sorted First -> Second -> Third
+                    // 2. Sorted so the MOST RECENTLY PUBLISHED program appears at the VERY TOP (Descending by publish timestamp / index)
+                    // 3. Filterable by Prize Place: All, 1st Place, 2nd Place, 3rd Place
                     const placeRank = (placeStr) => {
                       if (!placeStr) return 4;
                       const str = String(placeStr).trim().toLowerCase();
@@ -9297,11 +9547,55 @@ ${pagesHtml}
                       return 4;
                     };
 
+                    const matchesPlaceFilter = (placeStr) => {
+                      if (resultsHistoryPlaceFilter === 'ALL') return true;
+                      const p = String(placeStr || '').trim().toLowerCase();
+                      if (resultsHistoryPlaceFilter === 'FIRST') {
+                        return p === 'first' || p === '1' || p === '1st';
+                      }
+                      if (resultsHistoryPlaceFilter === 'SECOND') {
+                        return p === 'second' || p === '2' || p === '2nd';
+                      }
+                      if (resultsHistoryPlaceFilter === 'THIRD') {
+                        return p === 'third' || p === '3' || p === '3rd';
+                      }
+                      return true;
+                    };
+
                     const displayHistoryResults = resultsList.filter(r => isProgPublished(r.progid));
                     const groupMap = new Map();
-                    const pubTimes = visibilityControls?.published_at || {};
+
+                    // Retrieve publish timestamps from all available sources
+                    let pubTimes = { ...(visibilityControls?.published_at || {}) };
+                    const rNum = loggedInMadrasa?.regNumber;
+                    if (rNum) {
+                      try {
+                        const storedAt = localStorage.getItem(`milad_published_at_${rNum}`);
+                        if (storedAt) pubTimes = { ...JSON.parse(storedAt), ...pubTimes };
+                      } catch(e) {}
+                    }
+
+                    // Count total winners for filter pills
+                    let totalWinnersCount = 0;
+                    let firstCount = 0;
+                    let secondCount = 0;
+                    let thirdCount = 0;
 
                     displayHistoryResults.forEach(r => {
+                      const p = String(r.place || '').trim().toLowerCase();
+                      if (p === 'first' || p === '1' || p === '1st') {
+                        firstCount++;
+                        totalWinnersCount++;
+                      } else if (p === 'second' || p === '2' || p === '2nd') {
+                        secondCount++;
+                        totalWinnersCount++;
+                      } else if (p === 'third' || p === '3' || p === '3rd') {
+                        thirdCount++;
+                        totalWinnersCount++;
+                      } else if (p && p !== '-' && p !== 'no place') {
+                        totalWinnersCount++;
+                      }
+
                       const pKey = String(r.progid || r.progId || r.progname || '').trim();
                       const progObj = programs.find(p => String(p.id) === pKey || String(p.code) === pKey || String(p.name).toLowerCase() === pKey.toLowerCase());
                       const canonicalProgKey = progObj ? String(progObj.id) : pKey;
@@ -9309,16 +9603,28 @@ ${pagesHtml}
                       const catName = r.catname || r.catName || (catObj ? catObj.name : '');
 
                       if (!groupMap.has(canonicalProgKey)) {
+                        const lookupKeys = [
+                          canonicalProgKey,
+                          pKey,
+                          progObj?.id ? String(progObj.id) : null,
+                          progObj?.code ? String(progObj.code) : null,
+                          progObj?.name ? String(progObj.name).toLowerCase() : null
+                        ].filter(Boolean);
+
                         let pubIndex = 999999;
                         if (Array.isArray(publishedPrograms)) {
-                          const idx = publishedPrograms.findIndex(pid => {
-                            const pStr = String(pid).trim();
-                            return pStr === canonicalProgKey || pStr === pKey || (progObj && (pStr === String(progObj.id).trim() || pStr === String(progObj.code).trim() || pStr.toLowerCase() === String(progObj.name).trim().toLowerCase()));
-                          });
-                          if (idx !== -1) pubIndex = idx;
+                          for (const k of lookupKeys) {
+                            const idx = publishedPrograms.findIndex(pid => String(pid).trim().toLowerCase() === String(k).trim().toLowerCase());
+                            if (idx !== -1 && idx < pubIndex) pubIndex = idx;
+                          }
                         }
 
-                        const pubTime = pubTimes[canonicalProgKey] || pubTimes[pKey] || (progObj?.id && pubTimes[String(progObj.id)]) || (progObj?.code && pubTimes[String(progObj.code)]) || 0;
+                        let pubTime = 0;
+                        for (const k of lookupKeys) {
+                          if (pubTimes[k] && Number(pubTimes[k]) > pubTime) {
+                            pubTime = Number(pubTimes[k]);
+                          }
+                        }
 
                         groupMap.set(canonicalProgKey, {
                           groupKey: canonicalProgKey,
@@ -9331,17 +9637,19 @@ ${pagesHtml}
                           pubIndex,
                           pubTime,
                           latestTime: 0,
+                          maxResultId: 0,
                           maxListIndex: -1,
                           rows: []
                         });
                       }
                       const group = groupMap.get(canonicalProgKey);
-                      const t = new Date(r.created_at || r.createdAt || r.inserted_at || r.savedAt || 0).getTime();
-                      if (!isNaN(t) && t > group.latestTime) group.latestTime = t;
-                      const listIdx = resultsList.indexOf(r);
-                      if (listIdx > group.maxListIndex) group.maxListIndex = listIdx;
+                      const createdTime = new Date(r.created_at || r.createdAt || r.inserted_at || r.savedAt || 0).getTime();
+                      if (!isNaN(createdTime) && createdTime > group.latestTime) group.latestTime = createdTime;
                       const numId = Number(r.id);
                       if (!isNaN(numId) && numId > 1000000000 && numId > group.latestTime) group.latestTime = numId;
+                      if (!isNaN(numId) && numId > group.maxResultId) group.maxResultId = numId;
+                      const listIdx = resultsList.indexOf(r);
+                      if (listIdx > group.maxListIndex) group.maxListIndex = listIdx;
 
                       group.rows.push(r);
                     });
@@ -9349,18 +9657,27 @@ ${pagesHtml}
                     // 🏆 Sort Results History:
                     // 1. Most recently published program at the VERY TOP:
                     //    - If published_at timestamp exists: highest pubTime (descending)
-                    //    - Then lowest pubIndex (ascending: 0, 1, 2...)
-                    // 2. If publish times are tied (e.g. Publish All), sort by latest result save time (descending)
-                    // 3. Fallback: maxListIndex (descending)
+                    //    - Then lowest pubIndex (ascending: index 0 is newest)
+                    // 2. If tied, sort by latest result modification/creation time (descending)
+                    // 3. Fallback: maxResultId / maxListIndex (descending)
                     const sortedProgramSections = Array.from(groupMap.values()).sort((a, b) => {
                       if (a.pubTime > 0 && b.pubTime > 0 && a.pubTime !== b.pubTime) {
                         return b.pubTime - a.pubTime;
                       }
-                      if (a.pubIndex !== b.pubIndex) {
-                        return a.pubIndex - b.pubIndex; // smaller index = published more recently!
+                      if (a.pubTime > 0 && (!b.pubTime || b.pubTime === 0)) return -1;
+                      if (b.pubTime > 0 && (!a.pubTime || a.pubTime === 0)) return 1;
+
+                      if (a.pubIndex !== b.pubIndex && a.pubIndex !== 999999 && b.pubIndex !== 999999) {
+                        return a.pubIndex - b.pubIndex;
                       }
+                      if (a.pubIndex !== 999999 && b.pubIndex === 999999) return -1;
+                      if (b.pubIndex !== 999999 && a.pubIndex === 999999) return 1;
+
                       if (a.latestTime !== b.latestTime && a.latestTime > 0 && b.latestTime > 0) {
                         return b.latestTime - a.latestTime;
+                      }
+                      if (a.maxResultId !== b.maxResultId && a.maxResultId > 0 && b.maxResultId > 0) {
+                        return b.maxResultId - a.maxResultId;
                       }
                       if (a.maxListIndex !== b.maxListIndex) {
                         return b.maxListIndex - a.maxListIndex;
@@ -9382,8 +9699,16 @@ ${pagesHtml}
 
                     const printResultsHistory = () => {
                       let allRows = '';
+                      let printedProgCount = 0;
+                      let printedRowCount = 0;
+
                       sortedProgramSections.forEach(group => {
-                        group.rows.forEach(r => {
+                        const visibleRows = group.rows.filter(r => matchesPlaceFilter(r.place));
+                        if (visibleRows.length === 0) return;
+                        printedProgCount++;
+
+                        visibleRows.forEach(r => {
+                          printedRowCount++;
                           const sName = r.studentname || r.studentName || '';
                           const dashIdx = sName.indexOf(' - ');
                           const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
@@ -9413,27 +9738,42 @@ ${pagesHtml}
                         });
                       });
 
+                      const filterTitleSuffix = resultsHistoryPlaceFilter === 'FIRST'
+                        ? ' - 1st Place Winners'
+                        : resultsHistoryPlaceFilter === 'SECOND'
+                        ? ' - 2nd Place Winners'
+                        : resultsHistoryPlaceFilter === 'THIRD'
+                        ? ' - 3rd Place Winners'
+                        : ' - All Winners';
+
                       const html = `
-                    <html><head><title>Results History</title>
-                    <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} table{width:100%;border-collapse:collapse;margin-top:20px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
+                    <html><head><title>Results History${filterTitleSuffix}</title>
+                    <style>body{font-family:Arial,sans-serif;padding:20px;background:#fff} h1{color:#1e1b4b;text-align:center;} .sub{text-align:center;color:#64748b;font-size:13px;margin-top:4px;margin-bottom:16px} table{width:100%;border-collapse:collapse;margin-top:10px} th{background:#1e1b4b;color:white;padding:10px} td{padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:14px;}</style></head>
                     <body>
-                    <h1>🏆 Results History</h1>
+                    <h1>🏆 Results History${filterTitleSuffix}</h1>
+                    <div class="sub">Total: ${printedRowCount} winners across ${printedProgCount} programs</div>
                     <table><thead><tr><th>Program</th><th>Type</th><th>Category</th><th>Photo</th><th>Reg No</th><th>Student</th><th>Gender</th><th>Team</th><th>Place</th><th>Grade</th><th>Points</th></tr></thead><tbody>${allRows}</tbody></table>
                     </body></html>
                   `;
                       printHtml(html);
                     };
 
-                    const totalProgsInResults = Array.from(new Set(resultsList.map(r => String(r.progid)))).filter(Boolean).length;
-                    const publishedProgsCount = Array.from(new Set(resultsList.filter(r => isProgPublished(r.progid)).map(r => String(r.progid)))).filter(Boolean).length;
-                    const draftProgsCount = Math.max(0, totalProgsInResults - publishedProgsCount);
+                    const matchingSections = sortedProgramSections.filter(group => {
+                      const hasPlaceMatches = group.rows.some(r => matchesPlaceFilter(r.place));
+                      if (!hasPlaceMatches) return false;
+                      if (!publishProgSearch) return true;
+                      const q = publishProgSearch.toLowerCase().trim();
+                      const matchProg = (group.progName || '').toLowerCase().includes(q) || (group.progObj?.code || '').toLowerCase().includes(q);
+                      const matchStudent = group.rows.some(r => (r.studentname || '').toLowerCase().includes(q) || (r.teamname || '').toLowerCase().includes(q));
+                      return matchProg || matchStudent;
+                    });
 
                     return (
                       <div>
                         {/* Search & Action Bar */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '12px', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '12px', marginBottom: '12px' }}>
                           <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>
-                            📋 {lang === 'EN' ? 'Program Results List' : 'പ്രോഗ്രാം ഫലങ്ങളുടെ ലിസ്റ്റ്'} ({sortedProgramSections.length} {lang === 'EN' ? 'programs' : 'പ്രോഗ്രാമുകൾ'})
+                            📋 {lang === 'EN' ? 'Program Results List' : 'പ്രോഗ്രാം ഫലങ്ങളുടെ ലിസ്റ്റ്'} ({matchingSections.length} {lang === 'EN' ? 'programs' : 'പ്രോഗ്രാമുകൾ'})
                           </div>
                           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -9474,7 +9814,8 @@ ${pagesHtml}
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px'
+                                gap: '6px',
+                                boxShadow: '0 2px 8px rgba(2,132,199,0.3)'
                               }}
                             >
                               <span>🖨️</span>
@@ -9483,138 +9824,193 @@ ${pagesHtml}
                           </div>
                         </div>
 
+                        {/* 🏅 Place Filter Buttons: All, 1st, 2nd, 3rd (English Labels) */}
+                        <div style={{
+                          display: 'flex',
+                          gap: '8px',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          background: '#f8fafc',
+                          padding: '10px 14px',
+                          borderRadius: '12px',
+                          border: '1.5px solid #e2e8f0',
+                          marginBottom: '18px'
+                        }}>
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#475569', marginRight: '4px' }}>
+                            🏆 {lang === 'EN' ? 'Filter Place:' : 'വിഭാഗം:'}
+                          </span>
+                          {[
+                            { key: 'ALL', label: 'All', icon: '🌟', count: totalWinnersCount },
+                            { key: 'FIRST', label: '1st Place', icon: '🥇', count: firstCount },
+                            { key: 'SECOND', label: '2nd Place', icon: '🥈', count: secondCount },
+                            { key: 'THIRD', label: '3rd Place', icon: '🥉', count: thirdCount },
+                          ].map(f => {
+                            const isAct = resultsHistoryPlaceFilter === f.key;
+                            return (
+                              <button
+                                key={f.key}
+                                type="button"
+                                onClick={() => setResultsHistoryPlaceFilter(f.key)}
+                                style={{
+                                  padding: '6px 14px',
+                                  borderRadius: '20px',
+                                  border: isAct ? '2px solid #059669' : '1.5px solid #cbd5e1',
+                                  background: isAct ? 'linear-gradient(135deg, #059669, #047857)' : '#ffffff',
+                                  color: isAct ? '#ffffff' : '#334155',
+                                  fontWeight: '800',
+                                  fontSize: '12.5px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  boxShadow: isAct ? '0 3px 10px rgba(5,150,105,0.3)' : '0 1px 3px rgba(0,0,0,0.05)',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <span>{f.icon}</span>
+                                <span>{f.label}</span>
+                                <span style={{
+                                  background: isAct ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                                  color: isAct ? '#ffffff' : '#64748b',
+                                  padding: '1px 7px',
+                                  borderRadius: '10px',
+                                  fontSize: '11px',
+                                  fontWeight: '800'
+                                }}>
+                                  {f.count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
                         {/* ── Program Sections ── */}
-                        {sortedProgramSections.length === 0 ? (
+                        {matchingSections.length === 0 ? (
                           <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: '12px', border: '1.5px solid #e2e8f0', color: '#64748b', fontStyle: 'italic' }}>
-                            {lang === 'EN' ? 'No results recorded yet.' : 'ഫലങ്ങൾ ഒന്നും ഇതുവരെ ചേർത്തിട്ടില്ല.'}
+                            {lang === 'EN' ? 'No results found matching the selected filter.' : 'തിരഞ്ഞെടുത്ത ഫിൽട്ടറിന് അനുയോജ്യമായ ഫലങ്ങൾ ഒന്നും കണ്ടെത്തിയില്ല.'}
                           </div>
                         ) : (
-                          sortedProgramSections
-                            .filter(group => {
-                              if (!publishProgSearch) return true;
-                              const q = publishProgSearch.toLowerCase().trim();
-                              const matchProg = (group.progName || '').toLowerCase().includes(q) || (group.progObj?.code || '').toLowerCase().includes(q);
-                              const matchStudent = group.rows.some(r => (r.studentname || '').toLowerCase().includes(q) || (r.teamname || '').toLowerCase().includes(q));
-                              return matchProg || matchStudent;
-                            })
-                            .map(group => {
-                              return (
-                                <div
-                                  key={group.groupKey}
-                                  style={{
-                                    background: '#ffffff',
-                                    borderRadius: '14px',
-                                    border: '1.5px solid #e2e8f0',
-                                    boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-                                    marginBottom: '18px',
-                                    overflow: 'hidden'
-                                  }}
-                                >
-                                  {/* ── Section Header: Clean title, category, type, entries count ── */}
-                                  <div style={{
-                                    background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
-                                    padding: '12px 16px',
-                                    borderBottom: '1.5px solid #e2e8f0',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    flexWrap: 'wrap',
-                                    gap: '10px'
-                                  }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                      <span style={{ fontSize: '22px' }}>🏆</span>
-                                      <div>
-                                        <div style={{ fontWeight: '900', fontSize: '15px', color: '#1e1b4b' }}>
-                                          {group.progObj?.code ? `${group.progObj.code} - ` : ''}{group.progName}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginTop: '3px', fontSize: '11.5px' }}>
+                          matchingSections.map(group => {
+                            const visibleRows = group.rows.filter(r => matchesPlaceFilter(r.place));
+                            if (visibleRows.length === 0) return null;
+
+                            return (
+                              <div
+                                key={group.groupKey}
+                                style={{
+                                  background: '#ffffff',
+                                  borderRadius: '14px',
+                                  border: '1.5px solid #e2e8f0',
+                                  boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+                                  marginBottom: '18px',
+                                  overflow: 'hidden'
+                                }}
+                              >
+                                {/* ── Section Header: Clean title, category, type, entries count ── */}
+                                <div style={{
+                                  background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
+                                  padding: '12px 16px',
+                                  borderBottom: '1.5px solid #e2e8f0',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '10px'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '22px' }}>🏆</span>
+                                    <div>
+                                      <div style={{ fontWeight: '900', fontSize: '15px', color: '#1e1b4b' }}>
+                                        {group.progObj?.code ? `${group.progObj.code} - ` : ''}{group.progName}
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginTop: '3px', fontSize: '11.5px' }}>
+                                        {group.catName && (
                                           <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '1px 8px', borderRadius: '4px', fontWeight: '800' }}>
                                             {group.catName}
                                           </span>
-                                          <span style={{ background: String(group.progType).includes('GROUP') ? '#fee2e2' : '#dcfce7', color: String(group.progType).includes('GROUP') ? '#991b1b' : '#166534', padding: '1px 8px', borderRadius: '4px', fontWeight: '800' }}>
-                                            {String(group.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}
-                                          </span>
-                                          <span style={{ color: '#64748b', fontWeight: '700' }}>
-                                            ({group.rows.length} {lang === 'EN' ? 'entries' : 'വിജയികൾ'})
-                                          </span>
-                                        </div>
+                                        )}
+                                        <span style={{ background: String(group.progType).includes('GROUP') ? '#fee2e2' : '#dcfce7', color: String(group.progType).includes('GROUP') ? '#991b1b' : '#166534', padding: '1px 8px', borderRadius: '4px', fontWeight: '800' }}>
+                                          {String(group.progType).includes('GROUP') ? 'GROUP' : 'SINGLE'}
+                                        </span>
+                                        <span style={{ color: '#64748b', fontWeight: '700' }}>
+                                          ({visibleRows.length} {lang === 'EN' ? 'entries' : 'വിജയികൾ'})
+                                        </span>
                                       </div>
                                     </div>
-
-
-                                  </div>
-
-                                  {/* ── Table of Winners for this Program with Publish & Delete in every row ── */}
-                                  <div className="table-responsive-wrapper" style={{ margin: 0 }}>
-                                    <table style={{ margin: 0, width: '100%' }}>
-                                      <thead>
-                                        <tr>
-                                          <th style={{ width: '90px', textAlign: 'center' }}>Place</th>
-                                          <th style={{ width: '50px', textAlign: 'center' }}>Photo</th>
-                                          <th>Register Number</th>
-                                          <th>Student</th>
-                                          <th style={{ textAlign: 'center' }}>Gender</th>
-                                          <th>Team</th>
-                                          <th style={{ textAlign: 'center' }}>Grade</th>
-                                          <th style={{ textAlign: 'center' }}>Points</th>
-                                          
-                                          {loginRole === 'ADMIN' && <th style={{ textAlign: 'center', width: '70px' }}>Delete</th>}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {group.rows.map(r => {
-                                          const sName = r.studentname || r.studentName || '';
-                                          const dashIdx = sName.indexOf(' - ');
-                                          const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
-                                          const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
-                                          const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
-                                          const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
-                                          return (
-                                            <tr key={r.id}>
-                                              <td style={{ textAlign: 'center' }}>
-                                                <span style={{
-                                                  background: placeLabel === 'First' ? '#fbbf24' : placeLabel === 'Second' ? '#94a3b8' : placeLabel === 'Third' ? '#f97316' : '#e2e8f0',
-                                                  color: placeLabel === 'First' ? '#78350f' : placeLabel === 'Second' ? '#1e293b' : placeLabel === 'Third' ? '#7c2d12' : '#475569',
-                                                  padding: '3px 10px',
-                                                  borderRadius: '12px',
-                                                  fontWeight: '800',
-                                                  fontSize: '12px',
-                                                  display: 'inline-block'
-                                                }}>
-                                                  {placeLabel === 'First' ? '🥇 1st Place' : placeLabel === 'Second' ? '🥈 2nd Place' : placeLabel === 'Third' ? '🥉 3rd Place' : placeLabel}
-                                                </span>
-                                              </td>
-                                              <td style={{ textAlign: 'center' }}>{renderTablePhoto(regPart, r.studentgender || r.studentGender)}</td>
-                                              <td><b style={{ color: '#1e40af' }}>{regPart}</b></td>
-                                              <td><b>{namePart}</b></td>
-                                              <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
-                                              <td><b>{r.teamname || r.teamName}</b></td>
-                                              <td style={{ textAlign: 'center' }}>
-                                                <span style={{ fontWeight: '800', color: gradeLabel === 'A' ? '#059669' : gradeLabel === 'B' ? '#2563eb' : gradeLabel === 'C' ? '#7c3aed' : '#94a3b8' }}>
-                                                  {gradeLabel}
-                                                </span>
-                                              </td>
-                                              <td style={{ textAlign: 'center' }}><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
-                                              
-                                              {loginRole === 'ADMIN' && (
-                                                <td style={{ textAlign: 'center' }}>
-                                                  <button
-                                                    onClick={() => handleDeleteResult(r.id)}
-                                                    style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '11px' }}
-                                                  >
-                                                    Delete
-                                                  </button>
-                                                </td>
-                                              )}
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
                                   </div>
                                 </div>
-                              );
-                            })
+
+                                {/* ── Table of Winners for this Program ── */}
+                                <div className="table-responsive-wrapper" style={{ margin: 0 }}>
+                                  <table style={{ margin: 0, width: '100%' }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={{ width: '110px', textAlign: 'center' }}>Place</th>
+                                        <th style={{ width: '50px', textAlign: 'center' }}>Photo</th>
+                                        <th>Register Number</th>
+                                        <th>Student</th>
+                                        <th style={{ textAlign: 'center' }}>Gender</th>
+                                        <th>Team</th>
+                                        <th style={{ textAlign: 'center' }}>Grade</th>
+                                        <th style={{ textAlign: 'center' }}>Points</th>
+                                        
+                                        {loginRole === 'ADMIN' && <th style={{ textAlign: 'center', width: '70px' }}>Delete</th>}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {visibleRows.map(r => {
+                                        const sName = r.studentname || r.studentName || '';
+                                        const dashIdx = sName.indexOf(' - ');
+                                        const regPart = dashIdx !== -1 ? sName.substring(0, dashIdx) : '';
+                                        const namePart = dashIdx !== -1 ? sName.substring(dashIdx + 3) : sName;
+                                        const placeLabel = r.place === 'First' || r.place === '1' ? 'First' : r.place === 'Second' || r.place === '2' ? 'Second' : r.place === 'Third' || r.place === '3' ? 'Third' : r.place || '-';
+                                        const gradeLabel = (r.grade === '-' || r.grade === 'No' || !r.grade) ? '-' : r.grade;
+                                        return (
+                                          <tr key={r.id}>
+                                            <td style={{ textAlign: 'center' }}>
+                                              <span style={{
+                                                background: placeLabel === 'First' ? '#fbbf24' : placeLabel === 'Second' ? '#94a3b8' : placeLabel === 'Third' ? '#f97316' : '#e2e8f0',
+                                                color: placeLabel === 'First' ? '#78350f' : placeLabel === 'Second' ? '#1e293b' : placeLabel === 'Third' ? '#7c2d12' : '#475569',
+                                                padding: '3px 10px',
+                                                borderRadius: '12px',
+                                                fontWeight: '800',
+                                                fontSize: '12px',
+                                                display: 'inline-block'
+                                              }}>
+                                                {placeLabel === 'First' ? '🥇 1st Place' : placeLabel === 'Second' ? '🥈 2nd Place' : placeLabel === 'Third' ? '🥉 3rd Place' : placeLabel}
+                                              </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>{renderTablePhoto(regPart, r.studentgender || r.studentGender)}</td>
+                                            <td><b style={{ color: '#1e40af' }}>{regPart}</b></td>
+                                            <td><b>{namePart}</b></td>
+                                            <td>{(r.studentgender || r.studentGender) === 'BOY' ? 'Boy 👦' : 'Girl 👧'}</td>
+                                            <td><b>{r.teamname || r.teamName}</b></td>
+                                            <td style={{ textAlign: 'center' }}>
+                                              <span style={{ fontWeight: '800', color: gradeLabel === 'A' ? '#059669' : gradeLabel === 'B' ? '#2563eb' : gradeLabel === 'C' ? '#7c3aed' : '#94a3b8' }}>
+                                                {gradeLabel}
+                                              </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}><b style={{ color: '#0f766e' }}>{r.points} Pts</b></td>
+                                            
+                                            {loginRole === 'ADMIN' && (
+                                              <td style={{ textAlign: 'center' }}>
+                                                <button
+                                                  onClick={() => handleDeleteResult(r.id)}
+                                                  style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '11px' }}
+                                                >
+                                                  Delete
+                                                </button>
+                                              </td>
+                                            )}
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })
                         )}
 
                         <button onClick={printResultsHistory} style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px' }}>
@@ -10378,12 +10774,12 @@ ${pagesHtml}
                                     const isReg = checkIsStudentRegisteredForProg(s, p);
                                     const isGen = isGeneralProg(p);
 
-                                    // Find if any result exists for this program and student
+                                    // Find all matching results for this program and student (Single, Group, or Team)
                                     const sDbIdStr = String(s.id || '').trim();
                                     const sRegStr = String(sRegNo || '').trim();
                                     const sNameStr = String(s.name || '').trim().toLowerCase();
 
-                                    const progResult = resultsList.find(r => {
+                                    const candidateProgResults = resultsList.filter(r => {
                                       if (!r) return false;
                                       if (!isProgPublished(r.progid)) return false;
 
@@ -10397,7 +10793,7 @@ ${pagesHtml}
                                         const rCat = String(r.catname || '').trim().toLowerCase();
                                         const pCatObj = categories.find(c => String(c.id) === String(p.catid || p.catId || ''));
                                         const pCatName = String(p.catname || pCatObj?.name || '').trim().toLowerCase();
-                                        if (rCat && pCatName && rCat === pCatName) {
+                                        if (!rCat || !pCatName || rCat === pCatName) {
                                           pMatch = true;
                                         }
                                       }
@@ -10412,30 +10808,43 @@ ${pagesHtml}
 
                                       const rSid = String(r.student_id || r.studentid || '').trim();
                                       const rRaw = String(r.studentname || r.student_name || '').trim();
-                                      const dashIdx = rRaw.indexOf(' - ');
-                                      const rRegPart = dashIdx !== -1 ? rRaw.substring(0, dashIdx).trim() : (rRaw.includes('-') ? rRaw.split('-')[0].trim() : '');
-
                                       const pType = (p.type || '').toUpperCase();
                                       const isGroupOrTeam = pType.includes('GROUP') || pType.includes('TEAM');
 
                                       // 3. Group / Team Program Resolution
                                       if (isGroupOrTeam) {
-                                        // Match against student's resolved groupInfo
-                                        if (groupInfo) {
-                                          const gName = String(groupInfo.groupName || '').trim().toLowerCase();
-                                          const gTeamName = String(groupInfo.teamName || '').trim().toLowerCase();
-                                          const gTeamId = String(groupInfo.teamId || '').trim();
-                                          const rTeamId = String(r.teamid || r.team_id || '').trim();
-                                          const rRawLower = rRaw.toLowerCase();
+                                        const rName = rRaw.toLowerCase();
+                                        const rCleanName = cleanEntityName(rName);
+                                        const rTeamId = String(r.teamid || r.team_id || '').trim();
 
+                                        // A. Match against resolved groupInfo
+                                        if (groupInfo) {
                                           if (r.group_id && groupInfo.groupId && String(r.group_id) === String(groupInfo.groupId)) return true;
-                                          if (gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`))) return true;
+                                          const gName = String(groupInfo.groupName || '').trim().toLowerCase();
+                                          const gCleanName = cleanEntityName(gName);
+                                          if (gCleanName && (
+                                            rCleanName === gCleanName ||
+                                            rCleanName.startsWith(gCleanName + ' -') ||
+                                            rCleanName.startsWith(gCleanName + '-') ||
+                                            rCleanName.startsWith(gCleanName + ' [') ||
+                                            rCleanName.includes(gCleanName) ||
+                                            gCleanName.includes(rCleanName)
+                                          )) return true;
+
+                                          const gTeamId = String(groupInfo.teamId || '').trim();
+                                          const gTeamName = String(groupInfo.teamName || '').trim().toLowerCase();
                                           if (gTeamId && rTeamId && gTeamId === rTeamId) {
-                                            if (gTeamName && (rRawLower === gTeamName || rRawLower === `${gTeamName} group` || rRawLower === `🏟️ ${gTeamName}` || rRawLower === 'group')) return true;
+                                            if (gTeamName && (
+                                              rCleanName === gTeamName ||
+                                              rCleanName === `${gTeamName} group` ||
+                                              rCleanName === 'team group' ||
+                                              rCleanName === 'group' ||
+                                              rCleanName.includes(gTeamName)
+                                            )) return true;
                                           }
                                         }
 
-                                        // Check any group registration for this student
+                                        // B. Check all group registrations for this student
                                         const matchingGroups = (groupRegistrations || []).filter(g => {
                                           const gProgMatch = String(g.program_id) === pIdStr || (pCodeStr && String(g.program_id) === pCodeStr) || isProgramMatch({ program_id: g.program_id, program_name: g.program_name }, p);
                                           if (!gProgMatch) return false;
@@ -10443,54 +10852,116 @@ ${pagesHtml}
                                           // Check leader
                                           if (g.leader_id) {
                                             const lId = String(g.leader_id).trim();
-                                            if (lId === sDbIdStr || (sRegStr && lId.toLowerCase() === sRegStr.toLowerCase())) return true;
-                                            const lNum = parseInt(lId, 10);
-                                            if (!isNaN(lNum) && ((!isNaN(parseInt(sDbIdStr, 10)) && lNum === parseInt(sDbIdStr, 10)) || (!isNaN(parseInt(sRegStr, 10)) && lNum === parseInt(sRegStr, 10)))) return true;
+                                            if (sDbIdStr && lId === sDbIdStr) return true;
+                                            if (sRegStr && lId.toLowerCase() === sRegStr.toLowerCase()) return true;
                                           }
 
                                           // Check members
                                           let mIds = [];
-                                          if (Array.isArray(g.student_ids)) mIds = g.student_ids;
-                                          else if (typeof g.student_ids === 'string') {
-                                            try { mIds = JSON.parse(g.student_ids); } catch(e) { mIds = [g.student_ids]; }
+                                          if (Array.isArray(g.student_ids)) {
+                                            mIds = g.student_ids;
+                                          } else if (typeof g.student_ids === 'string') {
+                                            const rawStr = g.student_ids.trim();
+                                            try {
+                                              const parsed = JSON.parse(rawStr);
+                                              mIds = Array.isArray(parsed) ? parsed : [parsed];
+                                            } catch(e) {
+                                              if (rawStr.includes(',')) mIds = rawStr.split(',').map(x => x.trim()).filter(Boolean);
+                                              else mIds = [rawStr];
+                                            }
                                           }
                                           if (!Array.isArray(mIds)) mIds = [mIds];
 
-                                          return mIds.some(id => {
-                                            if (typeof id === 'object' && id !== null) {
-                                              const mId = String(id.id || id.student_id || id.regno || id.regNo || '').trim();
-                                              return mId === sDbIdStr || (sRegStr && mId.toLowerCase() === sRegStr.toLowerCase());
+                                          return mIds.some(item => {
+                                            if (!item) return false;
+                                            if (typeof item === 'object' && item !== null) {
+                                              const mDbId = String(item.id || item.student_id || item.studentId || '').trim();
+                                              const mReg = String(item.regno || item.regNo || '').trim();
+                                              if (sDbIdStr && mDbId && mDbId === sDbIdStr) return true;
+                                              if (sRegStr && mReg && mReg.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                              if (sRegStr && mDbId && mDbId.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                              return false;
                                             }
-                                            const idStr = String(id).trim();
-                                            return idStr === sDbIdStr || (sRegStr && idStr.toLowerCase() === sRegStr.toLowerCase()) ||
-                                              (!isNaN(parseInt(idStr, 10)) && !isNaN(parseInt(sRegStr, 10)) && parseInt(idStr, 10) === parseInt(sRegStr, 10));
+                                            const idStr = String(item).trim();
+                                            if (!idStr) return false;
+                                            if (sDbIdStr && idStr === sDbIdStr) return true;
+                                            if (sRegStr && idStr.toLowerCase() === sRegStr.toLowerCase()) return true;
+                                            if (sRegStr && (idStr.toLowerCase().startsWith(sRegStr.toLowerCase() + ' -') || idStr.toLowerCase().startsWith(sRegStr.toLowerCase() + '-'))) return true;
+                                            return false;
                                           });
                                         });
 
                                         for (const g of matchingGroups) {
-                                          const gName = String(g.group_name || '').trim().toLowerCase();
-                                          const rRawLower = rRaw.toLowerCase();
-                                          if (gName && (rRawLower === gName || rRawLower === `👥 ${gName}` || rRawLower.startsWith(`${gName} -`) || rRawLower.startsWith(`${gName}-`))) return true;
                                           if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
+                                          const gName = String(g.group_name || '').trim().toLowerCase();
+                                          const gCleanName = cleanEntityName(gName);
+                                          if (gCleanName && (
+                                            rCleanName === gCleanName ||
+                                            rCleanName.startsWith(gCleanName + ' -') ||
+                                            rCleanName.startsWith(gCleanName + '-') ||
+                                            rCleanName.startsWith(gCleanName + ' [') ||
+                                            rCleanName.includes(gCleanName) ||
+                                            gCleanName.includes(rCleanName)
+                                          )) return true;
+
                                           const gTeamId = String(g.team_id || '').trim();
-                                          const rTeamId = String(r.teamid || r.team_id || '').trim();
                                           if (gTeamId && rTeamId && gTeamId === rTeamId) {
                                             const teamObj = (teams || []).find(t => String(t.id) === gTeamId);
                                             const tName = teamObj ? teamObj.name.toLowerCase() : '';
-                                            if (tName && (rRawLower === tName || rRawLower === `${tName} group` || rRawLower === `🏟️ ${tName}` || rRawLower === 'group')) return true;
+                                            if (tName && (
+                                              rCleanName === tName ||
+                                              rCleanName === `${tName} group` ||
+                                              rCleanName === 'team group' ||
+                                              rCleanName === 'group' ||
+                                              rCleanName.includes(tName)
+                                            )) return true;
                                           }
+                                        }
+
+                                        // C. Direct Team-level match for student's team
+                                        if (sTeamId && rTeamId && sTeamId === rTeamId) {
+                                          if (teamName && (
+                                            rCleanName === teamName.toLowerCase() ||
+                                            rCleanName === `${teamName.toLowerCase()} group` ||
+                                            rCleanName === 'team group' ||
+                                            rCleanName === 'group' ||
+                                            rCleanName.includes(teamName.toLowerCase())
+                                          )) return true;
                                         }
 
                                         return false;
                                       }
 
                                       // 4. Single Program Resolution (STRICT REGISTER NUMBER / DB ID ONLY — NEVER BY NAME)
-                                      if (sDbIdStr && rSid && (rSid === sDbIdStr || (!isNaN(parseInt(rSid, 10)) && parseInt(rSid, 10) === parseInt(sDbIdStr, 10)))) return true;
-                                      if (sRegStr && rRegPart && (rRegPart.toLowerCase() === sRegStr.toLowerCase() || (!isNaN(parseInt(rRegPart, 10)) && parseInt(rRegPart, 10) === parseInt(sRegStr, 10)))) return true;
-                                      if (sRegStr && (rRaw.toLowerCase() === sRegStr.toLowerCase() || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + ' -') || rRaw.toLowerCase().startsWith(sRegStr.toLowerCase() + '-'))) return true;
+                                      if (sDbIdStr && rSid && rSid === sDbIdStr) return true;
+                                      if (sRegStr && rSid && rSid.toLowerCase() === sRegStr.toLowerCase()) return true;
+
+                                      const rChestNo = extractChestNumber(rRaw);
+                                      if (sRegStr && rChestNo && rChestNo.toLowerCase() === sRegStr.toLowerCase()) return true;
+
+                                      if (sRegStr) {
+                                        const sRegLower = sRegStr.toLowerCase();
+                                        const rRawLower = rRaw.toLowerCase();
+                                        if (rRawLower === sRegLower ||
+                                            rRawLower.startsWith(sRegLower + ' -') ||
+                                            rRawLower.startsWith(sRegLower + '-') ||
+                                            rRawLower.startsWith(sRegLower + ' :') ||
+                                            rRawLower.startsWith(sRegLower + ':') ||
+                                            rRawLower.startsWith(sRegLower + '.')) return true;
+                                      }
 
                                       return false;
                                     });
+
+                                    // Sort to guarantee 1st place / best position is selected
+                                    candidateProgResults.sort((a, b) => {
+                                      const rankA = getPlaceRank(a.place);
+                                      const rankB = getPlaceRank(b.place);
+                                      if (rankA !== rankB) return rankA - rankB;
+                                      return (Number(b.points) || 0) - (Number(a.points) || 0);
+                                    });
+
+                                    const progResult = candidateProgResults[0] || null;
 
                                     const pType = (p.type || '').toUpperCase();
                                     const pTypeBadge = pType.includes('TEAM') ? '🏟️ Team' : pType.includes('GROUP') ? '👥 Group' : '👤 Single';
@@ -10930,7 +11401,7 @@ ${pagesHtml}
                                 }}
                               >A3</button>
                               <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-                                {pdfPaperSize === 'A4' ? '6 cards/page (3×2 Landscape) • 7.3cm × 10.3cm' : '10 cards/page (5×2 Landscape) • 7.3cm × 10.3cm'}
+                                {pdfPaperSize === 'A4' ? '6 cards/page (3×2 Landscape) • 7.7cm × 9.4cm' : '12 cards/page (4×3 Landscape) • 7.7cm × 9.4cm'}
                               </span>
                             </div>
                             <button
