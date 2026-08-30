@@ -13,7 +13,7 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('[ErrorBoundary caught error]:', error, errorInfo);
 
-    // 🚀 Auto Self-Healing: Clear corrupt caches and reload cleanly
+    // 🚀 Auto Self-Healing: Clear corrupt data caches without destroying the active login session
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
@@ -26,8 +26,9 @@ class ErrorBoundary extends React.Component {
         }).catch(() => {});
       }
       sessionStorage.clear();
+      // Clean only corrupted cache keys — NEVER wipe miladfest_session here
       Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('cached_data_') || k.startsWith('milad_visibility_') || k.includes('chunk_reload') || k.startsWith('miladfest_')) {
+        if (k.startsWith('cached_data_') || k.startsWith('cached_regs_') || k.startsWith('photo_') || k.includes('chunk_reload') || k.includes('temp_')) {
           localStorage.removeItem(k);
         }
       });
@@ -48,7 +49,7 @@ class ErrorBoundary extends React.Component {
       }
       sessionStorage.clear();
       Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('cached_data_') || k.includes('chunk_reload') || k.startsWith('miladfest_')) {
+        if (k.startsWith('cached_data_') || k.startsWith('cached_regs_') || k.includes('chunk_reload')) {
           localStorage.removeItem(k);
         }
       });
@@ -102,7 +103,7 @@ class ErrorBoundary extends React.Component {
               Milad Fest
             </h2>
             <p style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '20px', lineHeight: '1.5' }}>
-              ആപ്പ് പുതിയ വേർഷനിലേക്ക് അപ്ഡേറ്റ് ചെയ്തിട്ടുണ്ട്. തുറക്കാൻ താഴെയുള്ള ബട്ടൺ അമർത്തുക.
+              ആപ്പ് സുഗമമായി തുറക്കാൻ താഴെയുള്ള ബട്ടൺ അമർത്തുക.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
@@ -134,7 +135,7 @@ class ErrorBoundary extends React.Component {
                   cursor: 'pointer'
                 }}
               >
-                🧹 കാഷെ ക്ലിയർ ചെയ്തു തുറക്കുക (Clear Cache & Open)
+                🧹 പൂർണ്ണമായും റീസെറ്റ് ചെയ്യുക (Full Reset & Login)
               </button>
             </div>
             {this.state.error && (
