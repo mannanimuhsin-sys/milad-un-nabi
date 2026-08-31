@@ -8,11 +8,10 @@ import './App.css';
 import translations from './translations';
 
 // ── Strict Chest / Register Number Extractor ──
-// ── Strict Chest / Register Number Extractor ──
 // Extracts chest number / register number strictly from strings like "308 - Name", "308-Name", "308 : Name", "308"
 const extractChestNumber = (rawString) => {
   if (!rawString || typeof rawString !== 'string') return '';
-  const trimmed = rawString.trim();
+  const trimmed = rawString.replace(/^[#\s]+/, '').trim();
   // Match prefix before separator: "308 - Name", "308-Name", "A-05 : Name"
   const match = trimmed.match(/^([a-zA-Z0-9_-]+)\s*(?:[-:.]|\s+-)\s*(.+)$/);
   if (match && match[1]) {
@@ -70,6 +69,8 @@ const cleanEntityName = (str) => {
 };
 
 // ── Strict Single Student Result Matcher ──
+// Strictly matches ONLY by Student DB ID or Student Register Number (Chest No)
+// NEVER matches by name alone to prevent false attribution when students share the same name.
 const isResultMatchForSingleStudent = (r, s, p = null, catList = []) => {
   if (!r || !s) return false;
 
@@ -115,25 +116,26 @@ const isResultMatchForSingleStudent = (r, s, p = null, catList = []) => {
     return false;
   }
 
-  // 5. Student identity match (DB ID or Register / Chest Number)
+  // 5. Student identity match (DB ID or Register / Chest Number strictly)
   const sDbId = String(s.id || '').trim();
   const sRegNo = String(s.regno || s.regNo || '').trim();
-  const sName = String(s.name || '').trim().toLowerCase();
 
   // A. Match by DB ID if stored on result
   const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
   if (sDbId && rSid && rSid === sDbId) return true;
   if (sRegNo && rSid && rSid.toLowerCase() === sRegNo.toLowerCase()) return true;
+  if (sRegNo && rSid && !isNaN(parseInt(sRegNo, 10)) && !isNaN(parseInt(rSid, 10)) && parseInt(sRegNo, 10) === parseInt(rSid, 10)) return true;
 
   // B. Match by Chest / Register number from studentname
   if (sRegNo && rRawName) {
     const rChest = extractChestNumber(rRawName);
-    if (rChest && rChest.toLowerCase() === sRegNo.toLowerCase()) {
-      return true;
+    if (rChest) {
+      if (rChest.toLowerCase() === sRegNo.toLowerCase()) return true;
+      if (!isNaN(parseInt(rChest, 10)) && !isNaN(parseInt(sRegNo, 10)) && parseInt(rChest, 10) === parseInt(sRegNo, 10)) return true;
     }
 
     const sRegLower = sRegNo.toLowerCase();
-    const rRawLower = rRawName.toLowerCase();
+    const rRawLower = rRawName.toLowerCase().replace(/^[#\s]+/, '');
     if (rRawLower === sRegLower ||
         rRawLower.startsWith(sRegLower + ' -') ||
         rRawLower.startsWith(sRegLower + '-') ||
@@ -141,17 +143,6 @@ const isResultMatchForSingleStudent = (r, s, p = null, catList = []) => {
         rRawLower.startsWith(sRegLower + ':') ||
         rRawLower.startsWith(sRegLower + '. ') ||
         rRawLower.startsWith(sRegLower + '.')) {
-      return true;
-    }
-  }
-
-  // C. Fallback: Exact name match AND team match
-  if (sName && rRawName) {
-    const rClean = cleanEntityName(rRawName);
-    const sClean = cleanEntityName(sName);
-    const sTeamId = String(s.teamid || s.teamId || '').trim();
-    const rTeamId = String(r.teamid || r.team_id || '').trim();
-    if (rClean === sClean && (!sTeamId || !rTeamId || sTeamId === rTeamId)) {
       return true;
     }
   }
@@ -3310,7 +3301,7 @@ function App() {
         let isLeader = false;
         if (g.leader_id) {
           const lId = String(g.leader_id).trim();
-          isLeader = (sDbId && lId === sDbId) || (sRegNo && lId.toLowerCase() === sRegNo.toLowerCase()) || (sName && lId.toLowerCase() === sName.toLowerCase());
+          isLeader = (sDbId && lId === sDbId) || (sRegNo && lId.toLowerCase() === sRegNo.toLowerCase());
         }
 
         return {
