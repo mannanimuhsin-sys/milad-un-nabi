@@ -1999,7 +1999,11 @@ function App() {
           if (cached.teams && Array.isArray(cached.teams) && cached.teams.length > 0) setTeams(cached.teams);
           if (cached.categories && Array.isArray(cached.categories) && cached.categories.length > 0) setCategories(cached.categories);
           if (cached.programs && Array.isArray(cached.programs) && cached.programs.length > 0) setPrograms([...cached.programs].sort(compareProgCode));
-          if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) setStudents([...cached.students].sort(compareRegNo));
+          if (cached.students && Array.isArray(cached.students) && cached.students.length > 0) {
+            setStudents([...cached.students].sort(compareRegNo));
+            // 📸 Reload photos from Supabase after cache load (cache never stores photo_url to avoid quota overflow)
+            setTimeout(() => loadStudentPhotos(), 800);
+          }
           if (cached.resultsList && Array.isArray(cached.resultsList) && cached.resultsList.length > 0) setResultsList(cached.resultsList);
           if (cached.programRegistrations && Array.isArray(cached.programRegistrations)) setProgramRegistrations(cached.programRegistrations);
           if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
@@ -2107,9 +2111,9 @@ function App() {
   };
 
   // 🔄 Function to load real-time data from Supabase (with offline fallback & LocalStorage caching)
-    // 📸 On-demand asynchronous photo loader (never blocks login or main dashboard render)
-  const loadStudentPhotos = useCallback(async () => {
-    const rNum = String(loggedInMadrasaRef.current ? (loggedInMadrasaRef.current.regNumber || loggedInMadrasaRef.current.regnumber || loggedInMadrasaRef.current.reg_number) : '').trim();
+  // 📸 On-demand asynchronous photo loader (never blocks login or main dashboard render)
+  const loadStudentPhotos = useCallback(async (rNumInput) => {
+    const rNum = String(rNumInput || (loggedInMadrasaRef.current ? (loggedInMadrasaRef.current.regNumber || loggedInMadrasaRef.current.regnumber || loggedInMadrasaRef.current.reg_number) : '')).trim();
     if (!rNum) return;
     try {
       const numericId = parseInt(rNum, 10);
@@ -2372,19 +2376,23 @@ function App() {
         }
         parsedStudents = Array.from(uniqueMap.values()).sort(compareRegNo);
         setStudents(parsedStudents);
+        // 📸 Non-blocking background photo loader
+        setTimeout(() => { loadStudentPhotos(rNum); }, 50);
       }
       if (Array.isArray(resultsData)) setResultsList(resultsData);
       if (Array.isArray(groupRegData)) setGroupRegistrations(groupRegData);
       if (Array.isArray(timetableData)) setTimetable(timetableData);
 
       // 🗄️ Keep LocalStorage cache 100% updated with fresh database snapshot
-      if (rNum && parsedStudents.length > 0) {
+      // 🗑️ Strip photo_url before caching to avoid localStorage 5MB quota overflow
+      const parsedStudentsNoPhoto = parsedStudents.map(({ photo_url, ...rest }) => rest);
+      if (rNum && parsedStudentsNoPhoto.length > 0) {
         try {
           const cacheObj = {
             teams: Array.isArray(teamsData) ? teamsData : teams,
             categories: Array.isArray(catsData) ? catsData : categories,
             programs: Array.isArray(programsData) ? programsData : programs,
-            students: parsedStudents,
+            students: parsedStudentsNoPhoto,
             resultsList: Array.isArray(resultsData) ? resultsData : resultsList,
             programRegistrations: parsedRegs,
             groupRegistrations: Array.isArray(groupRegData) ? groupRegData : groupRegistrations,
@@ -2552,7 +2560,8 @@ function App() {
           const existingRegs = (existingCached && Array.isArray(existingCached.programRegistrations)) ? existingCached.programRegistrations : [];
 
           // Only overwrite cache if fresh data is available; preserve existing cache if fetch returns empty
-          const freshStudents = (Array.isArray(parsedStudents) && parsedStudents.length > 0) ? parsedStudents : existingStudents;
+          // Strip photo_url to prevent localStorage quota overflow (~23MB for 119 students)
+          const freshStudents = (Array.isArray(parsedStudentsNoPhoto) && parsedStudentsNoPhoto.length > 0) ? parsedStudentsNoPhoto : existingStudents;
           const freshPrograms = (Array.isArray(programsData) && programsData.length > 0) ? programsData : existingPrograms;
           const freshRegs = (Array.isArray(finalRegs) && finalRegs.length > 0) ? finalRegs : existingRegs;
 
@@ -11010,309 +11019,6 @@ ${pagesHtml}
                       >
                         📥 Download ID Card
                       </button>
-
-                      {/* ── Student Information & Registered Programs Checklist Card ── */}
-                      {(() => {
-                        const s = profileStudent;
-                        const sRegNo = s.regno || s.regNo || '';
-                        const sDbIdStr = String(s.id || '').trim();
-                        const sRegStr = String(sRegNo || '').trim();
-                        const sNameStr = String(s.name || '').trim().toLowerCase();
-
-                        const sCatRef = String(s.catid ?? s.catId ?? s.category ?? s.catname ?? s.catName ?? '').trim();
-                        const catObj = categories.find(c =>
-                          String(c.id).trim() === sCatRef ||
-                          (c.name && c.name.trim() === sCatRef) ||
-                          (c.name && c.name.toLowerCase() === sCatRef.toLowerCase())
-                        );
-                        const sCatId = catObj ? String(catObj.id).trim() : sCatRef;
-                        const catName = s._resolvedCatName || (catObj ? catObj.name : 'No Category');
-
-                        const sTeamId = String(s.teamid || s.teamId || '').trim();
-                        const teamObj = teams.find(t => String(t.id).trim() === sTeamId);
-                        const teamName = teamObj ? teamObj.name : 'No Team';
-
-                        const sGender = String(s.gender || '').toUpperCase();
-
-                        // 🔍 Build complete list of all programs eligible or registered for this student
-                        // 1. Category Programs (Single + Group)
-                        // 2. General Category Programs (Single + Group)
-                        // 3. ANY program where the student has an active Single or Group registration
-                        // 🔍 Build complete list of all programs eligible for this student (strictly category & gender matching)
-                        const eligiblePrograms = programs.filter(p => {
-                          if (!p) return false;
-                          if (!isStudentCategoryMatch(p, sCatId, catName, categories)) return false;
-                          if (!isStudentGenderMatch(p, sGender)) return false;
-                          return true;
-                        });
-
-                        // Deduplicate eligible programs
-                        const progMap = new Map();
-                        eligiblePrograms.forEach(p => {
-                          const key = String(p.id || p.code || p.name).trim().toLowerCase();
-                          if (!progMap.has(key)) progMap.set(key, p);
-                        });
-                        const allEligibleProgs = Array.from(progMap.values()).sort(compareProgCode);
-
-                        // Calculate counts
-                        const registeredCount = allEligibleProgs.filter(p => checkIsStudentRegisteredForProg(s, p)).length;
-                        const singleCount = allEligibleProgs.filter(p => !(p.type || '').toUpperCase().includes('GROUP') && !(p.type || '').toUpperCase().includes('TEAM')).length;
-                        const groupCount = allEligibleProgs.filter(p => (p.type || '').toUpperCase().includes('GROUP') || (p.type || '').toUpperCase().includes('TEAM')).length;
-                        const genCount = allEligibleProgs.filter(p => isGeneralProg(p)).length;
-
-                        // Apply current filter tab
-                        const displayedProgs = allEligibleProgs.filter(p => {
-                          if (profileProgFilter === 'REGISTERED') return checkIsStudentRegisteredForProg(s, p);
-                          if (profileProgFilter === 'GROUP') return (p.type || '').toUpperCase().includes('GROUP') || (p.type || '').toUpperCase().includes('TEAM');
-                          if (profileProgFilter === 'SINGLE') return !(p.type || '').toUpperCase().includes('GROUP') && !(p.type || '').toUpperCase().includes('TEAM');
-                          if (profileProgFilter === 'GENERAL') return isGeneralProg(p);
-                          return true;
-                        });
-
-                        return (
-                          <div style={{ marginTop: '20px', background: '#ffffff', borderRadius: '20px', border: '1.5px solid #cbd5e1', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-
-                            {/* Student Meta Summary Header */}
-                            <div style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f766e 100%)', padding: '18px 20px', color: '#ffffff' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                                <div>
-                                  <div style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', opacity: 0.85, color: '#a7f3d0' }}>
-                                    #{sRegNo} — {catName}
-                                  </div>
-                                  <h3 style={{ fontSize: '20px', fontWeight: '900', margin: '4px 0 2px', color: '#ffffff' }}>
-                                    {s.name}
-                                  </h3>
-                                  <div style={{ fontSize: '13px', opacity: 0.95, display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-                                    <span>🚩 {lang === 'EN' ? 'Team' : 'ടീം'}: <b>{teamName}</b></span>
-                                    <span>•</span>
-                                    <span>{sGender === 'BOY' ? '👦 Boy' : '👧 Girl'}</span>
-                                  </div>
-                                </div>
-                                <div style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', padding: '8px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.25)', textAlign: 'center' }}>
-                                  <div style={{ fontSize: '18px', fontWeight: '900', color: '#ffffff' }}>
-                                    {registeredCount} / {allEligibleProgs.length}
-                                  </div>
-                                  <div style={{ fontSize: '10px', fontWeight: '800', opacity: 0.9, color: '#a7f3d0' }}>
-                                    {lang === 'EN' ? 'Programs Registered' : 'രജിസ്റ്റർ ചെയ്തവ'}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Filter Tabs */}
-                            <div style={{ padding: '14px 18px 6px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {[
-                                { key: 'ALL', label: lang === 'EN' ? `All (${allEligibleProgs.length})` : `എല്ലാം (${allEligibleProgs.length})` },
-                                { key: 'REGISTERED', label: lang === 'EN' ? `Registered (${registeredCount})` : `രജിസ്റ്റർ ചെയ്തവ (${registeredCount})` },
-                                { key: 'GROUP', label: lang === 'EN' ? `Group (${groupCount})` : `ഗ്രൂപ്പ് (${groupCount})` },
-                                { key: 'SINGLE', label: lang === 'EN' ? `Single (${singleCount})` : `വ്യക്തിഗതം (${singleCount})` },
-                                ...(genCount > 0 ? [{ key: 'GENERAL', label: lang === 'EN' ? `General (${genCount})` : `ജനറൽ (${genCount})` }] : [])
-                              ].map(tab => (
-                                <button
-                                  key={tab.key}
-                                  type="button"
-                                  onClick={() => setProfileProgFilter(tab.key)}
-                                  style={{
-                                    padding: '6px 12px',
-                                    borderRadius: '20px',
-                                    border: profileProgFilter === tab.key ? '1.5px solid #059669' : '1px solid #cbd5e1',
-                                    background: profileProgFilter === tab.key ? '#059669' : '#ffffff',
-                                    color: profileProgFilter === tab.key ? '#ffffff' : '#475569',
-                                    fontSize: '12px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                    boxShadow: profileProgFilter === tab.key ? '0 2px 8px rgba(5,150,105,0.25)' : 'none'
-                                  }}
-                                >
-                                  {tab.label}
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Programs List Section */}
-                            <div style={{ padding: '18px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span>📋</span>
-                                  <span>{lang === 'EN' ? 'Eligible Programs & Participation Checklist' : 'വിദ്യാർത്ഥിയുടെ പങ്കാളിത്ത വിവരങ്ങൾ (Checklist)'}</span>
-                                </h4>
-                                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>
-                                  {displayedProgs.length} {lang === 'EN' ? 'Programs' : 'മത്സരങ്ങൾ'}
-                                </span>
-                              </div>
-
-                              {displayedProgs.length === 0 ? (
-                                <p style={{ color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>
-                                  {lang === 'EN' ? 'No programs match the selected filter.' : 'ഈ ഫിൽറ്ററിൽ പ്രോഗ്രാമുകളൊന്നും ലഭ്യമല്ല.'}
-                                </p>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                  {displayedProgs.map(p => {
-                                    // Accurate registration & group info check
-                                    const groupInfo = getStudentGroupInfoForProg(s, p);
-                                    const isReg = checkIsStudentRegisteredForProg(s, p);
-                                    const isGen = isGeneralProg(p);
-
-                                    // Find all matching results for this program and student (Single, Group, or Team)
-                                    const sDbIdStr = String(s.id || '').trim();
-                                    const sRegStr = String(sRegNo || '').trim();
-                                    const sNameStr = String(s.name || '').trim().toLowerCase();
-
-                                    const candidateProgResults = resultsList.filter(r => {
-                                      if (!r || !isProgPublished(r.progid)) return false;
-                                      const pType = (p.type || '').toUpperCase();
-                                      if (pType.includes('GROUP') || pType.includes('TEAM')) {
-                                        if (!groupInfo) return false;
-                                        const groupObj = (groupRegistrations || []).find(g => String(g.id) === String(groupInfo.groupId)) || {
-                                          program_id: p.id,
-                                          group_name: groupInfo.groupName,
-                                          team_id: groupInfo.teamId
-                                        };
-                                        return isResultMatchForGroup(r, groupObj, p);
-                                      } else {
-                                        return isResultMatchForSingleStudent(r, s, p, categories);
-                                      }
-                                    });
-
-                                    // Sort to guarantee 1st place / best position is selected
-                                    candidateProgResults.sort((a, b) => {
-                                      const rankA = getPlaceRank(a.place);
-                                      const rankB = getPlaceRank(b.place);
-                                      if (rankA !== rankB) return rankA - rankB;
-                                      return (Number(b.points) || 0) - (Number(a.points) || 0);
-                                    });
-
-                                    const progResult = candidateProgResults[0] || null;
-
-                                    const pType = (p.type || '').toUpperCase();
-                                    const pTypeBadge = pType.includes('TEAM') ? '🏟️ Team' : pType.includes('GROUP') ? '👥 Group' : '👤 Single';
-
-                                    // Resolve program category name
-                                    const pCatObj = categories.find(c => String(c.id) === String(p.catid || p.catId || ''));
-                                    const pCatLabel = isGen ? (lang === 'EN' ? '🌟 General' : '🌟 ജനറൽ') : (pCatObj ? pCatObj.name : '');
-
-                                    return (
-                                      <div key={p.id} style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '12px 14px',
-                                        borderRadius: '12px',
-                                        border: isReg ? '1.5px solid #86efac' : '1px solid #e2e8f0',
-                                        background: isReg ? '#f0fdf4' : '#f8fafc',
-                                        transition: 'all 0.2s ease',
-                                        flexWrap: 'wrap',
-                                        gap: '10px'
-                                      }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '220px' }}>
-                                          {/* Tick / Untick indicator */}
-                                          <div style={{
-                                            width: '28px',
-                                            height: '28px',
-                                            borderRadius: '50%',
-                                            background: isReg ? '#10b981' : '#e2e8f0',
-                                            color: isReg ? '#ffffff' : '#94a3b8',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontWeight: '900',
-                                            fontSize: '14px',
-                                            flexShrink: 0,
-                                            boxShadow: isReg ? '0 2px 8px rgba(16,185,129,0.3)' : 'none'
-                                          }}>
-                                            {isReg ? '✓' : ''}
-                                          </div>
-
-                                          <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '3px' }}>
-                                              <span style={{ background: '#1e293b', color: '#ffffff', padding: '2px 7px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>
-                                                {p.code}
-                                              </span>
-                                              <span style={{ fontSize: '14px', fontWeight: '800', color: isReg ? '#065f46' : '#334155' }}>
-                                                {p.name}
-                                              </span>
-                                              <span style={{ fontSize: '10.5px', background: isGen ? '#fef3c7' : '#e2e8f0', color: isGen ? '#92400e' : '#475569', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>
-                                                {pTypeBadge}
-                                              </span>
-                                              {pCatLabel && (
-                                                <span style={{ fontSize: '10px', background: isGen ? 'rgba(251,191,36,0.25)' : 'rgba(22,163,74,0.1)', color: isGen ? '#b45309' : '#15803d', border: isGen ? '1px solid rgba(217,119,6,0.3)' : '1px solid rgba(22,163,74,0.25)', padding: '1px 6px', borderRadius: '8px', fontWeight: '800' }}>
-                                                  {pCatLabel}
-                                                </span>
-                                              )}
-                                            </div>
-
-                                            {/* Group registration details if registered in a group */}
-                                            {groupInfo && (
-                                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-                                                <span style={{ fontSize: '11px', color: '#047857', fontWeight: '700', background: '#d1fae5', padding: '1px 7px', borderRadius: '6px' }}>
-                                                  👥 {groupInfo.groupName}
-                                                </span>
-                                                {groupInfo.isLeader && (
-                                                  <span style={{ fontSize: '10px', color: '#78350f', background: '#fef3c7', padding: '1px 6px', borderRadius: '6px', fontWeight: '800', border: '1px solid #fcd34d' }}>
-                                                    👑 {lang === 'EN' ? 'Leader' : 'ലീഡർ'}
-                                                  </span>
-                                                )}
-                                                {groupInfo.teamName && (
-                                                  <span style={{ fontSize: '10px', color: '#475569', fontWeight: '600' }}>
-                                                    🚩 {groupInfo.teamName}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {/* Status Badge & Results Badge */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                          {progResult && (
-                                            <span style={{
-                                              background: progResult.place === 'First' || progResult.place === '1'
-                                                ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                                                : progResult.place === 'Second' || progResult.place === '2'
-                                                  ? 'linear-gradient(135deg, #94a3b8, #64748b)'
-                                                  : progResult.place === 'Third' || progResult.place === '3'
-                                                    ? 'linear-gradient(135deg, #f97316, #c2410c)'
-                                                    : 'linear-gradient(135deg, #059669, #047857)',
-                                              color: 'white',
-                                              padding: '4px 10px',
-                                              borderRadius: '10px',
-                                              fontWeight: '800',
-                                              fontSize: '11px',
-                                              boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-                                            }}>
-                                              {progResult.place === 'First' || progResult.place === '1' ? '🥇 1st' :
-                                               progResult.place === 'Second' || progResult.place === '2' ? '🥈 2nd' :
-                                               progResult.place === 'Third' || progResult.place === '3' ? '🥉 3rd' : `🏆 ${progResult.place}`}
-                                              {progResult.grade && progResult.grade !== '-' && progResult.grade !== 'No' ? ` (${progResult.grade})` : ''}
-                                              {progResult.points ? ` • ⭐ ${progResult.points} Pts` : ''}
-                                            </span>
-                                          )}
-
-                                          <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '5px 12px',
-                                            borderRadius: '12px',
-                                            fontSize: '12px',
-                                            fontWeight: '800',
-                                            background: isReg ? '#dcfce7' : '#f1f5f9',
-                                            color: isReg ? '#15803d' : '#94a3b8',
-                                            border: isReg ? '1px solid #86efac' : '1px solid #cbd5e1'
-                                          }}>
-                                            {isReg ? (lang === 'EN' ? '✅ Registered' : '✅ രജിസ്റ്റർ ചെയ്തു') : (lang === 'EN' ? '⬜ Not Registered' : '⬜ പങ്കാളിയല്ല')}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
 
                       <button onClick={handleProfileReset} className="btn-add-action" style={{ background: '#94a3b8', marginTop: '12px' }}>← Back</button>
 
