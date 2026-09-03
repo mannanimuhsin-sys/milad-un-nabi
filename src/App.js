@@ -71,8 +71,15 @@ const cleanEntityName = (str) => {
 // ── Strict Single Student Result Matcher ──
 // Strictly matches ONLY by Student DB ID or Student Register Number (Chest No)
 // NEVER matches by name alone to prevent false attribution when students share the same name.
-const isResultMatchForSingleStudent = (r, s, p = null, catList = []) => {
+// madrasaId (optional): if provided, result's madrasa_id MUST match to prevent cross-madrasa contamination
+const isResultMatchForSingleStudent = (r, s, p = null, catList = [], madrasaId = null) => {
   if (!r || !s) return false;
+  // ── 0. Madrasa Guard: if madrasaId is given, result must belong to the same madrasa ──
+  if (madrasaId) {
+    const rMId = String(r.madrasa_id || '').trim();
+    const sMId = String(madrasaId).trim();
+    if (rMId && sMId && rMId !== sMId) return false;
+  }
 
   // 1. Program Match
   if (p) {
@@ -151,8 +158,15 @@ const isResultMatchForSingleStudent = (r, s, p = null, catList = []) => {
 };
 
 // ── Strict Group Result Matcher ──
-const isResultMatchForGroup = (r, g, prog = null) => {
+// madrasaId (optional): if provided, result's madrasa_id MUST match to prevent cross-madrasa contamination
+const isResultMatchForGroup = (r, g, prog = null, madrasaId = null) => {
   if (!r || !g) return false;
+  // ── 0. Madrasa Guard ──
+  if (madrasaId) {
+    const rMId = String(r.madrasa_id || '').trim();
+    const sMId = String(madrasaId).trim();
+    if (rMId && sMId && rMId !== sMId) return false;
+  }
 
   // 1. Program Match
   const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
@@ -3114,10 +3128,18 @@ function App() {
       const sName = String(studentObj.name || '').trim();
       const sDbId = String(studentObj.id || '').trim();
       const sRegNo = String(studentObj.regno || studentObj.regNo || '').trim();
+      // ── Madrasa ID for strict cross-madrasa filtering ──
+      const sMadrasaId = String(localMadrasa?.regNumber || localMadrasa?.regnumber || localMadrasa?.reg_number || studentObj.madrasa_id || '').trim();
 
       // A. Match all Single Event Registrations for this student in localProgRegs strictly by DB ID or Chest No
+      // Also filter by madrasa_id to prevent cross-madrasa contamination
       const sRegs = (localProgRegs || []).filter(r => {
         if (!r) return false;
+        // Madrasa guard: only accept registrations from the same madrasa
+        if (sMadrasaId) {
+          const rMId = String(r.madrasa_id || '').trim();
+          if (rMId && rMId !== sMadrasaId) return false;
+        }
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
         if (!rSid) return false;
         if (sDbId && rSid === sDbId) return true;
@@ -3173,8 +3195,9 @@ function App() {
       // Process ONLY the programs the student ACTUALLY REGISTERED FOR
       uniqueSingleProgs.forEach(p => {
         // Find results in localResults strictly matching this student for this program
+        // Pass sMadrasaId to prevent cross-madrasa result contamination
         const candidateResults = (localResults || []).filter(r =>
-          isResultMatchForSingleStudent(r, studentObj, p, localCats)
+          isResultMatchForSingleStudent(r, studentObj, p, localCats, sMadrasaId || null)
         );
 
         // Sort candidates so the BEST place / highest points comes FIRST
@@ -3263,7 +3286,15 @@ function App() {
         });
       };
 
-      const studentGroups = (localGroupRegs || []).filter(isStudentInGroup);
+      // Filter group registrations by madrasa_id before checking student membership
+      const madrasaFilteredGroupRegs = sMadrasaId
+        ? (localGroupRegs || []).filter(g => {
+            if (!g) return false;
+            const gMId = String(g.madrasa_id || '').trim();
+            return !gMId || gMId === sMadrasaId;
+          })
+        : (localGroupRegs || []);
+      const studentGroups = madrasaFilteredGroupRegs.filter(isStudentInGroup);
 
       const resolvedGroupResults = studentGroups.map(g => {
         const prog = (localProgs || []).find(p => {
@@ -3277,8 +3308,9 @@ function App() {
         });
 
         // Find candidate results strictly matching this group
+        // Pass sMadrasaId to prevent cross-madrasa result contamination
         const candidateGroupResults = (localResults || []).filter(r =>
-          isResultMatchForGroup(r, g, prog)
+          isResultMatchForGroup(r, g, prog, sMadrasaId || null)
         );
 
         // Pick BEST place result for this group
@@ -3331,6 +3363,11 @@ function App() {
       };
     };
 
+    // Strictly check if the scanned madrasa is the one currently logged in
+    const isCurrentLoggedInMadrasa = Boolean(
+      loggedInMadrasa && String(loggedInMadrasa.regNumber || '').trim() === String(madrasaReg).trim()
+    );
+
     // Helper to get published programs list from any available sources
     const getCombinedPubList = (madrasaObj) => {
       let list = [];
@@ -3350,7 +3387,10 @@ function App() {
           } catch(e) {}
         }
       }
-      if (Array.isArray(publishedPrograms)) list.push(...publishedPrograms);
+      // ONLY use publishedPrograms state if scanning for the currently logged in madrasa
+      if (isCurrentLoggedInMadrasa && Array.isArray(publishedPrograms)) {
+        list.push(...publishedPrograms);
+      }
       try {
         const stored = localStorage.getItem(`milad_published_programs_${madrasaReg}`);
         if (stored) list.push(...JSON.parse(stored));
@@ -3364,22 +3404,26 @@ function App() {
       const rawCache = localStorage.getItem(`cached_data_${madrasaReg}`);
       if (rawCache) {
         const c = JSON.parse(rawCache);
-        const cachedPubList = getCombinedPubList(c.madrasa || loggedInMadrasa);
-        localData = buildQrDataFromLocal(
-          c.madrasa || loggedInMadrasa,
-          c.students || students,
-          c.teams || teams,
-          c.categories || categories,
-          c.programs || programs,
-          c.resultsList || resultsList,
-          c.programRegistrations || programRegistrations,
-          c.groupRegistrations || groupRegistrations,
-          cachedPubList
-        );
+        const cachedMadrasa = c.madrasa || (isCurrentLoggedInMadrasa ? loggedInMadrasa : null);
+        if (cachedMadrasa) {
+          const cachedPubList = getCombinedPubList(cachedMadrasa);
+          localData = buildQrDataFromLocal(
+            cachedMadrasa,
+            c.students || (isCurrentLoggedInMadrasa ? students : []),
+            c.teams || (isCurrentLoggedInMadrasa ? teams : []),
+            c.categories || (isCurrentLoggedInMadrasa ? categories : []),
+            c.programs || (isCurrentLoggedInMadrasa ? programs : []),
+            c.resultsList || (isCurrentLoggedInMadrasa ? resultsList : []),
+            c.programRegistrations || (isCurrentLoggedInMadrasa ? programRegistrations : []),
+            c.groupRegistrations || (isCurrentLoggedInMadrasa ? groupRegistrations : []),
+            cachedPubList
+          );
+        }
       }
     } catch(e) {}
 
-    if (!localData && students.length > 0) {
+    // ONLY use live React state if scanned madrasa is the exact logged-in madrasa
+    if (!localData && isCurrentLoggedInMadrasa && students.length > 0) {
       const statePubList = getCombinedPubList(loggedInMadrasa);
       localData = buildQrDataFromLocal(
         loggedInMadrasa,
@@ -3417,10 +3461,9 @@ function App() {
       const studentIdNum = parseInt(studentId, 10);
       const isStudentIdNum = !isNaN(studentIdNum) && String(studentIdNum) === String(studentId).trim();
 
-      // Determine if we need to fetch all supporting collections from DB
-      // (they will be empty when the QR is scanned without being logged in)
-      // Use students+programs+teams as indicators — these are always loaded at login
-      const needFullFetch = students.length === 0 || programs.length === 0 || teams.length === 0;
+      // Determine if we need to fetch all supporting collections from DB:
+      // Must fetch if state is empty OR if the scanned madrasa is NOT the currently logged-in madrasa
+      const needFullFetch = !isCurrentLoggedInMadrasa || students.length === 0 || programs.length === 0 || teams.length === 0;
 
       // Helper: paginated fetch of all rows from a table filtered by madrasa_id
       const fetchQrRows = async (table) => {
@@ -20315,8 +20358,10 @@ ${pagesHtml}
                     {/* Events & Results Section */}
                     <div className="poster-events-section">
                       {(() => {
-                        const individualList = qrModalData.results || [];
-                        const groupList = qrModalData.groupResults || [];
+                        // STRICT: Only show programs where result IS published and student has a result
+                        // Programs where result is not yet published or student did not participate are hidden
+                        const individualList = (qrModalData.results || []).filter(e => e.hasResult === true);
+                        const groupList = (qrModalData.groupResults || []).filter(e => e.hasResult === true);
                         const allEvents = [...individualList, ...groupList];
                         const totalEventsCount = allEvents.length;
                         const wonEventsCount = allEvents.filter(e => {
@@ -20352,7 +20397,7 @@ ${pagesHtml}
 
                             {totalEventsCount === 0 ? (
                               <p className="no-events-text">
-                                {lang === 'EN' ? 'No registered programs found for this student.' : 'രജിസ്റ്റർ ചെയ്ത പ്രോഗ്രാമുകളൊന്നും കണ്ടെത്തിയില്ല.'}
+                                {lang === 'EN' ? 'No published results available for this student yet.' : 'ഈ വിദ്യാർത്ഥിയുടെ പ്രഖ്യാപിച്ച ഫലങ്ങളൊന്നും ഇതുവരെ ലഭ്യമല്ല.'}
                               </p>
                             ) : (() => {
                               const formatPlace = (place) => {
