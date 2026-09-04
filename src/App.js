@@ -77,8 +77,8 @@ const isResultMatchForSingleStudent = (r, s, p = null, catList = [], madrasaId =
   // ── 0. Madrasa Guard: if madrasaId is given, result must belong to the same madrasa ──
   if (madrasaId) {
     const rMId = String(r.madrasa_id || '').trim();
-    const sMId = String(madrasaId).trim();
-    if (rMId && sMId && rMId !== sMId) return false;
+    const mIds = Array.isArray(madrasaId) ? madrasaId.map(String).map(s => s.trim()) : [String(madrasaId).trim()];
+    if (rMId && mIds.length > 0 && !mIds.includes(rMId)) return false;
   }
 
   // 1. Program Match
@@ -164,8 +164,8 @@ const isResultMatchForGroup = (r, g, prog = null, madrasaId = null) => {
   // ── 0. Madrasa Guard ──
   if (madrasaId) {
     const rMId = String(r.madrasa_id || '').trim();
-    const sMId = String(madrasaId).trim();
-    if (rMId && sMId && rMId !== sMId) return false;
+    const mIds = Array.isArray(madrasaId) ? madrasaId.map(String).map(s => s.trim()) : [String(madrasaId).trim()];
+    if (rMId && mIds.length > 0 && !mIds.includes(rMId)) return false;
   }
 
   // 1. Program Match
@@ -3083,7 +3083,8 @@ function App() {
     // Helper: Check if a program is published given a pubList and programs list
     const isProgramPublishedInList = (pId, pList, pCollection) => {
       if (!pId) return false;
-      if (!Array.isArray(pList) || pList.length === 0) return false;
+      // If no publication list exists at all for this madrasa, treat valid results as published by default
+      if (!Array.isArray(pList) || pList.length === 0) return true;
       const pIdStr = String(pId).trim().toLowerCase();
       const pubSet = new Set(pList.map(p => String(p).trim().toLowerCase()));
       if (pubSet.has(pIdStr)) return true;
@@ -3130,6 +3131,7 @@ function App() {
       const sRegNo = String(studentObj.regno || studentObj.regNo || '').trim();
       // ── Madrasa ID for strict cross-madrasa filtering ──
       const sMadrasaId = String(localMadrasa?.regNumber || localMadrasa?.regnumber || localMadrasa?.reg_number || studentObj.madrasa_id || '').trim();
+      const validMadrasaIds = Array.from(new Set([sMadrasaId, String(localMadrasa?.id || '').trim(), String(studentObj.madrasa_id || '').trim()])).filter(Boolean);
 
       // A. Match all Single Event Registrations for this student in localProgRegs strictly by DB ID or Chest No
       // Also filter by madrasa_id to prevent cross-madrasa contamination
@@ -3138,7 +3140,7 @@ function App() {
         // Madrasa guard: only accept registrations from the same madrasa
         if (sMadrasaId) {
           const rMId = String(r.madrasa_id || '').trim();
-          if (rMId && rMId !== sMadrasaId) return false;
+          if (rMId && validMadrasaIds.length > 0 && !validMadrasaIds.includes(rMId)) return false;
         }
         const rSid = String(r.student_id || r.studentId || r.studentid || '').trim();
         if (!rSid) return false;
@@ -3182,6 +3184,29 @@ function App() {
         }
       });
 
+      // Also include any program where this student has a direct result in localResults
+      (localResults || []).forEach(r => {
+        if (!r) return;
+        if (isResultMatchForSingleStudent(r, studentObj, null, localCats, validMadrasaIds)) {
+          const rPid = String(r.progid || '').trim();
+          const alreadyMatched = resolvedSingleProgs.some(p => String(p.id).trim() === rPid || (p.code && String(p.code).trim() === rPid));
+          if (!alreadyMatched) {
+            const foundProg = (localProgs || []).find(p => String(p.id).trim() === rPid || (p.code && String(p.code).trim() === rPid));
+            if (foundProg) {
+              resolvedSingleProgs.push(foundProg);
+            } else {
+              resolvedSingleProgs.push({
+                id: rPid,
+                code: '',
+                name: r.progname || `Program ${rPid}`,
+                type: r.progtype || 'SINGLE',
+                catid: sCatId
+              });
+            }
+          }
+        }
+      });
+
       // Deduplicate single registered programs
       const singleProgMap = new Map();
       resolvedSingleProgs.forEach(p => {
@@ -3195,9 +3220,9 @@ function App() {
       // Process ONLY the programs the student ACTUALLY REGISTERED FOR
       uniqueSingleProgs.forEach(p => {
         // Find results in localResults strictly matching this student for this program
-        // Pass sMadrasaId to prevent cross-madrasa result contamination
+        // Pass validMadrasaIds to prevent cross-madrasa result contamination
         const candidateResults = (localResults || []).filter(r =>
-          isResultMatchForSingleStudent(r, studentObj, p, localCats, sMadrasaId || null)
+          isResultMatchForSingleStudent(r, studentObj, p, localCats, validMadrasaIds)
         );
 
         // Sort candidates so the BEST place / highest points comes FIRST
@@ -3228,8 +3253,16 @@ function App() {
         });
       });
 
-      // Sort individual events alphabetically by program code
+      // Sort individual events: programs with won results first, then alphabetically by program code
       individualEvents.sort((a, b) => {
+        if (a.hasResult && !b.hasResult) return -1;
+        if (!a.hasResult && b.hasResult) return 1;
+        if (a.hasResult && b.hasResult) {
+          const rankA = getPlaceRank(a.place);
+          const rankB = getPlaceRank(b.place);
+          if (rankA !== rankB) return rankA - rankB;
+          return (Number(b.points) || 0) - (Number(a.points) || 0);
+        }
         const progA = (localProgs || []).find(p => String(p.id) === String(a.progid));
         const progB = (localProgs || []).find(p => String(p.id) === String(b.progid));
         const codeA = progA ? String(progA.code || '') : '';
@@ -3291,7 +3324,7 @@ function App() {
         ? (localGroupRegs || []).filter(g => {
             if (!g) return false;
             const gMId = String(g.madrasa_id || '').trim();
-            return !gMId || gMId === sMadrasaId;
+            return !gMId || validMadrasaIds.length === 0 || validMadrasaIds.includes(gMId);
           })
         : (localGroupRegs || []);
       const studentGroups = madrasaFilteredGroupRegs.filter(isStudentInGroup);
@@ -3308,9 +3341,9 @@ function App() {
         });
 
         // Find candidate results strictly matching this group
-        // Pass sMadrasaId to prevent cross-madrasa result contamination
+        // Pass validMadrasaIds to prevent cross-madrasa result contamination
         const candidateGroupResults = (localResults || []).filter(r =>
-          isResultMatchForGroup(r, g, prog, sMadrasaId || null)
+          isResultMatchForGroup(r, g, prog, validMadrasaIds)
         );
 
         // Pick BEST place result for this group
@@ -3364,8 +3397,9 @@ function App() {
     };
 
     // Strictly check if the scanned madrasa is the one currently logged in
+    const loggedReg = String(loggedInMadrasa ? (loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || loggedInMadrasa.id || '') : '').trim();
     const isCurrentLoggedInMadrasa = Boolean(
-      loggedInMadrasa && String(loggedInMadrasa.regNumber || '').trim() === String(madrasaReg).trim()
+      loggedInMadrasa && (loggedReg === String(madrasaReg).trim() || String(loggedInMadrasa.id || '').trim() === String(madrasaReg).trim())
     );
 
     // Helper to get published programs list from any available sources
@@ -3378,22 +3412,41 @@ function App() {
         }
         if (Array.isArray(visCol?.published_programs)) list.push(...visCol.published_programs);
 
-        const parts = String(madrasaObj.place || '').split('|');
-        if (parts.length > 8) {
-          try {
-            const decoded = decodeURIComponent(parts[8]);
-            const parsed = JSON.parse(decoded);
-            if (Array.isArray(parsed?.published_programs)) list.push(...parsed.published_programs);
-          } catch(e) {}
+        // Search through all pipe-delimited segments of place for published_programs
+        const placeStr = String(madrasaObj.place || '');
+        const parts = placeStr.split('|');
+        for (const part of parts) {
+          if (!part) continue;
+          if (part.includes('published_programs') || part.includes('%22published_programs%22') || part.includes('scoreboard') || part.includes('%22scoreboard%22')) {
+            try {
+              const decoded = decodeURIComponent(part);
+              const parsed = JSON.parse(decoded);
+              if (Array.isArray(parsed?.published_programs)) {
+                list.push(...parsed.published_programs);
+              }
+            } catch (e) {
+              try {
+                const parsed = JSON.parse(part);
+                if (Array.isArray(parsed?.published_programs)) {
+                  list.push(...parsed.published_programs);
+                }
+              } catch (e2) {}
+            }
+          }
         }
       }
-      // ONLY use publishedPrograms state if scanning for the currently logged in madrasa
-      if (isCurrentLoggedInMadrasa && Array.isArray(publishedPrograms)) {
+      // If current logged-in madrasa matches scanned madrasa, also merge publishedPrograms React state
+      if (isCurrentLoggedInMadrasa && Array.isArray(publishedPrograms) && publishedPrograms.length > 0) {
         list.push(...publishedPrograms);
       }
+      // Also check localStorage for this madrasa
       try {
         const stored = localStorage.getItem(`milad_published_programs_${madrasaReg}`);
         if (stored) list.push(...JSON.parse(stored));
+      } catch(e) {}
+      try {
+        const storedLatest = localStorage.getItem('milad_published_programs_latest');
+        if (isCurrentLoggedInMadrasa && storedLatest) list.push(...JSON.parse(storedLatest));
       } catch(e) {}
       return Array.from(new Set(list.map(p => String(p).trim()))).filter(Boolean);
     };
@@ -3491,8 +3544,8 @@ function App() {
               .or(`id.eq.${studentIdNum},regno.eq.${studentId}`).maybeSingle()
           : supabase.from('students').select('*').in('madrasa_id', mIdList)
               .eq('regno', studentId).maybeSingle(),
-        // Fetch madrasa to get current published_programs / visibility settings
-        supabase.from('madrasas').select('id,regNumber,name,place,visibility_controls').in('regNumber', mIdList).maybeSingle()
+        // Fetch madrasa to get current published_programs / visibility settings (do not select non-existent visibility_controls column)
+        supabase.from('madrasas').select('id,regNumber,name,place').or(`regNumber.eq.${madrasaReg},id.eq.${isMRegNum ? mRegInt : -1}`).maybeSingle()
       ];
 
       let fetchedPrograms = programs;
@@ -20358,10 +20411,9 @@ ${pagesHtml}
                     {/* Events & Results Section */}
                     <div className="poster-events-section">
                       {(() => {
-                        // STRICT: Only show programs where result IS published and student has a result
-                        // Programs where result is not yet published or student did not participate are hidden
-                        const individualList = (qrModalData.results || []).filter(e => e.hasResult === true);
-                        const groupList = (qrModalData.groupResults || []).filter(e => e.hasResult === true);
+                        // Show all registered programs, with published results highlighted at the top
+                        const individualList = qrModalData.results || [];
+                        const groupList = qrModalData.groupResults || [];
                         const allEvents = [...individualList, ...groupList];
                         const totalEventsCount = allEvents.length;
                         const wonEventsCount = allEvents.filter(e => {
@@ -20397,7 +20449,7 @@ ${pagesHtml}
 
                             {totalEventsCount === 0 ? (
                               <p className="no-events-text">
-                                {lang === 'EN' ? 'No published results available for this student yet.' : 'ഈ വിദ്യാർത്ഥിയുടെ പ്രഖ്യാപിച്ച ഫലങ്ങളൊന്നും ഇതുവരെ ലഭ്യമല്ല.'}
+                                {lang === 'EN' ? 'No registered programs or results found for this student.' : 'ഈ വിദ്യാർത്ഥിയുടെ രജിസ്റ്റർ ചെയ്ത മത്സരങ്ങളോ ഫലങ്ങളോ കണ്ടെത്തിയില്ല.'}
                               </p>
                             ) : (() => {
                               const formatPlace = (place) => {
