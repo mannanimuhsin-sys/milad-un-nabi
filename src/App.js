@@ -90,9 +90,13 @@ const isResultMatchForSingleStudent = (r, s, p = null, catList = [], madrasaId =
     const pNameStr = String(p.name || '').trim().toLowerCase();
 
     let pMatch = false;
-    if (pIdStr && rPid === pIdStr) pMatch = true;
-    else if (pCodeStr && (rPid === pCodeStr || rPname.startsWith(pCodeStr))) pMatch = true;
-    else if (pNameStr && rPname === pNameStr) pMatch = true;
+    if (pIdStr && (rPid === pIdStr || (!isNaN(parseInt(rPid, 10)) && parseInt(rPid, 10) === parseInt(pIdStr, 10)))) pMatch = true;
+    else if (pCodeStr && (rPid === pCodeStr || rPname.startsWith(pCodeStr) || (!isNaN(parseInt(rPid, 10)) && parseInt(rPid, 10) === parseInt(pCodeStr, 10)))) pMatch = true;
+
+    // CRITICAL: If r has a progid and it does not match program ID or code, never match by name!
+    if (rPid && !pMatch) return false;
+
+    if (!pMatch && pNameStr && rPname === pNameStr) pMatch = true;
 
     if (!pMatch) return false;
   }
@@ -159,7 +163,7 @@ const isResultMatchForSingleStudent = (r, s, p = null, catList = [], madrasaId =
 
 // ── Strict Group Result Matcher ──
 // madrasaId (optional): if provided, result's madrasa_id MUST match to prevent cross-madrasa contamination
-const isResultMatchForGroup = (r, g, prog = null, madrasaId = null) => {
+const isResultMatchForGroup = (r, g, prog = null, madrasaId = null, catList = []) => {
   if (!r || !g) return false;
   // ── 0. Madrasa Guard ──
   if (madrasaId) {
@@ -168,23 +172,65 @@ const isResultMatchForGroup = (r, g, prog = null, madrasaId = null) => {
     if (rMId && mIds.length > 0 && !mIds.includes(rMId)) return false;
   }
 
-  // 1. Program Match
+  // ── 1. Program Match (Strict ID / Code first) ──
   const rPid = String(r.progid || r.program_id || '').trim().toLowerCase();
   const gPid = String(g.program_id || '').trim().toLowerCase();
   const pId = prog ? String(prog.id || '').trim().toLowerCase() : '';
   const pCode = prog ? String(prog.code || '').trim().toLowerCase() : '';
 
-  let pMatch = (gPid && rPid === gPid) || (pId && rPid === pId) || (pCode && rPid === pCode);
-  if (!pMatch && prog && prog.name) {
-    const rPname = String(r.progname || r.program_name || '').trim().toLowerCase();
-    if (rPname && rPname === String(prog.name).trim().toLowerCase()) pMatch = true;
+  let pMatch = false;
+  if (rPid) {
+    if (gPid && (rPid === gPid || (!isNaN(parseInt(rPid, 10)) && parseInt(rPid, 10) === parseInt(gPid, 10)))) {
+      pMatch = true;
+    } else if (pId && (rPid === pId || (!isNaN(parseInt(rPid, 10)) && parseInt(rPid, 10) === parseInt(pId, 10)))) {
+      pMatch = true;
+    } else if (pCode && (rPid === pCode || (!isNaN(parseInt(rPid, 10)) && parseInt(rPid, 10) === parseInt(pCode, 10)))) {
+      pMatch = true;
+    }
+  }
+
+  // CRITICAL: If r has a progid and it does NOT match program ID or code, it is a DIFFERENT program!
+  // NEVER fall back to program name when r.progid is present!
+  if (rPid && !pMatch) {
+    return false;
+  }
+
+  // Fallback to name match ONLY IF rPid was empty or matched
+  if (!pMatch) {
+    if (prog && prog.name) {
+      const rPname = String(r.progname || r.program_name || '').trim().toLowerCase();
+      const pName = String(prog.name).trim().toLowerCase();
+      if (rPname && rPname === pName) {
+        pMatch = true;
+      }
+    }
   }
   if (!pMatch) return false;
 
-  // 2. Explicit Group ID match
+  // ── 2. Category Match Guard ──
+  // Never match results across categories (e.g. Sub Junior vs Junior vs Senior)
+  const rCatName = String(r.catname || r.catName || '').trim().toLowerCase();
+  if (rCatName && prog) {
+    const pCatId = String(prog.catid || prog.catId || '').trim();
+    const catObj = (catList || []).find(c => String(c.id) === pCatId || (c.name && c.name.toLowerCase() === pCatId.toLowerCase()));
+    const pCatName = (catObj ? catObj.name : (prog.catname || prog.catName || '')).trim().toLowerCase();
+    if (pCatName && !rCatName.includes('general') && !pCatName.includes('general') && rCatName !== pCatName) {
+      return false;
+    }
+  }
+
+  // ── 3. Team Guard (Crucial for multi-team madrasas!) ──
+  // In a madrasa with multiple teams, a group belonging to one team must NEVER get another team's result!
+  const gTeamId = String(g.team_id || g.teamId || '').trim();
+  const rTeamId = String(r.teamid || r.team_id || r.teamId || '').trim();
+  if (gTeamId && rTeamId && gTeamId !== rTeamId) {
+    return false;
+  }
+
+  // ── 4. Explicit Group ID match ──
   if (r.group_id && g.id && String(r.group_id) === String(g.id)) return true;
 
-  // 3. Group Name match
+  // ── 5. Group Name match ──
   const rRawName = String(r.studentname || r.studentName || '').trim();
   const gName = String(g.group_name || '').trim();
   const rClean = cleanEntityName(rRawName);
@@ -194,6 +240,8 @@ const isResultMatchForGroup = (r, g, prog = null, madrasaId = null) => {
     rClean === gClean ||
     rRawName.toLowerCase() === gName.toLowerCase() ||
     rRawName.toLowerCase() === `👥 ${gName.toLowerCase()}` ||
+    rClean === `${gClean} group` ||
+    rClean === `group ${gClean}` ||
     rClean.startsWith(gClean + ' -') ||
     rClean.startsWith(gClean + '-') ||
     rClean.startsWith(gClean + ' [')
@@ -201,11 +249,13 @@ const isResultMatchForGroup = (r, g, prog = null, madrasaId = null) => {
     return true;
   }
 
-  // 4. Team-level match ONLY IF result is named as generic Team Group AND team ID matches
-  const gTeamId = String(g.team_id || '').trim();
-  const rTeamId = String(r.teamid || r.team_id || '').trim();
+  // ── 6. Generic team-level group result (e.g. "Group" or "Team Group") ──
   if (gTeamId && rTeamId && gTeamId === rTeamId) {
-    if (rClean === 'group' || rClean === 'team group') {
+    if (rClean === 'group' || rClean === 'team group' || rClean === '') {
+      return true;
+    }
+    const rTeamName = String(r.teamname || r.teamName || '').trim().toLowerCase();
+    if (rTeamName && (rClean === cleanEntityName(rTeamName) || rClean === `${cleanEntityName(rTeamName)} group`)) {
       return true;
     }
   }
@@ -1124,15 +1174,29 @@ function App() {
   const isProgPublished = (progId) => {
     try {
       if (!progId) return false;
-      if (!Array.isArray(publishedPrograms) || publishedPrograms.length === 0) return false;
+
+      // 1. If individual program publishing has NEVER been configured in DB/state for this madrasa,
+      // all entered results are live by default (standard mode without draft gating).
+      const hasExplicitPublishConfig =
+        (Array.isArray(visibilityControls?.published_programs) && visibilityControls.published_programs.length > 0) ||
+        (Array.isArray(publishedPrograms) && publishedPrograms.length > 0);
+
+      if (!hasExplicitPublishConfig) {
+        return true;
+      }
+
       const pIdStr = String(progId).trim();
       const pIdLower = pIdStr.toLowerCase();
 
-      // 1. Direct match in published list
-      const pubLowerSet = new Set(publishedPrograms.map(p => String(p || '').trim().toLowerCase()));
+      // 2. Direct match in published list
+      const activePubList = Array.isArray(publishedPrograms) && publishedPrograms.length > 0
+        ? publishedPrograms
+        : (Array.isArray(visibilityControls?.published_programs) ? visibilityControls.published_programs : []);
+
+      const pubLowerSet = new Set(activePubList.map(p => String(p || '').trim().toLowerCase()));
       if (pubLowerSet.has(pIdLower)) return true;
 
-      // 2. Resolve program object by id, code, name, or composite code/name
+      // 3. Resolve program object by id, code, name, or composite code/name
       const progObj = Array.isArray(programs) ? programs.find(p => {
         if (!p) return false;
         const pId = String(p.id || '').trim().toLowerCase();
@@ -3341,9 +3405,9 @@ function App() {
         });
 
         // Find candidate results strictly matching this group
-        // Pass validMadrasaIds to prevent cross-madrasa result contamination
+        // Pass validMadrasaIds and localCats to prevent cross-madrasa / cross-category result contamination
         const candidateGroupResults = (localResults || []).filter(r =>
-          isResultMatchForGroup(r, g, prog, validMadrasaIds)
+          isResultMatchForGroup(r, g, prog, validMadrasaIds, localCats)
         );
 
         // Pick BEST place result for this group
@@ -8315,7 +8379,7 @@ ${pagesHtml}
                         const progObj = programs.find(p => String(p.id) === String(filterProg));
                         const isPublished = isProgPublished(filterProg);
                         const progResults = resultsList.filter(r => {
-                          if (!isProgPublished(r.progid)) return false;
+                          if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
                           const matchProg = String(r.progid) === String(filterProg) || (progObj && (String(r.progid) === String(progObj.id) || String(r.progid) === String(progObj.code) || String(r.progid) === String(progObj.name)));
                           const rGender = (r.studentgender || r.studentGender || '').toUpperCase();
                           const matchGender = filterGender === 'ALL' || rGender === filterGender.toUpperCase();
@@ -8435,7 +8499,7 @@ ${pagesHtml}
                     ) : (() => {
                       // 1. Gather all winner results with full resolved metadata
                       const allWinnerResults = resultsList.filter(r => {
-                        if (!isProgPublished(r.progid)) return false;
+                        if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
                         const p = (r.place || '').toString().trim().toLowerCase();
                         return p === 'first' || p === '1' || p === '1st' ||
                                p === 'second' || p === '2' || p === '2nd' ||
@@ -9409,12 +9473,37 @@ ${pagesHtml}
                           // Strictly gather all registered programs for this student
                           const registeredProgs = getStudentRegisteredPrograms(matchedStudent.id);
 
+                          // Also find any direct results in resultsList for this student (in case registration was missing/unmatched)
+                          const extraResultsForStudent = (resultsList || []).filter(r => {
+                            if (loginRole !== 'ADMIN' && !isProgPublished(r.progid)) return false;
+                            return isResultMatchForSingleStudent(r, matchedStudent, null, categories);
+                          });
+
+                          const combinedProgs = [...registeredProgs];
+                          extraResultsForStudent.forEach(er => {
+                            const erPid = String(er.progid || '').trim();
+                            const alreadyIncluded = combinedProgs.some(p => String(p.id).trim() === erPid || (p.code && String(p.code).trim() === erPid));
+                            if (!alreadyIncluded) {
+                              const foundProg = (programs || []).find(pr => String(pr.id).trim() === erPid || (pr.code && String(pr.code).trim() === erPid));
+                              if (foundProg) {
+                                combinedProgs.push(foundProg);
+                              } else {
+                                combinedProgs.push({
+                                  id: er.progid,
+                                  name: er.progname || `Program ${er.progid}`,
+                                  code: er.progid,
+                                  type: er.progtype || 'SINGLE'
+                                });
+                              }
+                            }
+                          });
+
                           const sResults = [];
-                          registeredProgs.forEach(p => {
+                          combinedProgs.forEach(p => {
                             let progResult = null;
                             if (p.isGroup) {
                               const groupObj = (groupRegistrations || []).find(g => String(g.id) === String(p.groupId));
-                              const candidateResults = resultsList.filter(r => isProgPublished(r.progid) && isResultMatchForGroup(r, groupObj || { program_id: p.id, group_name: p.groupName, team_id: matchedStudent.teamid }, p));
+                              const candidateResults = resultsList.filter(r => (loginRole === 'ADMIN' || isProgPublished(r.progid)) && isResultMatchForGroup(r, groupObj || { program_id: p.id, group_name: p.groupName, team_id: matchedStudent.teamid }, p, loggedInMadrasa?.regNumber, categories));
                               candidateResults.sort((a, b) => {
                                 const rankA = getPlaceRank(a.place);
                                 const rankB = getPlaceRank(b.place);
@@ -9423,7 +9512,7 @@ ${pagesHtml}
                               });
                               progResult = candidateResults[0] || null;
                             } else {
-                              const candidateResults = resultsList.filter(r => isProgPublished(r.progid) && isResultMatchForSingleStudent(r, matchedStudent, p, categories));
+                              const candidateResults = resultsList.filter(r => (loginRole === 'ADMIN' || isProgPublished(r.progid)) && isResultMatchForSingleStudent(r, matchedStudent, p, categories));
                               candidateResults.sort((a, b) => {
                                 const rankA = getPlaceRank(a.place);
                                 const rankB = getPlaceRank(b.place);
@@ -9433,6 +9522,11 @@ ${pagesHtml}
                               progResult = candidateResults[0] || null;
                             }
 
+                            const hasRes = !!progResult && (
+                              (progResult.place && progResult.place !== 'No Place' && progResult.place !== '-' && progResult.place !== '0') ||
+                              (progResult.grade && progResult.grade !== '-' && progResult.grade !== 'No')
+                            );
+
                             sResults.push({
                               progid: p.id,
                               progname: `${p.code ? p.code + ' – ' : ''}${p.name}`,
@@ -9440,7 +9534,7 @@ ${pagesHtml}
                               place: progResult ? (progResult.place || 'No Place') : 'No Place',
                               grade: progResult ? (progResult.grade || '-') : '-',
                               points: progResult ? Number(progResult.points || 0) : 0,
-                              hasResult: !!progResult && (progResult.place !== 'No Place' && progResult.place !== '-' && progResult.place !== '0' || progResult.grade !== '-')
+                              hasResult: hasRes
                             });
                           });
 
@@ -9515,17 +9609,29 @@ ${pagesHtml}
                               ) : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '15px' }}>
                                   {sResults.map((r, idx) => {
-                                    const medal = r.place === 'First' ? '🥇' : r.place === 'Second' ? '🥈' : r.place === 'Third' ? '🥉' : '🏅';
-                                    const bg = r.place === 'First' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : r.place === 'Second' ? 'linear-gradient(135deg, #94a3b8, #64748b)' : r.place === 'Third' ? 'linear-gradient(135deg, #f97316, #c2410c)' : 'linear-gradient(135deg, #6366f1, #4f46e5)';
+                                    const pLow = (r.place || '').toLowerCase();
+                                    const is1st = pLow === 'first' || pLow === '1' || pLow === '1st';
+                                    const is2nd = pLow === 'second' || pLow === '2' || pLow === '2nd';
+                                    const is3rd = pLow === 'third' || pLow === '3' || pLow === '3rd';
+                                    const medal = is1st ? '🥇' : is2nd ? '🥈' : is3rd ? '🥉' : (r.hasResult ? '🏅' : '⏳');
+                                    const bg = is1st ? 'linear-gradient(135deg, #f59e0b, #d97706)' : is2nd ? 'linear-gradient(135deg, #94a3b8, #64748b)' : is3rd ? 'linear-gradient(135deg, #f97316, #c2410c)' : (r.hasResult ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #64748b, #475569)');
                                     return (
                                       <div key={idx} style={{ background: bg, borderRadius: '14px', padding: '16px', color: 'white', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
                                         <div style={{ fontSize: '24px', marginBottom: '6px' }}>{medal}</div>
                                         <div style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>{r.progname || r.progName}</div>
                                         <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>{r.catname || r.catName}</div>
-                                        <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontWeight: '700', marginBottom: '10px' }}>{r.place} | {(r.grade === '-' || r.grade === 'No') ? 'No Grade' : r.grade} | {r.points} Pts</div>
-                                        <button onClick={() => generateCertificate(r)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(6px)', border: '1.5px solid rgba(255,255,255,0.35)', color: 'white', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', transition: 'all 0.2s ease' }}>
-                                          📜 Certificate
-                                        </button>
+                                        <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '3px 8px', display: 'inline-block', fontWeight: '700', marginBottom: '10px' }}>
+                                          {r.place} | {(r.grade === '-' || r.grade === 'No' || !r.grade) ? 'No Grade' : r.grade} | {r.points} Pts
+                                        </div>
+                                        {r.hasResult ? (
+                                          <button onClick={() => generateCertificate(r)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(6px)', border: '1.5px solid rgba(255,255,255,0.35)', color: 'white', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', transition: 'all 0.2s ease' }}>
+                                            📜 Certificate
+                                          </button>
+                                        ) : (
+                                          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', textAlign: 'center', padding: '6px' }}>
+                                            {lang === 'EN' ? 'No Prize / Result Pending' : 'ഫലം വന്നിട്ടില്ല'}
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })}
@@ -9616,7 +9722,7 @@ ${pagesHtml}
                       return true;
                     };
 
-                    const displayHistoryResults = resultsList.filter(r => isProgPublished(r.progid));
+                    const displayHistoryResults = resultsList.filter(r => loginRole === 'ADMIN' || isProgPublished(r.progid));
                     const groupMap = new Map();
 
                     // Retrieve publish timestamps from all available sources
@@ -21328,13 +21434,27 @@ ${pagesHtml}
         const eventNameText = eventName || 'EVENT NAME';
         const eventYearText = eventYear || '2026';
 
-        const placeRaw = (result.place || '').toString().toLowerCase();
-        const prizeText = placeRaw === 'first' || placeRaw === '1' ? 'FIRST PRIZE' : placeRaw === 'second' || placeRaw === '2' ? 'SECOND PRIZE' : placeRaw === 'third' || placeRaw === '3' ? 'THIRD PRIZE' : (result.place ? (result.place + ' PRIZE').toUpperCase() : 'PRIZE');
+        const pLower = (result.place || '').toString().toLowerCase().trim();
+        const isFirst = pLower === 'first' || pLower === '1' || pLower === '1st' || pLower.includes('first');
+        const isSecond = pLower === 'second' || pLower === '2' || pLower === '2nd' || pLower.includes('second');
+        const isThird = pLower === 'third' || pLower === '3' || pLower === '3rd' || pLower.includes('third');
 
-        const prizeNum = placeRaw === 'first' || placeRaw === '1' ? '1' : placeRaw === 'second' || placeRaw === '2' ? '2' : '3';
-        const prizeOrd = placeRaw === 'first' || placeRaw === '1' ? 'ST' : placeRaw === 'second' || placeRaw === '2' ? 'ND' : 'RD';
-        const prizeMedalColor = placeRaw === 'first' || placeRaw === '1' ? '#D4A017' : placeRaw === 'second' || placeRaw === '2' ? '#A8A9AD' : '#CD7F32';
-        const prizeRibbonColor = placeRaw === 'first' || placeRaw === '1' ? '#064e3b' : placeRaw === 'second' || placeRaw === '2' ? '#1e3a8a' : '#7c2d12';
+        const prizeText = isFirst
+          ? 'FIRST PRIZE'
+          : isSecond
+          ? 'SECOND PRIZE'
+          : isThird
+          ? 'THIRD PRIZE'
+          : (result.grade && result.grade !== '-' && result.grade !== 'No'
+            ? `${result.grade.toUpperCase()} GRADE`
+            : (result.place && !result.place.toLowerCase().includes('no') && result.place !== '-'
+              ? `${result.place.toUpperCase()} PRIZE`
+              : 'PARTICIPATION'));
+
+        const prizeNum = isFirst ? '1' : isSecond ? '2' : isThird ? '3' : '★';
+        const prizeOrd = isFirst ? 'ST' : isSecond ? 'ND' : isThird ? 'RD' : '';
+        const prizeMedalColor = isFirst ? '#D4A017' : isSecond ? '#A8A9AD' : isThird ? '#CD7F32' : '#059669';
+        const prizeRibbonColor = isFirst ? '#064e3b' : isSecond ? '#1e3a8a' : isThird ? '#7c2d12' : '#047857';
 
         const progName = result.progname || result.progName || (prog ? prog.name : '');
         const catName = result.catname || result.catName || (catObj ? catObj.name : '');
