@@ -1168,35 +1168,30 @@ function App() {
         return _initCache.visibilityControls.published_programs;
       }
     } catch {}
-    return null;
+    return [];
   });
 
   const isProgPublished = (progId) => {
     try {
       if (!progId) return false;
 
-      // 1. If individual program publishing has NEVER been configured in DB/state for this madrasa,
-      // all entered results are live by default (standard mode without draft gating).
-      const hasExplicitPublishConfig =
-        (Array.isArray(visibilityControls?.published_programs) && visibilityControls.published_programs.length > 0) ||
-        (Array.isArray(publishedPrograms) && publishedPrograms.length > 0);
+      // Active published list: use publishedPrograms if array, else fallback to visibilityControls?.published_programs if array, else []
+      const activePubList = Array.isArray(publishedPrograms)
+        ? publishedPrograms
+        : (Array.isArray(visibilityControls?.published_programs) ? visibilityControls.published_programs : []);
 
-      if (!hasExplicitPublishConfig) {
-        return true;
+      // If active published list is empty, nothing is published -> all results are DRAFT by default!
+      if (!activePubList || activePubList.length === 0) {
+        return false;
       }
 
       const pIdStr = String(progId).trim();
       const pIdLower = pIdStr.toLowerCase();
 
-      // 2. Direct match in published list
-      const activePubList = Array.isArray(publishedPrograms) && publishedPrograms.length > 0
-        ? publishedPrograms
-        : (Array.isArray(visibilityControls?.published_programs) ? visibilityControls.published_programs : []);
-
       const pubLowerSet = new Set(activePubList.map(p => String(p || '').trim().toLowerCase()));
       if (pubLowerSet.has(pIdLower)) return true;
 
-      // 3. Resolve program object by id, code, name, or composite code/name
+      // Resolve program object by id, code, name, or composite code/name
       const progObj = Array.isArray(programs) ? programs.find(p => {
         if (!p) return false;
         const pId = String(p.id || '').trim().toLowerCase();
@@ -1222,10 +1217,14 @@ function App() {
   const handleTogglePublishProgram = async (progId, forceState = null) => {
     if (!progId) return;
     const pIdStr = String(progId).trim();
-    const progObj = programs.find(p => String(p.id).trim() === pIdStr || (p.code && String(p.code).trim() === pIdStr));
-    const progName = progObj ? progObj.name : 'Program';
+    const progObj = programs.find(p => 
+      String(p.id).trim() === pIdStr || 
+      (p.code && String(p.code).trim() === pIdStr) ||
+      (p.name && String(p.name).trim().toLowerCase() === pIdStr.toLowerCase())
+    );
+    const progName = progObj ? progObj.name : (pIdStr || 'Program');
     
-    // Get latest published list from state, falling back to localStorage
+    // Get latest published list from state, falling back to localStorage / visibilityControls
     const rNum = loggedInMadrasa?.regNumber;
     const mId = loggedInMadrasa?.id;
     let baseList = Array.isArray(publishedPrograms) ? [...publishedPrograms] : [];
@@ -1235,13 +1234,24 @@ function App() {
         if (stored) baseList = JSON.parse(stored);
       } catch (e) {}
     }
+    if (baseList.length === 0 && Array.isArray(visibilityControls?.published_programs)) {
+      baseList = [...visibilityControls.published_programs];
+    }
 
     const isCurrentlyPub = isProgPublished(progId);
     const shouldPublish = forceState !== null ? forceState : !isCurrentlyPub;
 
-    const toRemoveOrAdd = new Set([pIdStr]);
-    if (progObj?.id) toRemoveOrAdd.add(String(progObj.id).trim());
-    if (progObj?.code) toRemoveOrAdd.add(String(progObj.code).trim());
+    // Defensive fallback: If moving to draft, but baseList was empty while program is currently considered published,
+    // populate baseList with all programs having results before removing the target program.
+    if (!shouldPublish && baseList.length === 0 && isCurrentlyPub) {
+      baseList = Array.from(new Set(resultsList.map(r => String(r.progid || '').trim()).filter(Boolean)));
+    }
+
+    // Set of identifiers to match (case-insensitive)
+    const toMatchLower = new Set([pIdStr.toLowerCase()]);
+    if (progObj?.id) toMatchLower.add(String(progObj.id).trim().toLowerCase());
+    if (progObj?.code) toMatchLower.add(String(progObj.code).trim().toLowerCase());
+    if (progObj?.name) toMatchLower.add(String(progObj.name).trim().toLowerCase());
 
     let updated;
     const now = Date.now();
@@ -1254,36 +1264,54 @@ function App() {
     }
 
     if (shouldPublish) {
-      // ⚡ Prepend newly published program at index 0 (top) of publishedPrograms so it is recognized as most recently published
-      const existingWithoutNew = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
-      updated = Array.from(new Set([...Array.from(toRemoveOrAdd), ...existingWithoutNew]));
-      toRemoveOrAdd.forEach(id => { currentPublishedAt[id] = now; });
+      // Add program identifiers
+      const idsToAdd = [];
+      if (progObj?.id) idsToAdd.push(String(progObj.id).trim());
+      if (progObj?.code) idsToAdd.push(String(progObj.code).trim());
+      if (!idsToAdd.length) idsToAdd.push(pIdStr);
+
+      const existingWithoutNew = baseList.filter(id => !toMatchLower.has(String(id || '').trim().toLowerCase()));
+      updated = Array.from(new Set([...idsToAdd, ...existingWithoutNew]));
+      idsToAdd.forEach(id => { currentPublishedAt[id] = now; });
     } else {
-      updated = baseList.map(String).filter(id => !toRemoveOrAdd.has(id.trim()));
-      toRemoveOrAdd.forEach(id => { delete currentPublishedAt[id]; });
+      // Move to Draft: remove all identifiers for this program
+      updated = baseList.filter(id => !toMatchLower.has(String(id || '').trim().toLowerCase()));
+      toMatchLower.forEach(id => { delete currentPublishedAt[id]; });
+      Object.keys(currentPublishedAt).forEach(k => {
+        if (toMatchLower.has(String(k || '').trim().toLowerCase())) {
+          delete currentPublishedAt[k];
+        }
+      });
     }
 
     // 1. Update React state immediately (optimistic UI)
     setPublishedPrograms(updated);
 
     // 2. Always save to localStorage FIRST — this is the source of truth for ADMIN
-    //    Even if DB write fails, localStorage preserves the manual publish action.
     if (rNum) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem(`milad_published_at_${rNum}`, JSON.stringify(currentPublishedAt));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
+        safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+          let cacheObj = {};
+          try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+          cacheObj.publishedPrograms = updated;
+          if (cacheObj.visibilityControls) {
+            cacheObj.visibilityControls.published_programs = updated;
+            cacheObj.visibilityControls.published_at = currentPublishedAt;
+          }
+          return JSON.stringify(cacheObj);
+        });
       } catch {}
     }
 
-    // 3. Sync to DB — build newVis with the UPDATED published_programs and published_at (not stale state)
+    // 3. Sync to DB — build newVis with the UPDATED published_programs and published_at
     if (rNum || mId) {
       try {
-        // Use 'updated' directly — do NOT rely on visibilityControls state which may be stale
         const newVis = { ...(visibilityControls || {}), published_programs: updated, published_at: currentPublishedAt };
         setVisibilityControls(newVis);
 
-        // Fetch latest madrasa place to safely update part 8
         let currentPlace = loggedInMadrasa?.place || '';
         try {
           const { data: mData } = await queryWithRetry(() =>
@@ -1294,7 +1322,6 @@ function App() {
           if (mData && mData.place) currentPlace = mData.place;
         } catch (e) {}
 
-        // Build place string using the fresh newVis (not the stale visibilityControls state)
         const updatedPlace = makePlaceString(currentPlace, {
           visibilityControls: encodeURIComponent(JSON.stringify(newVis))
         });
@@ -1304,7 +1331,6 @@ function App() {
         } else {
           await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
         }
-        // Verify: re-save localStorage after successful DB write (belt-and-suspenders)
         if (rNum) {
           try {
             localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
@@ -1314,8 +1340,6 @@ function App() {
         }
       } catch (err) {
         console.warn("Error syncing published_programs to cloud:", err);
-        // DB write failed — localStorage already saved, so manual publish is safe locally.
-        // The next successful DB write will persist it.
       }
     }
 
@@ -1363,13 +1387,27 @@ function App() {
         if (p?.code) allIds.push(String(p.code).trim());
       });
       updated = Array.from(new Set(allIds)).filter(Boolean);
+    } else {
+      updated = [];
+      newPublishedAt = {};
     }
+
     setPublishedPrograms(updated);
     if (rNum || mId) {
       try {
         localStorage.setItem(`milad_published_programs_${rNum}`, JSON.stringify(updated));
         localStorage.setItem(`milad_published_at_${rNum}`, JSON.stringify(newPublishedAt));
         localStorage.setItem('milad_published_programs_latest', JSON.stringify(updated));
+        safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
+          let cacheObj = {};
+          try { cacheObj = JSON.parse(rawCache) || {}; } catch(e) {}
+          cacheObj.publishedPrograms = updated;
+          if (cacheObj.visibilityControls) {
+            cacheObj.visibilityControls.published_programs = updated;
+            cacheObj.visibilityControls.published_at = newPublishedAt;
+          }
+          return JSON.stringify(cacheObj);
+        });
       } catch {}
       try {
         const newVis = { ...(visibilityControls || {}), published_programs: updated, published_at: newPublishedAt };
@@ -1886,6 +1924,8 @@ function App() {
     results_STUDENT_REPORT: true,
     results_RESULTS_HISTORY: true,
     results_CHAMPIONS: true,
+    published_programs: [],
+    published_at: {},
   };
 
   const normalizeVisibilityControls = (raw) => {
@@ -1903,12 +1943,8 @@ function App() {
       results_RESULTS_HISTORY: parsed.results_RESULTS_HISTORY !== undefined ? Boolean(parsed.results_RESULTS_HISTORY) : DEFAULT_VISIBILITY_CONTROLS.results_RESULTS_HISTORY,
       results_CHAMPIONS: parsed.results_CHAMPIONS !== undefined ? Boolean(parsed.results_CHAMPIONS) : DEFAULT_VISIBILITY_CONTROLS.results_CHAMPIONS,
     };
-    if (Array.isArray(parsed.published_programs)) {
-      res.published_programs = parsed.published_programs.map(String);
-    }
-    if (parsed.published_at && typeof parsed.published_at === 'object') {
-      res.published_at = parsed.published_at;
-    }
+    res.published_programs = Array.isArray(parsed.published_programs) ? parsed.published_programs.map(String) : [];
+    res.published_at = (parsed.published_at && typeof parsed.published_at === 'object') ? parsed.published_at : {};
     return res;
   };
 
@@ -2386,9 +2422,19 @@ function App() {
 
           let finalPublished;
           if (isAdminRole) {
-            // ADMIN: UNION of DB and localStorage — published items are NEVER silently removed by a poll.
-            // Only a manual "Move to Draft" action (handleTogglePublishProgram) can remove items.
-            finalPublished = Array.from(new Set([...localPubList, ...dbPublished]));
+            // ADMIN: Check if localStorage has an explicit publish list saved
+            // If localStorage key EXISTS but is empty [], admin explicitly moved all to Draft — respect that.
+            // If localStorage key DOES NOT exist, this is first load — use DB data.
+            const storedRaw = rNum ? localStorage.getItem(`milad_published_programs_${rNum}`) : null;
+            const localExplicitlySet = storedRaw !== null; // key exists in localStorage
+
+            if (localExplicitlySet) {
+              // Admin explicitly controls publish/draft state on this device — do NOT re-union with DB data to resurrect drafted programs
+              finalPublished = localPubList;
+            } else {
+              // No localStorage at all — use DB as starting point
+              finalPublished = dbPublished;
+            }
           } else {
             // VIEW role: DB is the sole source of truth (admin controls what VIEW users see)
             finalPublished = dbPublished;
