@@ -6496,7 +6496,9 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       setQuizStudentScore({ score, total });
       setQuizStudentStep('SUBMITTED');
       setQuizSubmitting(false);
-      if (rNum) fetchSupabaseData(rNum);
+      // NOTE: Do NOT call fetchSupabaseData here — it resets quizList and may
+      // momentarily make activeQuiz null while the SUBMITTED view is showing,
+      // causing a blank screen. The realtime subscription keeps data current.
     }
   };
 
@@ -21136,8 +21138,145 @@ ${pagesHtml}
 
             return (
               <div className="card animate-tab" style={{ maxWidth: '800px', margin: '0 auto' }}>
+
+                {/* ✅ SUBMITTED step is ALWAYS rendered at top level - never inside activeQuiz guard */}
+                {quizStudentStep === 'SUBMITTED' && (() => {
+                  const finalScore = quizStudentScore?.score ?? 0;
+                  const finalTotal = quizStudentScore?.total ?? (activeQuestions.length || 1);
+                  const percentage = Math.round((finalScore / (finalTotal || 1)) * 100);
+
+                  return (
+                    <div style={{
+                      background: '#ffffff',
+                      border: '1.5px solid #bbf7d0',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      textAlign: 'center',
+                      boxShadow: '0 10px 30px -5px rgba(16, 185, 129, 0.15)'
+                    }}>
+                      {/* Celebration Icon */}
+                      <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎉</div>
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', fontWeight: '800', color: '#0f766e' }}>
+                        {lang === 'EN' ? 'Quiz Submitted Successfully!' : 'ക്വിസ് വിജയകരമായി സമർപ്പിച്ചു!'}
+                      </h3>
+                      <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b' }}>
+                        {matchedStudent ? `${matchedStudent.name} (Reg: ${quizStudentRegno})` : `Reg: ${quizStudentRegno}`}
+                      </p>
+
+                      {/* Big Score Card */}
+                      <div style={{
+                        background: percentage >= 80 ? 'linear-gradient(135deg, #dcfce7, #bbf7d0)' : percentage >= 50 ? 'linear-gradient(135deg, #fef3c7, #fde68a)' : 'linear-gradient(135deg, #fee2e2, #fecaca)',
+                        borderRadius: '16px',
+                        padding: '24px 20px',
+                        maxWidth: '340px',
+                        margin: '0 auto 24px auto',
+                        border: '1px solid rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: '800', color: percentage >= 80 ? '#166534' : percentage >= 50 ? '#92400e' : '#991b1b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                          {lang === 'EN' ? 'Your Score' : 'നിങ്ങളുടെ സ്കോർ'}
+                        </div>
+                        <div style={{ fontSize: '44px', fontWeight: '900', color: percentage >= 80 ? '#15803d' : percentage >= 50 ? '#b45309' : '#b91c1c', lineHeight: '1.1' }}>
+                          {finalScore} <span style={{ fontSize: '22px', fontWeight: '700', opacity: 0.7 }}>/ {finalTotal}</span>
+                        </div>
+                        <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '6px', color: percentage >= 80 ? '#166534' : percentage >= 50 ? '#92400e' : '#991b1b' }}>
+                          {percentage}% {percentage >= 80 ? '🌟 Excellent!' : percentage >= 50 ? '👍 Good Job!' : '✨ Keep Trying!'}
+                        </div>
+                      </div>
+
+                      {/* Answer review breakdown */}
+                      {activeQuestions.length > 0 && (
+                        <div style={{ textAlign: 'left', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                          <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '800', color: '#334155' }}>
+                            📋 {lang === 'EN' ? 'Answer Review' : 'ഉത്തരങ്ങളുടെ പരിശോധന'}
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {activeQuestions.map((q, qIdx) => {
+                              const studentAns = quizStudentAnswers[String(q.id)] || quizStudentAnswers[Number(q.id)];
+                              const isCorrect = studentAns && String(studentAns).trim().toUpperCase() === String(q.correct_answer || '').trim().toUpperCase();
+
+                              return (
+                                <div key={q.id || qIdx} style={{
+                                  background: isCorrect ? '#f0fdf4' : '#fff1f2',
+                                  border: isCorrect ? '1px solid #bbf7d0' : '1px solid #fecdd3',
+                                  borderRadius: '10px',
+                                  padding: '12px 14px'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                                      {qIdx + 1}. {q.question}
+                                    </span>
+                                    <span style={{
+                                      background: isCorrect ? '#dcfce7' : '#fee2e2',
+                                      color: isCorrect ? '#15803d' : '#b91c1c',
+                                      padding: '2px 8px',
+                                      borderRadius: '8px',
+                                      fontSize: '11px',
+                                      fontWeight: '800',
+                                      flexShrink: 0
+                                    }}>
+                                      {isCorrect ? '✓ Correct (+1)' : '✗ Incorrect (0)'}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                    <span>{lang === 'EN' ? 'Your answer:' : 'നിങ്ങൾ നൽകിയത്:'} <strong>Option {studentAns || 'None'}</strong></span>
+                                    {!isCorrect && (
+                                      <span style={{ marginLeft: '12px', color: '#15803d', fontWeight: '700' }}>
+                                        {lang === 'EN' ? 'Correct:' : 'ശരിയുത്തരം:'} Option {q.correct_answer}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Next / Reset Actions */}
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={handleQuizReset}
+                          style={{
+                            background: '#0f766e',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '10px',
+                            fontWeight: '700',
+                            fontSize: '13px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🔄 {lang === 'EN' ? 'Next Student / Try Again' : 'അടുത്ത വിദ്യാർത്ഥി / വീണ്ടും ശ്രമിക്കുക'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('SCOREBOARD')}
+                          style={{
+                            background: '#f1f5f9',
+                            color: '#334155',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '10px',
+                            fontWeight: '700',
+                            fontSize: '13px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          📊 {lang === 'EN' ? 'Go to Scoreboard' : 'സ്കോർബോർഡിലേക്ക്'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* When NOT submitted: show active or inactive quiz UI */}
+                {quizStudentStep !== 'SUBMITTED' && (
+                  <>
                 {/* When NO active quiz exists */}
                 {!activeQuiz && (
+
                   <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                     <div style={{
                       width: '84px',
@@ -21520,139 +21659,10 @@ ${pagesHtml}
                       );
                     })()}
 
-                    {/* ──── STEP 3: SUBMITTED - SCORE & BREAKDOWN (FIX FOR BLANK SCREEN) ──── */}
-                    {quizStudentStep === 'SUBMITTED' && (() => {
-                      const finalScore = quizStudentScore?.score ?? 0;
-                      const finalTotal = quizStudentScore?.total ?? (activeQuestions.length || 1);
-                      const percentage = Math.round((finalScore / (finalTotal || 1)) * 100);
-
-                      return (
-                        <div style={{
-                          background: '#ffffff',
-                          border: '1.5px solid #bbf7d0',
-                          borderRadius: '16px',
-                          padding: '24px',
-                          textAlign: 'center',
-                          boxShadow: '0 10px 30px -5px rgba(16, 185, 129, 0.15)'
-                        }}>
-                          {/* Celebration Icon */}
-                          <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎉</div>
-                          <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', fontWeight: '800', color: '#0f766e' }}>
-                            {lang === 'EN' ? 'Quiz Submitted Successfully!' : 'ക്വിസ് വിജയകരമായി സമർപ്പിച്ചു!'}
-                          </h3>
-                          <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b' }}>
-                            {matchedStudent ? `${matchedStudent.name} (Reg: ${quizStudentRegno})` : `Reg: ${quizStudentRegno}`}
-                          </p>
-
-                          {/* Big Score Card */}
-                          <div style={{
-                            background: percentage >= 80 ? 'linear-gradient(135deg, #dcfce7, #bbf7d0)' : percentage >= 50 ? 'linear-gradient(135deg, #fef3c7, #fde68a)' : 'linear-gradient(135deg, #fee2e2, #fecaca)',
-                            borderRadius: '16px',
-                            padding: '24px 20px',
-                            maxWidth: '340px',
-                            margin: '0 auto 24px auto',
-                            border: '1px solid rgba(0,0,0,0.05)'
-                          }}>
-                            <div style={{ fontSize: '13px', fontWeight: '800', color: percentage >= 80 ? '#166534' : percentage >= 50 ? '#92400e' : '#991b1b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                              {lang === 'EN' ? 'Your Score' : 'നിങ്ങളുടെ സ്കോർ'}
-                            </div>
-                            <div style={{ fontSize: '44px', fontWeight: '900', color: percentage >= 80 ? '#15803d' : percentage >= 50 ? '#b45309' : '#b91c1c', lineHeight: '1.1' }}>
-                              {finalScore} <span style={{ fontSize: '22px', fontWeight: '700', opacity: 0.7 }}>/ {finalTotal}</span>
-                            </div>
-                            <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '6px', color: percentage >= 80 ? '#166534' : percentage >= 50 ? '#92400e' : '#991b1b' }}>
-                              {percentage}% {percentage >= 80 ? '🌟 Excellent!' : percentage >= 50 ? '👍 Good Job!' : '✨ Keep Trying!'}
-                            </div>
-                          </div>
-
-                          {/* Answer review breakdown */}
-                          {activeQuestions.length > 0 && (
-                            <div style={{ textAlign: 'left', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                              <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '800', color: '#334155' }}>
-                                📋 {lang === 'EN' ? 'Answer Review' : 'ഉത്തരങ്ങളുടെ പരിശോധന'}
-                              </h4>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {activeQuestions.map((q, qIdx) => {
-                                  const studentAns = quizStudentAnswers[String(q.id)] || quizStudentAnswers[Number(q.id)];
-                                  const isCorrect = studentAns && String(studentAns).trim().toUpperCase() === String(q.correct_answer || '').trim().toUpperCase();
-
-                                  return (
-                                    <div key={q.id || qIdx} style={{
-                                      background: isCorrect ? '#f0fdf4' : '#fff1f2',
-                                      border: isCorrect ? '1px solid #bbf7d0' : '1px solid #fecdd3',
-                                      borderRadius: '10px',
-                                      padding: '12px 14px'
-                                    }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
-                                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                                          {qIdx + 1}. {q.question}
-                                        </span>
-                                        <span style={{
-                                          background: isCorrect ? '#dcfce7' : '#fee2e2',
-                                          color: isCorrect ? '#15803d' : '#b91c1c',
-                                          padding: '2px 8px',
-                                          borderRadius: '8px',
-                                          fontSize: '11px',
-                                          fontWeight: '800',
-                                          flexShrink: 0
-                                        }}>
-                                          {isCorrect ? '✓ Correct (+1)' : '✗ Incorrect (0)'}
-                                        </span>
-                                      </div>
-                                      <div style={{ fontSize: '12px', color: '#64748b' }}>
-                                        <span>{lang === 'EN' ? 'Your answer:' : 'നിങ്ങൾ നൽകിയത്:'} <strong>Option {studentAns || 'None'}</strong></span>
-                                        {!isCorrect && (
-                                          <span style={{ marginLeft: '12px', color: '#15803d', fontWeight: '700' }}>
-                                            {lang === 'EN' ? 'Correct:' : 'ശരിയുത്തരം:'} Option {q.correct_answer}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Next / Reset Actions */}
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
-                            <button
-                              type="button"
-                              onClick={handleQuizReset}
-                              style={{
-                                background: '#0f766e',
-                                color: '#ffffff',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '10px',
-                                fontWeight: '700',
-                                fontSize: '13px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              🔄 {lang === 'EN' ? 'Next Student / Try Again' : 'അടുത്ത വിദ്യാർത്ഥി / വീണ്ടും ശ്രമിക്കുക'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab('SCOREBOARD')}
-                              style={{
-                                background: '#f1f5f9',
-                                color: '#334155',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '10px',
-                                fontWeight: '700',
-                                fontSize: '13px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📊 {lang === 'EN' ? 'Go to Scoreboard' : 'സ്കോർബോർഡിലേക്ക്'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })()}
                   </div>
                 )}
+              </>
+            )}
               </div>
             );
           })()}
