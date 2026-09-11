@@ -1979,6 +1979,27 @@ function App() {
   const [profilePdfGenerating, setProfilePdfGenerating] = useState(false);
   const [pdfPaperSize, setPdfPaperSize] = useState('A4');
 
+  // ── Quiz Feature States ──
+  const [quizList, setQuizList] = useState([]); // All quizzes from DB
+  const [quizQuestionsList, setQuizQuestionsList] = useState([]); // Questions from DB
+  const [quizAnswersList, setQuizAnswersList] = useState([]); // Submitted answers from DB
+  // Admin quiz create form
+  const [newQuizTitle, setNewQuizTitle] = useState('');
+  const [newQuizDesc, setNewQuizDesc] = useState('');
+  const [newQuizQuestions, setNewQuizQuestions] = useState([
+    { question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' }
+  ]);
+  const [quizSaving, setQuizSaving] = useState(false);
+  const [selectedQuizId, setSelectedQuizId] = useState(null); // Admin: which quiz to manage
+  const [showQuizCreateForm, setShowQuizCreateForm] = useState(false);
+  const [viewingQuizLeaderboardId, setViewingQuizLeaderboardId] = useState(null);
+  // Student quiz states
+  const [quizStudentRegno, setQuizStudentRegno] = useState('');
+  const [quizStudentStep, setQuizStudentStep] = useState('REGNO'); // REGNO, ANSWERING, SUBMITTED
+  const [quizStudentAnswers, setQuizStudentAnswers] = useState({}); // { qId: 'A'/'B'/'C'/'D' }
+  const [quizStudentScore, setQuizStudentScore] = useState(null); // { score, total }
+  const [quizSubmitting, setQuizSubmitting] = useState(false);
+
   // QR Code scan modal states
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrModalData, setQrModalData] = useState(null);
@@ -2301,6 +2322,10 @@ function App() {
           }
           return supabase.from('madrasas').select('id,regNumber,name,place,adminPassword,viewPassword').eq('regNumber', String(rNum)).maybeSingle();
         }),
+        // Quiz tables
+        queryWithRetry(() => makeFilter(supabase.from('quizzes').select('*'))),
+        queryWithRetry(() => makeFilter(supabase.from('quiz_questions').select('*').order('order_num', { ascending: true }))),
+        queryWithRetry(() => makeFilter(supabase.from('quiz_answers').select('*'))),
       ]);
 
       const results = await Promise.race([fetchPromise, timeoutPromise]);
@@ -2315,6 +2340,9 @@ function App() {
         gRegResult,
         timetableResult,
         madrasaResult,
+        quizzesResult,
+        quizQuestionsResult,
+        quizAnswersResult,
       ] = results;
 
       // Extract data safely (allSettled gives {status, value} or {status, reason})
@@ -2329,6 +2357,9 @@ function App() {
       const groupRegData = safe(gRegResult).data;
       const timetableData = safe(timetableResult).data;
       const madrasaData = safe(madrasaResult).data;
+      const quizzesData = safe(quizzesResult).data;
+      const quizQuestionsData = safe(quizQuestionsResult).data;
+      const quizAnswersData = safe(quizAnswersResult).data;
       let fetchedVisibility = null;
       if (madrasaData) {
         let visFromPlace = null;
@@ -2497,6 +2528,9 @@ function App() {
       if (Array.isArray(resultsData)) setResultsList(resultsData);
       if (Array.isArray(groupRegData)) setGroupRegistrations(groupRegData);
       if (Array.isArray(timetableData)) setTimetable(timetableData);
+      if (Array.isArray(quizzesData)) setQuizList(quizzesData);
+      if (Array.isArray(quizQuestionsData)) setQuizQuestionsList(quizQuestionsData);
+      if (Array.isArray(quizAnswersData)) setQuizAnswersList(quizAnswersData);
 
       // 🗄️ Keep LocalStorage cache 100% updated with fresh database snapshot
       // 🗑️ Strip photo_url before caching to avoid localStorage 5MB quota overflow
@@ -3030,6 +3064,10 @@ function App() {
           .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, handleDbChange)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, handleDbChange)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'group_registrations' }, handleDbChange)
+          // 🎯 Quiz realtime: admin publish instantly appears in student portal
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'quizzes' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'quiz_questions' }, handleDbChange)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'quiz_answers' }, handleDbChange)
           .subscribe();
       } catch (realtimeErr) {
         console.warn("Realtime subscription init warning:", realtimeErr);
@@ -3100,6 +3138,22 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedInMadrasa]);
+
+  // 🎯 Auto-sync Quiz data when on QUIZ tab (solves instant update without manual reload)
+  useEffect(() => {
+    if (activeTab === 'QUIZ' && loggedInMadrasa?.regNumber) {
+      const rNum = loggedInMadrasa.regNumber;
+      if (!isFetchingRef.current) {
+        fetchSupabaseData(rNum);
+      }
+      const pollTimer = setInterval(() => {
+        if (activeTab === 'QUIZ' && !isFetchingRef.current && quizStudentStep === 'REGNO') {
+          fetchSupabaseData(rNum);
+        }
+      }, 5000);
+      return () => clearInterval(pollTimer);
+    }
+  }, [activeTab, quizStudentStep, loggedInMadrasa]);
 
   // 📺 Projector Mode Synchronization & Slide Rotation Effect
   useEffect(() => {
@@ -6292,6 +6346,167 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
       return 0;
     }
   }, [resultsList, teams, computeResultPoints]);
+
+  // ══════════════════════════════════════════════════════════════════════
+  // 🎯 QUIZ FEATURE HANDLERS
+  // ══════════════════════════════════════════════════════════════════════
+
+  // Admin: Add a blank question to the create form
+  const handleAddQuizQuestion = () => {
+    setNewQuizQuestions(prev => [
+      ...prev,
+      { question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' }
+    ]);
+  };
+
+  // Admin: Remove a question from the create form
+  const handleRemoveQuizQuestion = (idx) => {
+    setNewQuizQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Admin: Update a field in a question
+  const handleQuizQuestionChange = (idx, field, value) => {
+    setNewQuizQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+  };
+
+  // Admin: Save new quiz + questions to Supabase
+  const handleSaveQuiz = async () => {
+    if (!newQuizTitle.trim()) { alert('Quiz title ഇടുക'); return; }
+    if (newQuizQuestions.some(q => !q.question.trim() || !q.option_a.trim() || !q.option_b.trim())) {
+      alert('എല്ലാ questions-ലും question text, option A, option B നിർബന്ധമാണ്');
+      return;
+    }
+    const rNum = loggedInMadrasa?.regNumber;
+    if (!rNum) return;
+    setQuizSaving(true);
+    try {
+      // 1. Insert quiz
+      const { data: quizData, error: quizErr } = await supabase
+        .from('quizzes')
+        .insert([{ madrasa_id: String(rNum), title: newQuizTitle.trim(), description: newQuizDesc.trim(), is_active: false }])
+        .select()
+        .single();
+      if (quizErr) throw quizErr;
+
+      // 2. Insert questions
+      const questionsToInsert = newQuizQuestions.map((q, idx) => ({
+        quiz_id: quizData.id,
+        madrasa_id: String(rNum),
+        question: q.question.trim(),
+        option_a: q.option_a.trim(),
+        option_b: q.option_b.trim(),
+        option_c: q.option_c?.trim() || '',
+        option_d: q.option_d?.trim() || '',
+        correct_answer: q.correct_answer,
+        order_num: idx
+      }));
+      const { error: qErr } = await supabase.from('quiz_questions').insert(questionsToInsert);
+      if (qErr) throw qErr;
+
+      // Reset form
+      setNewQuizTitle('');
+      setNewQuizDesc('');
+      setNewQuizQuestions([{ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' }]);
+      alert('✅ Quiz saved! Publish ചെയ്ത് students-ന് കാണിക്കൂ.');
+      // Refresh data
+      fetchSupabaseData(rNum);
+    } catch (err) {
+      alert('Error saving quiz: ' + (err.message || err));
+    } finally {
+      setQuizSaving(false);
+    }
+  };
+
+  // Admin: Toggle quiz active/inactive (publish/unpublish)
+  const handleToggleQuizActive = async (quizId, currentActive) => {
+    const rNum = loggedInMadrasa?.regNumber;
+    if (!rNum) return;
+    // Only one quiz active at a time — deactivate all others first
+    if (!currentActive) {
+      await supabase.from('quizzes').update({ is_active: false }).eq('madrasa_id', String(rNum));
+    }
+    const { error } = await supabase.from('quizzes').update({ is_active: !currentActive }).eq('id', quizId);
+    if (error) { alert('Error: ' + error.message); return; }
+    fetchSupabaseData(rNum);
+  };
+
+  // Admin: Delete quiz (cascades questions + answers)
+  const handleDeleteQuiz = async (quizId) => {
+    if (!window.confirm('ഈ quiz delete ചെയ്യണോ? Students-ൻ്റെ answers-ഉം delete ആകും.')) return;
+    const rNum = loggedInMadrasa?.regNumber;
+    const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
+    if (error) { alert('Error: ' + error.message); return; }
+    fetchSupabaseData(rNum);
+  };
+
+  // Student: Submit quiz answers
+  const handleQuizSubmit = async () => {
+    const activeQuiz = quizList.find(q => q.is_active);
+    if (!activeQuiz) { alert('Active quiz ലഭ്യമല്ല'); return; }
+    if (!quizStudentRegno.trim()) { alert('Register number നൽകുക'); return; }
+
+    const questions = quizQuestionsList.filter(q => String(q.quiz_id) === String(activeQuiz.id));
+    if (questions.length === 0) { alert('ഈ ക്വിസിൽ ചോദ്യങ്ങൾ ലഭ്യമല്ല'); return; }
+
+    // Calculate score
+    let score = 0;
+    questions.forEach(q => {
+      const studentAnswer = quizStudentAnswers[String(q.id)] || quizStudentAnswers[Number(q.id)];
+      if (studentAnswer && String(studentAnswer).trim().toUpperCase() === String(q.correct_answer || '').trim().toUpperCase()) {
+        score++;
+      }
+    });
+    const total = questions.length;
+
+    // Find student name from local state
+    const foundStudent = students.find(s => String(s.regno || s.regNo || '').trim() === String(quizStudentRegno).trim());
+    const studentName = foundStudent ? foundStudent.name : quizStudentRegno.trim();
+    const rNum = loggedInMadrasa?.regNumber;
+
+    setQuizSubmitting(true);
+    try {
+      // 1. Try Upsert
+      const { error: upsertErr } = await supabase.from('quiz_answers').upsert([{
+        quiz_id: activeQuiz.id,
+        madrasa_id: String(rNum),
+        student_regno: quizStudentRegno.trim(),
+        student_name: studentName,
+        answers: quizStudentAnswers,
+        score,
+        total
+      }], { onConflict: 'quiz_id,student_regno' });
+
+      if (upsertErr) {
+        console.warn('Upsert failed, trying insert fallback:', upsertErr);
+        // Fallback simple insert if unique constraint is missing
+        await supabase.from('quiz_answers').insert([{
+          quiz_id: activeQuiz.id,
+          madrasa_id: String(rNum),
+          student_regno: quizStudentRegno.trim(),
+          student_name: studentName,
+          answers: quizStudentAnswers,
+          score,
+          total
+        }]).catch(err => console.warn('Quiz answer fallback insert error:', err));
+      }
+    } catch (err) {
+      console.warn('Quiz submission network/db warning:', err);
+    } finally {
+      // ✅ ALWAYS transition to SUBMITTED state with calculated score - NEVER blank screen!
+      setQuizStudentScore({ score, total });
+      setQuizStudentStep('SUBMITTED');
+      setQuizSubmitting(false);
+      if (rNum) fetchSupabaseData(rNum);
+    }
+  };
+
+  // Student: Reset quiz to try again / go back
+  const handleQuizReset = () => {
+    setQuizStudentRegno('');
+    setQuizStudentStep('REGNO');
+    setQuizStudentAnswers({});
+    setQuizStudentScore(null);
+  };
 
   // ══════════════════════════════════════════════════════════════════════
   // 👤 PROFILE TAB HANDLERS
@@ -12989,6 +13204,10 @@ ${pagesHtml}
                     <div className={`executive-nav-tile ${settingsSubTab === 'RESULT_PUBLISH' ? 'active' : ''}`} onClick={() => setSettingsSubTab('RESULT_PUBLISH')}>
                       <div className="tile-icon-wrapper">📢</div>
                       <div className="tile-label">{lang === 'EN' ? 'Publish' : 'പബ്ലിഷ്'}</div>
+                    </div>
+                    <div className={`executive-nav-tile ${settingsSubTab === 'QUIZ' ? 'active' : ''}`} onClick={() => setSettingsSubTab('QUIZ')}>
+                      <div className="tile-icon-wrapper">🎯</div>
+                      <div className="tile-label">{lang === 'EN' ? 'Quiz' : 'ക്വിസ്'}</div>
                     </div>
                   </div>
 
@@ -20472,12 +20691,971 @@ ${pagesHtml}
                     );
                   })()}
 
+                  {/* 🎯 SUB TAB: QUIZ MANAGEMENT */}
+                  {settingsSubTab === 'QUIZ' && (() => {
+                    const currentMadrasaQuizzes = quizList.filter(q => String(q.madrasa_id) === String(loggedInMadrasa?.regNumber));
+
+                    return (
+                      <div className="quiz-admin-container" style={{ padding: '8px 0' }}>
+                        {/* Header banner */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '12px',
+                          background: 'linear-gradient(135deg, #0f766e 0%, #047857 100%)',
+                          color: '#fff',
+                          padding: '18px 20px',
+                          borderRadius: '16px',
+                          marginBottom: '20px',
+                          boxShadow: '0 8px 20px -4px rgba(15, 118, 110, 0.25)'
+                        }}>
+                          <div>
+                            <h3 style={{ margin: '0 0 4px 0', fontSize: '19px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>🎯</span> {lang === 'EN' ? 'Quiz Management' : 'തത്സമയ ക്വിസ് മാനേജ്‌മെന്റ്'}
+                            </h3>
+                            <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>
+                              {lang === 'EN'
+                                ? 'Create MCQ quizzes for students. Changes sync in realtime to student portal.'
+                                : 'വിദ്യാർത്ഥികൾക്കായി തത്സമയ ക്വിസ് സംഘടിപ്പിക്കുക. പബ്ലിഷ് ചെയ്യുമ്പോൾ വിദ്യാർത്ഥികൾക്ക് റിയൽടൈം ആയി ലഭിക്കും.'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowQuizCreateForm(prev => !prev)}
+                            style={{
+                              background: showQuizCreateForm ? '#ef4444' : '#ffffff',
+                              color: showQuizCreateForm ? '#ffffff' : '#0f766e',
+                              border: 'none',
+                              padding: '10px 18px',
+                              borderRadius: '10px',
+                              fontWeight: '700',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                            }}
+                          >
+                            {showQuizCreateForm
+                              ? (lang === 'EN' ? '✕ Close Form' : '✕ ഫോം ക്ലോസ് ചെയ്യുക')
+                              : (lang === 'EN' ? '➕ Create New Quiz' : '➕ പുതിയ ക്വിസ് ചേർക്കുക')}
+                          </button>
+                        </div>
+
+                        {/* Quiz Create Form */}
+                        {showQuizCreateForm && (
+                          <div style={{
+                            background: '#f8fafc',
+                            border: '1.5px solid #0f766e',
+                            borderRadius: '16px',
+                            padding: '20px',
+                            marginBottom: '24px',
+                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)'
+                          }}>
+                            <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '800', color: '#0f766e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>📝</span> {lang === 'EN' ? 'New Quiz Details' : 'പുതിയ ക്വിസ് വിവരങ്ങൾ'}
+                            </h4>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                                  {lang === 'EN' ? 'Quiz Title *' : 'ക്വിസ് തലക്കെട്ട് *'}
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder={lang === 'EN' ? 'e.g. Milad Quiz 2026' : 'ഉദാഹരണത്തിന്: നബിദിന ക്വിസ് 2026'}
+                                  value={newQuizTitle}
+                                  onChange={e => setNewQuizTitle(e.target.value)}
+                                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                                  {lang === 'EN' ? 'Description (Optional)' : 'വിവരണം (ഓപ്ഷണൽ)'}
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder={lang === 'EN' ? 'e.g. 5 Questions - 5 Marks' : 'ഉദാഹരണത്തിന്: 5 ചോദ്യങ്ങൾ - 5 മാർക്ക്'}
+                                  value={newQuizDesc}
+                                  onChange={e => setNewQuizDesc(e.target.value)}
+                                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Questions Builder */}
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
+                                  {lang === 'EN' ? 'Questions List' : 'ചോദ്യങ്ങളുടെ പട്ടിക'} ({newQuizQuestions.length})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleAddQuizQuestion}
+                                  style={{
+                                    background: '#e0f2fe',
+                                    color: '#0369a1',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  ➕ {lang === 'EN' ? 'Add Question' : 'ചോദ്യം ചേർക്കുക'}
+                                </button>
+                              </div>
+
+                              {newQuizQuestions.map((q, qIdx) => (
+                                <div key={qIdx} style={{
+                                  background: '#ffffff',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '12px',
+                                  padding: '16px',
+                                  marginBottom: '12px',
+                                  position: 'relative'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                    <span style={{ fontWeight: '800', color: '#0f766e', fontSize: '13px' }}>
+                                      {lang === 'EN' ? `Question #${qIdx + 1}` : `ചോദ്യം #${qIdx + 1}`}
+                                    </span>
+                                    {newQuizQuestions.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveQuizQuestion(qIdx)}
+                                        style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                                      >
+                                        🗑️ {lang === 'EN' ? 'Remove' : 'ഒഴിവാക്കുക'}
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <input
+                                    type="text"
+                                    placeholder={lang === 'EN' ? `Enter question #${qIdx + 1}...` : `ചോദ്യം #${qIdx + 1} ഇവിടെ ടൈപ്പ് ചെയ്യുക...`}
+                                    value={q.question}
+                                    onChange={e => handleQuizQuestionChange(qIdx, 'question', e.target.value)}
+                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', marginBottom: '12px', boxSizing: 'border-box' }}
+                                  />
+
+                                  {/* Options grid */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
+                                    <div>
+                                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Option A *</span>
+                                      <input
+                                        type="text"
+                                        placeholder="Option A"
+                                        value={q.option_a}
+                                        onChange={e => handleQuizQuestionChange(qIdx, 'option_a', e.target.value)}
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Option B *</span>
+                                      <input
+                                        type="text"
+                                        placeholder="Option B"
+                                        value={q.option_b}
+                                        onChange={e => handleQuizQuestionChange(qIdx, 'option_b', e.target.value)}
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Option C</span>
+                                      <input
+                                        type="text"
+                                        placeholder="Option C (Optional)"
+                                        value={q.option_c}
+                                        onChange={e => handleQuizQuestionChange(qIdx, 'option_c', e.target.value)}
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Option D</span>
+                                      <input
+                                        type="text"
+                                        placeholder="Option D (Optional)"
+                                        value={q.option_d}
+                                        onChange={e => handleQuizQuestionChange(qIdx, 'option_d', e.target.value)}
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Correct Answer Selector */}
+                                  <div style={{ background: '#f1f5f9', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#334155' }}>
+                                      {lang === 'EN' ? 'Correct Answer:' : 'ശരിയുത്തരം:'}
+                                    </span>
+                                    {['A', 'B', 'C', 'D'].map(opt => (
+                                      <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', color: q.correct_answer === opt ? '#059669' : '#64748b' }}>
+                                        <input
+                                          type="radio"
+                                          name={`correct_${qIdx}`}
+                                          checked={q.correct_answer === opt}
+                                          onChange={() => handleQuizQuestionChange(qIdx, 'correct_answer', opt)}
+                                        />
+                                        Option {opt}
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Save Form Actions */}
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                onClick={() => setShowQuizCreateForm(false)}
+                                style={{ background: '#94a3b8', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
+                              >
+                                {lang === 'EN' ? 'Cancel' : 'റദ്ദാക്കുക'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSaveQuiz}
+                                disabled={quizSaving}
+                                style={{
+                                  background: quizSaving ? '#94a3b8' : 'linear-gradient(135deg, #059669, #10b981)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  padding: '10px 22px',
+                                  borderRadius: '8px',
+                                  fontWeight: '800',
+                                  fontSize: '13px',
+                                  cursor: quizSaving ? 'not-allowed' : 'pointer',
+                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                                }}
+                              >
+                                {quizSaving ? '⏳ Saving...' : (lang === 'EN' ? '💾 Save Quiz' : '💾 ക്വിസ് സേവ് ചെയ്യുക')}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quizzes List */}
+                        <div>
+                          <h4 style={{ margin: '0 0 14px 0', fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>
+                            {lang === 'EN' ? 'Created Quizzes' : 'സൃഷ്ടിച്ച ക്വിസുകൾ'} ({currentMadrasaQuizzes.length})
+                          </h4>
+
+                          {currentMadrasaQuizzes.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '36px 20px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                              <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎯</div>
+                              <h4 style={{ color: '#64748b', margin: '0 0 4px 0' }}>
+                                {lang === 'EN' ? 'No quizzes created yet' : 'ഇതുവരെ ക്വിസുകൾ ഒന്നും ചേർത്തിട്ടില്ല'}
+                              </h4>
+                              <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
+                                {lang === 'EN' ? 'Click "+ Create New Quiz" above to add your first quiz.' : 'മുകളിലെ "+ പുതിയ ക്വിസ് ചേർക്കുക" ക്ലിക്ക് ചെയ്ത് ആദ്യ ക്വിസ് ചേർക്കൂ.'}
+                              </p>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              {currentMadrasaQuizzes.map(q => {
+                                const qQuestions = quizQuestionsList.filter(qq => String(qq.quiz_id) === String(q.id));
+                                const qAnswers = quizAnswersList.filter(qa => String(qa.quiz_id) === String(q.id));
+                                const isLeaderboardOpen = viewingQuizLeaderboardId === q.id;
+
+                                return (
+                                  <div key={q.id} style={{
+                                    background: '#ffffff',
+                                    border: q.is_active ? '2px solid #10b981' : '1px solid #e2e8f0',
+                                    borderRadius: '14px',
+                                    padding: '16px 20px',
+                                    boxShadow: q.is_active ? '0 6px 20px -4px rgba(16, 185, 129, 0.2)' : '0 2px 8px rgba(0,0,0,0.04)'
+                                  }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+                                      <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                          <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                                            {q.title}
+                                          </h4>
+                                          {q.is_active ? (
+                                            <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span>
+                                              {lang === 'EN' ? 'LIVE NOW' : 'ലൈവ് (ACTIVE)'}
+                                            </span>
+                                          ) : (
+                                            <span style={{ background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>
+                                              {lang === 'EN' ? 'Inactive' : 'ഡ്രാഫ്റ്റ്'}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {q.description && (
+                                          <p style={{ margin: '0 0 6px 0', fontSize: '13px', color: '#64748b' }}>{q.description}</p>
+                                        )}
+                                        <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                                          <span>📝 {qQuestions.length} {lang === 'EN' ? 'Questions' : 'ചോദ്യങ്ങൾ'}</span>
+                                          <span>👥 {qAnswers.length} {lang === 'EN' ? 'Submissions' : 'സമർപ്പണങ്ങൾ'}</span>
+                                        </div>
+                                      </div>
+
+                                      {/* Action Buttons */}
+                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleQuizActive(q.id, q.is_active)}
+                                          style={{
+                                            background: q.is_active ? '#fee2e2' : '#dcfce7',
+                                            color: q.is_active ? '#dc2626' : '#15803d',
+                                            border: 'none',
+                                            padding: '8px 14px',
+                                            borderRadius: '8px',
+                                            fontWeight: '800',
+                                            fontSize: '12px',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          {q.is_active
+                                            ? (lang === 'EN' ? '⏹️ Stop Quiz' : '⏹️ ക്വിസ് നിർത്തുക')
+                                            : (lang === 'EN' ? '▶️ Make Live' : '▶️ ലൈവ് ആക്കുക')}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewingQuizLeaderboardId(prev => prev === q.id ? null : q.id)}
+                                          style={{
+                                            background: isLeaderboardOpen ? '#0f766e' : '#f1f5f9',
+                                            color: isLeaderboardOpen ? '#ffffff' : '#334155',
+                                            border: 'none',
+                                            padding: '8px 14px',
+                                            borderRadius: '8px',
+                                            fontWeight: '700',
+                                            fontSize: '12px',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          📊 {lang === 'EN' ? 'Leaderboard' : 'ലീഡർബോർഡ്'} ({qAnswers.length})
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteQuiz(q.id)}
+                                          style={{
+                                            background: '#fff1f2',
+                                            color: '#e11d48',
+                                            border: 'none',
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            fontWeight: '700',
+                                            fontSize: '12px',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          🗑️
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Leaderboard Table (if expanded) */}
+                                    {isLeaderboardOpen && (
+                                      <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
+                                        <h5 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '800', color: '#334155' }}>
+                                          🏆 {lang === 'EN' ? 'Student Submissions / Leaderboard' : 'വിദ്യാർത്ഥികളുടെ സ്കോറുകൾ'}
+                                        </h5>
+                                        {qAnswers.length === 0 ? (
+                                          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
+                                            {lang === 'EN' ? 'No students have submitted yet.' : 'വിദ്യാർത്ഥികൾ ഇതുവരെ ഉത്തരങ്ങൾ നൽകിയിട്ടില്ല.'}
+                                          </p>
+                                        ) : (
+                                          <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                              <thead>
+                                                <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', textAlign: 'left' }}>
+                                                  <th style={{ padding: '8px 10px' }}>Rank</th>
+                                                  <th style={{ padding: '8px 10px' }}>Reg No</th>
+                                                  <th style={{ padding: '8px 10px' }}>Name</th>
+                                                  <th style={{ padding: '8px 10px' }}>Score</th>
+                                                  <th style={{ padding: '8px 10px' }}>Time</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {[...qAnswers]
+                                                  .sort((a, b) => (b.score || 0) - (a.score || 0) || new Date(a.submitted_at) - new Date(b.submitted_at))
+                                                  .map((ans, idx) => (
+                                                    <tr key={ans.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                      <td style={{ padding: '8px 10px', fontWeight: '800' }}>
+                                                        {idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : `#${idx + 1}`}
+                                                      </td>
+                                                      <td style={{ padding: '8px 10px', fontWeight: '700' }}>{ans.student_regno}</td>
+                                                      <td style={{ padding: '8px 10px', color: '#0f172a', fontWeight: '700' }}>{ans.student_name || '—'}</td>
+                                                      <td style={{ padding: '8px 10px' }}>
+                                                        <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '12px', fontWeight: '800' }}>
+                                                          {ans.score} / {ans.total} ({Math.round(((ans.score || 0) / (ans.total || 1)) * 100)}%)
+                                                        </span>
+                                                      </td>
+                                                      <td style={{ padding: '8px 10px', color: '#64748b' }}>
+                                                        {ans.submitted_at ? new Date(ans.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   </div>
                 </div>
               )}
 
             </div>
           )}
+
+          {/* ---------------- 🎯 TAB: LIVE QUIZ (STUDENT & PUBLIC PORTAL) ---------------- */}
+          {!isInitialDataLoading && activeTab === 'QUIZ' && (() => {
+            const currentRNum = loggedInMadrasa?.regNumber;
+            const activeQuiz = quizList.find(q => q.is_active && (String(q.madrasa_id) === String(currentRNum) || !q.madrasa_id));
+            const activeQuestions = activeQuiz ? quizQuestionsList.filter(q => String(q.quiz_id) === String(activeQuiz.id)) : [];
+
+            // Helper student match
+            const matchedStudent = quizStudentRegno.trim()
+              ? students.find(s => String(s.regno || s.regNo || '').trim() === quizStudentRegno.trim())
+              : null;
+
+            // Prior submission check
+            const priorSubmission = (activeQuiz && quizStudentRegno.trim())
+              ? quizAnswersList.find(a => String(a.quiz_id) === String(activeQuiz.id) && String(a.student_regno).trim() === quizStudentRegno.trim())
+              : null;
+
+            return (
+              <div className="card animate-tab" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                {/* When NO active quiz exists */}
+                {!activeQuiz && (
+                  <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <div style={{
+                      width: '84px',
+                      height: '84px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '42px',
+                      margin: '0 auto 20px auto',
+                      boxShadow: '0 8px 24px rgba(16, 185, 129, 0.15)'
+                    }}>
+                      🎯
+                    </div>
+                    <h2 style={{ color: '#0f766e', fontSize: '22px', fontWeight: '800', marginBottom: '8px' }}>
+                      {lang === 'EN' ? 'No Active Quiz Right Now' : 'തത്സമയ ക്വിസ് ഇപ്പോൾ ലഭ്യമല്ല'}
+                    </h2>
+                    <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '440px', margin: '0 auto 20px auto', lineHeight: '1.6' }}>
+                      {lang === 'EN'
+                        ? 'When the administrator publishes a quiz, it will appear here automatically without refreshing!'
+                        : 'അഡ്മിൻ പാനലിൽ നിന്ന് ക്വിസ് പബ്ലിഷ് ചെയ്യുമ്പോൾ ഇവിടെ ഓട്ടോമാറ്റിക്കായി തെളിയും. പേജ് റീഫ്രഷ് ചെയ്യേണ്ടതില്ല!'}
+                    </p>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '8px 16px', borderRadius: '30px', border: '1px solid #e2e8f0', color: '#0f766e', fontSize: '13px', fontWeight: '700' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
+                      {lang === 'EN' ? 'Realtime sync active' : 'തത്സമയം കണക്ട് ചെയ്തിരിക്കുന്നു'}
+                    </div>
+                    <div style={{ marginTop: '20px' }}>
+                      <button
+                        type="button"
+                        onClick={() => currentRNum && fetchSupabaseData(currentRNum)}
+                        style={{
+                          background: '#0f766e',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '10px 20px',
+                          borderRadius: '10px',
+                          fontWeight: '700',
+                          fontSize: '13px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🔄 {lang === 'EN' ? 'Check Now' : 'ഇപ്പോൾ പരിശോധിക്കുക'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* When ACTIVE quiz is available */}
+                {activeQuiz && (
+                  <div>
+                    {/* Header Banner */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, #0f766e 0%, #059669 100%)',
+                      color: '#fff',
+                      padding: '20px',
+                      borderRadius: '16px',
+                      marginBottom: '20px',
+                      boxShadow: '0 10px 25px -5px rgba(15, 118, 110, 0.3)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '900', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span>
+                          LIVE QUIZ
+                        </span>
+                        <span style={{ fontSize: '12px', opacity: 0.85 }}>{activeQuestions.length} {lang === 'EN' ? 'Questions' : 'ചോദ്യങ്ങൾ'}</span>
+                      </div>
+                      <h2 style={{ margin: '0 0 6px 0', fontSize: '22px', fontWeight: '800' }}>{activeQuiz.title}</h2>
+                      {activeQuiz.description && (
+                        <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>{activeQuiz.description}</p>
+                      )}
+                    </div>
+
+                    {/* ──── STEP 1: Enter Student Register Number ──── */}
+                    {quizStudentStep === 'REGNO' && (
+                      <div style={{
+                        background: '#ffffff',
+                        border: '1.5px solid #e2e8f0',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: '40px', marginBottom: '12px' }}>👤</div>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                          {lang === 'EN' ? 'Enter Register Number' : 'രജിസ്റ്റർ നമ്പർ നൽകുക'}
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '13px', margin: '0 auto 18px auto', maxWidth: '360px' }}>
+                          {lang === 'EN'
+                            ? 'Please enter your student register number to start the quiz.'
+                            : 'ക്വിസ് ആരംഭിക്കുന്നതിനായി വിദ്യാർത്ഥിയുടെ രജിസ്റ്റർ നമ്പർ നൽകുക.'}
+                        </p>
+
+                        <div style={{ maxWidth: '320px', margin: '0 auto 16px auto' }}>
+                          <input
+                            type="text"
+                            placeholder={lang === 'EN' ? 'e.g. 101' : 'ഉദാ: 101'}
+                            value={quizStudentRegno}
+                            onChange={e => setQuizStudentRegno(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              borderRadius: '12px',
+                              border: '2px solid #0f766e',
+                              fontSize: '16px',
+                              fontWeight: '700',
+                              textAlign: 'center',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        {/* Student match preview */}
+                        {matchedStudent && (
+                          <div style={{
+                            background: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: '10px',
+                            padding: '10px 16px',
+                            maxWidth: '320px',
+                            margin: '0 auto 16px auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                          }}>
+                            <span style={{ fontSize: '16px' }}>✅</span>
+                            <span style={{ fontSize: '14px', fontWeight: '800', color: '#15803d' }}>
+                              {matchedStudent.name}
+                            </span>
+                            {matchedStudent.team && (
+                              <span style={{ background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '700' }}>
+                                {matchedStudent.team}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* If already submitted */}
+                        {priorSubmission && (
+                          <div style={{
+                            background: '#fef3c7',
+                            border: '1px solid #fde68a',
+                            borderRadius: '10px',
+                            padding: '12px 16px',
+                            maxWidth: '360px',
+                            margin: '0 auto 16px auto',
+                            color: '#92400e',
+                            fontSize: '13px',
+                            fontWeight: '700'
+                          }}>
+                            ⚠️ {lang === 'EN' ? 'You have already submitted this quiz!' : 'നിങ്ങൾ ഈ ക്വിസ് ഇതിനകം സബ്മിറ്റ് ചെയ്തിട്ടുണ്ട്!'}
+                            <div style={{ marginTop: '6px', fontSize: '15px', fontWeight: '900' }}>
+                              {lang === 'EN' ? 'Score:' : 'സ്കോർ:'} {priorSubmission.score} / {priorSubmission.total}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuizStudentScore({ score: priorSubmission.score, total: priorSubmission.total });
+                                setQuizStudentAnswers(priorSubmission.answers || {});
+                                setQuizStudentStep('SUBMITTED');
+                              }}
+                              style={{
+                                marginTop: '10px',
+                                background: '#d97706',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                fontWeight: '800',
+                                fontSize: '12px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              📊 {lang === 'EN' ? 'View My Scorecard' : 'സ്കോർ കാർഡ് കാണുക'}
+                            </button>
+                          </div>
+                        )}
+
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!quizStudentRegno.trim()) {
+                                alert(lang === 'EN' ? 'Please enter register number' : 'ദയവായി രജിസ്റ്റർ നമ്പർ നൽകുക');
+                                return;
+                              }
+                              setQuizStudentStep('ANSWERING');
+                            }}
+                            style={{
+                              background: 'linear-gradient(135deg, #0f766e, #10b981)',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '12px 32px',
+                              borderRadius: '12px',
+                              fontWeight: '800',
+                              fontSize: '15px',
+                              cursor: 'pointer',
+                              boxShadow: '0 6px 16px rgba(16, 185, 129, 0.35)'
+                            }}
+                          >
+                            🚀 {lang === 'EN' ? 'Start Quiz' : 'ക്വിസ് ആരംഭിക്കുക'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ──── STEP 2: Answering Questions ──── */}
+                    {quizStudentStep === 'ANSWERING' && (() => {
+                      const answeredCount = Object.keys(quizStudentAnswers).filter(k => quizStudentAnswers[k]).length;
+
+                      return (
+                        <div>
+                          {/* Student identity bar */}
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            padding: '12px 16px',
+                            borderRadius: '12px',
+                            marginBottom: '18px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '16px' }}>👤</span>
+                              <span style={{ fontWeight: '800', color: '#1e293b', fontSize: '14px' }}>
+                                {matchedStudent ? matchedStudent.name : `Student (${quizStudentRegno})`}
+                              </span>
+                              <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>
+                                Reg: {quizStudentRegno}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: answeredCount === activeQuestions.length ? '#15803d' : '#0f766e' }}>
+                              {answeredCount} / {activeQuestions.length} {lang === 'EN' ? 'answered' : 'പൂർത്തിയായി'}
+                            </div>
+                          </div>
+
+                          {/* Questions List */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                            {activeQuestions.map((q, qIdx) => {
+                              const currentSelected = quizStudentAnswers[String(q.id)] || quizStudentAnswers[Number(q.id)];
+                              const opts = [
+                                { key: 'A', text: q.option_a },
+                                { key: 'B', text: q.option_b },
+                                ...(q.option_c ? [{ key: 'C', text: q.option_c }] : []),
+                                ...(q.option_d ? [{ key: 'D', text: q.option_d }] : [])
+                              ];
+
+                              return (
+                                <div key={q.id || qIdx} style={{
+                                  background: '#ffffff',
+                                  border: currentSelected ? '2px solid #10b981' : '1px solid #e2e8f0',
+                                  borderRadius: '14px',
+                                  padding: '18px',
+                                  boxShadow: currentSelected ? '0 4px 14px rgba(16, 185, 129, 0.12)' : '0 2px 6px rgba(0,0,0,0.03)'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '14px' }}>
+                                    <span style={{
+                                      background: currentSelected ? '#10b981' : '#f1f5f9',
+                                      color: currentSelected ? '#fff' : '#64748b',
+                                      width: '26px',
+                                      height: '26px',
+                                      borderRadius: '50%',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '12px',
+                                      fontWeight: '800',
+                                      flexShrink: 0
+                                    }}>
+                                      {qIdx + 1}
+                                    </span>
+                                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0f172a', lineHeight: '1.5' }}>
+                                      {q.question}
+                                    </h4>
+                                  </div>
+
+                                  {/* Options buttons */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                                    {opts.map(opt => {
+                                      const isChosen = currentSelected === opt.key;
+                                      return (
+                                        <button
+                                          key={opt.key}
+                                          type="button"
+                                          onClick={() => {
+                                            setQuizStudentAnswers(prev => ({ ...prev, [String(q.id)]: opt.key }));
+                                          }}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            textAlign: 'left',
+                                            padding: '12px 14px',
+                                            borderRadius: '10px',
+                                            border: isChosen ? '2px solid #10b981' : '1px solid #cbd5e1',
+                                            background: isChosen ? '#ecfdf5' : '#ffffff',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease'
+                                          }}
+                                        >
+                                          <span style={{
+                                            width: '24px',
+                                            height: '24px',
+                                            borderRadius: '50%',
+                                            background: isChosen ? '#10b981' : '#f1f5f9',
+                                            color: isChosen ? '#ffffff' : '#64748b',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '12px',
+                                            fontWeight: '800',
+                                            flexShrink: 0
+                                          }}>
+                                            {opt.key}
+                                          </span>
+                                          <span style={{ fontSize: '13px', fontWeight: isChosen ? '800' : '600', color: isChosen ? '#065f46' : '#334155' }}>
+                                            {opt.text}
+                                          </span>
+                                          {isChosen && <span style={{ marginLeft: 'auto', color: '#10b981', fontWeight: '900' }}>✓</span>}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Sticky / Bottom Submit Bar */}
+                          <div style={{
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '14px',
+                            padding: '16px 20px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                            boxShadow: '0 -4px 15px rgba(0,0,0,0.04)'
+                          }}>
+                            <button
+                              type="button"
+                              onClick={() => setQuizStudentStep('REGNO')}
+                              style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
+                            >
+                              ← {lang === 'EN' ? 'Back' : 'തിരികെ'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (answeredCount < activeQuestions.length) {
+                                  if (!window.confirm(lang === 'EN' ? `You have only answered ${answeredCount} of ${activeQuestions.length} questions. Submit anyway?` : `നിങ്ങൾ ${activeQuestions.length}-ൽ ${answeredCount} ചോദ്യങ്ങൾക്ക് മാത്രമേ ഉത്തരം നൽകിയിട്ടുള്ളൂ. സബ്മിറ്റ് ചെയ്യണോ?`)) {
+                                    return;
+                                  }
+                                }
+                                handleQuizSubmit();
+                              }}
+                              disabled={quizSubmitting}
+                              style={{
+                                background: quizSubmitting ? '#94a3b8' : 'linear-gradient(135deg, #059669, #10b981)',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '12px 28px',
+                                borderRadius: '10px',
+                                fontWeight: '800',
+                                fontSize: '14px',
+                                cursor: quizSubmitting ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                              }}
+                            >
+                              {quizSubmitting ? '⏳ Submitting...' : (lang === 'EN' ? '📤 Submit Answers' : '📤 ഉത്തരങ്ങൾ സമർപ്പിക്കുക')}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ──── STEP 3: SUBMITTED - SCORE & BREAKDOWN (FIX FOR BLANK SCREEN) ──── */}
+                    {quizStudentStep === 'SUBMITTED' && (() => {
+                      const finalScore = quizStudentScore?.score ?? 0;
+                      const finalTotal = quizStudentScore?.total ?? (activeQuestions.length || 1);
+                      const percentage = Math.round((finalScore / (finalTotal || 1)) * 100);
+
+                      return (
+                        <div style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #bbf7d0',
+                          borderRadius: '16px',
+                          padding: '24px',
+                          textAlign: 'center',
+                          boxShadow: '0 10px 30px -5px rgba(16, 185, 129, 0.15)'
+                        }}>
+                          {/* Celebration Icon */}
+                          <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎉</div>
+                          <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', fontWeight: '800', color: '#0f766e' }}>
+                            {lang === 'EN' ? 'Quiz Submitted Successfully!' : 'ക്വിസ് വിജയകരമായി സമർപ്പിച്ചു!'}
+                          </h3>
+                          <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b' }}>
+                            {matchedStudent ? `${matchedStudent.name} (Reg: ${quizStudentRegno})` : `Reg: ${quizStudentRegno}`}
+                          </p>
+
+                          {/* Big Score Card */}
+                          <div style={{
+                            background: percentage >= 80 ? 'linear-gradient(135deg, #dcfce7, #bbf7d0)' : percentage >= 50 ? 'linear-gradient(135deg, #fef3c7, #fde68a)' : 'linear-gradient(135deg, #fee2e2, #fecaca)',
+                            borderRadius: '16px',
+                            padding: '24px 20px',
+                            maxWidth: '340px',
+                            margin: '0 auto 24px auto',
+                            border: '1px solid rgba(0,0,0,0.05)'
+                          }}>
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: percentage >= 80 ? '#166534' : percentage >= 50 ? '#92400e' : '#991b1b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                              {lang === 'EN' ? 'Your Score' : 'നിങ്ങളുടെ സ്കോർ'}
+                            </div>
+                            <div style={{ fontSize: '44px', fontWeight: '900', color: percentage >= 80 ? '#15803d' : percentage >= 50 ? '#b45309' : '#b91c1c', lineHeight: '1.1' }}>
+                              {finalScore} <span style={{ fontSize: '22px', fontWeight: '700', opacity: 0.7 }}>/ {finalTotal}</span>
+                            </div>
+                            <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '6px', color: percentage >= 80 ? '#166534' : percentage >= 50 ? '#92400e' : '#991b1b' }}>
+                              {percentage}% {percentage >= 80 ? '🌟 Excellent!' : percentage >= 50 ? '👍 Good Job!' : '✨ Keep Trying!'}
+                            </div>
+                          </div>
+
+                          {/* Answer review breakdown */}
+                          {activeQuestions.length > 0 && (
+                            <div style={{ textAlign: 'left', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                              <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '800', color: '#334155' }}>
+                                📋 {lang === 'EN' ? 'Answer Review' : 'ഉത്തരങ്ങളുടെ പരിശോധന'}
+                              </h4>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {activeQuestions.map((q, qIdx) => {
+                                  const studentAns = quizStudentAnswers[String(q.id)] || quizStudentAnswers[Number(q.id)];
+                                  const isCorrect = studentAns && String(studentAns).trim().toUpperCase() === String(q.correct_answer || '').trim().toUpperCase();
+
+                                  return (
+                                    <div key={q.id || qIdx} style={{
+                                      background: isCorrect ? '#f0fdf4' : '#fff1f2',
+                                      border: isCorrect ? '1px solid #bbf7d0' : '1px solid #fecdd3',
+                                      borderRadius: '10px',
+                                      padding: '12px 14px'
+                                    }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                                          {qIdx + 1}. {q.question}
+                                        </span>
+                                        <span style={{
+                                          background: isCorrect ? '#dcfce7' : '#fee2e2',
+                                          color: isCorrect ? '#15803d' : '#b91c1c',
+                                          padding: '2px 8px',
+                                          borderRadius: '8px',
+                                          fontSize: '11px',
+                                          fontWeight: '800',
+                                          flexShrink: 0
+                                        }}>
+                                          {isCorrect ? '✓ Correct (+1)' : '✗ Incorrect (0)'}
+                                        </span>
+                                      </div>
+                                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                        <span>{lang === 'EN' ? 'Your answer:' : 'നിങ്ങൾ നൽകിയത്:'} <strong>Option {studentAns || 'None'}</strong></span>
+                                        {!isCorrect && (
+                                          <span style={{ marginLeft: '12px', color: '#15803d', fontWeight: '700' }}>
+                                            {lang === 'EN' ? 'Correct:' : 'ശരിയുത്തരം:'} Option {q.correct_answer}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Next / Reset Actions */}
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={handleQuizReset}
+                              style={{
+                                background: '#0f766e',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '10px',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🔄 {lang === 'EN' ? 'Next Student / Try Again' : 'അടുത്ത വിദ്യാർത്ഥി / വീണ്ടും ശ്രമിക്കുക'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('SCOREBOARD')}
+                              style={{
+                                background: '#f1f5f9',
+                                color: '#334155',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '10px',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              📊 {lang === 'EN' ? 'Go to Scoreboard' : 'സ്കോർബോർഡിലേക്ക്'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -20766,9 +21944,26 @@ ${pagesHtml}
           <button className={`nav-tab-item ${activeTab === 'PROFILE' ? 'active' : ''}`} onClick={() => setActiveTab('PROFILE')}>
             <span className="nav-icon">👤</span><span>{t('navProfile')}</span>
           </button>
-          <button className={`nav-tab-item ${activeTab === 'SETTINGS' ? 'active' : ''}`} onClick={() => setActiveTab('SETTINGS')}>
-            <span className="nav-icon">⚙️</span><span>{t('navSettings')}</span>
+          <button className={`nav-tab-item ${activeTab === 'QUIZ' ? 'active' : ''}`} onClick={() => setActiveTab('QUIZ')} style={{ position: 'relative' }}>
+            <span className="nav-icon">🎯</span><span>{lang === 'EN' ? 'Quiz' : 'ക്വിസ്'}</span>
+            {quizList.some(q => q.is_active && (String(q.madrasa_id) === String(loggedInMadrasa?.regNumber) || !q.madrasa_id)) && (
+              <span style={{
+                position: 'absolute',
+                top: '4px',
+                right: 'calc(50% - 16px)',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#ef4444',
+                boxShadow: '0 0 0 2px #fff, 0 0 6px #ef4444'
+              }} />
+            )}
           </button>
+          {loginRole === 'ADMIN' && (
+            <button className={`nav-tab-item ${activeTab === 'SETTINGS' ? 'active' : ''}`} onClick={() => setActiveTab('SETTINGS')}>
+              <span className="nav-icon">⚙️</span><span>{t('navSettings')}</span>
+            </button>
+          )}
         </nav>
       )}
 
