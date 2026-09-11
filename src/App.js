@@ -2942,13 +2942,13 @@ function App() {
     };
 
     checkAppVersion();
-    const interval = setInterval(checkAppVersion, 60000); // 1 minute — auto-detects new deployment and refreshes all clients
+    const interval = setInterval(checkAppVersion, 20000); // 20 seconds — rapid auto-refresh across all devices
 
     let lastVersionCheckTime = 0;
     const handleFocus = () => {
       const now = Date.now();
-      // Recheck version on focus if at least 60 seconds have passed since last check
-      if (now - lastVersionCheckTime > 60000) {
+      // Recheck version on focus if at least 20 seconds have passed since last check
+      if (now - lastVersionCheckTime > 20000) {
         lastVersionCheckTime = now;
         checkAppVersion();
       }
