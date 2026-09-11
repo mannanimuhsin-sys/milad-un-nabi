@@ -3143,7 +3143,7 @@ function App() {
   useEffect(() => {
     if (activeTab === 'QUIZ' && loggedInMadrasa?.regNumber) {
       const rNum = loggedInMadrasa.regNumber;
-      if (!isFetchingRef.current) {
+      if (!isFetchingRef.current && quizStudentStep === 'REGNO') {
         fetchSupabaseData(rNum);
       }
       const pollTimer = setInterval(() => {
@@ -6441,12 +6441,13 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
 
   // Student: Submit quiz answers
   const handleQuizSubmit = async () => {
-    const activeQuiz = quizList.find(q => q.is_active);
-    if (!activeQuiz) { alert('Active quiz ലഭ്യമല്ല'); return; }
-    if (!quizStudentRegno.trim()) { alert('Register number നൽകുക'); return; }
+    const currentRNum = loggedInMadrasa?.regNumber;
+    const activeQuiz = quizList.find(q => q.is_active && (String(q.madrasa_id) === String(currentRNum) || !q.madrasa_id)) || quizList.find(q => q.is_active);
+    if (!activeQuiz) { alert(lang === 'EN' ? 'No active quiz available' : 'Active quiz ലഭ്യമല്ല'); return; }
+    if (!quizStudentRegno.trim()) { alert(lang === 'EN' ? 'Please enter register number' : 'Register number നൽകുക'); return; }
 
     const questions = quizQuestionsList.filter(q => String(q.quiz_id) === String(activeQuiz.id));
-    if (questions.length === 0) { alert('ഈ ക്വിസിൽ ചോദ്യങ്ങൾ ലഭ്യമല്ല'); return; }
+    if (questions.length === 0) { alert(lang === 'EN' ? 'No questions available for this quiz' : 'ഈ ക്വിസിൽ ചോദ്യങ്ങൾ ലഭ്യമല്ല'); return; }
 
     // Calculate score
     let score = 0;
@@ -6463,42 +6464,56 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     const studentName = foundStudent ? foundStudent.name : quizStudentRegno.trim();
     const rNum = loggedInMadrasa?.regNumber;
 
+    const answerRecord = {
+      quiz_id: activeQuiz.id,
+      madrasa_id: String(rNum || ''),
+      student_regno: quizStudentRegno.trim(),
+      student_name: studentName,
+      answers: { ...quizStudentAnswers },
+      score,
+      total,
+      submitted_at: new Date().toISOString()
+    };
+
+    // Optimistically update local React state & localStorage so scorecard is 100% resilient
+    setQuizAnswersList(prev => {
+      const filtered = (prev || []).filter(a => !(String(a.quiz_id) === String(activeQuiz.id) && String(a.student_regno).trim() === quizStudentRegno.trim()));
+      return [...filtered, answerRecord];
+    });
+
+    if (rNum) {
+      try {
+        const localAnswersKey = `milad_quiz_answers_${rNum}`;
+        const existingLocal = JSON.parse(localStorage.getItem(localAnswersKey) || '[]');
+        const updatedLocal = [...existingLocal.filter(a => !(String(a.quiz_id) === String(activeQuiz.id) && String(a.student_regno).trim() === quizStudentRegno.trim())), answerRecord];
+        localStorage.setItem(localAnswersKey, JSON.stringify(updatedLocal));
+      } catch (e) {}
+    }
+
     setQuizSubmitting(true);
     try {
       // 1. Try Upsert
-      const { error: upsertErr } = await supabase.from('quiz_answers').upsert([{
-        quiz_id: activeQuiz.id,
-        madrasa_id: String(rNum),
-        student_regno: quizStudentRegno.trim(),
-        student_name: studentName,
-        answers: quizStudentAnswers,
-        score,
-        total
-      }], { onConflict: 'quiz_id,student_regno' });
+      const { error: upsertErr } = await supabase.from('quiz_answers').upsert([answerRecord], { onConflict: 'quiz_id,student_regno' });
 
       if (upsertErr) {
         console.warn('Upsert failed, trying insert fallback:', upsertErr);
         // Fallback simple insert if unique constraint is missing
-        await supabase.from('quiz_answers').insert([{
-          quiz_id: activeQuiz.id,
-          madrasa_id: String(rNum),
-          student_regno: quizStudentRegno.trim(),
-          student_name: studentName,
-          answers: quizStudentAnswers,
-          score,
-          total
-        }]).catch(err => console.warn('Quiz answer fallback insert error:', err));
+        await supabase.from('quiz_answers').insert([answerRecord]).catch(err => console.warn('Quiz answer fallback insert error:', err));
       }
     } catch (err) {
       console.warn('Quiz submission network/db warning:', err);
     } finally {
-      // ✅ ALWAYS transition to SUBMITTED state with calculated score - NEVER blank screen!
-      setQuizStudentScore({ score, total });
+      // ✅ ALWAYS transition to SUBMITTED state with calculated score and questions snapshot!
+      setQuizStudentScore({
+        score,
+        total,
+        questions: [...questions],
+        answers: { ...quizStudentAnswers },
+        studentName,
+        quizTitle: activeQuiz.title
+      });
       setQuizStudentStep('SUBMITTED');
       setQuizSubmitting(false);
-      // NOTE: Do NOT call fetchSupabaseData here — it resets quizList and may
-      // momentarily make activeQuiz null while the SUBMITTED view is showing,
-      // causing a blank screen. The realtime subscription keeps data current.
     }
   };
 
@@ -21142,8 +21157,12 @@ ${pagesHtml}
                 {/* ✅ SUBMITTED step is ALWAYS rendered at top level - never inside activeQuiz guard */}
                 {quizStudentStep === 'SUBMITTED' && (() => {
                   const finalScore = quizStudentScore?.score ?? 0;
-                  const finalTotal = quizStudentScore?.total ?? (activeQuestions.length || 1);
+                  const displayQuestions = (quizStudentScore?.questions && quizStudentScore.questions.length > 0)
+                    ? quizStudentScore.questions
+                    : activeQuestions;
+                  const finalTotal = quizStudentScore?.total ?? (displayQuestions.length || 1);
                   const percentage = Math.round((finalScore / (finalTotal || 1)) * 100);
+                  const submittedAnswers = quizStudentScore?.answers || quizStudentAnswers;
 
                   return (
                     <div style={{
@@ -21184,14 +21203,14 @@ ${pagesHtml}
                       </div>
 
                       {/* Answer review breakdown */}
-                      {activeQuestions.length > 0 && (
+                      {displayQuestions.length > 0 && (
                         <div style={{ textAlign: 'left', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
                           <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '800', color: '#334155' }}>
                             📋 {lang === 'EN' ? 'Answer Review' : 'ഉത്തരങ്ങളുടെ പരിശോധന'}
                           </h4>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {activeQuestions.map((q, qIdx) => {
-                              const studentAns = quizStudentAnswers[String(q.id)] || quizStudentAnswers[Number(q.id)];
+                            {displayQuestions.map((q, qIdx) => {
+                              const studentAns = submittedAnswers[String(q.id)] || submittedAnswers[Number(q.id)];
                               const isCorrect = studentAns && String(studentAns).trim().toUpperCase() === String(q.correct_answer || '').trim().toUpperCase();
 
                               return (
@@ -21434,7 +21453,12 @@ ${pagesHtml}
                             <button
                               type="button"
                               onClick={() => {
-                                setQuizStudentScore({ score: priorSubmission.score, total: priorSubmission.total });
+                                setQuizStudentScore({
+                                  score: priorSubmission.score,
+                                  total: priorSubmission.total,
+                                  questions: activeQuestions,
+                                  answers: priorSubmission.answers || {}
+                                });
                                 setQuizStudentAnswers(priorSubmission.answers || {});
                                 setQuizStudentStep('SUBMITTED');
                               }}
