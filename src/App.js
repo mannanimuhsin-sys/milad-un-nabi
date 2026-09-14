@@ -908,21 +908,45 @@ function App() {
   const [isIosDevice, setIsIosDevice] = useState(false);
   const deferredPromptRef = useRef(null);
 
-  // ── Exam Date Announcement Notice (one-time popup) ──
-  const [showExamNotice, setShowExamNotice] = useState(() => {
+  // ── Exam Date Announcement Notice (one-time popup) v2 ──
+  const checkExamNotice = useCallback(() => {
     try {
-      return !localStorage.getItem('irshad_exam_notice_ack_2026_sep27');
+      return !localStorage.getItem('irshad_exam_notice_v2_2026_sep27');
     } catch {
       return true;
     }
-  });
+  }, []);
+
+  const [showExamNotice, setShowExamNotice] = useState(() => checkExamNotice());
 
   const handleExamNoticeAck = () => {
     try {
-      localStorage.setItem('irshad_exam_notice_ack_2026_sep27', '1');
+      localStorage.setItem('irshad_exam_notice_v2_2026_sep27', '1');
     } catch (e) {}
     setShowExamNotice(false);
   };
+
+  // Auto-show for already-open apps: visibility change + polling
+  useEffect(() => {
+    const check = () => {
+      if (checkExamNotice()) setShowExamNotice(true);
+    };
+    // Show when user switches back to this tab
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', check);
+    // Poll every 30 seconds for apps already open
+    const interval = setInterval(check, 30000);
+    // Check immediately on mount too
+    check();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', check);
+      clearInterval(interval);
+    };
+  }, [checkExamNotice]);
   const isFetchingRef = useRef(false);
   const fetchReqIdRef = useRef(0);
   const lastFetchRNumRef = useRef('');
@@ -7550,7 +7574,8 @@ ${pagesHtml}
           backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '16px',
-          animation: 'examNoticeIn 0.4s cubic-bezier(0.34,1.56,0.64,1)'
+          animation: 'examNoticeIn 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: 'linear-gradient(165deg, #f0fdf4 0%, #dcfce7 40%, #fef9c3 100%)',
