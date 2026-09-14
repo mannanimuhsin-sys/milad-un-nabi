@@ -908,10 +908,10 @@ function App() {
   const [isIosDevice, setIsIosDevice] = useState(false);
   const deferredPromptRef = useRef(null);
 
-  // ── Exam Date Announcement Notice (one-time popup) v2 ──
+  // ── Exam Date Announcement Poster Notice (one-time popup) ──
   const checkExamNotice = useCallback(() => {
     try {
-      return !localStorage.getItem('irshad_exam_notice_v2_2026_sep27');
+      return !localStorage.getItem('irshad_exam_poster_2026_sep27');
     } catch {
       return true;
     }
@@ -921,7 +921,7 @@ function App() {
 
   const handleExamNoticeAck = () => {
     try {
-      localStorage.setItem('irshad_exam_notice_v2_2026_sep27', '1');
+      localStorage.setItem('irshad_exam_poster_2026_sep27', '1');
     } catch (e) {}
     setShowExamNotice(false);
   };
@@ -7566,147 +7566,133 @@ ${pagesHtml}
   return (
     <div className="main-container">
 
-      {/* 📢 IRSHAD COURSE EXAM DATE ANNOUNCEMENT NOTICE - ONE TIME POPUP */}
+      {/* 📢 IRSHAD COURSE EXAM DATE ANNOUNCEMENT POSTER POPUP */}
       {showExamNotice && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 99999,
-          background: 'rgba(0,0,0,0.75)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '16px',
-          animation: 'examNoticeIn 0.4s cubic-bezier(0.34,1.56,0.64,1)',
-          overflowY: 'auto'
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
+          minHeight: '100dvh',
+          zIndex: 999999,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          WebkitBackdropFilter: 'blur(8px)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '12px',
+          overflowY: 'auto',
+          animation: 'examNoticeOverlayFadeIn 0.25s ease-out'
         }}>
           <div style={{
-            background: 'linear-gradient(165deg, #f0fdf4 0%, #dcfce7 40%, #fef9c3 100%)',
-            borderRadius: '24px',
-            maxWidth: '380px',
+            background: '#ffffff',
+            borderRadius: '22px',
+            maxWidth: '410px',
             width: '100%',
             overflow: 'hidden',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(21,128,61,0.2)',
-            animation: 'examNoticeIn 0.4s cubic-bezier(0.34,1.56,0.64,1)'
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.15)',
+            animation: 'examNoticeCardZoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            margin: 'auto'
           }}>
+            {/* Elegant Close Button */}
+            <button
+              onClick={handleExamNoticeAck}
+              aria-label="Close"
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 20,
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                background: 'rgba(0, 0, 0, 0.6)',
+                color: '#ffffff',
+                border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                lineHeight: 1
+              }}
+            >
+              ×
+            </button>
 
-            {/* Top decorative header */}
+            {/* Poster Image Container */}
             <div style={{
-              background: 'linear-gradient(135deg, #15803d 0%, #166534 50%, #14532d 100%)',
-              padding: '18px 20px 14px',
-              textAlign: 'center',
-              position: 'relative',
+              width: '100%',
+              background: '#042f1a',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              maxHeight: '68vh',
               overflow: 'hidden'
             }}>
-              {/* Decorative circles */}
-              <div style={{ position:'absolute', top:'-20px', right:'-20px', width:'80px', height:'80px', borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
-              <div style={{ position:'absolute', bottom:'-30px', left:'-15px', width:'70px', height:'70px', borderRadius:'50%', background:'rgba(255,255,255,0.04)' }} />
-
-              {/* Logo area */}
-              <div style={{ fontSize:'32px', marginBottom:'4px', filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>🕌</div>
-              <div style={{ color:'#fef08a', fontSize:'11px', fontWeight:'800', letterSpacing:'2px', textTransform:'uppercase', opacity:0.9 }}>SKSSF PADAPPENGAD UNIT</div>
-              <div style={{ color:'white', fontSize:'22px', fontWeight:'900', letterSpacing:'1px', marginTop:'2px', textShadow:'0 2px 8px rgba(0,0,0,0.3)' }}>IRSHAD COURSE</div>
-              <div style={{ color:'#86efac', fontSize:'12px', fontWeight:'600', marginTop:'2px', fontStyle:'italic' }}>a journey of din and knowledge</div>
+              <img
+                src={(process.env.PUBLIC_URL || '') + '/irshad_exam_notice.jpg'}
+                alt="IRSHAD COURSE Exam Date Announcement - 2026 Sep 27"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: '68vh',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
             </div>
 
-            {/* Exam Date badge */}
+            {/* Action Bar */}
             <div style={{
-              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-              margin: '0',
-              padding: '10px 20px',
-              textAlign: 'center',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              width: '100%',
+              padding: '14px 18px 16px',
+              background: '#ffffff',
+              boxShadow: '0 -4px 14px rgba(0, 0, 0, 0.06)',
+              textAlign: 'center'
             }}>
-              <span style={{ fontSize:'20px' }}>📢</span>
-              <span style={{ color:'white', fontSize:'18px', fontWeight:'900', letterSpacing:'1px', textShadow:'0 1px 4px rgba(0,0,0,0.3)' }}>Exam DATE</span>
-              <span style={{ fontSize:'20px' }}>📝</span>
-            </div>
-
-            {/* Content area */}
-            <div style={{ padding: '20px 20px 8px' }}>
-
-              {/* Date card */}
-              <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: '14px 16px',
-                marginBottom: '12px',
-                boxShadow: '0 4px 16px rgba(21,128,61,0.12)',
-                border: '1.5px solid rgba(21,128,61,0.15)',
-                display: 'flex', alignItems: 'center', gap: '14px'
-              }}>
-                <div style={{
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                  borderRadius: '12px',
-                  padding: '8px 12px',
-                  textAlign: 'center',
-                  minWidth: '52px',
-                  boxShadow: '0 4px 12px rgba(220,38,38,0.3)'
-                }}>
-                  <div style={{ color:'white', fontSize:'8px', fontWeight:'700', letterSpacing:'1px', opacity:0.85 }}>2026</div>
-                  <div style={{ color:'white', fontSize:'24px', fontWeight:'900', lineHeight:1 }}>27</div>
-                </div>
-                <div>
-                  <div style={{ color:'#15803d', fontSize:'18px', fontWeight:'900', lineHeight:1.2 }}>സെപ്റ്റംബർ 27</div>
-                  <div style={{ marginTop:'4px' }}>
-                    <span style={{
-                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                      color: 'white', fontSize: '12px', fontWeight: '800',
-                      padding: '3px 10px', borderRadius: '20px',
-                      boxShadow: '0 2px 8px rgba(220,38,38,0.3)'
-                    }}>ഞായർ</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Time card */}
-              <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: '12px 16px',
-                marginBottom: '16px',
-                boxShadow: '0 4px 16px rgba(21,128,61,0.12)',
-                border: '1.5px solid rgba(21,128,61,0.15)',
-                display: 'flex', alignItems: 'center', gap: '12px'
-              }}>
-                <div style={{ fontSize:'28px' }}>🕙</div>
-                <div>
-                  <div style={{ color:'#14532d', fontSize:'14px', fontWeight:'800', lineHeight:1.3 }}>
-                    രാവിലെ <span style={{ color:'#15803d', fontSize:'16px' }}>10</span> മണി മുതൽ
-                  </div>
-                  <div style={{ color:'#14532d', fontSize:'14px', fontWeight:'800', lineHeight:1.3 }}>
-                    രാത്രി <span style={{ color:'#15803d', fontSize:'16px' }}>10</span> മണി വരെ
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Acknowledge button */}
-            <div style={{ padding: '0 20px 20px' }}>
               <button
                 onClick={handleExamNoticeAck}
                 style={{
                   width: '100%',
                   background: 'linear-gradient(135deg, #16a34a 0%, #15803d 50%, #14532d 100%)',
-                  color: 'white',
+                  color: '#ffffff',
                   border: 'none',
-                  borderRadius: '16px',
-                  padding: '15px 20px',
-                  fontSize: '17px',
+                  borderRadius: '14px',
+                  padding: '14px 20px',
+                  fontSize: '18px',
                   fontWeight: '900',
                   cursor: 'pointer',
-                  boxShadow: '0 8px 24px rgba(21,128,61,0.45)',
-                  letterSpacing: '0.5px',
+                  boxShadow: '0 8px 24px rgba(21, 128, 61, 0.45)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  transition: 'all 0.2s ease'
+                  letterSpacing: '0.5px'
                 }}
-                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                ✅ ഞാൻ അറിഞ്ഞു
+                <span style={{ fontSize: '20px' }}>✅</span>
+                <span>ഞാൻ അറിഞ്ഞു</span>
               </button>
-              <div style={{ textAlign:'center', marginTop:'10px', color:'#6b7280', fontSize:'11px' }}>
-                ഈ സന്ദേശം ഒരിക്കൽ മാത്രം കാണിക്കും
+              <div style={{
+                textAlign: 'center',
+                marginTop: '8px',
+                color: '#6b7280',
+                fontSize: '12px',
+                fontWeight: '600'
+              }}>
+                ഈ അറിയിപ്പ് ഒരു തവണ മാത്രം കാണിക്കും
               </div>
             </div>
           </div>
