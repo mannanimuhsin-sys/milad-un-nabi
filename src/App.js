@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
@@ -909,48 +908,6 @@ function App() {
   const [isIosDevice, setIsIosDevice] = useState(false);
   const deferredPromptRef = useRef(null);
 
-  // ── Exam Date Announcement Poster Notice (one-time popup) ──
-  const checkExamNotice = useCallback(() => {
-    try {
-      if (typeof window !== 'undefined' && (window.location.search.includes('notice') || window.location.search.includes('poster'))) {
-        return true;
-      }
-      return localStorage.getItem('irshad_exam_poster_2026_sep27') !== '1';
-    } catch {
-      return true;
-    }
-  }, []);
-
-  const [showExamNotice, setShowExamNotice] = useState(() => checkExamNotice());
-
-  const handleExamNoticeAck = () => {
-    try {
-      localStorage.setItem('irshad_exam_poster_2026_sep27', '1');
-    } catch (e) {}
-    setShowExamNotice(false);
-  };
-
-  // Auto-show for already-open apps: visibility change + polling
-  useEffect(() => {
-    const check = () => {
-      if (checkExamNotice()) setShowExamNotice(true);
-    };
-    // Show when user switches back to this tab
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') check();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('focus', check);
-    // Poll every 10 seconds for apps already open
-    const interval = setInterval(check, 10000);
-    // Check immediately on mount too
-    check();
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('focus', check);
-      clearInterval(interval);
-    };
-  }, [checkExamNotice]);
   const isFetchingRef = useRef(false);
   const fetchReqIdRef = useRef(0);
   const lastFetchRNumRef = useRef('');
@@ -2957,7 +2914,7 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           const serverVersion = data && (data.buildTime || data.version) ? String(data.buildTime || data.version) : null;
-          const CURRENT_CLIENT_RELEASE = '1789383600000';
+          const CURRENT_CLIENT_RELEASE = '1789384500000';
           const isReleaseStale = (CURRENT_CLIENT_RELEASE !== serverVersion) || (activeVersionRef.current && activeVersionRef.current !== serverVersion);
 
           if (!activeVersionRef.current) {
@@ -7578,139 +7535,6 @@ ${pagesHtml}
   return (
     <div className="main-container">
 
-      {/* 📢 IRSHAD COURSE EXAM DATE ANNOUNCEMENT POSTER POPUP */}
-      {showExamNotice && (typeof document !== 'undefined' && document.body ? createPortal(
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: '100vw',
-          height: '100vh',
-          height: '100dvh',
-          zIndex: 9999999,
-          backgroundColor: 'rgba(0, 0, 0, 0.88)',
-          WebkitBackdropFilter: 'blur(8px)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '12px',
-          overflowY: 'auto',
-          animation: 'examNoticeOverlayFadeIn 0.25s ease-out'
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '22px',
-            maxWidth: '410px',
-            width: '100%',
-            overflow: 'hidden',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.15)',
-            animation: 'examNoticeCardZoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
-            margin: 'auto'
-          }}>
-            {/* Elegant Close Button */}
-            <button
-              onClick={handleExamNoticeAck}
-              aria-label="Close"
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                zIndex: 20,
-                width: '34px',
-                height: '34px',
-                borderRadius: '50%',
-                background: 'rgba(0, 0, 0, 0.6)',
-                color: '#ffffff',
-                border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                backdropFilter: 'blur(4px)',
-                WebkitBackdropFilter: 'blur(4px)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                lineHeight: 1
-              }}
-            >
-              ×
-            </button>
-
-            {/* Poster Image Container */}
-            <div style={{
-              width: '100%',
-              background: '#042f1a',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              maxHeight: '68vh',
-              overflow: 'hidden'
-            }}>
-              <img
-                src={(process.env.PUBLIC_URL || '') + '/irshad_exam_notice.jpg'}
-                alt="IRSHAD COURSE Exam Date Announcement - 2026 Sep 27"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  maxHeight: '68vh',
-                  objectFit: 'contain',
-                  display: 'block'
-                }}
-              />
-            </div>
-
-            {/* Action Bar */}
-            <div style={{
-              width: '100%',
-              padding: '14px 18px 16px',
-              background: '#ffffff',
-              boxShadow: '0 -4px 14px rgba(0, 0, 0, 0.06)',
-              textAlign: 'center'
-            }}>
-              <button
-                onClick={handleExamNoticeAck}
-                style={{
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 50%, #14532d 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  padding: '14px 20px',
-                  fontSize: '18px',
-                  fontWeight: '900',
-                  cursor: 'pointer',
-                  boxShadow: '0 8px 24px rgba(21, 128, 61, 0.45)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                <span style={{ fontSize: '20px' }}>✅</span>
-                <span>ഞാൻ അറിഞ്ഞു</span>
-              </button>
-              <div style={{
-                textAlign: 'center',
-                marginTop: '8px',
-                color: '#6b7280',
-                fontSize: '12px',
-                fontWeight: '600'
-              }}>
-                ഈ അറിയിപ്പ് ഒരു തവണ മാത്രം കാണിക്കും
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      ) : null)}
 
       {/* ✂️ PROFESSIONAL MANUAL PHOTO CROPPER MODAL */}
       {cropperSrc && cropperImageDims && (
