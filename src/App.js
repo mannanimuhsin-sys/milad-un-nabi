@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
@@ -911,7 +912,10 @@ function App() {
   // ── Exam Date Announcement Poster Notice (one-time popup) ──
   const checkExamNotice = useCallback(() => {
     try {
-      return !localStorage.getItem('irshad_exam_poster_2026_sep27');
+      if (typeof window !== 'undefined' && (window.location.search.includes('notice') || window.location.search.includes('poster'))) {
+        return true;
+      }
+      return localStorage.getItem('irshad_exam_poster_2026_sep27') !== '1';
     } catch {
       return true;
     }
@@ -937,8 +941,8 @@ function App() {
     };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', check);
-    // Poll every 30 seconds for apps already open
-    const interval = setInterval(check, 30000);
+    // Poll every 10 seconds for apps already open
+    const interval = setInterval(check, 10000);
     // Check immediately on mount too
     check();
     return () => {
@@ -2953,34 +2957,42 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           const serverVersion = data && (data.buildTime || data.version) ? String(data.buildTime || data.version) : null;
-          if (!serverVersion) return;
-
-          const savedVersion = localStorage.getItem('miladfest_app_version');
+          const CURRENT_CLIENT_RELEASE = '1789383600000';
+          const isReleaseStale = (CURRENT_CLIENT_RELEASE !== serverVersion) || (activeVersionRef.current && activeVersionRef.current !== serverVersion);
 
           if (!activeVersionRef.current) {
             activeVersionRef.current = serverVersion;
-            // On initial app mount: record version without force reloading the active page
-            localStorage.setItem('miladfest_app_version', serverVersion);
-          } else if (serverVersion && activeVersionRef.current !== serverVersion) {
-            console.log('[AUTO-UPDATE] New release detected! Silently updating all devices...');
-            activeVersionRef.current = serverVersion;
-            localStorage.setItem('miladfest_app_version', serverVersion);
+          }
 
-            const doReload = () => {
+          if (isReleaseStale) {
+            console.log('[AUTO-UPDATE] New release detected! Silently updating device...');
+            activeVersionRef.current = serverVersion;
+            try {
+              localStorage.setItem('miladfest_app_version', serverVersion);
+            } catch (e) {}
+
+            const doReload = async () => {
               if ('caches' in window) {
-                caches.keys().then(names => names.forEach(name => caches.delete(name))).catch(() => {});
+                try {
+                  const names = await caches.keys();
+                  await Promise.all(names.map(name => caches.delete(name)));
+                } catch (e) {}
               }
-              window.location.reload(true);
+              if ('serviceWorker' in navigator) {
+                try {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  await Promise.all(regs.map(r => r.unregister()));
+                } catch (e) {}
+              }
+              window.location.replace(window.location.origin + window.location.pathname + '?rel=' + serverVersion);
             };
 
             const isUserTyping = typeof document !== 'undefined' && document.activeElement &&
               (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT');
 
             if (!isUserTyping) {
-              // Not typing — reload immediately & silently
               doReload();
             } else {
-              // User is typing — wait 4 seconds then reload quietly
               setTimeout(doReload, 4000);
             }
           }
@@ -7567,18 +7579,18 @@ ${pagesHtml}
     <div className="main-container">
 
       {/* 📢 IRSHAD COURSE EXAM DATE ANNOUNCEMENT POSTER POPUP */}
-      {showExamNotice && (
+      {showExamNotice && (typeof document !== 'undefined' && document.body ? createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          width: '100%',
-          height: '100%',
-          minHeight: '100dvh',
-          zIndex: 999999,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          width: '100vw',
+          height: '100vh',
+          height: '100dvh',
+          zIndex: 9999999,
+          backgroundColor: 'rgba(0, 0, 0, 0.88)',
           WebkitBackdropFilter: 'blur(8px)',
           backdropFilter: 'blur(8px)',
           display: 'flex',
@@ -7594,7 +7606,7 @@ ${pagesHtml}
             maxWidth: '410px',
             width: '100%',
             overflow: 'hidden',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.15)',
             animation: 'examNoticeCardZoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
             flexDirection: 'column',
@@ -7696,8 +7708,9 @@ ${pagesHtml}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      ) : null)}
 
       {/* ✂️ PROFESSIONAL MANUAL PHOTO CROPPER MODAL */}
       {cropperSrc && cropperImageDims && (
