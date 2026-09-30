@@ -2825,40 +2825,63 @@ function App() {
     };
 
     // Load local madrasas immediately for instant UI render (only reg 8943)
-    const localList = getLocalMadrasas().filter(m => String(m.regNumber) === '8943');
+    const localList = getLocalMadrasas().filter(m => String(m.regNumber) === '8943' || String(m.regnumber) === '8943');
     if (localList.length > 0) {
       setSuperMadrasas(localList);
     }
 
-    // 2. Fetch fresh madrasas list from Supabase — only reg 8943
-    const SUPER_ADMIN_REG = '8943'; // Only this madrasa is visible in super admin panel
+    // 2. Direct Supabase query for reg 8943 only (bypass fetchAllRows pagination to avoid filter-after-range issue)
+    const SUPER_ADMIN_REG = '8943';
     try {
+      // Try both numeric and string match to handle column type differences
       const { data, error } = await queryWithRetry(() =>
-        fetchAllRows('madrasas', q => q.eq('regNumber', SUPER_ADMIN_REG)),
+        supabase
+          .from('madrasas')
+          .select('*')
+          .or(`regNumber.eq.${SUPER_ADMIN_REG},regNumber.eq."${SUPER_ADMIN_REG}"`)
+          .limit(10),
         4,
         1000
       );
 
       if (error) {
-        console.warn('Failed to load madrasas:', error.message);
-      } else if (data && Array.isArray(data) && data.length > 0) {
-        // Sort descending by id so newest registrations always appear on top
-        const sortedData = [...data].sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
-        const freshMap = new Map();
-        sortedData.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
-
-        // Also keep any local 8943 entries
-        localList.filter(m => String(m.regNumber) === SUPER_ADMIN_REG).forEach(m => {
-          if (m && m.regNumber && !freshMap.has(String(m.regNumber))) {
-            freshMap.set(String(m.regNumber), m);
+        console.warn('Failed to load madrasas for super admin:', error.message);
+        // Fallback: try plain eq query
+        const { data: data2, error: err2 } = await supabase
+          .from('madrasas')
+          .select('*')
+          .eq('regNumber', SUPER_ADMIN_REG)
+          .limit(10);
+        if (!err2 && data2 && data2.length > 0) {
+          setSuperMadrasas(data2);
+          try { localStorage.setItem('cached_super_madrasas', JSON.stringify(data2)); } catch (e) {}
+        } else {
+          // Last resort: numeric eq
+          const { data: data3 } = await supabase
+            .from('madrasas')
+            .select('*')
+            .eq('regNumber', parseInt(SUPER_ADMIN_REG, 10))
+            .limit(10);
+          if (data3 && data3.length > 0) {
+            setSuperMadrasas(data3);
+            try { localStorage.setItem('cached_super_madrasas', JSON.stringify(data3)); } catch (e) {}
           }
-        });
-
-        const mergedList = Array.from(freshMap.values()).sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
-        setSuperMadrasas(mergedList);
-        try {
-          localStorage.setItem('cached_super_madrasas', JSON.stringify(mergedList));
-        } catch (e) {}
+        }
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        const sortedData = [...data].sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
+        setSuperMadrasas(sortedData);
+        try { localStorage.setItem('cached_super_madrasas', JSON.stringify(sortedData)); } catch (e) {}
+      } else {
+        // data empty — try numeric eq as fallback
+        const { data: data4 } = await supabase
+          .from('madrasas')
+          .select('*')
+          .eq('regNumber', parseInt(SUPER_ADMIN_REG, 10))
+          .limit(10);
+        if (data4 && data4.length > 0) {
+          setSuperMadrasas(data4);
+          try { localStorage.setItem('cached_super_madrasas', JSON.stringify(data4)); } catch (e) {}
+        }
       }
     } catch (err) {
       console.error('Error fetching madrasas:', err);
