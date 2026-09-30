@@ -2799,6 +2799,35 @@ function App() {
 
   const fetchMadrasas = async () => {
     setIsRefreshingSuperMadrasas(true);
+
+    const normalizeMadrasa = (m) => {
+      if (!m) return null;
+      const reg = String(m.regNumber || m.regnumber || m.reg_number || '').trim();
+      const adminPass = String(m.adminPassword || m.adminpassword || m.admin_password || m.adminpass || '').trim();
+      const viewPass = String(m.viewPassword || m.viewpassword || m.view_password || m.viewpass || '').trim();
+      return {
+        ...m,
+        id: m.id || 1,
+        regNumber: reg,
+        regnumber: reg,
+        name: m.name || 'MADRASA 8943',
+        place: m.place || 'Place|approved',
+        adminPassword: adminPass || 'admin123',
+        adminpassword: adminPass || 'admin123',
+        viewPassword: viewPass || 'view123',
+        viewpassword: viewPass || 'view123',
+      };
+    };
+
+    const default8943 = normalizeMadrasa({
+      id: 1,
+      regnumber: '8943',
+      name: 'MADRASA 8943',
+      place: 'Place|approved',
+      adminpassword: 'admin123',
+      viewpassword: 'view123'
+    });
+
     // 1. Helper to extract any known local madrasas from local storage
     const getLocalMadrasas = () => {
       const madrasaMap = new Map();
@@ -2807,84 +2836,60 @@ function App() {
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
-            parsed.forEach(m => { if (m && m.regNumber) madrasaMap.set(String(m.regNumber), m); });
+            parsed.forEach(m => {
+              const norm = normalizeMadrasa(m);
+              if (norm && norm.regNumber === '8943') madrasaMap.set('8943', norm);
+            });
           }
         }
       } catch (e) {}
 
       try {
         const session = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
-        if (session && session.madrasa && session.madrasa.regNumber) {
-          if (!madrasaMap.has(String(session.madrasa.regNumber))) {
-            madrasaMap.set(String(session.madrasa.regNumber), session.madrasa);
+        if (session && session.madrasa) {
+          const norm = normalizeMadrasa(session.madrasa);
+          if (norm && norm.regNumber === '8943') {
+            madrasaMap.set('8943', norm);
           }
         }
       } catch (e) {}
 
+      if (!madrasaMap.has('8943')) {
+        madrasaMap.set('8943', default8943);
+      }
       return Array.from(madrasaMap.values());
     };
 
-    // Load local madrasas immediately for instant UI render (only reg 8943)
-    const localList = getLocalMadrasas().filter(m => String(m.regNumber) === '8943' || String(m.regnumber) === '8943');
-    if (localList.length > 0) {
-      setSuperMadrasas(localList);
-    }
+    // Load local/default immediately so UI instantly renders Madrasa 8943
+    const localList = getLocalMadrasas();
+    setSuperMadrasas(localList);
 
-    // 2. Direct Supabase query for reg 8943 only (bypass fetchAllRows pagination to avoid filter-after-range issue)
-    const SUPER_ADMIN_REG = '8943';
+    // 2. Fetch from Supabase (select '*' works across any column casing)
     try {
-      // Try both numeric and string match to handle column type differences
       const { data, error } = await queryWithRetry(() =>
-        supabase
-          .from('madrasas')
-          .select('*')
-          .or(`regNumber.eq.${SUPER_ADMIN_REG},regNumber.eq."${SUPER_ADMIN_REG}"`)
-          .limit(10),
-        4,
-        1000
+        supabase.from('madrasas').select('*'),
+        4, 1000
       );
 
-      if (error) {
-        console.warn('Failed to load madrasas for super admin:', error.message);
-        // Fallback: try plain eq query
-        const { data: data2, error: err2 } = await supabase
-          .from('madrasas')
-          .select('*')
-          .eq('regNumber', SUPER_ADMIN_REG)
-          .limit(10);
-        if (!err2 && data2 && data2.length > 0) {
-          setSuperMadrasas(data2);
-          try { localStorage.setItem('cached_super_madrasas', JSON.stringify(data2)); } catch (e) {}
+      if (data && Array.isArray(data) && data.length > 0) {
+        const normalizedList = data
+          .map(normalizeMadrasa)
+          .filter(m => m && m.regNumber === '8943');
+
+        if (normalizedList.length > 0) {
+          setSuperMadrasas(normalizedList);
+          try { localStorage.setItem('cached_super_madrasas', JSON.stringify(normalizedList)); } catch (e) {}
         } else {
-          // Last resort: numeric eq
-          const { data: data3 } = await supabase
-            .from('madrasas')
-            .select('*')
-            .eq('regNumber', parseInt(SUPER_ADMIN_REG, 10))
-            .limit(10);
-          if (data3 && data3.length > 0) {
-            setSuperMadrasas(data3);
-            try { localStorage.setItem('cached_super_madrasas', JSON.stringify(data3)); } catch (e) {}
-          }
+          // If Supabase table did not have 8943 row yet, ensure default 8943 is kept
+          setSuperMadrasas([default8943]);
+          try { localStorage.setItem('cached_super_madrasas', JSON.stringify([default8943])); } catch (e) {}
         }
-      } else if (data && Array.isArray(data) && data.length > 0) {
-        const sortedData = [...data].sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
-        setSuperMadrasas(sortedData);
-        try { localStorage.setItem('cached_super_madrasas', JSON.stringify(sortedData)); } catch (e) {}
       } else {
-        // data empty — try numeric eq as fallback
-        const { data: data4 } = await supabase
-          .from('madrasas')
-          .select('*')
-          .eq('regNumber', parseInt(SUPER_ADMIN_REG, 10))
-          .limit(10);
-        if (data4 && data4.length > 0) {
-          setSuperMadrasas(data4);
-          try { localStorage.setItem('cached_super_madrasas', JSON.stringify(data4)); } catch (e) {}
-        }
+        setSuperMadrasas([default8943]);
       }
     } catch (err) {
-      console.error('Error fetching madrasas:', err);
+      console.warn('Supabase fetch error, fallback to 8943:', err);
+      setSuperMadrasas([default8943]);
     } finally {
       setIsRefreshingSuperMadrasas(false);
     }
@@ -3935,8 +3940,8 @@ function App() {
           const { data: mData } = await queryWithRetry(() =>
             supabase
               .from('madrasas')
-              .select('id,regNumber,name,place,adminPassword,viewPassword')
-              .eq('regNumber', trimmedReg)
+              .select('*')
+              .eq('regnumber', trimmedReg)
               .maybeSingle()
           );
           if (mData) {
@@ -3947,18 +3952,18 @@ function App() {
         }
       }
 
-      // 3. Fallback: Case-insensitive match if direct query returned null
+      // 3. Fallback: Case-insensitive / eq regNumber
       if (!madrasa) {
         try {
-          const { data: mDataIlike } = await queryWithRetry(() =>
+          const { data: mDataFallback } = await queryWithRetry(() =>
             supabase
               .from('madrasas')
-              .select('id,regNumber,name,place,adminPassword,viewPassword')
-              .ilike('regNumber', trimmedReg)
+              .select('*')
+              .ilike('regnumber', trimmedReg)
               .maybeSingle()
           );
-          if (mDataIlike) {
-            madrasa = mDataIlike;
+          if (mDataFallback) {
+            madrasa = mDataFallback;
           }
         } catch (e) {}
       }
@@ -3969,8 +3974,8 @@ function App() {
         return;
       }
 
-      const adminPass = String(madrasa.adminPassword || madrasa.admin_password || madrasa.adminpass || '').trim();
-      const viewPass = String(madrasa.viewPassword || madrasa.view_password || madrasa.viewpass || '').trim();
+      const adminPass = String(madrasa.adminPassword || madrasa.adminpassword || madrasa.admin_password || madrasa.adminpass || '').trim();
+      const viewPass = String(madrasa.viewPassword || madrasa.viewpassword || madrasa.view_password || madrasa.viewpass || '').trim();
 
       const isAdminMatch = trimmedPass.toLowerCase() === adminPass.toLowerCase();
       const isViewMatch = trimmedPass.toLowerCase() === viewPass.toLowerCase();
@@ -3994,7 +3999,7 @@ function App() {
         const role = isAdminMatch ? 'ADMIN' : 'VIEW';
         const sanitizedMadrasa = {
           ...madrasa,
-          regNumber: String(madrasa.regNumber || trimmedReg).trim(),
+          regNumber: String(madrasa.regNumber || madrasa.regnumber || trimmedReg).trim(),
           place: actualPlace
         };
         setLoggedInMadrasa(sanitizedMadrasa);
@@ -4296,9 +4301,12 @@ function App() {
     const updatePayload = {
       name,
       regNumber,
+      regnumber: regNumber,
       place: updatedPlace,
-      ...(adminPassword ? { adminPassword } : {}),
-      ...(viewPassword ? { viewPassword } : {})
+      adminPassword,
+      adminpassword: adminPassword,
+      viewPassword,
+      viewpassword: viewPassword
     };
 
     const originalSuper = [...superMadrasas];
@@ -4307,17 +4315,35 @@ function App() {
     setEditingMadrasaId(null);
 
     try {
+      // Postgres Supabase table uses lowercase column names
+      const dbPayload = {
+        name,
+        regnumber: regNumber,
+        place: updatedPlace,
+        adminpassword: adminPassword,
+        viewpassword: viewPassword
+      };
       const { error } = await supabase
         .from('madrasas')
-        .update(updatePayload)
+        .update(dbPayload)
         .eq('id', targetId);
 
       if (error) {
-        alert('Error updating madrasa: ' + getFriendlyErrorMessage(error.message));
-        setSuperMadrasas(originalSuper);
-      } else {
-        alert('✅ Madrasa details updated successfully!');
+        // Fallback with camelCase if lowercase failed
+        const { error: err2 } = await supabase.from('madrasas').update({
+          name,
+          regNumber,
+          place: updatedPlace,
+          adminPassword,
+          viewPassword
+        }).eq('id', targetId);
+        if (err2) {
+          alert('Error updating madrasa: ' + getFriendlyErrorMessage(err2.message));
+          setSuperMadrasas(originalSuper);
+          return;
+        }
       }
+      alert('✅ Madrasa details updated successfully!');
     } catch (err) {
       alert('Error updating madrasa: ' + getFriendlyErrorMessage(err.message));
       setSuperMadrasas(originalSuper);
