@@ -2824,16 +2824,17 @@ function App() {
       return Array.from(madrasaMap.values());
     };
 
-    // Load local madrasas immediately for instant UI render
-    const localList = getLocalMadrasas();
+    // Load local madrasas immediately for instant UI render (only reg 8943)
+    const localList = getLocalMadrasas().filter(m => String(m.regNumber) === '8943');
     if (localList.length > 0) {
       setSuperMadrasas(localList);
     }
 
-    // 2. Fetch fresh madrasas list from Supabase with automatic pagination (loads all madrasas without limit or column errors)
+    // 2. Fetch fresh madrasas list from Supabase — only reg 8943
+    const SUPER_ADMIN_REG = '8943'; // Only this madrasa is visible in super admin panel
     try {
       const { data, error } = await queryWithRetry(() =>
-        fetchAllRows('madrasas', q => q),
+        fetchAllRows('madrasas', q => q.eq('regNumber', SUPER_ADMIN_REG)),
         4,
         1000
       );
@@ -2846,7 +2847,8 @@ function App() {
         const freshMap = new Map();
         sortedData.forEach(m => { if (m && m.regNumber) freshMap.set(String(m.regNumber), m); });
 
-        localList.forEach(m => {
+        // Also keep any local 8943 entries
+        localList.filter(m => String(m.regNumber) === SUPER_ADMIN_REG).forEach(m => {
           if (m && m.regNumber && !freshMap.has(String(m.regNumber))) {
             freshMap.set(String(m.regNumber), m);
           }
