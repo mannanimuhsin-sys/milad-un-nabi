@@ -2940,15 +2940,22 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           const serverVersion = data && (data.buildTime || data.version) ? String(data.buildTime || data.version) : null;
-          const CURRENT_CLIENT_RELEASE = '1789384500000';
-          const isReleaseStale = (CURRENT_CLIENT_RELEASE !== serverVersion) || (activeVersionRef.current && activeVersionRef.current !== serverVersion);
+          if (!serverVersion) return;
 
+          // On first check in this session, record current version without reloading
           if (!activeVersionRef.current) {
             activeVersionRef.current = serverVersion;
+            return;
           }
 
-          if (isReleaseStale) {
-            console.log('[AUTO-UPDATE] New release detected! Silently updating device...');
+          // Only reload if a newer release was deployed while app is currently open
+          if (activeVersionRef.current !== serverVersion) {
+            // Guard against rapid reload loops: throttle to at most once per 60 seconds
+            const lastReload = parseInt(sessionStorage.getItem('miladfest_version_reload') || '0', 10);
+            if (Date.now() - lastReload < 60000) return;
+            sessionStorage.setItem('miladfest_version_reload', String(Date.now()));
+
+            console.log('[AUTO-UPDATE] New release detected! Updating device...');
             activeVersionRef.current = serverVersion;
             try {
               localStorage.setItem('miladfest_app_version', serverVersion);
