@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { uploadToCloudinary, getOptimizedCloudinaryUrl } from './services/cloudinaryService';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -6655,31 +6656,50 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
         // Admin Mode re-upload: update DB & local state immediately with approved status
         const sId = cropperTargetStudent.id;
         const sName = cropperTargetStudent.name;
+        const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || loggedInMadrasa?.reg_number || 'general').trim();
 
-        setStudents(prev => {
-          const updated = prev.map(s => String(s.id) === String(sId) ? { ...s, photo_url: base64DataUrl, photo_status: 'approved' } : s);
-          if (loggedInMadrasa) {
-            try {
-              const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || '').trim();
-              const raw = localStorage.getItem(`cached_data_${rNum}`);
-              if (raw) {
-                const cacheObj = JSON.parse(raw);
-                cacheObj.students = updated;
-                localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
-              }
-            } catch (e) {}
-          }
-          return updated;
-        });
+        // 1. Instant optimistic update
+        setStudents(prev => prev.map(s => String(s.id) === String(sId) ? { ...s, photo_url: base64DataUrl, photo_status: 'approved' } : s));
 
         try {
+          // 2. Upload to Cloudinary
+          let finalPhotoUrl = base64DataUrl;
+          try {
+            const uploadRes = await uploadToCloudinary(base64DataUrl, {
+              folder: `madrasas/${rNum}/students`,
+              publicId: `student_${sId}_${Date.now()}`
+            });
+            if (uploadRes && uploadRes.secure_url) {
+              finalPhotoUrl = uploadRes.secure_url;
+            }
+          } catch (cloudErr) {
+            console.warn("Cloudinary upload warning, using local image:", cloudErr);
+          }
+
+          // 3. Update local state & cache with Cloudinary URL
+          setStudents(prev => {
+            const updated = prev.map(s => String(s.id) === String(sId) ? { ...s, photo_url: finalPhotoUrl, photo_status: 'approved' } : s);
+            if (loggedInMadrasa) {
+              try {
+                const raw = localStorage.getItem(`cached_data_${rNum}`);
+                if (raw) {
+                  const cacheObj = JSON.parse(raw);
+                  cacheObj.students = updated;
+                  localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cacheObj));
+                }
+              } catch (e) {}
+            }
+            return updated;
+          });
+
+          // 4. Save Cloudinary URL to Supabase
           const { error } = await queryWithRetry(() =>
-            supabase.from('students').update({ photo_url: base64DataUrl, photo_status: 'approved' }).eq('id', sId)
+            supabase.from('students').update({ photo_url: finalPhotoUrl, photo_status: 'approved' }).eq('id', sId)
           );
           if (error) {
             alert('Cloud update warning: ' + getFriendlyErrorMessage(error.message));
           } else {
-            alert(lang === 'EN' ? `✅ Photo updated and approved for ${sName}!` : `✅ ${sName} എന്ന വിദ്യാർത്ഥിയുടെ ഫോട്ടോ സക്സസ്ഫുളായി ക്രോപ്പ് ചെയ്ത് സേവ് ചെയ്തു!`);
+            alert(lang === 'EN' ? `✅ Photo uploaded and approved for ${sName}!` : `✅ ${sName} എന്ന വിദ്യാർത്ഥിയുടെ ഫോട്ടോ Cloudinary-യിൽ സേവ് ചെയ്ത് അപ്പ്രൂവ് ചെയ്തു!`);
           }
         } catch (err) {
           console.error("Admin photo crop error:", err);
@@ -6710,41 +6730,58 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     setCropperZoom(1);
   };
 
-  // Upload photo — stored as base64 directly in DB (no Storage bucket needed)
+  // Upload photo — uploaded directly to Cloudinary and URL saved in Supabase
   const handleProfilePhotoUpload = async () => {
     if (!profilePhotoFile) { alert(t('alertNoPhotoSelected')); return; }
     if (!profileStudent) { alert(t('alertNoStudentSelected')); return; }
     if (!loggedInMadrasa) { alert(t('alertSessionExpired')); return; }
     setProfileUploading(true);
     try {
-      // Compress image to ≤200KB before storing as base64
-      const compressImage = (file, maxKB = 200) => new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 300;
-            canvas.height = 300;
-            canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
-            let quality = 0.85;
-            let dataUrl = canvas.toDataURL('image/jpeg', quality);
-            // Reduce quality until under maxKB
-            while (dataUrl.length > maxKB * 1024 * 1.37 && quality > 0.3) {
-              quality -= 0.1;
-              dataUrl = canvas.toDataURL('image/jpeg', quality);
-            }
-            resolve(dataUrl);
+      const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || loggedInMadrasa.reg_number || 'general').trim();
+      let photoUrlToSave = null;
+
+      // 🚀 Step 1: Upload to Cloudinary
+      try {
+        const uploadRes = await uploadToCloudinary(profilePhotoFile, {
+          folder: `madrasas/${rNum}/students`,
+          publicId: `student_${profileStudent.id}_${Date.now()}`
+        });
+        if (uploadRes && uploadRes.secure_url) {
+          photoUrlToSave = uploadRes.secure_url;
+        }
+      } catch (cloudErr) {
+        console.warn("Cloudinary upload failed, falling back to compressed local:", cloudErr);
+      }
+
+      // Fallback only if Cloudinary is unreachable
+      if (!photoUrlToSave) {
+        const compressImage = (file, maxKB = 200) => new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = 300;
+              canvas.height = 300;
+              canvas.getContext('2d').drawImage(img, 0, 0, 300, 300);
+              let quality = 0.85;
+              let dataUrl = canvas.toDataURL('image/jpeg', quality);
+              while (dataUrl.length > maxKB * 1024 * 1.37 && quality > 0.3) {
+                quality -= 0.1;
+                dataUrl = canvas.toDataURL('image/jpeg', quality);
+              }
+              resolve(dataUrl);
+            };
+            img.src = ev.target.result;
           };
-          img.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
+          reader.readAsDataURL(file);
+        });
+        photoUrlToSave = await compressImage(profilePhotoFile);
+      }
 
-      const base64DataUrl = await compressImage(profilePhotoFile);
-
+      // 🚀 Step 2: Save URL in Supabase Database
       const { error: updateError } = await supabase.from('students').update({
-        photo_url: base64DataUrl,
+        photo_url: photoUrlToSave,
         photo_status: 'pending'
       }).eq('id', profileStudent.id);
 
