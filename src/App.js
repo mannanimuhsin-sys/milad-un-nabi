@@ -2803,14 +2803,15 @@ function App() {
     const normalizeMadrasa = (m) => {
       if (!m) return null;
       const reg = String(m.regNumber || m.regnumber || m.reg_number || '').trim();
+      if (!reg) return null;
       const adminPass = String(m.adminPassword || m.adminpassword || m.admin_password || m.adminpass || '').trim();
       const viewPass = String(m.viewPassword || m.viewpassword || m.view_password || m.viewpass || '').trim();
       return {
         ...m,
-        id: m.id || 1,
+        id: m.id || (reg === '8943' ? 1 : reg),
         regNumber: reg,
         regnumber: reg,
-        name: m.name || 'MADRASA 8943',
+        name: m.name || (reg ? `MADRASA ${reg}` : 'MADRASA 8943'),
         place: m.place || 'Place|approved',
         adminPassword: adminPass || 'admin123',
         adminpassword: adminPass || 'admin123',
@@ -2838,7 +2839,7 @@ function App() {
           if (Array.isArray(parsed)) {
             parsed.forEach(m => {
               const norm = normalizeMadrasa(m);
-              if (norm && norm.regNumber === '8943') madrasaMap.set('8943', norm);
+              if (norm && norm.regNumber) madrasaMap.set(String(norm.regNumber), norm);
             });
           }
         }
@@ -2848,8 +2849,8 @@ function App() {
         const session = JSON.parse(localStorage.getItem('miladfest_session') || 'null');
         if (session && session.madrasa) {
           const norm = normalizeMadrasa(session.madrasa);
-          if (norm && norm.regNumber === '8943') {
-            madrasaMap.set('8943', norm);
+          if (norm && norm.regNumber) {
+            madrasaMap.set(String(norm.regNumber), norm);
           }
         }
       } catch (e) {}
@@ -2860,36 +2861,38 @@ function App() {
       return Array.from(madrasaMap.values());
     };
 
-    // Load local/default immediately so UI instantly renders Madrasa 8943
+    // Load local/default immediately so UI instantly renders cached madrasas
     const localList = getLocalMadrasas();
-    setSuperMadrasas(localList);
+    if (localList.length > 0) {
+      setSuperMadrasas(localList);
+    }
 
-    // 2. Fetch from Supabase (select '*' works across any column casing)
+    // 2. Fetch all madrasas from Supabase (select '*' works across any column casing)
     try {
       const { data, error } = await queryWithRetry(() =>
-        supabase.from('madrasas').select('*'),
+        supabase.from('madrasas').select('*').order('id', { ascending: true }),
         4, 1000
       );
 
       if (data && Array.isArray(data) && data.length > 0) {
         const normalizedList = data
           .map(normalizeMadrasa)
-          .filter(m => m && m.regNumber === '8943');
+          .filter(Boolean);
 
         if (normalizedList.length > 0) {
           setSuperMadrasas(normalizedList);
           try { localStorage.setItem('cached_super_madrasas', JSON.stringify(normalizedList)); } catch (e) {}
         } else {
-          // If Supabase table did not have 8943 row yet, ensure default 8943 is kept
-          setSuperMadrasas([default8943]);
-          try { localStorage.setItem('cached_super_madrasas', JSON.stringify([default8943])); } catch (e) {}
+          setSuperMadrasas(localList.length > 0 ? localList : [default8943]);
         }
-      } else {
-        setSuperMadrasas([default8943]);
+      } else if (!error) {
+        setSuperMadrasas(localList.length > 0 ? localList : [default8943]);
       }
     } catch (err) {
-      console.warn('Supabase fetch error, fallback to 8943:', err);
-      setSuperMadrasas([default8943]);
+      console.warn('Supabase fetch error, fallback to local/default:', err);
+      if (localList.length === 0) {
+        setSuperMadrasas([default8943]);
+      }
     } finally {
       setIsRefreshingSuperMadrasas(false);
     }
@@ -4141,7 +4144,7 @@ function App() {
       }
 
       // Insert Madrasa with pending suffix in place
-      const { error } = await queryWithRetry(() =>
+      const { data: insertedData, error } = await queryWithRetry(() =>
         supabase
           .from('madrasas')
           .insert([
@@ -4153,13 +4156,25 @@ function App() {
               viewpassword: viewPassword
             }
           ])
+          .select()
       );
 
       if (error) {
         alert(t('alertUnexpectedError') + getFriendlyErrorMessage(error.message));
       } else {
         alert(t('alertRegistrationSubmitted'));
-        const tempMadrasa = { name: regName, regNumber, place: `${regPlace}|pending`, adminPassword, viewPassword };
+        const newRow = (insertedData && insertedData[0]) ? insertedData[0] : null;
+        const tempMadrasa = {
+          id: newRow ? newRow.id : Date.now(),
+          name: regName,
+          regNumber,
+          regnumber: regNumber,
+          place: `${regPlace}|pending`,
+          adminPassword,
+          adminpassword: adminPassword,
+          viewPassword,
+          viewpassword: viewPassword
+        };
         setPendingMadrasa(tempMadrasa);
         setSuperMadrasas(prev => {
           const updated = [tempMadrasa, ...prev.filter(m => String(m.regNumber) !== String(regNumber))];
@@ -4203,8 +4218,14 @@ function App() {
   };
 
   const handleApproveMadrasa = async (madrasa) => {
-    const updatedPlace = makePlaceString(madrasa.place, { status: 'approved' });
-    setSuperMadrasas(prev => prev.map(m => m.id === madrasa.id ? { ...m, place: updatedPlace } : m));
+    const parts = (madrasa.place || '').split('|');
+    parts[0] = parts[0] || '';
+    parts[1] = 'approved';
+    const updatedPlace = parts.join('|');
+    const originalSuper = [...superMadrasas];
+    const updatedList = superMadrasas.map(m => m.id === madrasa.id ? { ...m, place: updatedPlace } : m);
+    setSuperMadrasas(updatedList);
+    try { localStorage.setItem('cached_super_madrasas', JSON.stringify(updatedList)); } catch (e) {}
 
     try {
       const { error } = await supabase
@@ -4214,19 +4235,29 @@ function App() {
 
       if (error) {
         alert('Error approving madrasa: ' + getFriendlyErrorMessage(error.message));
+        setSuperMadrasas(originalSuper);
+        try { localStorage.setItem('cached_super_madrasas', JSON.stringify(originalSuper)); } catch (e) {}
         fetchMadrasas();
       } else {
         alert('✅ Madrasa approved successfully!');
       }
     } catch (err) {
       alert('Error approving madrasa: ' + getFriendlyErrorMessage(err.message));
+      setSuperMadrasas(originalSuper);
+      try { localStorage.setItem('cached_super_madrasas', JSON.stringify(originalSuper)); } catch (e) {}
       fetchMadrasas();
     }
   };
 
   const handleBlockMadrasa = async (madrasa) => {
-    const updatedPlace = makePlaceString(madrasa.place, { status: 'blocked' });
-    setSuperMadrasas(prev => prev.map(m => m.id === madrasa.id ? { ...m, place: updatedPlace } : m));
+    const parts = (madrasa.place || '').split('|');
+    parts[0] = parts[0] || '';
+    parts[1] = 'blocked';
+    const updatedPlace = parts.join('|');
+    const originalSuper = [...superMadrasas];
+    const updatedList = superMadrasas.map(m => m.id === madrasa.id ? { ...m, place: updatedPlace } : m);
+    setSuperMadrasas(updatedList);
+    try { localStorage.setItem('cached_super_madrasas', JSON.stringify(updatedList)); } catch (e) {}
 
     try {
       const { error } = await supabase
@@ -4236,12 +4267,16 @@ function App() {
 
       if (error) {
         alert('Error blocking madrasa: ' + getFriendlyErrorMessage(error.message));
+        setSuperMadrasas(originalSuper);
+        try { localStorage.setItem('cached_super_madrasas', JSON.stringify(originalSuper)); } catch (e) {}
         fetchMadrasas();
       } else {
         alert('🛑 Madrasa blocked!');
       }
     } catch (err) {
       alert('Error blocking madrasa: ' + getFriendlyErrorMessage(err.message));
+      setSuperMadrasas(originalSuper);
+      try { localStorage.setItem('cached_super_madrasas', JSON.stringify(originalSuper)); } catch (e) {}
       fetchMadrasas();
     }
   };
@@ -4249,7 +4284,9 @@ function App() {
   const handleDeleteMadrasa = async (id) => {
     if (!window.confirm('Remove this madrasa? All registered data will be deleted.')) return;
     const originalSuper = [...superMadrasas];
-    setSuperMadrasas(prev => prev.filter(m => m.id !== id));
+    const updatedList = superMadrasas.filter(m => m.id !== id);
+    setSuperMadrasas(updatedList);
+    try { localStorage.setItem('cached_super_madrasas', JSON.stringify(updatedList)); } catch (e) {}
 
     try {
       const { error } = await supabase
@@ -4260,12 +4297,14 @@ function App() {
       if (error) {
         alert('Error deleting madrasa: ' + getFriendlyErrorMessage(error.message));
         setSuperMadrasas(originalSuper);
+        try { localStorage.setItem('cached_super_madrasas', JSON.stringify(originalSuper)); } catch (e) {}
       } else {
         alert('🗑️ Madrasa deleted successfully!');
       }
     } catch (err) {
       alert('Error deleting madrasa: ' + getFriendlyErrorMessage(err.message));
       setSuperMadrasas(originalSuper);
+      try { localStorage.setItem('cached_super_madrasas', JSON.stringify(originalSuper)); } catch (e) {}
     }
   };
 
@@ -4303,7 +4342,9 @@ function App() {
       return;
     }
 
-    const updatedPlace = makePlaceString(editingMadrasaData.place, { place: tempPlace });
+    const parts = (editingMadrasaData.place || '').split('|');
+    parts[0] = tempPlace;
+    const updatedPlace = parts.join('|');
 
     const updatePayload = {
       name,
@@ -4317,7 +4358,9 @@ function App() {
     };
 
     const originalSuper = [...superMadrasas];
-    setSuperMadrasas(prev => prev.map(m => m.id === editingMadrasaId ? { ...m, ...updatePayload, place: updatedPlace } : m));
+    const updatedList = superMadrasas.map(m => m.id === editingMadrasaId ? { ...m, ...updatePayload, place: updatedPlace } : m);
+    setSuperMadrasas(updatedList);
+    try { localStorage.setItem('cached_super_madrasas', JSON.stringify(updatedList)); } catch (e) {}
     const targetId = editingMadrasaId;
     setEditingMadrasaId(null);
 
