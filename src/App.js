@@ -1055,11 +1055,22 @@ function App() {
     };
   }, []);
 
-  // Dynamic Points system state
-  const [pointSystem, setPointSystem] = useState({
-    p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
-    gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1,
-    tp1: 15, tp2: 10, tp3: 5, tpA: 5, tpB: 3, tpC: 1
+  // Dynamic Points system state with instant persistence recovery
+  const [pointSystem, setPointSystem] = useState(() => {
+    try {
+      const activeReg = String(savedSession?.madrasa?.regNumber || savedSession?.madrasa?.regnumber || '').trim();
+      if (activeReg) {
+        const stored = localStorage.getItem(`points_${activeReg}`) || localStorage.getItem(`milad_points_${activeReg}`);
+        if (stored) return JSON.parse(stored);
+      }
+      const genericStored = localStorage.getItem('milad_points_latest');
+      if (genericStored) return JSON.parse(genericStored);
+    } catch (e) {}
+    return {
+      p1: 5, p2: 3, p3: 1, gA: 5, gB: 3, gC: 1,
+      gp1: 10, gp2: 6, gp3: 2, gpA: 5, gpB: 3, gpC: 1,
+      tp1: 15, tp2: 10, tp3: 5, tpA: 5, tpB: 3, tpC: 1
+    };
   });
 
   // Input form states
@@ -2155,6 +2166,16 @@ function App() {
           if (cached.groupRegistrations && Array.isArray(cached.groupRegistrations)) setGroupRegistrations(cached.groupRegistrations);
           if (cached.timetable && Array.isArray(cached.timetable)) setTimetable(cached.timetable);
 
+          // 🎯 Restore Point System from local cache immediately on load
+          if (cached.pointSystem && typeof cached.pointSystem === 'object') {
+            setPointSystem(cached.pointSystem);
+          } else {
+            const savedPoints = localStorage.getItem(`points_${rNum}`) || localStorage.getItem(`milad_points_${rNum}`) || localStorage.getItem('milad_points_latest');
+            if (savedPoints) {
+              try { setPointSystem(JSON.parse(savedPoints)); } catch (e) {}
+            }
+          }
+
           if (cached.visibilityControls && typeof cached.visibilityControls === 'object') {
             setVisibilityControls(normalizeVisibilityControls(cached.visibilityControls));
             if (Array.isArray(cached.visibilityControls.published_programs)) {
@@ -2384,16 +2405,31 @@ function App() {
               try { visFromPlace = JSON.parse(parts[8]); } catch (e2) {}
             }
           }
+          let dbLoadedPs = null;
           if (parts[10]) {
             try {
               const parsedPs = JSON.parse(decodeURIComponent(parts[10]));
-              if (parsedPs && typeof parsedPs === 'object') {
+              if (parsedPs && typeof parsedPs === 'object' && Object.keys(parsedPs).length > 0) {
+                dbLoadedPs = parsedPs;
                 setPointSystem(prev => ({ ...prev, ...parsedPs }));
                 if (rNum) {
-                  try { localStorage.setItem(`points_${rNum}`, JSON.stringify(parsedPs)); } catch(e){}
+                  try {
+                    localStorage.setItem(`points_${rNum}`, JSON.stringify(parsedPs));
+                    localStorage.setItem(`milad_points_${rNum}`, JSON.stringify(parsedPs));
+                    localStorage.setItem('milad_points_latest', JSON.stringify(parsedPs));
+                  } catch(e){}
                 }
               }
             } catch(e) {}
+          }
+          if (!dbLoadedPs && rNum) {
+            try {
+              const localPs = localStorage.getItem(`points_${rNum}`) || localStorage.getItem(`milad_points_${rNum}`);
+              if (localPs) {
+                dbLoadedPs = JSON.parse(localPs);
+                setPointSystem(prev => ({ ...prev, ...dbLoadedPs }));
+              }
+            } catch (e) {}
           }
           // Fallback: search all parts for scoreboard or published_programs
           if (!visFromPlace) {
@@ -5554,9 +5590,14 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
   const handleSavePoints = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!loggedInMadrasa) return;
-    const rNum = String(loggedInMadrasa.regNumber || '').trim();
+    const rNum = String(loggedInMadrasa.regNumber || loggedInMadrasa.regnumber || '').trim();
 
-    // 1. Save locally to localStorage
+    // 1. Save to ALL localStorage keys immediately (survives refresh & polling)
+    try {
+      localStorage.setItem(`points_${rNum}`, JSON.stringify(pointSystem));
+      localStorage.setItem(`milad_points_${rNum}`, JSON.stringify(pointSystem));
+      localStorage.setItem('milad_points_latest', JSON.stringify(pointSystem));
+    } catch (err) {}
     saveToStorage('points', pointSystem);
 
     // 2. Dynamically recompute points for all results in resultsList
@@ -5566,34 +5607,49 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
     });
     setResultsList(updatedResults);
 
+    // 3. Update cached_data with BOTH pointSystem AND updated results
     if (rNum) {
       safeSetLocalStorage(`cached_data_${rNum}`, (rawCache) => {
         let cacheObj = {};
         try { cacheObj = JSON.parse(rawCache) || {}; } catch(err) {}
         cacheObj.resultsList = updatedResults;
+        cacheObj.pointSystem = pointSystem;
         return JSON.stringify(cacheObj);
       });
     }
 
-    // 3. Save to Supabase madrasas.place cloud metadata
+    // 4. Save to Supabase madrasas.place using madrasas.id (most reliable)
     try {
-      const numReg = parseInt(rNum, 10);
-      const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-      const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-      const { data: md } = await queryWithRetry(() =>
-        supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-      );
+      const madrasaId = loggedInMadrasa.id;
+      let md = null;
+      if (madrasaId) {
+        const res = await queryWithRetry(() =>
+          supabase.from('madrasas').select('place').eq('id', madrasaId).maybeSingle()
+        );
+        md = res.data;
+      } else {
+        const res = await queryWithRetry(() =>
+          supabase.from('madrasas').select('place').eq('regnumber', String(rNum)).maybeSingle()
+        );
+        md = res.data;
+      }
       const updatedPlace = makePlaceString(md ? md.place : '', {
         pointSystem: encodeURIComponent(JSON.stringify(pointSystem))
       });
-      await queryWithRetry(() =>
-        supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-      );
+      if (madrasaId) {
+        await queryWithRetry(() =>
+          supabase.from('madrasas').update({ place: updatedPlace }).eq('id', madrasaId)
+        );
+      } else {
+        await queryWithRetry(() =>
+          supabase.from('madrasas').update({ place: updatedPlace }).eq('regnumber', String(rNum))
+        );
+      }
     } catch (err) {
       console.warn('Could not save points to madrasas place:', err);
     }
 
-    // 4. Batch update points in Supabase results table
+    // 5. Batch update points in Supabase results table
     try {
       for (const r of updatedResults) {
         if (r.id && !String(r.id).startsWith('temp_')) {
