@@ -2338,9 +2338,9 @@ function App() {
         queryWithRetry(() => {
           const activeId = loggedInMadrasaRef.current?.id;
           if (activeId) {
-            return supabase.from('madrasas').select('id,regNumber,name,place,adminPassword,viewPassword').eq('id', activeId).maybeSingle();
+            return supabase.from('madrasas').select('id,regnumber,name,place,adminpassword,viewpassword').eq('id', activeId).maybeSingle();
           }
-          return supabase.from('madrasas').select('id,regNumber,name,place,adminPassword,viewPassword').eq('regNumber', String(rNum)).maybeSingle();
+          return supabase.from('madrasas').select('id,regnumber,name,place,adminpassword,viewpassword').eq('regnumber', String(rNum)).maybeSingle();
         }),
       ]);
 
@@ -4126,8 +4126,8 @@ function App() {
       const { data: existing, error: checkError } = await queryWithRetry(() =>
         supabase
           .from('madrasas')
-          .select('regNumber')
-          .eq('regNumber', regNumber)
+          .select('regnumber')
+          .eq('regnumber', regNumber)
       );
 
       if (checkError) {
@@ -4147,10 +4147,10 @@ function App() {
           .insert([
             {
               name: regName,
-              regNumber: regNumber,
+              regnumber: regNumber,
               place: `${regPlace}|pending`,
-              adminPassword: adminPassword,
-              viewPassword: viewPassword
+              adminpassword: adminPassword,
+              viewpassword: viewPassword
             }
           ])
       );
