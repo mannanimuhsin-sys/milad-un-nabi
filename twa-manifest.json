@@ -1,8 +1,8 @@
 {
   "packageId": "com.miladfest.app",
   "host": "milad-un-nabi.vercel.app",
-  "name": "milad fest",
-  "launcherName": "milad fest",
+  "name": "Festiva",
+  "launcherName": "Festiva",
   "display": "standalone",
   "themeColor": "#FFFFFF",
   "themeColorDark": "#000000",

@@ -1,10 +1,10 @@
-// 🌐 Milad Fest – Multi-Language Translations
+// 🌐 Festiva – Multi-Language Translations
 // Supported: 'EN' (English) | 'ML' (Malayalam)
 
 const translations = {
   EN: {
     // ── Login Screen ──
-    appName: 'MILAD FEST',
+    appName: 'FESTIVA',
     loginSubtitle: 'Madrasa Login System',
     regNumberLabel: 'Madrasa Register Number',
     regNumberPlaceholder: 'Register Number',

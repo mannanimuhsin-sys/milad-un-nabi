@@ -436,7 +436,7 @@ function StudentIdCard({ student, loggedInMadrasa, teams, categories, eventName,
       {/* Footer */}
       <div style={{ background: 'linear-gradient(135deg, #166534 0%, #15803d 100%)', padding: '8px 8px', textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1, borderTop: '2px solid #fbbf24' }}>
         <span style={{ fontSize: '8.5px', color: '#fef08a', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-          MILAD FEST • ID CARD
+          FESTIVA • ID CARD
         </span>
       </div>
     </div>
@@ -4570,7 +4570,7 @@ function App() {
       const madrasaName = loggedInMadrasa ? (loggedInMadrasa.name || '') : '';
       const madrasaPlace = loggedInMadrasa ? (loggedInMadrasa.place || '') : '';
       const madrasaReg = loggedInMadrasa ? (loggedInMadrasa.regNumber || '') : '';
-      const festName = eventName || 'Milad Fest';
+      const festName = eventName || 'Festiva';
 
       // --- HEADER SECTION ---
       // Top glow strip
@@ -7128,7 +7128,7 @@ CREATE POLICY "Allow all access" ON timetable FOR ALL USING (true);`);
             <div class="detail-row ${isBoy ? 'detail-row-gen-b' : 'detail-row-gen-g'}"><span class="dl ${isBoy ? 'dl-boy' : 'dl-girl'}">${isBoy ? '👦' : '👧'} Gender</span><span class="dv">${isBoy ? 'Boy' : 'Girl'}</span></div>
           </div>
           <div class="qr-section"><div class="qr-section-inner"><div class="qr-scan-label">📷 Scan QR Code</div>${qrHtml}<div class="qr-sub-label">Quick Attendance Check</div></div></div>
-          <div class="card-footer"><span class="footer-text">MILAD FEST • ID CARD</span></div>
+          <div class="card-footer"><span class="footer-text">FESTIVA • ID CARD</span></div>
         </div>`;
       });
 
@@ -7693,7 +7693,7 @@ ${pagesHtml}
 
           <div className="executive-login-card">
             <div className="login-brand-section">
-              <img src="/logo192_black.png" alt="Milad Fest Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', marginBottom: '10px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
+              <img src="/logo192_black.png" alt="Festiva Logo" style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', marginBottom: '10px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h2>{t('appName')}</h2>
               <p className="subtitle">{t('loginSubtitle')}</p>
             </div>
@@ -7704,7 +7704,7 @@ ${pagesHtml}
                 <div className="pwa-popup-header">
                   <span className="pwa-popup-icon">📲</span>
                   <div className="pwa-popup-title-area">
-                    <h4>{lang === 'EN' ? 'Install Milad Fest' : 'Milad Fest ഇൻസ്റ്റാൾ ചെയ്യാം'}</h4>
+                    <h4>{lang === 'EN' ? 'Install Festiva' : 'Festiva ഇൻസ്റ്റാൾ ചെയ്യാം'}</h4>
                     <p>{lang === 'EN' ? 'Install app for a faster experience' : 'ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്താൽ വളരെ പെട്ടെന്ന് ഉപയോഗിക്കാം'}</p>
                   </div>
                 </div>
@@ -7713,7 +7713,7 @@ ${pagesHtml}
                   /* Android UI */
                   <div className="pwa-popup-body">
                     <p className="pwa-popup-description">
-                      {lang === 'EN' ? 'Install Milad Fest application on your mobile.' : 'മീലാദ് ഫെസ്റ്റ് ആപ്ലിക്കേഷൻ നിങ്ങളുടെ മൊബൈലിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്യുക.'}
+                      {lang === 'EN' ? 'Install Festiva application on your mobile.' : 'ഫെസ്റ്റിവ ആപ്ലിക്കേഷൻ നിങ്ങളുടെ മൊബൈലിലേക്ക് ഇൻസ്റ്റാൾ ചെയ്യുക.'}
                     </p>
                     <div className="pwa-popup-actions">
                       <button onClick={handleInstallApp} className="btn-popup-install">
@@ -9026,7 +9026,7 @@ ${pagesHtml}
     <div class="cert-header">
       <!-- Left: Logo + Madrasa Details -->
       <div class="cert-logo-section">
-        <img src="${logoUrl}" alt="Milad Fest" class="cert-app-logo" />
+        <img src="${logoUrl}" alt="Festiva" class="cert-app-logo" />
         <div class="cert-divider-v"></div>
         <div class="cert-org-details">
           <div class="cert-madrasa-name">${madrasaNameText}</div>
@@ -9037,7 +9037,7 @@ ${pagesHtml}
       <!-- Right: Event Name -->
       <div class="cert-event-section">
         <div class="cert-event-name">${eventNameText}</div>
-        <div class="cert-event-sub">Milad_fest ${eventYearText}</div>
+        <div class="cert-event-sub">Festiva ${eventYearText}</div>
       </div>
     </div>
 
@@ -11177,7 +11177,7 @@ ${pagesHtml}
 <body>
   <div class="header">
     <h1>${madrasaName} ${madrasaPlace ? '(' + madrasaPlace + ')' : ''}</h1>
-    <p>Reg. No: ${madrasaRegNo} | Milad Fest Individual Student Marks Report</p>
+    <p>Reg. No: ${madrasaRegNo} | Festiva Individual Student Marks Report</p>
   </div>
   <div class="title-bar">
     <span>🏆 ${catName} — ${divTitle} Division (Complete Student Mark List)</span>
@@ -11198,7 +11198,7 @@ ${pagesHtml}
     </tbody>
   </table>
   <div class="footer">
-    Generated on: ${new Date().toLocaleString()} | Official Milad Fest Record
+    Generated on: ${new Date().toLocaleString()} | Official Festiva Record
   </div>
   <script>window.onload = function() { window.print(); }</script>
 </body>
@@ -11929,7 +11929,7 @@ ${pagesHtml}
 
               {/* ── Timetable Calculations & Filter Pipelines ── */}
               {(() => {
-                const madrasaName = loggedInMadrasa?.name || 'MILAD FEST';
+                const madrasaName = loggedInMadrasa?.name || 'FESTIVA';
                 const regNum = loggedInMadrasa?.regNumber || '';
                 const placeRaw = (loggedInMadrasa?.place || '').split('|')[0].trim();
                 const nowTime = new Date();
@@ -12136,7 +12136,7 @@ ${pagesHtml}
                       <div class="poster-page">
                         <!-- Poster Header -->
                         <div class="poster-header-box">
-                          <div class="poster-top-tag">${eventName ? eventName + (eventYear ? ' — ' + eventYear : '') : 'MILAD FESTIVAL OFFICIAL SCHEDULE'}</div>
+                          <div class="poster-top-tag">${eventName ? eventName + (eventYear ? ' — ' + eventYear : '') : 'FESTIVA OFFICIAL SCHEDULE'}</div>
                           <h1 class="poster-inst-title">${madrasaName}</h1>
                           <div class="poster-inst-meta">
                             <span>Reg No: <strong>${regNum}</strong></span>
@@ -12201,7 +12201,7 @@ ${pagesHtml}
 
                         <!-- Footer -->
                         <div class="poster-footer-box">
-                          <div>✨ MILAD FESTIVAL PROGRAM SCHEDULE • OFFICIAL TIMETABLE ✨</div>
+                          <div>✨ FESTIVA PROGRAM SCHEDULE • OFFICIAL TIMETABLE ✨</div>
                           <div style="font-size: 9px; opacity: 0.8; margin-top: 4px;">Printed on ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                         </div>
                       </div>
@@ -12458,7 +12458,7 @@ ${pagesHtml}
                         </div>
                         <div>
                           <div style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', color: '#a7f3d0' }}>
-                            {eventName || 'MILAD FESTIVAL'}
+                            {eventName || 'FESTIVA'}
                           </div>
                           <div style={{ fontSize: '15px', fontWeight: '900', color: '#ffffff' }}>
                             {lang === 'EN' ? 'Schedule Overview' : 'തത്സമയ സമയക്രമ വിവരങ്ങൾ'}
@@ -14140,7 +14140,7 @@ ${pagesHtml}
 <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
 <div class="notice-board">
   <div class="notice-header">
-    ${eventName ? `<div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:10.5px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+    ${eventName ? `<div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:10.5px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
   </div>
@@ -14148,7 +14148,7 @@ ${pagesHtml}
   <div class="notice-body">
     ${contentHtml}
   </div>
-  <div class="footer">Generated by Milad Fest App • Total Students: ${filteredStudents.length}</div>
+  <div class="footer">Generated by Festiva App • Total Students: ${filteredStudents.length}</div>
 </div>
 </body></html>`);
                                 printWindow.document.close();
@@ -14377,7 +14377,7 @@ ${pagesHtml}
 <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
 <div class="notice-board">
   <div class="notice-header">
-    ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+    ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
   </div>
@@ -14385,7 +14385,7 @@ ${pagesHtml}
   <div class="notice-body">
     ${contentHtml}
   </div>
-  <div class="footer">Generated by Milad Fest App • Total Students: ${filteredStudents.length}</div>
+  <div class="footer">Generated by Festiva App • Total Students: ${filteredStudents.length}</div>
 </div>
 </body></html>`);
                               printWindow.document.close();
@@ -14877,7 +14877,7 @@ ${pagesHtml}
 <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Download PDF</button>
 <div class="notice-board">
   <div class="notice-header">
-    ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+    ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-name">${madrasaName}</div>
     <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
   </div>
@@ -14885,7 +14885,7 @@ ${pagesHtml}
   <div class="notice-body">
     ${catSections || '<p style="color:#94a3b8;text-align:center;padding:30px">No programs found.</p>'}
   </div>
-  <div class="footer">Generated by Milad Fest App • Total Programs: ${pdfTotalCount}</div>
+  <div class="footer">Generated by Festiva App • Total Programs: ${pdfTotalCount}</div>
 </div>
 </body></html>`);
                                 printWindow.document.close();
@@ -15508,7 +15508,7 @@ ${pagesHtml}
                       <button class="print-btn no-print" onclick="window.print()">🖨️ ${lang === 'EN' ? 'Print / Download PDF' : 'പ്രിന്റ് ചെയ്യുക / പിഡിഎഫ് ഡൗൺലോഡ്'}</button>
                       <div class="notice-board">
                         <div class="notice-header">
-                          <div class="fest-title">✨ MILAD FEST ✨</div>
+                          <div class="fest-title">✨ FESTIVA ✨</div>
                           <div class="madrasa-name">${madrasaName}</div>
                           <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
                         </div>
@@ -16383,7 +16383,7 @@ ${pagesHtml}
                                     <button class="print-btn no-print" onclick="window.print()">${lang === 'EN' ? '🖨️ Print / Download PDF' : '🖨️ പ്രിന്റ് / PDF ഡൗൺലോഡ്'}</button>
                                     <div class="notice-board">
                                       <div class="notice-header">
-                                        ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+                                        ${eventName ? `<div style="font-size:13px;font-weight:700;letter-spacing:2px;color:#fef08a;text-transform:uppercase;margin-bottom:2px;">${eventName}</div><div style="font-size:11px;color:#bbf7d0;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
                                         <div class="madrasa-name">${madrasaName}</div>
                                         <div class="madrasa-sub">${madrasaPlace} | Reg. No: ${madrasaRegNo}</div>
                                       </div>
@@ -16391,7 +16391,7 @@ ${pagesHtml}
                                       <div class="notice-body">
                                         ${contentHtml}
                                       </div>
-                                      <div class="footer">Generated by Milad Fest App • Total Group Registrations: ${displayedGroupRegs.length}</div>
+                                      <div class="footer">Generated by Festiva App • Total Group Registrations: ${displayedGroupRegs.length}</div>
                                     </div>
                                     </body></html>`);
                                       printWindow.document.close();
@@ -17841,8 +17841,8 @@ ${pagesHtml}
 <div class="judge-sheet-page">
   <div class="sheet-wrapper">
     <div class="sheet-header">
-      <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
-      ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+      <div class="festival-title">${eventName ? eventName : '✦ Festiva ✦'}</div>
+      ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
       <div class="madrasa-name">${madrasaName}</div>
       <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
     </div>
@@ -17885,7 +17885,7 @@ ${pagesHtml}
           <div class="signature-line">Judge Signature 1</div>
         </div>
         <div class="footer-center">
-          <div>Milad Fest | ${catName} | ${progNameStr}${pageIndicator}</div>
+          <div>Festiva | ${catName} | ${progNameStr}${pageIndicator}</div>
           <div style="margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
         </div>
         <div class="signature-box">
@@ -18138,8 +18138,8 @@ ${pagesHtml}
 <div class="judge-sheet-page">
   <div class="sheet-wrapper">
     <div class="sheet-header">
-      <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
-      ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+      <div class="festival-title">${eventName ? eventName : '✦ Festiva ✦'}</div>
+      ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#a7f3d0;margin-bottom:2px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
       <div class="madrasa-name">${madrasaName}</div>
       <div class="madrasa-meta">Reg No: ${madrasaRegNo} | ${madrasaPlace}</div>
     </div>
@@ -18172,7 +18172,7 @@ ${pagesHtml}
           <div class="signature-line">Stage Convener</div>
         </div>
         <div class="footer-center">
-          <div>Milad Fest • Participant List | ${catName} | ${progNameStr}${pageIndicator}</div>
+          <div>Festiva • Participant List | ${catName} | ${progNameStr}${pageIndicator}</div>
           <div style="margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
         </div>
         <div class="signature-box">
@@ -19047,8 +19047,8 @@ ${pagesHtml}
 <body>
 <div class="sheet-wrapper">
   <div class="sheet-header">
-    <div class="festival-title">${eventName ? eventName : '✦ Milad Fest ✦'}</div>
-    ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#a7f3d0;opacity:0.9;margin-bottom:3px;">Milad_fest${eventYear ? ' ' + eventYear : ''}</div>` : ''}
+    <div class="festival-title">${eventName ? eventName : '✦ Festiva ✦'}</div>
+    ${eventName ? `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#a7f3d0;opacity:0.9;margin-bottom:3px;">Festiva${eventYear ? ' ' + eventYear : ''}</div>` : ''}
     <div class="madrasa-info">
       <div class="madrasa-info-item"><span class="info-label">Madrasa:</span><span class="info-value">${madrasaName}</span></div>
       <div class="madrasa-info-item"><span class="info-label">Reg No:</span><span class="info-value">${madrasaRegNo}</span></div>
@@ -20033,7 +20033,7 @@ ${pagesHtml}
     ${printRows || '<tr><td colspan="9" style="text-align:center;padding:18px;color:#94a3b8;">No records found.</td></tr>'}
   </tbody>
 </table>
-<div class="footer">Generated by Milad Fest Management App • Total: ${filteredDisplayList.length}</div>
+<div class="footer">Generated by Festiva Management App • Total: ${filteredDisplayList.length}</div>
 </body>
 </html>`;
                         openPrintDocument(prizesHtml, 'Prizes_List');
@@ -20629,11 +20629,11 @@ ${pagesHtml}
                 {/* Poster Element to view and download */}
                 <div id="qr-student-poster" className="qr-student-poster">
                   <div className="poster-header">
-                    <h2 className="poster-madrasa-name">{qrModalData.madrasa?.name || 'Milad Festival'}</h2>
+                    <h2 className="poster-madrasa-name">{qrModalData.madrasa?.name || 'Festiva'}</h2>
                     <p className="poster-madrasa-info">
                       Reg No: {qrModalData.madrasa?.regNumber || ''} | {qrModalData.madrasa?.place || ''}
                     </p>
-                    <div className="poster-title-badge">✨ MILAD FESTIVAL PARTICIPANT ✨</div>
+                    <div className="poster-title-badge">✨ FESTIVA PARTICIPANT ✨</div>
                   </div>
 
                   <div className="poster-body">
@@ -20835,7 +20835,7 @@ ${pagesHtml}
                   </div>
 
                   <div className="poster-footer">
-                    <p>MILAD FEST • OFFICIAL PARTICIPANT & RESULTS CARD</p>
+                    <p>FESTIVA • OFFICIAL PARTICIPANT & RESULTS CARD</p>
                   </div>
                 </div>
 
@@ -20927,12 +20927,12 @@ ${pagesHtml}
                   </div>
                   {eventYear && (
                     <div className="projector-event-sub">
-                      Milad_fest {eventYear}
+                      Festiva {eventYear}
                     </div>
                   )}
                 </div>
               )}
-              <h1 className="projector-title" style={{ fontSize: eventName ? 'clamp(13px, 2vw, 18px)' : undefined, opacity: eventName ? 0.85 : 1 }}>{loggedInMadrasa ? loggedInMadrasa.name : 'MILAD FESTIVAL'}</h1>
+              <h1 className="projector-title" style={{ fontSize: eventName ? 'clamp(13px, 2vw, 18px)' : undefined, opacity: eventName ? 0.85 : 1 }}>{loggedInMadrasa ? loggedInMadrasa.name : 'FESTIVA'}</h1>
             </div>
 
             {/* Slide Navigation Tabs */}
@@ -21975,7 +21975,7 @@ ${pagesHtml}
   <div class="cert-content">
     <div class="cert-header">
       <div class="cert-logo-section">
-        <img src="${logoUrl}" alt="Milad Fest" class="cert-app-logo" />
+        <img src="${logoUrl}" alt="Festiva" class="cert-app-logo" />
         <div class="cert-divider-v"></div>
         <div class="cert-org-details">
           <div class="cert-madrasa-name">${madrasaName}</div>
@@ -21985,7 +21985,7 @@ ${pagesHtml}
 
       <div class="cert-event-section">
         <div class="cert-event-name">${eventNameText}</div>
-        <div class="cert-event-sub">Milad_fest ${eventYearText}</div>
+        <div class="cert-event-sub">Festiva ${eventYearText}</div>
       </div>
     </div>
 
@@ -22212,7 +22212,7 @@ ${pagesHtml}
                   {/* Top Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: '130px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <img src={logoUrl} alt="Milad Fest" style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '12px' }} />
+                      <img src={logoUrl} alt="Festiva" style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '12px' }} />
                       <div style={{ width: '2px', height: '56px', background: '#064e3b', opacity: 0.8 }}></div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <div style={{ fontSize: '20px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.8px', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>{madrasaName}</div>
@@ -22222,7 +22222,7 @@ ${pagesHtml}
 
                     <div style={{ textAlign: 'center', paddingRight: '20px' }}>
                       <div style={{ fontSize: '26px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '1px', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>{eventNameText}</div>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#475569', letterSpacing: '0.5px', marginTop: '3px', fontFamily: "'Inter', sans-serif" }}>Milad_fest {eventYearText}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#475569', letterSpacing: '0.5px', marginTop: '3px', fontFamily: "'Inter', sans-serif" }}>Festiva {eventYearText}</div>
                     </div>
                   </div>
 
@@ -22485,7 +22485,7 @@ ${pagesHtml}
                 <div style={{ marginLeft: '30px' }}>
                   {/* Event Name in Malayalam / English */}
                   <div style={{ fontSize: isML ? '17px' : '15px', fontWeight: '900', color: '#fef08a', textAlign: 'center', lineHeight: 1.3, textShadow: '0 2px 8px rgba(0,0,0,0.5)', letterSpacing: isML ? '0.5px' : '1px' }}>{eventTitle}</div>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86efac', textAlign: 'center', letterSpacing: '2px', marginTop: '3px' }}>MILAD FEST 2026</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86efac', textAlign: 'center', letterSpacing: '2px', marginTop: '3px' }}>FESTIVA 2026</div>
                 </div>
 
                 {/* Thin separator */}

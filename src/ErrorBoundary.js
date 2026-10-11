@@ -100,7 +100,7 @@ class ErrorBoundary extends React.Component {
           }}>
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>✨</div>
             <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#34d399', marginBottom: '8px' }}>
-              Milad Fest
+              Festiva
             </h2>
             <p style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '20px', lineHeight: '1.5' }}>
               ആപ്പ് സുഗമമായി തുറക്കാൻ താഴെയുള്ള ബട്ടൺ അമർത്തുക.
