@@ -1368,7 +1368,7 @@ function App() {
           const { data: mData } = await queryWithRetry(() =>
             mId
               ? supabase.from('madrasas').select('place').eq('id', mId).maybeSingle()
-              : supabase.from('madrasas').select('place').eq('regNumber', String(rNum)).maybeSingle()
+              : supabase.from('madrasas').select('place').eq('regnumber', String(rNum)).maybeSingle()
           );
           if (mData && mData.place) currentPlace = mData.place;
         } catch (e) {}
@@ -1380,7 +1380,7 @@ function App() {
         if (mId) {
           await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
         } else {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regnumber', String(rNum)));
         }
         if (rNum) {
           try {
@@ -1469,7 +1469,7 @@ function App() {
           const { data: mData } = await queryWithRetry(() =>
             mId
               ? supabase.from('madrasas').select('place').eq('id', mId).maybeSingle()
-              : supabase.from('madrasas').select('place').eq('regNumber', String(rNum)).maybeSingle()
+              : supabase.from('madrasas').select('place').eq('regnumber', String(rNum)).maybeSingle()
           );
           if (mData && mData.place) currentPlace = mData.place;
         } catch (e) {}
@@ -1481,7 +1481,7 @@ function App() {
         if (mId) {
           await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('id', mId));
         } else {
-          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum)));
+          await queryWithRetry(() => supabase.from('madrasas').update({ place: updatedPlace }).eq('regnumber', String(rNum)));
         }
       } catch (err) {
         console.warn("Error in handlePublishAllPrograms:", err);
@@ -3782,7 +3782,7 @@ function App() {
           : supabase.from('students').select('*').in('madrasa_id', mIdList)
               .eq('regno', studentId).maybeSingle(),
         // Fetch madrasa to get current published_programs / visibility settings (do not select non-existent visibility_controls column)
-        supabase.from('madrasas').select('id,regNumber,name,place').or(`regNumber.eq.${madrasaReg},id.eq.${isMRegNum ? mRegInt : -1}`).maybeSingle()
+        supabase.from('madrasas').select('id,regnumber,name,place').or(`regnumber.eq.${madrasaReg},id.eq.${isMRegNum ? mRegInt : -1}`).maybeSingle()
       ];
 
       let fetchedPrograms = programs;
@@ -4254,6 +4254,72 @@ function App() {
     return `${actualPlace}|${status}|${trollSt}|${trollLng}|${evName}|${evYear}|${genCats}|${csVal}|${visCtrls}|${ccVal}|${psVal}`;
   };
 
+  const updateMadrasaPlaceInCloud = async (placeOverrides = {}) => {
+    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
+    let targetId = loggedInMadrasa?.id;
+    let mdPlace = loggedInMadrasa?.place || '';
+
+    try {
+      if (targetId) {
+        const { data: md } = await queryWithRetry(() =>
+          supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
+        );
+        if (md) {
+          if (md.place) mdPlace = md.place;
+          targetId = md.id;
+        }
+      } else if (rNum) {
+        const { data: md } = await queryWithRetry(() =>
+          supabase.from('madrasas').select('id, place').eq('regnumber', rNum).maybeSingle()
+        );
+        if (md) {
+          if (md.place) mdPlace = md.place;
+          targetId = md.id;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch existing madrasa place:', e);
+    }
+
+    const updatedPlace = makePlaceString(mdPlace, placeOverrides);
+
+    let error = null;
+    if (targetId) {
+      const res = await queryWithRetry(() =>
+        supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
+      );
+      error = res.error;
+      if (error && rNum) {
+        const resFallback = await queryWithRetry(() =>
+          supabase.from('madrasas').update({ place: updatedPlace }).eq('regnumber', rNum)
+        );
+        if (!resFallback.error) error = null;
+      }
+    } else if (rNum) {
+      const res = await queryWithRetry(() =>
+        supabase.from('madrasas').update({ place: updatedPlace }).eq('regnumber', rNum)
+      );
+      error = res.error;
+    }
+
+    if (!error) {
+      setLoggedInMadrasa(prev => prev ? { ...prev, place: updatedPlace, ...(targetId ? { id: targetId } : {}) } : prev);
+      try {
+        const rawSession = localStorage.getItem('miladfest_session') || sessionStorage.getItem('miladfest_session');
+        if (rawSession) {
+          const parsed = JSON.parse(rawSession);
+          if (parsed && parsed.madrasa) {
+            parsed.madrasa.place = updatedPlace;
+            if (targetId) parsed.madrasa.id = targetId;
+            localStorage.setItem('miladfest_session', JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {}
+    }
+
+    return { error, updatedPlace };
+  };
+
   const handleApproveMadrasa = async (madrasa) => {
     const parts = (madrasa.place || '').split('|');
     parts[0] = parts[0] || '';
@@ -4669,51 +4735,13 @@ function App() {
   const handleToggleTrollMode = async () => {
     const newTrollMode = !trollMode;
     setTrollMode(newTrollMode);
-
-    if (loggedInMadrasa) {
-      try {
-        const { data: madrasaData } = await supabase
-          .from('madrasas')
-          .select('place')
-          .eq('regNumber', loggedInMadrasa.regNumber)
-          .maybeSingle();
-
-        const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
-        const updatedPlace = makePlaceString(fullPlace, { trollStatus: newTrollMode ? 'troll_on' : 'troll_off' });
-
-        await supabase
-          .from('madrasas')
-          .update({ place: updatedPlace })
-          .eq('regNumber', loggedInMadrasa.regNumber);
-      } catch (err) {
-        console.error("Failed to sync troll mode to DB:", err);
-      }
-    }
+    await updateMadrasaPlaceInCloud({ trollStatus: newTrollMode ? 'troll_on' : 'troll_off' });
   };
 
   const handleToggleTrollLang = async () => {
     const newTrollLang = trollLang === 'EN' ? 'ML' : 'EN';
     setTrollLang(newTrollLang);
-
-    if (loggedInMadrasa) {
-      try {
-        const { data: madrasaData } = await supabase
-          .from('madrasas')
-          .select('place')
-          .eq('regNumber', loggedInMadrasa.regNumber)
-          .maybeSingle();
-
-        const fullPlace = madrasaData ? madrasaData.place : loggedInMadrasa.place;
-        const updatedPlace = makePlaceString(fullPlace, { trollLang: newTrollLang });
-
-        await supabase
-          .from('madrasas')
-          .update({ place: updatedPlace })
-          .eq('regNumber', loggedInMadrasa.regNumber);
-      } catch (err) {
-        console.error("Failed to sync troll lang to DB:", err);
-      }
-    }
+    await updateMadrasaPlaceInCloud({ trollLang: newTrollLang });
   };
 
   // 🚩 1. TEAM ACTIONS (SUPABASE) - BULLETPROOF & NON-FLICKERING
@@ -13273,7 +13301,7 @@ ${pagesHtml}
                                     setEventNameInput('');
                                     setEventYearInput('');
                                     setIsEditingEvent(false);
-                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
                                     if (rNum) {
                                       try {
                                         localStorage.removeItem(`event_name_${rNum}`);
@@ -13286,22 +13314,18 @@ ${pagesHtml}
                                           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
                                         }
                                       } catch(e){}
-                                      try {
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                                        );
-                                        const updatedPlace = makePlaceString(md ? md.place : '', {
-                                          eventName: '',
-                                          eventYear: ''
-                                        });
-                                        await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                        );
-                                      } catch (err) {}
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        eventName: '',
+                                        eventYear: ''
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ Event Name cleared!' : '✅ ഇവന്റ് പേര് നീക്കം ചെയ്തു!');
+                                      }
+                                    } catch (err) {}
                                   }}
                                   style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                 >🗑️ {lang === 'EN' ? 'Clear' : 'നീക്കം ചെയ്യുക'}</button>
@@ -13329,7 +13353,7 @@ ${pagesHtml}
                                 <button
                                   onClick={async () => {
                                     // Allow saving empty string to clear event name
-                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
                                     const newName = eventNameInput.trim();
                                     const newYear = eventYearInput.trim();
                                     setEventName(newName);
@@ -13347,27 +13371,18 @@ ${pagesHtml}
                                           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
                                         }
                                       } catch(e){}
-                                      try {
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                                        );
-                                        const updatedPlace = makePlaceString(md ? md.place : '', {
-                                          eventName: encodeURIComponent(newName),
-                                          eventYear: encodeURIComponent(newYear)
-                                        });
-                                        const { error } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                        );
-                                        if (error) {
-                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
-                                        } else {
-                                          alert(lang === 'EN' ? '✅ Event Name saved!' : '✅ ഇവന്റ് പേര് സേവ് ചെയ്തു!');
-                                        }
-                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        eventName: encodeURIComponent(newName),
+                                        eventYear: encodeURIComponent(newYear)
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ Event Name saved!' : '✅ ഇവന്റ് പേര് സേവ് ചെയ്തു!');
+                                      }
+                                    } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
                                 >💾 {isEditingEvent ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
@@ -13401,7 +13416,7 @@ ${pagesHtml}
                                     setConvenerSadar('');
                                     setConvenerSadarInput('');
                                     setIsEditingConvenerSadar(false);
-                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
                                     if (rNum) {
                                       try {
                                         localStorage.removeItem(`convener_sadar_${rNum}`);
@@ -13412,54 +13427,18 @@ ${pagesHtml}
                                           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
                                         }
                                       } catch(e){}
-                                      try {
-                                        const madrasaId = loggedInMadrasa?.id;
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        
-                                        let mdPlace = '';
-                                        let targetId = madrasaId;
-                                        if (targetId) {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
-                                          );
-                                          if (md) mdPlace = md.place || '';
-                                        } else {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
-                                          );
-                                          if (md) {
-                                            mdPlace = md.place || '';
-                                            targetId = md.id;
-                                          }
-                                        }
-                                        
-                                        const updatedPlace = makePlaceString(mdPlace, {
-                                          convenerSadar: '',
-                                          coordinatorConvener: coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''
-                                        });
-
-                                        let error = null;
-                                        if (targetId) {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
-                                          );
-                                          error = res.error;
-                                        } else {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                          );
-                                          error = res.error;
-                                        }
-
-                                        if (error) {
-                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
-                                        } else {
-                                          alert(lang === 'EN' ? '✅ Sadar Muallim cleared!' : '✅ സദ്ർ മുഅല്ലിം പേര് നീക്കം ചെയ്തു!');
-                                        }
-                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        convenerSadar: '',
+                                        coordinatorConvener: coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ Sadar Muallim cleared!' : '✅ സദ്ർ മുഅല്ലിം പേര് നീക്കം ചെയ്തു!');
+                                      }
+                                    } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                   }}
                                   style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                 >🗑️ {lang === 'EN' ? 'Clear' : 'നീക്കം ചെയ്യുക'}</button>
@@ -13478,7 +13457,7 @@ ${pagesHtml}
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   onClick={async () => {
-                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
                                     const newCS = convenerSadarInput.trim();
                                     setConvenerSadar(newCS);
                                     setIsEditingConvenerSadar(false);
@@ -13492,54 +13471,18 @@ ${pagesHtml}
                                           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
                                         }
                                       } catch(e){}
-                                      try {
-                                        const madrasaId = loggedInMadrasa?.id;
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        
-                                        let mdPlace = '';
-                                        let targetId = madrasaId;
-                                        if (targetId) {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
-                                          );
-                                          if (md) mdPlace = md.place || '';
-                                        } else {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
-                                          );
-                                          if (md) {
-                                            mdPlace = md.place || '';
-                                            targetId = md.id;
-                                          }
-                                        }
-                                        
-                                        const updatedPlace = makePlaceString(mdPlace, {
-                                          convenerSadar: encodeURIComponent(newCS),
-                                          coordinatorConvener: coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''
-                                        });
-
-                                        let error = null;
-                                        if (targetId) {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
-                                          );
-                                          error = res.error;
-                                        } else {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                          );
-                                          error = res.error;
-                                        }
-
-                                        if (error) {
-                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
-                                        } else {
-                                          alert(lang === 'EN' ? '✅ Sadar Muallim saved!' : '✅ സദ്ർ മുഅല്ലിം പേര് സേവ് ചെയ്തു!');
-                                        }
-                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        convenerSadar: encodeURIComponent(newCS),
+                                        coordinatorConvener: coordinatorConvener ? encodeURIComponent(coordinatorConvener) : ''
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ Sadar Muallim saved!' : '✅ സദ്ർ മുഅല്ലിം പേര് സേവ് ചെയ്തു!');
+                                      }
+                                    } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
                                 >💾 {isEditingConvenerSadar ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
@@ -13573,7 +13516,7 @@ ${pagesHtml}
                                     setCoordinatorConvener('');
                                     setCoordinatorConvenerInput('');
                                     setIsEditingCoordinatorConvener(false);
-                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
                                     if (rNum) {
                                       try {
                                         localStorage.removeItem(`coordinator_convener_${rNum}`);
@@ -13584,54 +13527,18 @@ ${pagesHtml}
                                           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
                                         }
                                       } catch(e){}
-                                      try {
-                                        const madrasaId = loggedInMadrasa?.id;
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        
-                                        let mdPlace = '';
-                                        let targetId = madrasaId;
-                                        if (targetId) {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
-                                          );
-                                          if (md) mdPlace = md.place || '';
-                                        } else {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
-                                          );
-                                          if (md) {
-                                            mdPlace = md.place || '';
-                                            targetId = md.id;
-                                          }
-                                        }
-                                        
-                                        const updatedPlace = makePlaceString(mdPlace, {
-                                          coordinatorConvener: '',
-                                          convenerSadar: convenerSadar ? encodeURIComponent(convenerSadar) : ''
-                                        });
-
-                                        let error = null;
-                                        if (targetId) {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
-                                          );
-                                          error = res.error;
-                                        } else {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                          );
-                                          error = res.error;
-                                        }
-
-                                        if (error) {
-                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
-                                        } else {
-                                          alert(lang === 'EN' ? '✅ Coordinator / Convener cleared!' : '✅ കോഡിനേറ്റർ / കൺവീനർ പേര് നീക്കം ചെയ്തു!');
-                                        }
-                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        coordinatorConvener: '',
+                                        convenerSadar: convenerSadar ? encodeURIComponent(convenerSadar) : ''
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ Coordinator / Convener cleared!' : '✅ കോഡിനേറ്റർ / കൺവീനർ പേര് നീക്കം ചെയ്തു!');
+                                      }
+                                    } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                   }}
                                   style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
                                 >🗑️ {lang === 'EN' ? 'Clear' : 'നീക്കം ചെയ്യുക'}</button>
@@ -13650,7 +13557,7 @@ ${pagesHtml}
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   onClick={async () => {
-                                    const rNum = loggedInMadrasa?.regNumber;
+                                    const rNum = String(loggedInMadrasa?.regNumber || loggedInMadrasa?.regnumber || '').trim();
                                     const newCC = coordinatorConvenerInput.trim();
                                     setCoordinatorConvener(newCC);
                                     setIsEditingCoordinatorConvener(false);
@@ -13664,54 +13571,18 @@ ${pagesHtml}
                                           localStorage.setItem(`cached_data_${rNum}`, JSON.stringify(cached));
                                         }
                                       } catch(e){}
-                                      try {
-                                        const madrasaId = loggedInMadrasa?.id;
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        
-                                        let mdPlace = '';
-                                        let targetId = madrasaId;
-                                        if (targetId) {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').eq('id', targetId).maybeSingle()
-                                          );
-                                          if (md) mdPlace = md.place || '';
-                                        } else {
-                                          const { data: md } = await queryWithRetry(() =>
-                                            supabase.from('madrasas').select('id, place').or(mFilterStr).maybeSingle()
-                                          );
-                                          if (md) {
-                                            mdPlace = md.place || '';
-                                            targetId = md.id;
-                                          }
-                                        }
-                                        
-                                        const updatedPlace = makePlaceString(mdPlace, {
-                                          coordinatorConvener: encodeURIComponent(newCC),
-                                          convenerSadar: convenerSadar ? encodeURIComponent(convenerSadar) : ''
-                                        });
-
-                                        let error = null;
-                                        if (targetId) {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).eq('id', targetId)
-                                          );
-                                          error = res.error;
-                                        } else {
-                                          const res = await queryWithRetry(() =>
-                                            supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                          );
-                                          error = res.error;
-                                        }
-
-                                        if (error) {
-                                          alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
-                                        } else {
-                                          alert(lang === 'EN' ? '✅ Coordinator / Convener saved!' : '✅ കോഡിനേറ്റർ / കൺവീനർ പേര് സേവ് ചെയ്തു!');
-                                        }
-                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        coordinatorConvener: encodeURIComponent(newCC),
+                                        convenerSadar: convenerSadar ? encodeURIComponent(convenerSadar) : ''
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved on this device): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ Coordinator / Convener saved!' : '✅ കോഡിനേറ്റർ / കൺവീനർ പേര് സേവ് ചെയ്തു!');
+                                      }
+                                    } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                   }}
                                   style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', flex: 1 }}
                                 >💾 {isEditingCoordinatorConvener ? (lang === 'EN' ? 'Update' : 'അപ്ഡേറ്റ്') : (lang === 'EN' ? 'Save' : 'സേവ്')}</button>
@@ -13888,32 +13759,23 @@ ${pagesHtml}
                                 <button
                                   onClick={async () => {
                                     setGeneralCatIds(generalModalTemp);
-                                    const rNum = loggedInMadrasa ? loggedInMadrasa.regNumber : '';
+                                    const rNum = String(loggedInMadrasa ? (loggedInMadrasa.regNumber || loggedInMadrasa.regnumber) : '').trim();
                                     setShowGeneralModal(false);
                                     if (rNum) {
                                       try {
                                         localStorage.setItem(`general_cats_${rNum}`, JSON.stringify(generalModalTemp));
                                       } catch(e){}
-                                      try {
-                                        const numReg = parseInt(rNum, 10);
-                                        const isNumValid = !isNaN(numReg) && String(numReg) === String(rNum).trim();
-                                        const mFilterStr = isNumValid ? `regNumber.eq."${rNum}",regNumber.eq.${numReg}` : `regNumber.eq."${rNum}"`;
-                                        const { data: md } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').select('place').or(mFilterStr).maybeSingle()
-                                        );
-                                        const updatedPlace = makePlaceString(md ? md.place : '', {
-                                          generalCats: encodeURIComponent(JSON.stringify(generalModalTemp))
-                                        });
-                                        const { error } = await queryWithRetry(() =>
-                                          supabase.from('madrasas').update({ place: updatedPlace }).or(mFilterStr)
-                                        );
-                                        if (error) {
-                                          alert('⚠️ Cloud Save Warning (Saved locally): ' + getFriendlyErrorMessage(error.message));
-                                        } else {
-                                          alert(lang === 'EN' ? '✅ GENERAL Categories saved!' : '✅ ജനറൽ കാറ്റഗറികൾ സേവ് ചെയ്തു!');
-                                        }
-                                      } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                     }
+                                    try {
+                                      const { error } = await updateMadrasaPlaceInCloud({
+                                        generalCats: encodeURIComponent(JSON.stringify(generalModalTemp))
+                                      });
+                                      if (error) {
+                                        alert('⚠️ Cloud Save Warning (Saved locally): ' + getFriendlyErrorMessage(error.message));
+                                      } else {
+                                        alert(lang === 'EN' ? '✅ GENERAL Categories saved!' : '✅ ജനറൽ കാറ്റഗറികൾ സേവ് ചെയ്തു!');
+                                      }
+                                    } catch (err) { alert('Saved locally! Cloud error: ' + getFriendlyErrorMessage(err.message)); }
                                   }}
                                   style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(180,83,9,0.3)' }}
                                 >
@@ -19426,13 +19288,13 @@ ${pagesHtml}
                             }
                             if (!md && isNumValid) {
                               const { data } = await queryWithRetry(() =>
-                                supabase.from('madrasas').select('place').or(`regNumber.eq.${rNum},regNumber.eq.${numReg}`).maybeSingle()
+                                supabase.from('madrasas').select('place').or(`regnumber.eq.${rNum},regnumber.eq.${numReg}`).maybeSingle()
                               );
                               md = data;
                             }
                             if (!md && rNum) {
                               const { data } = await queryWithRetry(() =>
-                                supabase.from('madrasas').select('place').eq('regNumber', String(rNum)).maybeSingle()
+                                supabase.from('madrasas').select('place').eq('regnumber', String(rNum)).maybeSingle()
                               );
                               md = data;
                             }
@@ -19448,11 +19310,11 @@ ${pagesHtml}
                               );
                             } else if (isNumValid) {
                               await queryWithRetry(() =>
-                                supabase.from('madrasas').update({ place: updatedPlace }).or(`regNumber.eq.${rNum},regNumber.eq.${numReg}`)
+                                supabase.from('madrasas').update({ place: updatedPlace }).or(`regnumber.eq.${rNum},regnumber.eq.${numReg}`)
                               );
                             } else if (rNum) {
                               await queryWithRetry(() =>
-                                supabase.from('madrasas').update({ place: updatedPlace }).eq('regNumber', String(rNum))
+                                supabase.from('madrasas').update({ place: updatedPlace }).eq('regnumber', String(rNum))
                               );
                             }
 
@@ -19461,7 +19323,7 @@ ${pagesHtml}
                               if (mId) {
                                 await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newControls) }).eq('id', mId);
                               } else if (rNum) {
-                                await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newControls) }).eq('regNumber', String(rNum));
+                                await supabase.from('madrasas').update({ visibility_controls: JSON.stringify(newControls) }).eq('regnumber', String(rNum));
                               }
                             } catch (e2) {}
                           } catch (e) {
