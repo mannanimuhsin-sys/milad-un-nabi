@@ -7883,19 +7883,31 @@ ${pagesHtml}
           <div className="executive-login-card" style={{ textAlign: 'center' }}>
             <div className="login-brand-section">
               <span style={{ fontSize: '50px' }}>⏳</span>
-              <h2 style={{ marginTop: '15px', color: 'white' }}>Waiting for Approval</h2>
+              <h2 style={{ marginTop: '15px', color: 'white' }}>
+                {lang === 'EN' ? 'Waiting for Approval' : 'അംഗീകാരത്തിനായി കാത്തിരിക്കുന്നു'}
+              </h2>
               <p className="subtitle" style={{ color: '#94a3b8', fontSize: '14px', marginTop: '10px' }}>
-                Your madrasa (<b>{pendingMadrasa.name}</b>) is pending approval.
+                {lang === 'EN' ? (
+                  <>Your institution (<b>{pendingMadrasa.name}</b>) is pending approval.</>
+                ) : (
+                  <>നിങ്ങളുടെ സ്ഥാപനം (<b>{pendingMadrasa.name}</b>) അപ്രൂവലിനായി കാത്തിരിക്കുകയാണ്.</>
+                )}
               </p>
             </div>
 
             <div style={{ margin: '25px 0', background: 'rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
               <p style={{ color: '#e2e8f0', fontSize: '14px', marginBottom: '15px' }}>
-                Click the WhatsApp button below to send an approval request message.
+                {lang === 'EN'
+                  ? 'Click the WhatsApp button below to send an approval request message.'
+                  : 'അപ്രൂവൽ മെസ്സേജ് അയക്കാൻ താഴെയുള്ള WhatsApp ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.'}
               </p>
 
               <a
-                href={`https://wa.me/917559950633?text=${encodeURIComponent(`Hello Admin,\nPlease approve our Madrasa registration.\n\nMadrasa Name: ${pendingMadrasa.name}\nRegister Number: ${pendingMadrasa.regNumber}\nPlace: ${(pendingMadrasa.place || '').split('|')[0]}`)}`}
+                href={`https://wa.me/917559950633?text=${encodeURIComponent(
+                  lang === 'EN'
+                    ? `Hello Admin,\nPlease approve our Institution registration.\n\nInstitution Name: ${pendingMadrasa.name}\nRegister Number: ${pendingMadrasa.regNumber}\nPlace: ${(pendingMadrasa.place || '').split('|')[0]}`
+                    : `ഹലോ അഡ്മിൻ,\nഞങ്ങളുടെ സ്ഥാപന രജിസ്ട്രേഷൻ അപ്രൂവ് ചെയ്യണം.\n\nസ്ഥാപനത്തിന്റെ പേര്: ${pendingMadrasa.name}\nരജിസ്റ്റർ നമ്പർ: ${pendingMadrasa.regNumber}\nസ്ഥലം: ${(pendingMadrasa.place || '').split('|')[0]}`
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="whatsapp-btn"
@@ -7933,7 +7945,7 @@ ${pagesHtml}
           <header className="dash-header" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)' }}>
             <div>
               <h1 style={{ color: 'white' }}>⚙️ Super Admin Control Panel</h1>
-              <p>Registered Madrasa Management System</p>
+              <p>Registered Institution Management System</p>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
@@ -7951,7 +7963,7 @@ ${pagesHtml}
           {/* Stats section */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
             <div className="card" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', margin: 0, padding: '15px' }}>
-              <h4 style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>Total Madrasas</h4>
+              <h4 style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>Total Institutions</h4>
               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#1d4ed8' }}>{superMadrasas.length}</p>
             </div>
             <div className="card" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', margin: 0, padding: '15px' }}>
@@ -7961,7 +7973,7 @@ ${pagesHtml}
               </p>
             </div>
             <div className="card" style={{ background: '#fffbeb', border: '1px solid #fde68a', margin: 0, padding: '15px' }}>
-              <h4 style={{ color: '#92400e', fontSize: '14px', margin: 0 }}>Pending Madrasas</h4>
+              <h4 style={{ color: '#92400e', fontSize: '14px', margin: 0 }}>Pending Institutions</h4>
               <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '5px 0 0 0', color: '#d97706' }}>
                 {superMadrasas.filter(m => (m.place || '').includes('|pending')).length}
               </p>
@@ -7974,10 +7986,10 @@ ${pagesHtml}
             </div>
           </div>
 
-          {/* Madrasa List */}
+          {/* Institution List */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '15px' }}>
-              <h2 style={{ margin: 0 }}>📜 Registered Madrasas</h2>
+              <h2 style={{ margin: 0 }}>📜 Registered Institutions</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
@@ -21616,7 +21628,7 @@ ${pagesHtml}
         const catObj = categories.find(c => String(c.id) === String(student.catid || student.catId || ''));
         const prog = programs.find(p => String(p.id) === String(result.progid));
 
-        const madrasaName = (loggedInMadrasa ? loggedInMadrasa.name : 'MADRASA NAME').toUpperCase();
+        const madrasaName = (loggedInMadrasa ? loggedInMadrasa.name : 'INSTITUTION NAME').toUpperCase();
         const madrasaPlace = (loggedInMadrasa ? loggedInMadrasa.place : 'LOCATION').toUpperCase();
         const eventNameText = eventName || 'EVENT NAME';
         const eventYearText = eventYear || '2026';

@@ -5,20 +5,20 @@ const translations = {
   EN: {
     // ── Login Screen ──
     appName: 'FESTIVA',
-    loginSubtitle: 'Madrasa Login System',
-    regNumberLabel: 'Madrasa Register Number',
+    loginSubtitle: 'Institution Login System',
+    regNumberLabel: 'Institution Register Number',
     regNumberPlaceholder: 'Register Number',
     passwordLabel: 'Password',
     passwordPlaceholder: 'Enter Password',
     loginBtn: 'Login',
     loggingIn: 'Logging in...',
-    newMadrasaReg: '📝 New Madrasa Registration',
+    newMadrasaReg: '📝 New Institution Registration',
     adminControlPanel: 'Muhsin Mannani',
 
     // ── Register Form ──
-    newMadrasaTitle: '📝 New Madrasa Registration',
-    madrasaNameLabel: 'Madrasa Name',
-    madrasaNamePlaceholder: 'Enter Madrasa Name',
+    newMadrasaTitle: '📝 New Institution Registration',
+    madrasaNameLabel: 'Institution Name',
+    madrasaNamePlaceholder: 'Enter Institution Name',
     regNumLabel: 'Register Number',
     regNumPlaceholder: 'Enter Register Number',
     locationLabel: 'Location / Place',
@@ -217,11 +217,11 @@ const translations = {
     
     // Alert Messages
     alertPleaseFillDetails: 'Please fill in all details!',
-    alertMadrasaNotFound: 'Madrasa not found!',
-    alertMadrasaBlocked: 'Your madrasa is blocked! Please contact the admin.',
+    alertMadrasaNotFound: 'Institution not found!',
+    alertMadrasaBlocked: 'Your institution is blocked! Please contact the admin.',
     alertIncorrectPassword: 'Incorrect password!',
     alertRegNumberExists: 'This register number already exists! Please use a different number.',
-    alertRegistrationSubmitted: 'Madrasa registration submitted! Waiting for Super Admin approval.',
+    alertRegistrationSubmitted: 'Institution registration submitted! Waiting for Super Admin approval.',
     alertSavedRegistrations: '✅ Saved! {count} program(s) registered for {studentName}',
     alertPleaseSelectStudent: 'Please select a student!',
     alertPleaseSelectProgStudent: 'Please select a program and student!',
@@ -255,21 +255,21 @@ const translations = {
 
   ML: {
     // ── Login Screen ──
-    appName: 'മീലാദ് ഫെസ്റ്റ്',
-    loginSubtitle: 'മദ്രസ ലോഗിൻ സിസ്റ്റം',
-    regNumberLabel: 'മദ്രസ രജിസ്റ്റർ നമ്പർ',
+    appName: 'FESTIVA',
+    loginSubtitle: 'സ്ഥാപന ലോഗിൻ സിസ്റ്റം',
+    regNumberLabel: 'സ്ഥാപന രജിസ്റ്റർ നമ്പർ',
     regNumberPlaceholder: 'രജിസ്റ്റർ നമ്പർ',
     passwordLabel: 'പാസ്‌വേഡ്',
     passwordPlaceholder: 'പാസ്‌വേഡ് നൽകുക',
     loginBtn: 'ലോഗിൻ',
     loggingIn: 'ലോഗിൻ ചെയ്യുന്നു...',
-    newMadrasaReg: '📝 പുതിയ മദ്രസ രജിസ്ട്രേഷൻ',
+    newMadrasaReg: '📝 പുതിയ സ്ഥാപന രജിസ്ട്രേഷൻ',
     adminControlPanel: 'Muhsin Mannani',
 
     // ── Register Form ──
-    newMadrasaTitle: '📝 പുതിയ മദ്രസ രജിസ്ട്രേഷൻ',
-    madrasaNameLabel: 'മദ്രസ പേര്',
-    madrasaNamePlaceholder: 'മദ്രസ പേര് നൽകുക',
+    newMadrasaTitle: '📝 പുതിയ സ്ഥാപന രജിസ്ട്രേഷൻ',
+    madrasaNameLabel: 'സ്ഥാപനത്തിന്റെ പേര്',
+    madrasaNamePlaceholder: 'സ്ഥാപനത്തിന്റെ പേര് നൽകുക',
     regNumLabel: 'രജിസ്റ്റർ നമ്പർ',
     regNumPlaceholder: 'രജിസ്റ്റർ നമ്പർ നൽകുക',
     locationLabel: 'സ്ഥലം',
@@ -468,11 +468,11 @@ const translations = {
 
     // Alert Messages
     alertPleaseFillDetails: 'ദയവായി എല്ലാ വിവരങ്ങളും പൂരിപ്പിക്കുക!',
-    alertMadrasaNotFound: 'മദ്രസ കണ്ടെത്താനായില്ല!',
-    alertMadrasaBlocked: 'നിങ്ങളുടെ മദ്രസ ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു! ദയവായി അഡ്മിനുമായി ബന്ധപ്പെടുക.',
+    alertMadrasaNotFound: 'സ്ഥാപനം കണ്ടെത്താനായില്ല!',
+    alertMadrasaBlocked: 'നിങ്ങളുടെ സ്ഥാപനം ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു! ദയവായി അഡ്മിനുമായി ബന്ധപ്പെടുക.',
     alertIncorrectPassword: 'തെറ്റായ പാസ്‌വേഡ്!',
     alertRegNumberExists: 'ഈ രജിസ്റ്റർ നമ്പർ നിലവിലുണ്ട്! ദയവായി മറ്റൊരു നമ്പർ ഉപയോഗിക്കുക.',
-    alertRegistrationSubmitted: 'മദ്രസ രജിസ്ട്രേഷൻ സമർപ്പിച്ചു! സൂപ്പർ അഡ്മിൻ അംഗീകാരത്തിനായി കാത്തിരിക്കുന്നു.',
+    alertRegistrationSubmitted: 'സ്ഥാപന രജിസ്ട്രേഷൻ സമർപ്പിച്ചു! സൂപ്പർ അഡ്മിൻ അംഗീകാരത്തിനായി കാത്തിരിക്കുന്നു.',
     alertSavedRegistrations: '✅ വിജയകരമായി സേവ് ചെയ്തു! {studentName} എന്ന വിദ്യാർത്ഥിക്ക് {count} പ്രോഗ്രാമുകൾ രജിസ്റ്റർ ചെയ്തിരിക്കുന്നു.',
     alertPleaseSelectStudent: 'ദയവായി ഒരു വിദ്യാർത്ഥിയെ തിരഞ്ഞെടുക്കുക!',
     alertPleaseSelectProgStudent: 'ദയവായി പ്രോഗ്രാമും വിദ്യാർത്ഥിയും തിരഞ്ഞെടുക്കുക!',
