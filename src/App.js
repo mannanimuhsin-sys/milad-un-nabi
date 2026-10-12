@@ -7817,32 +7817,60 @@ ${pagesHtml}
       {/* 📝 REGISTRATION FORM */}
       {currentScreen === 'REGISTER_FORM' && (
         <div className="executive-login-container">
+          {/* Floating Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            🌐 {lang === 'EN' ? 'മലയാളം' : 'English'}
+          </button>
+
           <div className="executive-login-card">
-            <h2>📝 New Madrasa Registration</h2>
+            <h2 style={{ color: '#ffffff', fontSize: '22px', fontWeight: '800', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '0.3px' }}>
+              {t('newMadrasaTitle')}
+            </h2>
             <form onSubmit={handleRegisterMadrasa} style={{ marginTop: '15px' }}>
               <div className="executive-form-group">
-                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Madrasa Name</label>
-                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Madrasa Name" value={regName} onChange={(e) => setRegName(e.target.value)} required />
+                <label style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{t('madrasaNameLabel')}</label>
+                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('madrasaNamePlaceholder')} value={regName} onChange={(e) => setRegName(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Register Number</label>
-                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Register Number" value={regNumber} onChange={(e) => setRegNumber(e.target.value)} required />
+                <label style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{t('regNumLabel')}</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('regNumPlaceholder')} value={regNumber} onChange={(e) => setRegNumber(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Location / Place</label>
-                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Enter Location" value={regPlace} onChange={(e) => setRegPlace(e.target.value)} required />
+                <label style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{t('locationLabel')}</label>
+                <input type="text" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('locationPlaceholder')} value={regPlace} onChange={(e) => setRegPlace(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Admin Password</label>
-                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Set Admin Password (numbers)" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required />
+                <label style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{t('adminPasswordLabel')}</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('adminPasswordPlaceholder')} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required />
               </div>
               <div className="executive-form-group">
-                <label style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>View Password</label>
-                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder="Set View Password (numbers)" value={viewPassword} onChange={(e) => setViewPassword(e.target.value)} required />
+                <label style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{t('viewPasswordLabel')}</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" className="executive-input" style={{ paddingLeft: '15px' }} placeholder={t('viewPasswordPlaceholder')} value={viewPassword} onChange={(e) => setViewPassword(e.target.value)} required />
               </div>
               <div className="flex-button-group">
-                <button type="submit" className="btn-executive-gold">Register</button>
-                <button type="button" onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">Cancel</button>
+                <button type="submit" className="btn-executive-gold">{t('registerBtn')}</button>
+                <button type="button" onClick={() => setCurrentScreen('LOGIN')} className="btn-executive-secondary">{t('cancelBtn')}</button>
               </div>
             </form>
           </div>

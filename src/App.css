@@ -63,6 +63,11 @@ body {
     border-radius: 20px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     z-index: 10;
+    color: var(--text-white);
+}
+
+.executive-login-card h2 {
+    color: var(--text-white);
 }
 
 .login-brand-section {
