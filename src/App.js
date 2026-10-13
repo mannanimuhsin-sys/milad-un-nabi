@@ -3409,8 +3409,18 @@ function App() {
         });
 
         if (matchedProg) {
+          // Skip GROUP-type programs here — they come through group_registrations path
+          const pType = String(matchedProg.type || matchedProg.prog_type || '').toUpperCase();
+          if (pType === 'GROUP' || pType === 'GRP') {
+            return; // skip — avoid duplicate with groupResults
+          }
           resolvedSingleProgs.push(matchedProg);
         } else if (rProgName || rProgId) {
+          // Also skip if the raw registration record itself indicates GROUP type
+          const rType = String(r.prog_type || r.program_type || r.type || '').toUpperCase();
+          if (rType === 'GROUP' || rType === 'GRP') {
+            return; // skip — group registrations handled separately
+          }
           resolvedSingleProgs.push({
             id: rProgId || rProgName,
             code: r.program_code || rProgId || '',
